@@ -156,3 +156,31 @@ async def test_restart_current_replays_from_zero(store: Store, sink: FakeSink) -
     assert sink.start_positions[-1] == 0
     assert state_of(store, a.id) is State.PLAYING
     task.cancel()
+
+
+async def test_current_position_is_live_while_playing(store: Store, sink: FakeSink) -> None:
+    controller = PlaybackController(store, sink)
+    a = make_ready(store, "a")
+    task = await start(controller)
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+    sink.advance_to(650)
+    assert controller.current_position_ms() == 650
+    task.cancel()
+
+
+async def test_current_position_uses_stored_ms_when_paused_after_restart(
+    store: Store, sink: FakeSink
+) -> None:
+    a = make_ready(store, "a")
+    store.transition(a.id, State.PLAYING)
+    store.transition(a.id, State.PAUSED, played_ms=400)
+    controller = PlaybackController(store, sink, held=True)
+    task = await start(controller)
+    await controller.resume()
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+    task.cancel()
+
+
+async def test_current_position_none_when_idle(store: Store, sink: FakeSink) -> None:
+    controller = PlaybackController(store, sink)
+    assert controller.current_position_ms() is None

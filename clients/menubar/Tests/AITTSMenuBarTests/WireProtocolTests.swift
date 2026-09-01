@@ -38,39 +38,71 @@ final class WireProtocolTests: XCTestCase {
     func testUtteranceParsesWireShape() {
         let utterance = Utterance(json: [
             "id": "utt_1", "text": "hello", "voice": "bm_daniel", "state": "Ready",
-            "duration_ms": 1200,
+            "duration_ms": 1200, "position_ms": 300, "finished_at": 1_756_700_000.5,
+            "source": "menubar",
         ])
         XCTAssertEqual(utterance?.id, "utt_1")
         XCTAssertEqual(utterance?.durationMs, 1200)
+        XCTAssertEqual(utterance?.positionMs, 300)
+        XCTAssertEqual(utterance?.finishedAt, 1_756_700_000.5)
+        XCTAssertEqual(utterance?.source, "menubar")
         XCTAssertNil(Utterance(json: ["id": "utt_2"]))
     }
 
-    func testStatusParsesWireShape() {
-        let status = DaemonStatus(json: [
-            "state": "playing",
-            "current": [
-                "id": "utt_1", "text": "hi", "voice": "v", "state": "Playing",
+    func testSnapshotParsesWireShape() {
+        let snapshot = Snapshot(json: [
+            "status": [
+                "state": "playing",
+                "current": [
+                    "id": "utt_1", "text": "hi", "voice": "v", "state": "Playing",
+                    "position_ms": 42,
+                ],
+                "counts": ["Queued": 2],
+                "voice": "bm_daniel",
+                "engine": "kokoro",
             ],
-            "counts": ["Queued": 2],
-            "voice": "bm_daniel",
+            "plan": [
+                ["id": "utt_1", "text": "hi", "voice": "v", "state": "Playing"],
+                ["id": "utt_2", "text": "next", "voice": "v", "state": "Queued"],
+            ],
+            "input": [["id": "utt_2", "text": "next", "voice": "v", "state": "Queued"]],
+            "history": [],
+            "voices": ["bm_daniel"],
+            "settings": ["voice": "bm_daniel", "speed": 1.25],
         ])
-        XCTAssertEqual(status?.state, "playing")
-        XCTAssertEqual(status?.current?.id, "utt_1")
-        XCTAssertEqual(status?.counts["Queued"], 2)
+        XCTAssertEqual(snapshot?.status.state, "playing")
+        XCTAssertEqual(snapshot?.status.current?.positionMs, 42)
+        XCTAssertEqual(snapshot?.plan.count, 2)
+        XCTAssertEqual(snapshot?.plan.last?.state, "Queued")
+        XCTAssertEqual(snapshot?.speed, 1.25)
+        XCTAssertEqual(snapshot?.status.engine, "kokoro")
     }
 
-    func testIconStatePrecedence() {
+    func testTrayStatePrecedence() {
+        XCTAssertEqual(TrayState.from(reachable: false, daemonState: "playing"), .error)
+        XCTAssertEqual(TrayState.from(reachable: true, daemonState: "playing"), .playing)
+        XCTAssertEqual(TrayState.from(reachable: true, daemonState: "paused"), .paused)
         XCTAssertEqual(
-            StatusController.symbolName(reachable: false, state: "playing"),
-            "exclamationmark.bubble")
-        XCTAssertEqual(
-            StatusController.symbolName(reachable: true, state: "playing"), "waveform")
-        XCTAssertEqual(
-            StatusController.symbolName(reachable: true, state: "paused"), "pause.circle")
-        XCTAssertEqual(
-            StatusController.symbolName(reachable: true, state: "synthesizing"),
-            "ellipsis.bubble")
-        XCTAssertEqual(
-            StatusController.symbolName(reachable: true, state: "idle"), "bubble.left")
+            TrayState.from(reachable: true, daemonState: "synthesizing"), .synthesizing)
+        XCTAssertEqual(TrayState.from(reachable: true, daemonState: "idle"), .idle)
+        XCTAssertTrue(TrayState.playing.animates)
+        XCTAssertTrue(TrayState.synthesizing.animates)
+        XCTAssertFalse(TrayState.paused.animates)
+        XCTAssertFalse(TrayState.idle.animates)
+    }
+
+    func testTrayIconFramesAreTemplateAndDistinct() throws {
+        let idle = TrayIcon.frame(state: .idle)
+        let playing = TrayIcon.frame(state: .playing)
+        XCTAssertTrue(idle.isTemplate)
+        XCTAssertTrue(playing.isTemplate)
+        XCTAssertEqual(idle.size, TrayIcon.size)
+        let idleData = try XCTUnwrap(idle.tiffRepresentation)
+        let playingData = try XCTUnwrap(playing.tiffRepresentation)
+        XCTAssertNotEqual(idleData, playingData)
+        // Animation frames differ too: motion in the menu bar means work in flight.
+        let frame0 = try XCTUnwrap(TrayIcon.frame(state: .playing, phase: 0).tiffRepresentation)
+        let frame1 = try XCTUnwrap(TrayIcon.frame(state: .playing, phase: 1).tiffRepresentation)
+        XCTAssertNotEqual(frame0, frame1)
     }
 }

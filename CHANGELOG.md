@@ -32,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Daemon: `snapshot` op (status, both queues, merged plan order, history,
+  voices, settings in one request); live `position_ms` on the current
+  utterance in `status`; `finished_at` on history items.
+- Menu-bar app: custom template tray icon family drawn in code (outlined
+  idle; dots/bars animate only while synthesizing/playing); event-driven
+  refresh over a subscribe stream with reconnect; live progress with
+  elapsed/total clocks; Up Next shows waiting-for-synthesis items in true
+  plan order with hover actions (move to top, remove); History grouped by
+  day with fixed time column, expand-in-place, error text and skipped-at
+  detail; per-voice preview buttons in Settings; icon+label tab bar.
+
 ### Changed
 
 - Editorial pass over all documentation: restructured overused em-dash

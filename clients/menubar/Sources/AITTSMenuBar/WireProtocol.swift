@@ -19,8 +19,12 @@ struct Utterance: Identifiable, Equatable {
     let state: String
     let durationMs: Int?
     let playedMs: Int?
+    let positionMs: Int?
     let error: String?
     let finalState: String?
+    let source: String?
+    let enqueuedAt: Double?
+    let finishedAt: Double?
 
     init?(json: [String: Any]) {
         guard let id = json["id"] as? String,
@@ -34,8 +38,12 @@ struct Utterance: Identifiable, Equatable {
         self.state = state
         self.durationMs = json["duration_ms"] as? Int
         self.playedMs = json["played_ms"] as? Int
+        self.positionMs = json["position_ms"] as? Int
         self.error = json["error"] as? String
         self.finalState = json["final_state"] as? String
+        self.source = json["source"] as? String
+        self.enqueuedAt = json["enqueued_at"] as? Double
+        self.finishedAt = json["finished_at"] as? Double
     }
 }
 
@@ -44,6 +52,7 @@ struct DaemonStatus: Equatable {
     let current: Utterance?
     let counts: [String: Int]
     let voice: String
+    let engine: String
 
     init?(json: [String: Any]) {
         guard let state = json["state"] as? String else { return nil }
@@ -51,6 +60,35 @@ struct DaemonStatus: Equatable {
         self.current = (json["current"] as? [String: Any]).flatMap(Utterance.init(json:))
         self.counts = json["counts"] as? [String: Int] ?? [:]
         self.voice = json["voice"] as? String ?? ""
+        self.engine = json["engine"] as? String ?? ""
+    }
+}
+
+/// Everything the popover shows, from one `snapshot` request.
+struct Snapshot {
+    let status: DaemonStatus
+    let plan: [Utterance]
+    let input: [Utterance]
+    let history: [Utterance]
+    let voices: [String]
+    let speed: Double
+
+    init?(json: [String: Any]) {
+        guard let statusJson = json["status"] as? [String: Any],
+            let status = DaemonStatus(json: statusJson)
+        else { return nil }
+        self.status = status
+        self.plan = Self.items(json["plan"])
+        self.input = Self.items(json["input"])
+        self.history = Self.items(json["history"])
+        self.voices = json["voices"] as? [String] ?? []
+        let settings = json["settings"] as? [String: Any]
+        self.speed = settings?["speed"] as? Double ?? 1.0
+    }
+
+    private static func items(_ value: Any?) -> [Utterance] {
+        guard let rows = value as? [[String: Any]] else { return [] }
+        return rows.compactMap(Utterance.init(json:))
     }
 }
 

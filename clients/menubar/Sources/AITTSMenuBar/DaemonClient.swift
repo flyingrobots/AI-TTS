@@ -9,7 +9,7 @@ enum ClientError: Error {
     case unreachable(String)
 }
 
-final class DaemonClient {
+final class DaemonClient: Sendable {
     private let socketPath: String
 
     init(socketPath: String = WireProtocol.defaultSocketPath()) {
@@ -24,6 +24,35 @@ final class DaemonClient {
         try writeAll(fd, data)
         let line = try readLine(fd)
         return try WireProtocol.parseResponse(line)
+    }
+
+    /// Subscribe and block, invoking `onEvent` per event line, until the
+    /// connection drops or `shouldContinue` says stop. Call from a background
+    /// thread; reconnection is the caller's job.
+    func subscribe(shouldContinue: () -> Bool, onEvent: (Data) -> Void) throws {
+        let fd = try connect()
+        defer { close(fd) }
+        // Events can be minutes apart; do not let the receive timeout cut us off.
+        var timeout = timeval(tv_sec: 2, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        try writeAll(fd, WireProtocol.encode(["op": "subscribe"]))
+        var buffer = Data()
+        var chunk = [UInt8](repeating: 0, count: 65536)
+        while shouldContinue() {
+            let count = read(fd, &chunk, chunk.count)
+            if count == 0 { throw ClientError.unreachable("event stream closed") }
+            if count < 0 {
+                // EAGAIN from the 2s receive timeout: loop so shouldContinue is re-checked.
+                if errno == EAGAIN || errno == EWOULDBLOCK { continue }
+                throw ClientError.unreachable("event stream read failed")
+            }
+            buffer.append(contentsOf: chunk[0..<count])
+            while let newline = buffer.firstIndex(of: 0x0A) {
+                let line = buffer.prefix(upTo: newline)
+                buffer.removeSubrange(...newline)
+                if !line.isEmpty { onEvent(Data(line)) }
+            }
+        }
     }
 
     private func connect() throws -> Int32 {

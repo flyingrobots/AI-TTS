@@ -55,6 +55,7 @@ def _serialize(utt: Utterance, *, history: bool = False) -> dict[str, Any]:
     }
     if history:
         item["final_state"] = utt.state.value
+        item["finished_at"] = utt.state_changed_at
         item["audio_cached"] = bool(utt.audio_path is not None and Path(utt.audio_path).exists())
     return item
 
@@ -156,6 +157,7 @@ class Daemon:
             "cancel": self._op_cancel,
             "clear": self._op_clear,
             "status": self._op_status,
+            "snapshot": self._op_snapshot,
             "voices": self._op_voices,
             "settings": self._op_settings,
         }
@@ -361,13 +363,37 @@ class Daemon:
             state = "synthesizing"
         else:
             state = "idle"
+        current_item: dict[str, Any] | None = None
+        if current is not None:
+            current_item = _serialize(current)
+            current_item["position_ms"] = controller.current_position_ms()
         return {
             "ok": True,
             "state": state,
-            "current": _serialize(current) if current is not None else None,
+            "current": current_item,
             "counts": counts,
             "engine": self._engine.name,
             "voice": self._store.get_setting("voice", self._default_voice()),
+        }
+
+    async def _op_snapshot(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Everything the popover needs, in one request."""
+        status = await self._op_status({})
+        status.pop("ok", None)
+        history = await self._op_history({"limit": payload.get("limit", 50), "op": "history"})
+        settings = await self._op_settings({"op": "settings"})
+        playback = self._store.playback_queue()
+        pending = self._store.input_queue()
+        plan = sorted(playback + pending, key=lambda u: u.order_key)
+        return {
+            "ok": True,
+            "status": status,
+            "playback": [_serialize(u) for u in playback],
+            "input": [_serialize(u) for u in pending],
+            "plan": [_serialize(u) for u in plan],
+            "history": history["items"],
+            "voices": self._engine.list_voices(),
+            "settings": settings["settings"],
         }
 
     async def _op_voices(self, payload: dict[str, Any]) -> dict[str, Any]:

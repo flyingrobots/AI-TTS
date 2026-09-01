@@ -1,30 +1,54 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
 //
-// Observable daemon state for the popover. The tray is a thin client: it
-// polls status and the queues, and every action is one protocol op.
+// Observable daemon state for the popover. One `snapshot` request per refresh,
+// an event subscription so queue changes land instantly, and a light poll only
+// while the popover is open (it carries the live playback position).
 
 import Foundation
+
+/// A lock-guarded bool shared between the main actor and the event thread.
+final class AtomicFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+
+    func set(_ newValue: Bool) {
+        lock.lock()
+        value = newValue
+        lock.unlock()
+    }
+
+    func get() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+}
 
 @MainActor
 final class AppState: ObservableObject {
     @Published var status: DaemonStatus?
-    @Published var playbackQueue: [Utterance] = []
+    @Published var plan: [Utterance] = []
     @Published var inputQueue: [Utterance] = []
     @Published var history: [Utterance] = []
     @Published var voices: [String] = []
+    @Published var speed: Double = 1.0
     @Published var reachable = false
     @Published var lastError: String?
 
     private let client: DaemonClient
     private let queue = DispatchQueue(label: "aitts.client", qos: .userInitiated)
     private var timer: Timer?
+    private var eventThread: Thread?
+    private let eventsFlag = AtomicFlag()
 
     init(client: DaemonClient = DaemonClient()) {
         self.client = client
     }
 
-    func startPolling(interval: TimeInterval = 1.0) {
+    // MARK: - Refresh
+
+    func startPolling(interval: TimeInterval) {
         stopPolling()
         refresh()
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
@@ -41,28 +65,48 @@ final class AppState: ObservableObject {
 
     func refresh() {
         queue.async { [client] in
-            let status = (try? client.request(["op": "status"]))
-                .flatMap(DaemonStatus.init(json:))
-            let playback = Self.items(try? client.request(["op": "list", "queue": "playback"]))
-            let input = Self.items(try? client.request(["op": "list", "queue": "input"]))
-            let history = Self.items(try? client.request(["op": "history", "limit": 50]))
-            let voices =
-                (try? client.request(["op": "voices"]))?["voices"] as? [String] ?? []
+            let snapshot = (try? client.request(["op": "snapshot"]))
+                .flatMap(Snapshot.init(json:))
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.reachable = status != nil
-                self.status = status
-                self.playbackQueue = playback
-                self.inputQueue = input
-                self.history = history
-                if !voices.isEmpty { self.voices = voices }
+                self.reachable = snapshot != nil
+                guard let snapshot else {
+                    self.status = nil
+                    return
+                }
+                self.status = snapshot.status
+                self.plan = snapshot.plan
+                self.inputQueue = snapshot.input
+                self.history = snapshot.history
+                self.speed = snapshot.speed
+                if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
             }
         }
     }
 
-    private nonisolated static func items(_ response: [String: Any]?) -> [Utterance] {
-        guard let rows = response?["items"] as? [[String: Any]] else { return [] }
-        return rows.compactMap(Utterance.init(json:))
+    // MARK: - Event stream (instant refresh on any state change)
+
+    func startEventStream() {
+        guard !eventsFlag.get() else { return }
+        eventsFlag.set(true)
+        let client = self.client
+        let flag = eventsFlag
+        let thread = Thread { [weak self] in
+            while flag.get() {
+                try? client.subscribe(
+                    shouldContinue: { flag.get() },
+                    onEvent: { _ in
+                        Task { @MainActor [weak self] in self?.refresh() }
+                    }
+                )
+                // Daemon gone or stream dropped: reflect it, then retry.
+                Task { @MainActor [weak self] in self?.refresh() }
+                Thread.sleep(forTimeInterval: 2.0)
+            }
+        }
+        thread.name = "aitts.events"
+        thread.start()
+        eventThread = thread
     }
 
     // MARK: - Actions (fire, then refresh)
@@ -88,9 +132,20 @@ final class AppState: ObservableObject {
     func resume() { send(["op": "resume"]) }
     func skip() { send(["op": "skip"]) }
     func rewind() { send(["op": "rewind"]) }
-    func replay(_ id: String) { send(["op": "rewind", "to": id]) }
+    func playNow(_ id: String) { send(["op": "rewind", "to": id]) }
     func cancel(_ id: String) { send(["op": "cancel", "id": id]) }
     func setVoice(_ voice: String) { send(["op": "settings", "set": ["voice": voice]]) }
     func setSpeed(_ speed: Double) { send(["op": "settings", "set": ["speed": speed]]) }
-    func say(_ text: String) { send(["op": "submit", "text": text, "source": "menubar"]) }
+
+    func preview(_ voice: String) {
+        // A fixed, generated sentence: genuinely public text.
+        send([
+            "op": "submit",
+            "text": "Hello. This is the voice \(voice.replacingOccurrences(of: "_", with: " ")).",
+            "voice": voice,
+            "sensitivity": "public",
+            "priority": "urgent",
+            "source": "menubar-preview",
+        ])
+    }
 }

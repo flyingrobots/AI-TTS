@@ -234,6 +234,15 @@ class PlaybackController:
         """The utterance currently holding the device, if any."""
         return self._current_id
 
+    def current_position_ms(self) -> int | None:
+        """Live playhead position for the current utterance, if there is one."""
+        if self._current_id is None:
+            return None
+        if self._sink_active:
+            return self._sink.position_ms()
+        current = self._current()
+        return current.played_ms if current is not None else None
+
     def notify(self) -> None:
         """Tell the controller the plan may have changed."""
         self._wake.set()

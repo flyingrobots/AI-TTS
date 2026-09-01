@@ -12,7 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusController = StatusController(state: state)
-        state.startPolling(interval: 2.0)
+        state.startPolling(interval: 5.0)
+        state.startEventStream()
     }
 }
 

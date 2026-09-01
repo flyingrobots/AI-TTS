@@ -3,7 +3,7 @@
 //
 // The tray icon answers, without a click: is it doing anything, is sound
 // about to come out, did something break (ui-design.md §6). State precedence:
-// error > playing > paused > synthesizing > idle.
+// error > playing > paused > synthesizing > idle. Only working states animate.
 
 import AppKit
 import Combine
@@ -14,7 +14,10 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let state: AppState
-    private var cancellable: AnyCancellable?
+    private var cancellables: Set<AnyCancellable> = []
+    private var animationTimer: Timer?
+    private var phase = 0
+    private var trayState: TrayState = .error
 
     init(state: AppState) {
         self.state = state
@@ -31,30 +34,40 @@ final class StatusController: NSObject, NSPopoverDelegate {
             button.action = #selector(togglePopover(_:))
             button.target = self
         }
-        updateIcon()
-        cancellable = state.$status.sink { [weak self] _ in
-            Task { @MainActor in self?.updateIcon() }
+        applyState()
+        state.$status
+            .combineLatest(state.$reachable)
+            .sink { [weak self] _, _ in
+                Task { @MainActor in self?.applyState() }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyState() {
+        let newState = TrayState.from(
+            reachable: state.reachable, daemonState: state.status?.state)
+        guard newState != trayState else { return }
+        trayState = newState
+        phase = 0
+        render()
+        animationTimer?.invalidate()
+        animationTimer = nil
+        if newState.animates {
+            let timer = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.tick() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            animationTimer = timer
         }
     }
 
-    private func updateIcon() {
-        // SF Symbols stand in for the custom template icon in the mockups;
-        // one silhouette family, distinct interiors, template-rendered.
-        let symbol = Self.symbolName(reachable: state.reachable, state: state.status?.state)
-        let image = NSImage(
-            systemSymbolName: symbol, accessibilityDescription: "AI-TTS \(symbol)")
-        image?.isTemplate = true
-        statusItem.button?.image = image
+    private func tick() {
+        phase = (phase + 1) % TrayIcon.phases
+        render()
     }
 
-    nonisolated static func symbolName(reachable: Bool, state: String?) -> String {
-        guard reachable, let state else { return "exclamationmark.bubble" }
-        switch state {
-        case "playing": return "waveform"
-        case "paused": return "pause.circle"
-        case "synthesizing": return "ellipsis.bubble"
-        default: return "bubble.left"
-        }
+    private func render() {
+        statusItem.button?.image = TrayIcon.frame(state: trayState, phase: phase)
     }
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -68,6 +81,6 @@ final class StatusController: NSObject, NSPopoverDelegate {
     }
 
     nonisolated func popoverDidClose(_ notification: Notification) {
-        Task { @MainActor in self.state.startPolling(interval: 2.0) }
+        Task { @MainActor in self.state.startPolling(interval: 5.0) }
     }
 }

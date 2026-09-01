@@ -214,3 +214,65 @@ async def test_urgent_priority_jumps_the_plan(daemon: Daemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "list", "queue": "playback"})
     ids = [i["id"] for i in res["items"]]
     assert ids.index(urgent["id"]) < ids.index(normal["id"])
+
+
+async def test_status_streams_live_position_while_playing(tmp_path: Path) -> None:
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-"))
+    sink = FakeSink()  # manual: stays playing until told otherwise
+    d = Daemon(
+        home=tmp_path / "pos",
+        engine=FakeEngine(voices=["bm_daniel"]),
+        sink=sink,
+        socket_path=sock_dir / "d.sock",
+    )
+    await d.start()
+    try:
+        await rpc(d.socket_path, {"op": "submit", "text": "hello"})
+
+        async def playing() -> bool:
+            res = await rpc(d.socket_path, {"op": "status"})
+            return bool(res["state"] == "playing")
+
+        await wait_for_async(playing)
+        sink.advance_to(4321)
+        res = await rpc(d.socket_path, {"op": "status"})
+        assert res["current"]["position_ms"] == 4321
+    finally:
+        await d.stop()
+        shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+async def test_snapshot_returns_everything_in_one_request(daemon: Daemon) -> None:
+    res = await rpc(daemon.socket_path, {"op": "snapshot"})
+    assert res["ok"] is True
+    assert res["status"]["state"] in {"idle", "playing", "paused", "synthesizing"}
+    for key in ("playback", "input", "plan", "history", "voices", "settings"):
+        assert key in res
+    assert res["voices"] == ["bm_daniel", "af_bella"]
+    assert "voice" in res["settings"]
+
+
+async def test_history_items_carry_finished_at(daemon: Daemon) -> None:
+    sub = await rpc(daemon.socket_path, {"op": "submit", "text": "timed"})
+
+    async def played() -> bool:
+        res = await rpc(daemon.socket_path, {"op": "history"})
+        items: list[dict[str, Any]] = res["items"]
+        return any(i["id"] == sub["id"] for i in items)
+
+    await wait_for_async(played)
+    res = await rpc(daemon.socket_path, {"op": "history"})
+    item = next(i for i in res["items"] if i["id"] == sub["id"])
+    assert isinstance(item["finished_at"], float)
+    assert item["finished_at"] >= item["enqueued_at"]
+
+
+async def test_snapshot_plan_is_merged_in_plan_order(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    first = await rpc(daemon.socket_path, {"op": "submit", "text": "first"})
+    urgent = await rpc(daemon.socket_path, {"op": "submit", "text": "now", "priority": "urgent"})
+    res = await rpc(daemon.socket_path, {"op": "snapshot"})
+    ids = [i["id"] for i in res["plan"]]
+    assert urgent["id"] in ids
+    assert first["id"] in ids
+    assert ids.index(urgent["id"]) < ids.index(first["id"])
