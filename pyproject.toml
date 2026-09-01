@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-tts"
+version = "0.1.0"
+description = "Local speech daemon for macOS: agents submit text, one voice speaks at a time."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "James Ross" }]
+dependencies = [
+    "numpy>=1.26",
+    "sounddevice>=0.5",
+    "soundfile>=0.13",
+]
+
+[project.optional-dependencies]
+kokoro = ["kokoro>=0.9.4"]
+
+[project.scripts]
+ai-tts = "aitts.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.14",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "pytest-timeout>=2.3",
+    "ruff>=0.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aitts"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Mutually exclusive with D211 / D212 (one of each pair must be chosen).
+    "D203",
+    "D213",
+    # Conflict with the ruff formatter.
+    "COM812",
+    "ISC001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",     # pytest uses bare asserts
+    "D",        # test names are the documentation
+    "PLR2004",  # literal expectations are the point of a test
+    "SLF001",   # tests may reach into internals
+    "ANN401",   # fixtures may be Any-typed where pytest requires it
+    "ASYNC109", # test helpers take explicit timeouts by design
+    "ASYNC240", # trivial Path calls in tests do not block meaningfully
+    "TC001",    # runtime imports keep test tracebacks readable
+    "TC003",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src", "tests"]
+warn_unreachable = true
+warn_return_any = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[[tool.mypy.overrides]]
+module = ["sounddevice", "soundfile", "kokoro", "kokoro.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "-q --timeout=30"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
