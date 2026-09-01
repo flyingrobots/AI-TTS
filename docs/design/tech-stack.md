@@ -33,7 +33,9 @@ The seam between them is already load-bearing in the architecture: **nothing the
 | Packaging | `uv`, `pyproject.toml`, pinned lock | Single-user developer tool installed on its owner's machine, not a notarized `.pkg`. If distribution ever matters this reopens |
 | Lint / types / tests | `ruff` (all rules on), `mypy --strict`, `pytest` | House rule: maximal strictness, warnings promoted to errors |
 
-The one genuinely uncomfortable dependency is transitive: `misaki`'s English G2P can fall back to `espeak-ng`, which is **GPL-3.0**. The daemon calls it, if at all, as a separately installed program — the same mere-aggregation posture flagged for Piper in [engine-evaluation §2](engine-evaluation.md#2-local-models) — and it is never vendored, linked, or redistributed. Worth confirming during review that the fallback can be disabled outright, because the identifiers this tool speaks are heading for the pronunciation lexicon anyway ([architecture §8](architecture.md#8-the-engine-interface)).
+The one genuinely uncomfortable dependency is transitive, and it is worse than the Piper situation flagged in [engine-evaluation §2](engine-evaluation.md#2-local-models): `misaki`'s G2P fallback arrives via `espeakng-loader`, which **bundles `libespeak-ng.dylib` (GPL-3.0) and loads it into the Python process** — dynamic linking, not mere aggregation. Verified against the working install at `~/git/kokoro` (2026-09-01): the venv there holds `kokoro 0.9.4` and `misaki 0.9.4`, both Apache-2.0 by their own metadata, alongside `espeakng-loader 0.2.4` shipping the dylib inside the wheel. `torch` is 2.10.0 — so that machine is already running the exact reference path this document proposes.
+
+What keeps this survivable: GPL obligations attach on *distribution*, and this project distributes source that depends on `kokoro`, never a bundled environment containing the dylib. The hard rule that follows — **AI-TTS must never vendor, bundle, or redistribute its Python environment** — is recorded here so the packaging row above ("uv, not a notarized `.pkg`") reads as the licence boundary it is, not merely a convenience. Worth confirming during review whether the espeak fallback can be disabled outright, because the identifiers this tool speaks are heading for the pronunciation lexicon anyway ([architecture §8](architecture.md#8-the-engine-interface)).
 
 ## Menu-bar app: Swift 5.10+, SwiftUI in an AppKit shell
 
@@ -68,6 +70,6 @@ Tooling: Swift Package Manager, no Xcode project file if avoidable; `swiftlint` 
 
 ## What I could not establish
 
-- **Actual synthesis throughput of `kokoro` on PyTorch/MPS on the target machine.** Every performance figure inherited from the engine evaluation is `unverified`. Fix: a ten-line spike script, timed, before the queue design is validated against real numbers.
+- **Actual synthesis throughput of `kokoro` on PyTorch/MPS on the target machine.** Every performance figure inherited from the engine evaluation is `unverified`. Fix: a ten-line spike script against the environment that already exists at `~/git/kokoro`, timed, before the queue design is validated against real numbers.
 - **Whether `sounddevice` supports pause-and-resume at a sample offset cleanly on CoreAudio**, which within-utterance rewind ([architecture §10.1](architecture.md#10-open-questions-for-review)) would need. If it does not, the fallback is chunk-granular seeking, which is another argument for utterance-level rewind in v1.
-- **Whether `misaki` operates fully without espeak-ng present.** The dependency's own documentation is thin here. This is the licence question above wearing its practical clothes.
+- **Whether `misaki` operates fully without espeak-ng present.** The working install at `~/git/kokoro` has `espeakng-loader` present, so it demonstrates the path *with* the fallback, not without it. This is the licence question above wearing its practical clothes.
