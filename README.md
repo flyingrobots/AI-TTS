@@ -4,7 +4,7 @@ A local text-to-speech application for macOS, built for agents that talk.
 
 You send it text. It queues that text, synthesizes audio in the background with the model held warm in memory, and plays it back through a separate, strictly serialized queue that you control from the menu bar.
 
-> **Status: design.** No implementation exists yet. The documents under [`docs/design/`](docs/design/) are under review and nothing has been built. See [Project status](#project-status).
+> **Status: v0.1.0 — working.** The daemon, CLI, and menu-bar app are implemented and tested against the design under [`docs/design/`](docs/design/). See [Project status](#project-status) and [Using it](#using-it).
 
 ## Why
 
@@ -56,9 +56,48 @@ There is a third consequence that is not a software problem: **audio played duri
 
 These are stated at this level on purpose. **This repository is public**, so the design constraints belong here and the specifics of what has passed through the tool do not.
 
+## Using it
+
+```sh
+# install (Python 3.12+, uv)
+uv sync --all-extras
+
+# run the daemon (holds Kokoro-82M warm, owns the audio device)
+uv run ai-tts daemon
+
+# speak — exit 0 means "accepted onto the queue", nothing more
+uv run ai-tts say "Hello from an agent."
+
+# speak and know it was actually heard — exit 0 only for Played
+uv run ai-tts say "Deploy finished." --wait
+
+# transport and visibility
+uv run ai-tts pause | resume | skip | rewind
+uv run ai-tts list playback
+uv run ai-tts history
+uv run ai-tts settings --set voice=bm_daniel
+```
+
+Every response is JSON. Agents that want more than the CLI speak newline-delimited JSON directly to the Unix socket at `~/Library/Application Support/ai-tts/ai-tts.sock` — the protocol is in [`docs/design/architecture.md`](docs/design/architecture.md) §5, and the CLI is only a convenience over it.
+
+Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
+
+**Menu-bar app** (Swift):
+
+```sh
+cd clients/menubar && swift run
+```
+
+**Run the daemon at login** (launchd):
+
+```sh
+cp scripts/launchd/com.flyingrobots.ai-tts.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.flyingrobots.ai-tts.plist
+```
+
 ## Project status
 
-Design under review. Nothing is implemented, and no code should be written until the design documents are approved.
+v0.1.0. The daemon (Python 3.12, asyncio), the CLI client, the Kokoro-82M engine adapter, and a Swift menu-bar app are implemented, with the test suite encoding the design semantics: the state machine, strict serial in-order playback, fail-closed sensitivity, restart recovery, and truthful exit codes. The design documents remain the spec; where v1 diverges (utterance-level rather than within-utterance rewind, stock SwiftUI controls rather than the pixel mockups), the divergence is deliberate and noted in the code.
 
 ## Licence
 

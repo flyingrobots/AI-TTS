@@ -1,6 +1,6 @@
 # AI-TTS — Architecture
 
-**Status:** design, pre-implementation. No code exists yet and none should until this is reviewed.
+**Status:** implemented in v0.1.0 (`src/aitts/`). This document remains the spec; the test suite encodes its semantics.
 **Scope:** a local-first, single-user speech daemon that accepts text from many clients, synthesizes ahead of playback, and gives the user transport control over what is spoken.
 
 ---

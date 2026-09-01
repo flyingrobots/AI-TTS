@@ -1,6 +1,6 @@
 # Design documents
 
-Status: **draft for review**. Nothing in this directory is approved and no code should be written from any of it. This file is the index: what each document covers, the order to read them in, and every question that is still open.
+Status: **implemented in v0.1.0**. These documents were the pre-implementation spec and remain the reference; open questions below are still open where unanswered. This file is the index: what each document covers, the order to read them in, and every question that is still open.
 
 ## Scope
 
