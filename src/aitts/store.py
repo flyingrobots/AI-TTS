@@ -351,9 +351,7 @@ class Store:
 
     def get_setting(self, key: str, default: str) -> str:
         """Read a setting, falling back to ``default``."""
-        row = self._db.execute(
-            "SELECT value FROM settings WHERE key = ?", (key,)
-        ).fetchone()
+        row = self._db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
         return str(row["value"]) if row else default
 
     def set_setting(self, key: str, value: str) -> None:

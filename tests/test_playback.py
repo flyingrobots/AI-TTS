@@ -96,9 +96,7 @@ async def test_pause_and_resume(store: Store, sink: FakeSink) -> None:
     task.cancel()
 
 
-async def test_pause_holds_the_queue_not_just_the_utterance(
-    store: Store, sink: FakeSink
-) -> None:
+async def test_pause_holds_the_queue_not_just_the_utterance(store: Store, sink: FakeSink) -> None:
     controller = PlaybackController(store, sink)
     a = make_ready(store, "a")
     b = make_ready(store, "b")
@@ -122,9 +120,7 @@ async def test_terminal_head_is_passed_over(store: Store, sink: FakeSink) -> Non
     task.cancel()
 
 
-async def test_held_controller_starts_nothing_until_resume(
-    store: Store, sink: FakeSink
-) -> None:
+async def test_held_controller_starts_nothing_until_resume(store: Store, sink: FakeSink) -> None:
     a = make_ready(store, "a")
     controller = PlaybackController(store, sink, held=True)
     task = await start(controller)

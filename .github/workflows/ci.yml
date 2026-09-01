@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: lint, typecheck, test (Python)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Sync dependencies
+        run: uv sync --dev
+      - name: Ruff
+        run: uv run ruff check
+      - name: Ruff format
+        run: uv run ruff format --check
+      - name: Mypy
+        run: uv run mypy
+      - name: Pytest
+        run: uv run pytest
+
+  swift:
+    name: build and test (Swift menu-bar app)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: clients/menubar
+        run: swift build
+      - name: Test
+        working-directory: clients/menubar
+        run: swift test

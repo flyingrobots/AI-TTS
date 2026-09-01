@@ -50,9 +50,7 @@ class Priority(enum.StrEnum):
     URGENT = "urgent"
 
 
-TERMINAL: frozenset[State] = frozenset(
-    {State.PLAYED, State.SKIPPED, State.CANCELLED, State.FAILED}
-)
+TERMINAL: frozenset[State] = frozenset({State.PLAYED, State.SKIPPED, State.CANCELLED, State.FAILED})
 
 TRANSITIONS: Mapping[State, frozenset[State]] = MappingProxyType(
     {
@@ -60,9 +58,7 @@ TRANSITIONS: Mapping[State, frozenset[State]] = MappingProxyType(
         # Synthesizing -> Queued is the restart-recovery path (architecture §6):
         # unsynthesized text is not recoverable from anywhere else.
         State.QUEUED: frozenset({State.SYNTHESIZING, State.CANCELLED}),
-        State.SYNTHESIZING: frozenset(
-            {State.READY, State.FAILED, State.CANCELLED, State.QUEUED}
-        ),
+        State.SYNTHESIZING: frozenset({State.READY, State.FAILED, State.CANCELLED, State.QUEUED}),
         State.READY: frozenset({State.PLAYING, State.CANCELLED}),
         State.PLAYING: frozenset({State.PLAYED, State.PAUSED, State.SKIPPED}),
         State.PAUSED: frozenset({State.PLAYING, State.SKIPPED}),

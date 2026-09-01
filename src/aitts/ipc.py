@@ -102,9 +102,7 @@ class IPCServer:
                 if not line:
                     break
                 if len(line) > _MAX_LINE_BYTES:
-                    await self._reply(
-                        writer, _error("bad_request", "request line too large")
-                    )
+                    await self._reply(writer, _error("bad_request", "request line too large"))
                     continue
                 await self._handle_line(line, writer)
         finally:

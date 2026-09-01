@@ -58,21 +58,15 @@ async def test_say_wait_exits_zero_only_for_played(
     assert out["final_state"] == "Played"
 
 
-async def test_daemon_error_exits_one(
-    daemon: Daemon, capsys: pytest.CaptureFixture[str]
-) -> None:
+async def test_daemon_error_exits_one(daemon: Daemon, capsys: pytest.CaptureFixture[str]) -> None:
     code = await run_cli(daemon, "say", "hello", "--voice", "not_a_voice")
     assert code == EXIT_DAEMON_ERROR
     out = json.loads(capsys.readouterr().out)
     assert out["error"]["type"] == "bad_request"
 
 
-async def test_unreachable_exits_two(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    code = await asyncio.to_thread(
-        main, ["--socket", str(tmp_path / "nowhere.sock"), "status"]
-    )
+async def test_unreachable_exits_two(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    code = await asyncio.to_thread(main, ["--socket", str(tmp_path / "nowhere.sock"), "status"])
     assert code == EXIT_UNREACHABLE
     out = json.loads(capsys.readouterr().out)
     assert out["error"]["type"] == "unreachable"
@@ -89,9 +83,7 @@ async def test_status_and_transport_roundtrip(
     assert await run_cli(daemon, "resume") == EXIT_OK
 
 
-async def test_settings_set_roundtrip(
-    daemon: Daemon, capsys: pytest.CaptureFixture[str]
-) -> None:
+async def test_settings_set_roundtrip(daemon: Daemon, capsys: pytest.CaptureFixture[str]) -> None:
     code = await run_cli(daemon, "settings", "--set", "speed=1.25")
     assert code == EXIT_OK
     out = json.loads(capsys.readouterr().out)

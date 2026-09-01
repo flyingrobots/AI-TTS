@@ -46,9 +46,7 @@ class Engine(Protocol):
         ...
 
 
-def eligible_engine_names(
-    engines: Mapping[str, Engine], sensitivity: Sensitivity
-) -> list[str]:
+def eligible_engine_names(engines: Mapping[str, Engine], sensitivity: Sensitivity) -> list[str]:
     """Engines permitted to speak text of the given sensitivity.
 
     Only public text may leave the machine; internal and confidential text is

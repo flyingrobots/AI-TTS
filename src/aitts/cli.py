@@ -94,9 +94,7 @@ def _build_parser() -> argparse.ArgumentParser:
     clear.add_argument("queue", choices=["input", "playback"])
 
     settings = sub.add_parser("settings", help="read or change settings")
-    settings.add_argument(
-        "--set", action="append", default=[], metavar="KEY=VALUE", dest="updates"
-    )
+    settings.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="updates")
 
     daemon = sub.add_parser("daemon", help="run the daemon in the foreground")
     daemon.add_argument("--home", type=Path, default=None)
@@ -138,9 +136,7 @@ _PAYLOAD_BUILDERS: dict[str, Any] = {
     "history": _history_payload,
     "settings": _settings_payload,
     "list": lambda args: {"op": "list", "queue": args.queue},
-    "rewind": lambda args: (
-        {"op": "rewind", "to": args.to} if args.to else {"op": "rewind"}
-    ),
+    "rewind": lambda args: {"op": "rewind", "to": args.to} if args.to else {"op": "rewind"},
     "cancel": lambda args: {"op": "cancel", "id": args.id},
     "clear": lambda args: {"op": "clear", "queue": args.queue},
 }
@@ -178,9 +174,7 @@ def _run_client_command(args: argparse.Namespace) -> int:
 
 
 def _run_daemon(args: argparse.Namespace) -> int:
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     from aitts.daemon import Daemon  # noqa: PLC0415 - heavy import only for the daemon
     from aitts.playback import SoundDeviceSink  # noqa: PLC0415
 

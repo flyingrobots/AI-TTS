@@ -84,9 +84,7 @@ class FakeSink:
         self._position = position_ms
         self._ended = asyncio.Event()
         if self._auto_finish_ms is not None:
-            asyncio.get_running_loop().call_later(
-                self._auto_finish_ms / 1000, self.finish_current
-            )
+            asyncio.get_running_loop().call_later(self._auto_finish_ms / 1000, self.finish_current)
 
     def finish_current(self) -> None:
         """Simulate the audio reaching its natural end."""
@@ -245,11 +243,7 @@ class PlaybackController:
         while True:
             if self._current_id is None and not self.held:
                 nxt = self._store.next_pending()
-                if (
-                    nxt is not None
-                    and nxt.state is State.READY
-                    and nxt.audio_path is not None
-                ):
+                if nxt is not None and nxt.state is State.READY and nxt.audio_path is not None:
                     self._begin(nxt.id, Path(nxt.audio_path), position_ms=0)
                     continue
             self._wake.clear()
@@ -272,9 +266,7 @@ class PlaybackController:
             return
         current = self._store.get(utt_id)
         if current is not None and current.state is State.PLAYING:
-            self._store.transition(
-                utt_id, State.PLAYED, played_ms=current.duration_ms
-            )
+            self._store.transition(utt_id, State.PLAYED, played_ms=current.duration_ms)
         self._current_id = None
         self._sink_active = False
         self.notify()
@@ -290,9 +282,7 @@ class PlaybackController:
         current = self._current()
         if current is not None and current.state is State.PLAYING and self._sink_active:
             self._sink.pause()
-            self._store.transition(
-                current.id, State.PAUSED, played_ms=self._sink.position_ms()
-            )
+            self._store.transition(current.id, State.PAUSED, played_ms=self._sink.position_ms())
 
     async def resume(self) -> None:
         """Release the hold and continue (or adopt a restored paused utterance)."""
@@ -325,9 +315,7 @@ class PlaybackController:
         self.held = False
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
             self._cancel_watcher()
-            position = (
-                self._sink.position_ms() if self._sink_active else current.played_ms or 0
-            )
+            position = self._sink.position_ms() if self._sink_active else current.played_ms or 0
             if self._sink_active:
                 self._sink.stop()
                 self._sink_active = False

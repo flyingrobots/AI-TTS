@@ -1,0 +1,13 @@
+#!/bin/sh
+# Tests must pass locally before a push is accepted.
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-push: pytest"
+uv run pytest
+
+if [ -d clients/menubar ] && command -v swift >/dev/null 2>&1; then
+    echo "pre-push: swift build"
+    (cd clients/menubar && swift build --quiet)
+fi

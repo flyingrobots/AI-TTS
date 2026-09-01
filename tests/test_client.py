@@ -38,9 +38,7 @@ async def test_submit_and_wait_reaches_played(daemon: Daemon) -> None:
     client = Client(daemon.socket_path)
     response = await asyncio.to_thread(client.request, {"op": "submit", "text": "hi"})
     assert response["ok"] is True
-    final = await asyncio.to_thread(
-        client.wait_for_terminal, response["id"], timeout=10.0
-    )
+    final = await asyncio.to_thread(client.wait_for_terminal, response["id"], timeout=10.0)
     assert final == "Played"
 
 
@@ -48,9 +46,7 @@ async def test_wait_returns_immediately_for_already_terminal(daemon: Daemon) -> 
     client = Client(daemon.socket_path)
     response = await asyncio.to_thread(client.request, {"op": "submit", "text": "hi"})
     await asyncio.to_thread(client.wait_for_terminal, response["id"], timeout=10.0)
-    final = await asyncio.to_thread(
-        client.wait_for_terminal, response["id"], timeout=1.0
-    )
+    final = await asyncio.to_thread(client.wait_for_terminal, response["id"], timeout=1.0)
     assert final == "Played"
 
 

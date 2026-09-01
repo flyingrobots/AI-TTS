@@ -69,9 +69,7 @@ class Client:
         response: dict[str, Any] = json.loads(line)
         if not response.get("ok", False):
             error = response.get("error") or {}
-            raise DaemonError(
-                str(error.get("type", "internal")), str(error.get("message", ""))
-            )
+            raise DaemonError(str(error.get("type", "internal")), str(error.get("message", "")))
         return response
 
     @staticmethod
@@ -90,9 +88,7 @@ class Client:
             if b"\n" in chunk:
                 return b"".join(chunks).split(b"\n", 1)[0]
 
-    def events(
-        self, *, timeout: float | None = None
-    ) -> Generator[dict[str, Any], None, None]:
+    def events(self, *, timeout: float | None = None) -> Generator[dict[str, Any], None, None]:
         """Subscribe and yield state-change events until the connection closes.
 
         ``timeout`` bounds the wait for each event; None waits indefinitely.

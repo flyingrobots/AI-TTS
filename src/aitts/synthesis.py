@@ -30,9 +30,7 @@ log = logging.getLogger(__name__)
 class SynthesisPool:
     """Drains the input queue into rendered, cached audio."""
 
-    def __init__(
-        self, store: Store, engine: Engine, cache_dir: Path, *, workers: int = 2
-    ) -> None:
+    def __init__(self, store: Store, engine: Engine, cache_dir: Path, *, workers: int = 2) -> None:
         """Create a pool of ``workers`` synthesis workers over ``engine``."""
         self._store = store
         self._engine = engine

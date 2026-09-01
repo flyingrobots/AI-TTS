@@ -1,0 +1,17 @@
+#!/bin/sh
+# Lint must pass cleanly before a commit is accepted.
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: ruff"
+uv run ruff check
+
+echo "pre-commit: ruff format --check"
+uv run ruff format --check --quiet || {
+    echo "pre-commit: formatting differs; run 'uv run ruff format'" >&2
+    exit 1
+}
+
+echo "pre-commit: mypy"
+uv run mypy

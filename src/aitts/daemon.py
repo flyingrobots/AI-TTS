@@ -55,9 +55,7 @@ def _serialize(utt: Utterance, *, history: bool = False) -> dict[str, Any]:
     }
     if history:
         item["final_state"] = utt.state.value
-        item["audio_cached"] = bool(
-            utt.audio_path is not None and Path(utt.audio_path).exists()
-        )
+        item["audio_cached"] = bool(utt.audio_path is not None and Path(utt.audio_path).exists())
     return item
 
 
@@ -185,9 +183,7 @@ class Daemon:
             priority = Priority(payload.get("priority", "normal"))
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
-        voice = payload.get("voice") or self._store.get_setting(
-            "voice", self._default_voice()
-        )
+        voice = payload.get("voice") or self._store.get_setting("voice", self._default_voice())
         if voice not in self._engine.list_voices():
             msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
@@ -259,9 +255,7 @@ class Daemon:
             msg = "'limit' must be a positive integer"
             raise ApiError(BAD_REQUEST, msg)
         before = payload.get("before")
-        items = self._store.history(
-            limit=limit, before=before if isinstance(before, str) else None
-        )
+        items = self._store.history(limit=limit, before=before if isinstance(before, str) else None)
         return {"ok": True, "items": [_serialize(u, history=True) for u in items]}
 
     async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -356,9 +350,7 @@ class Daemon:
         del payload
         controller = self._require_controller()
         current = (
-            self._store.get(controller.current_id)
-            if controller.current_id is not None
-            else None
+            self._store.get(controller.current_id) if controller.current_id is not None else None
         )
         counts = self._store.counts()
         if current is not None and current.state is State.PLAYING:
@@ -417,9 +409,7 @@ class Daemon:
     def _transport_reply(self) -> dict[str, Any]:
         controller = self._require_controller()
         current = (
-            self._store.get(controller.current_id)
-            if controller.current_id is not None
-            else None
+            self._store.get(controller.current_id) if controller.current_id is not None else None
         )
         return {
             "ok": True,

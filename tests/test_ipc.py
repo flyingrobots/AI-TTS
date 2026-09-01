@@ -203,9 +203,7 @@ async def test_history_after_playback(daemon: Daemon) -> None:
 async def test_urgent_priority_jumps_the_plan(daemon: Daemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     normal = await rpc(daemon.socket_path, {"op": "submit", "text": "later"})
-    urgent = await rpc(
-        daemon.socket_path, {"op": "submit", "text": "now", "priority": "urgent"}
-    )
+    urgent = await rpc(daemon.socket_path, {"op": "submit", "text": "now", "priority": "urgent"})
 
     async def ordered() -> bool:
         res = await rpc(daemon.socket_path, {"op": "list", "queue": "playback"})
