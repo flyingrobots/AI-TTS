@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">AI-TTS menu bar popover — Settings</title>
+  <desc id="desc">A pushed settings subview reached from the gear in the header. Grouped cards for voice selection with four voices and per-voice preview, speech rate, output device and autoplay, and cached audio with a retention popup and a clear action.</desc>
+  <style>
+    svg{
+      --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
+      --sep:#E0E0E5;--edge:#D6D6DB;--hover:#F3F3F6;--track:#E3E3E9;
+      --fg:#16161A;--fg2:#6B6B73;--fg3:#9C9CA4;
+      --accent:#0A6CFF;--tint:#E7F0FF;--onaccent:#FFFFFF;
+      --ok:#1B8F45;--oktint:#E2F3E8;--warn:#B87400;--warntint:#FBEFD9;--err:#CC3325;--errtint:#FAE6E4;
+    }
+    @media (prefers-color-scheme:dark){svg{
+      --panel:#2C2C30;--sunken:#242428;--chip:#3A3A40;--seg:#212124;--segsel:#4A4A51;
+      --sep:#3C3C42;--edge:#1B1B1E;--hover:#35353B;--track:#3E3E45;
+      --fg:#F2F2F5;--fg2:#A2A2AA;--fg3:#75757E;
+      --accent:#4F9DFF;--tint:#20344F;--onaccent:#FFFFFF;
+      --ok:#45C46E;--oktint:#1C3A29;--warn:#DFA232;--warntint:#3A2E15;--err:#FF6E60;--errtint:#3F211E;
+    }}
+    .panel{fill:var(--panel)}.sunken{fill:var(--sunken)}.chip{fill:var(--chip)}
+    .seg{fill:var(--seg)}.segsel{fill:var(--segsel)}.sep{fill:var(--sep)}
+    .hover{fill:var(--hover)}.track{fill:var(--track)}
+    .acc{fill:var(--accent)}.tint{fill:var(--tint)}.onacc{fill:var(--onaccent)}
+    .ok{fill:var(--ok)}.oktint{fill:var(--oktint)}.warn{fill:var(--warn)}.warntint{fill:var(--warntint)}
+    .err{fill:var(--err)}.errtint{fill:var(--errtint)}
+    .t{fill:var(--fg)}.t2{fill:var(--fg2)}.t3{fill:var(--fg3)}
+    .eo{stroke:var(--edge)}.so2{stroke:var(--fg2)}.so3{stroke:var(--fg3)}
+    .soacc{stroke:var(--accent)}.sopanel{stroke:var(--panel)}
+    .nf{fill:none}
+  </style>
+  <g font-family="-apple-system, system-ui, sans-serif">
+
+    <rect class="panel eo" fill="#FFFFFF" stroke="#D6D6DB" x="4.5" y="14.5" width="359" height="479" rx="12"/>
+    <path class="panel" fill="#FFFFFF" d="M169 15.6 L180 4.2 L191 15.6 Z"/>
+    <path class="eo nf" fill="none" stroke="#D6D6DB" stroke-linecap="round" d="M170 14.5 L180 4.4 L190 14.5"/>
+
+    <!-- header: pushed subview -->
+    <path class="soacc nf" stroke="#0A6CFF" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M28 29.5 L22 35.5 L28 41.5"/>
+    <text class="t" fill="#16161A" x="40" y="40" font-size="13.5" font-weight="600">Settings</text>
+    <text class="acc" fill="#0A6CFF" x="348" y="39.5" font-size="11.5" font-weight="600" text-anchor="end">Done</text>
+    <rect class="sep" fill="#E0E0E5" x="4" y="58" width="360" height="1"/>
+    <rect class="track" fill="#E3E3E9" x="353" y="72" width="3" height="152" rx="1.5"/>
+
+    <!-- VOICE -->
+    <text class="t3" fill="#9C9CA4" x="20" y="82" font-size="10" font-weight="600" letter-spacing="0.7">VOICE</text>
+    <rect class="sunken" fill="#F4F4F7" x="20" y="90" width="328" height="140" rx="10"/>
+
+    <circle class="so3 nf" stroke="#9C9CA4" fill="none" stroke-width="1.4" cx="38" cy="107.5" r="7"/>
+    <text class="t" fill="#16161A" x="56" y="111.5" font-size="12">bf_alice</text>
+    <text class="t3" fill="#9C9CA4" x="132" y="111.5" font-size="10.5">British · female · crisp</text>
+    <circle class="chip" fill="#ECECF0" cx="330" cy="107.5" r="11"/>
+    <path class="t2" fill="#6B6B73" d="M334.5 107.5 L328 103.1 L328 111.9 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="56" y="125" width="292" height="1"/>
+
+    <circle class="so3 nf" stroke="#9C9CA4" fill="none" stroke-width="1.4" cx="38" cy="142.5" r="7"/>
+    <text class="t" fill="#16161A" x="56" y="146.5" font-size="12">af_bella</text>
+    <text class="t3" fill="#9C9CA4" x="132" y="146.5" font-size="10.5">American · female · bright</text>
+    <circle class="chip" fill="#ECECF0" cx="330" cy="142.5" r="11"/>
+    <path class="t2" fill="#6B6B73" d="M334.5 142.5 L328 138.1 L328 146.9 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="56" y="160" width="292" height="1"/>
+
+    <circle class="so3 nf" stroke="#9C9CA4" fill="none" stroke-width="1.4" cx="38" cy="177.5" r="7"/>
+    <text class="t" fill="#16161A" x="56" y="181.5" font-size="12">bf_isabella</text>
+    <text class="t3" fill="#9C9CA4" x="132" y="181.5" font-size="10.5">British · female · measured</text>
+    <circle class="chip" fill="#ECECF0" cx="330" cy="177.5" r="11"/>
+    <path class="t2" fill="#6B6B73" d="M334.5 177.5 L328 173.1 L328 181.9 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="56" y="195" width="292" height="1"/>
+
+    <circle class="acc" fill="#0A6CFF" cx="38" cy="212.5" r="7"/>
+    <circle class="onacc" fill="#FFFFFF" cx="38" cy="212.5" r="2.6"/>
+    <text class="t" fill="#16161A" x="56" y="216.5" font-size="12" font-weight="600">bm_daniel</text>
+    <text class="t3" fill="#9C9CA4" x="132" y="216.5" font-size="10.5">British · male · low, calm</text>
+    <circle class="chip" fill="#ECECF0" cx="330" cy="212.5" r="11"/>
+    <path class="t2" fill="#6B6B73" d="M334.5 212.5 L328 208.1 L328 216.9 Z"/>
+
+    <!-- SPEECH -->
+    <text class="t3" fill="#9C9CA4" x="20" y="252" font-size="10" font-weight="600" letter-spacing="0.7">SPEECH</text>
+    <rect class="sunken" fill="#F4F4F7" x="20" y="258" width="328" height="48" rx="10"/>
+    <text class="t" fill="#16161A" x="36" y="277" font-size="12">Speed</text>
+    <text class="t2" fill="#6B6B73" x="332" y="277" font-size="11" text-anchor="end">1.00×</text>
+    <rect class="track" fill="#E3E3E9" x="36" y="288" width="296" height="4" rx="2"/>
+    <rect class="acc" fill="#0A6CFF" x="36" y="288" width="99" height="4" rx="2"/>
+    <circle class="panel eo" fill="#FFFFFF" stroke="#D6D6DB" cx="135" cy="290" r="8"/>
+
+    <!-- OUTPUT -->
+    <text class="t3" fill="#9C9CA4" x="20" y="326" font-size="10" font-weight="600" letter-spacing="0.7">OUTPUT</text>
+    <rect class="sunken" fill="#F4F4F7" x="20" y="332" width="328" height="76" rx="10"/>
+    <text class="t" fill="#16161A" x="36" y="356" font-size="12">Output device</text>
+    <rect class="chip" fill="#ECECF0" x="180" y="341" width="152" height="22" rx="6"/>
+    <text class="t" fill="#16161A" x="188" y="356" font-size="10.5">MacBook Pro Speakers</text>
+    <path class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M317 350.5 L321 354.5 L325 350.5"/>
+    <rect class="sep" fill="#E0E0E5" x="36" y="370" width="296" height="1"/>
+    <text class="t" fill="#16161A" x="36" y="393" font-size="12">Autoplay new items</text>
+    <rect class="acc" fill="#0A6CFF" x="296" y="381" width="36" height="20" rx="10"/>
+    <circle class="onacc" fill="#FFFFFF" cx="322" cy="391" r="8"/>
+
+    <!-- STORAGE -->
+    <text class="t3" fill="#9C9CA4" x="20" y="428" font-size="10" font-weight="600" letter-spacing="0.7">STORAGE</text>
+    <rect class="sunken" fill="#F4F4F7" x="20" y="434" width="328" height="52" rx="10"/>
+    <text class="t" fill="#16161A" x="36" y="452" font-size="12">Cached audio</text>
+    <rect class="chip" fill="#ECECF0" x="236" y="438" width="96" height="20" rx="6"/>
+    <text class="t" fill="#16161A" x="243" y="452" font-size="10">Keep 30 days</text>
+    <path class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M319 446 L322.5 449.5 L326 446"/>
+    <rect class="track" fill="#E3E3E9" x="36" y="464" width="296" height="4" rx="2"/>
+    <rect class="acc" fill="#0A6CFF" x="36" y="464" width="62" height="4" rx="2"/>
+    <text class="t3" fill="#9C9CA4" x="36" y="481" font-size="10">412 MB of 2 GB</text>
+    <text class="err" fill="#CC3325" x="332" y="481" font-size="10.5" font-weight="600" text-anchor="end">Clear cache</text>
+  </g>
+</svg>

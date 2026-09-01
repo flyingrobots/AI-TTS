@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">AI-TTS menu bar popover — Playback queue (Up Next)</title>
+  <desc id="desc">The ordered speaking plan. The currently playing utterance is highlighted at the top with an inline progress bar. Five pending rows follow, each with a drag grip, a readiness line, and a duration. The third row is shown hovered, revealing play-now, move-to-top, and remove actions. A persistent mini transport is docked at the bottom.</desc>
+  <style>
+    svg{
+      --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
+      --sep:#E0E0E5;--edge:#D6D6DB;--hover:#F3F3F6;--track:#E3E3E9;
+      --fg:#16161A;--fg2:#6B6B73;--fg3:#9C9CA4;
+      --accent:#0A6CFF;--tint:#E7F0FF;--onaccent:#FFFFFF;
+      --ok:#1B8F45;--oktint:#E2F3E8;--warn:#B87400;--warntint:#FBEFD9;--err:#CC3325;--errtint:#FAE6E4;
+    }
+    @media (prefers-color-scheme:dark){svg{
+      --panel:#2C2C30;--sunken:#242428;--chip:#3A3A40;--seg:#212124;--segsel:#4A4A51;
+      --sep:#3C3C42;--edge:#1B1B1E;--hover:#35353B;--track:#3E3E45;
+      --fg:#F2F2F5;--fg2:#A2A2AA;--fg3:#75757E;
+      --accent:#4F9DFF;--tint:#20344F;--onaccent:#FFFFFF;
+      --ok:#45C46E;--oktint:#1C3A29;--warn:#DFA232;--warntint:#3A2E15;--err:#FF6E60;--errtint:#3F211E;
+    }}
+    .panel{fill:var(--panel)}.sunken{fill:var(--sunken)}.chip{fill:var(--chip)}
+    .seg{fill:var(--seg)}.segsel{fill:var(--segsel)}.sep{fill:var(--sep)}
+    .hover{fill:var(--hover)}.track{fill:var(--track)}
+    .acc{fill:var(--accent)}.tint{fill:var(--tint)}.onacc{fill:var(--onaccent)}
+    .ok{fill:var(--ok)}.oktint{fill:var(--oktint)}.warn{fill:var(--warn)}.warntint{fill:var(--warntint)}
+    .err{fill:var(--err)}.errtint{fill:var(--errtint)}
+    .t{fill:var(--fg)}.t2{fill:var(--fg2)}.t3{fill:var(--fg3)}
+    .eo{stroke:var(--edge)}.so2{stroke:var(--fg2)}.so3{stroke:var(--fg3)}
+    .soacc{stroke:var(--accent)}.sopanel{stroke:var(--panel)}
+    .nf{fill:none}
+  </style>
+  <g font-family="-apple-system, system-ui, sans-serif">
+
+    <rect class="panel eo" fill="#FFFFFF" stroke="#D6D6DB" x="4.5" y="14.5" width="359" height="479" rx="12"/>
+    <path class="panel" fill="#FFFFFF" d="M169 15.6 L180 4.2 L191 15.6 Z"/>
+    <path class="eo nf" fill="none" stroke="#D6D6DB" stroke-linecap="round" d="M170 14.5 L180 4.4 L190 14.5"/>
+
+    <text class="t" fill="#16161A" x="20" y="40" font-size="13.5" font-weight="600">AI-TTS</text>
+    <circle class="acc" fill="#0A6CFF" cx="76" cy="35.5" r="3.5"/>
+    <text class="t2" fill="#6B6B73" x="85" y="39.5" font-size="11">Speaking</text>
+    <g transform="translate(338,35)" stroke-width="2.2">
+      <circle class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.7" r="4"/>
+      <g class="so2 nf" stroke="#6B6B73" fill="none">
+        <path d="M0 -7.9V-5.5"/><path d="M0 5.5V7.9"/><path d="M-7.9 0H-5.5"/><path d="M5.5 0H7.9"/>
+        <path d="M-5.6 -5.6L-3.9 -3.9"/><path d="M3.9 3.9L5.6 5.6"/><path d="M5.6 -5.6L3.9 -3.9"/><path d="M-3.9 3.9L-5.6 5.6"/>
+      </g>
+    </g>
+
+    <rect class="seg" fill="#E9E9ED" x="20" y="64" width="328" height="28" rx="8"/>
+    <rect class="segsel eo" fill="#FFFFFF" stroke="#D6D6DB" x="104.5" y="66.5" width="77" height="23" rx="6"/>
+    <text class="t2" fill="#6B6B73" x="61" y="82" font-size="11" text-anchor="middle">Now Playing</text>
+    <text class="t" fill="#16161A" x="143" y="82" font-size="11" font-weight="600" text-anchor="middle">Up Next</text>
+    <text class="t2" fill="#6B6B73" x="225" y="82" font-size="11" text-anchor="middle">Synthesis</text>
+    <text class="t2" fill="#6B6B73" x="307" y="82" font-size="11" text-anchor="middle">History</text>
+
+    <text class="t2" fill="#6B6B73" x="20" y="119" font-size="11">6 in queue · 1m 43s remaining</text>
+    <text class="acc" fill="#0A6CFF" x="348" y="119" font-size="11" text-anchor="end">Clear queue</text>
+
+    <!-- currently playing row -->
+    <rect class="tint" fill="#E7F0FF" x="14" y="130" width="340" height="58" rx="8"/>
+    <rect class="acc" fill="#0A6CFF" x="14" y="130" width="3.5" height="58" rx="1.75"/>
+    <text class="acc" fill="#0A6CFF" x="28" y="148" font-size="9.5" font-weight="600" letter-spacing="0.7">NOW PLAYING</text>
+    <text class="t2" fill="#6B6B73" x="342" y="148" font-size="10" text-anchor="end">0:11 / 0:29</text>
+    <text class="t" fill="#16161A" x="28" y="167" font-size="12">All 41 tests pass. The cache-eviction r…</text>
+    <rect class="track" fill="#E3E3E9" x="28" y="176" width="314" height="3" rx="1.5"/>
+    <rect class="acc" fill="#0A6CFF" x="28" y="176" width="120" height="3" rx="1.5"/>
+
+    <!-- row 1 -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="216" r="1.2"/><circle cx="27" cy="216" r="1.2"/><circle cx="22" cy="221" r="1.2"/><circle cx="27" cy="221" r="1.2"/><circle cx="22" cy="226" r="1.2"/><circle cx="27" cy="226" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="218" font-size="12">Dependency audit finished: no advisorie…</text>
+    <text class="t3" fill="#9C9CA4" x="40" y="233" font-size="10">ready · from claude-code · 2:40 PM</text>
+    <text class="t2" fill="#6B6B73" x="348" y="223" font-size="11" text-anchor="end">0:22</text>
+    <rect class="sep" fill="#E0E0E5" x="40" y="245" width="308" height="1"/>
+
+    <!-- row 2 -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="266" r="1.2"/><circle cx="27" cy="266" r="1.2"/><circle cx="22" cy="271" r="1.2"/><circle cx="27" cy="271" r="1.2"/><circle cx="22" cy="276" r="1.2"/><circle cx="27" cy="276" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="268" font-size="12">Reminder: the design review starts in t…</text>
+    <text class="t3" fill="#9C9CA4" x="40" y="283" font-size="10">ready · from calendar-watch · 2:40 PM</text>
+    <text class="t2" fill="#6B6B73" x="348" y="273" font-size="11" text-anchor="end">0:09</text>
+    <rect class="sep" fill="#E0E0E5" x="40" y="295" width="308" height="1"/>
+
+    <!-- row 3, hovered: per-row actions revealed -->
+    <rect class="hover" fill="#F3F3F6" x="14" y="296" width="340" height="50" rx="8"/>
+    <g class="t2" fill="#6B6B73"><circle cx="22" cy="316" r="1.2"/><circle cx="27" cy="316" r="1.2"/><circle cx="22" cy="321" r="1.2"/><circle cx="27" cy="321" r="1.2"/><circle cx="22" cy="326" r="1.2"/><circle cx="27" cy="326" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="318" font-size="12">Draft release notes are writte…</text>
+    <text class="t3" fill="#9C9CA4" x="40" y="333" font-size="10">ready · from claude-code · 2:41 PM</text>
+
+    <circle class="chip" fill="#ECECF0" cx="270" cy="321" r="12"/>
+    <path class="t" fill="#16161A" d="M275 321 L267 316.4 L267 325.6 Z"/>
+    <circle class="chip" fill="#ECECF0" cx="302" cy="321" r="12"/>
+    <g class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M296 315.5 H308"/><path d="M302 327 V318.5"/><path d="M298.4 322 L302 318.4 L305.6 322"/>
+    </g>
+    <circle class="chip" fill="#ECECF0" cx="334" cy="321" r="12"/>
+    <g class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.6" stroke-linecap="round">
+      <path d="M330 317 L338 325"/><path d="M338 317 L330 325"/>
+    </g>
+    <rect class="sep" fill="#E0E0E5" x="40" y="345" width="308" height="1"/>
+
+    <!-- row 4: scheduled but still generating -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="366" r="1.2"/><circle cx="27" cy="366" r="1.2"/><circle cx="22" cy="371" r="1.2"/><circle cx="27" cy="371" r="1.2"/><circle cx="22" cy="376" r="1.2"/><circle cx="27" cy="376" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="368" font-size="12">Deploy check complete. The staging rollo…</text>
+    <text class="warn" fill="#B87400" x="40" y="383" font-size="10">generating · 62% · ready in about 7s</text>
+    <text class="t3" fill="#9C9CA4" x="348" y="373" font-size="11" text-anchor="end">~0:31</text>
+    <rect class="sep" fill="#E0E0E5" x="40" y="395" width="308" height="1"/>
+
+    <!-- row 5: not yet synthesized -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="416" r="1.2"/><circle cx="27" cy="416" r="1.2"/><circle cx="22" cy="421" r="1.2"/><circle cx="27" cy="421" r="1.2"/><circle cx="22" cy="426" r="1.2"/><circle cx="27" cy="426" r="1.2"/></g>
+    <text class="t2" fill="#6B6B73" x="40" y="418" font-size="12">The platform sync moves to 3:30 in the …</text>
+    <text class="t3" fill="#9C9CA4" x="40" y="433" font-size="10">waiting for synthesis · position 2</text>
+    <text class="t3" fill="#9C9CA4" x="348" y="423" font-size="11" text-anchor="end">—</text>
+
+    <!-- docked mini transport -->
+    <rect class="sep" fill="#E0E0E5" x="4" y="446" width="360" height="1"/>
+    <circle class="acc" fill="#0A6CFF" cx="36" cy="470" r="15"/>
+    <g class="onacc" fill="#FFFFFF">
+      <rect x="31.6" y="463.5" width="3.6" height="13" rx="1.3"/>
+      <rect x="36.8" y="463.5" width="3.6" height="13" rx="1.3"/>
+    </g>
+    <text class="t" fill="#16161A" x="60" y="466" font-size="11.5">All 41 tests pass. The cache-ev…</text>
+    <rect class="track" fill="#E3E3E9" x="60" y="475" width="200" height="3" rx="1.5"/>
+    <rect class="acc" fill="#0A6CFF" x="60" y="475" width="76" height="3" rx="1.5"/>
+    <text class="t3" fill="#9C9CA4" x="268" y="478.5" font-size="9.5">0:11 / 0:29</text>
+    <g class="t" fill="#16161A">
+      <path d="M334 470 L326 464.5 L326 475.5 Z"/>
+      <rect x="335.4" y="464.5" width="2.4" height="11" rx="1.2"/>
+    </g>
+  </g>
+</svg>

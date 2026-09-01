@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">AI-TTS menu bar popover — Synthesis queue</title>
+  <desc id="desc">The input queue. One utterance is generating with a determinate progress bar, two are waiting with their queue positions, three have completed this session, one of which failed with a retry action. A footer reports that the voice model is hot.</desc>
+  <style>
+    svg{
+      --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
+      --sep:#E0E0E5;--edge:#D6D6DB;--hover:#F3F3F6;--track:#E3E3E9;
+      --fg:#16161A;--fg2:#6B6B73;--fg3:#9C9CA4;
+      --accent:#0A6CFF;--tint:#E7F0FF;--onaccent:#FFFFFF;
+      --ok:#1B8F45;--oktint:#E2F3E8;--warn:#B87400;--warntint:#FBEFD9;--err:#CC3325;--errtint:#FAE6E4;
+    }
+    @media (prefers-color-scheme:dark){svg{
+      --panel:#2C2C30;--sunken:#242428;--chip:#3A3A40;--seg:#212124;--segsel:#4A4A51;
+      --sep:#3C3C42;--edge:#1B1B1E;--hover:#35353B;--track:#3E3E45;
+      --fg:#F2F2F5;--fg2:#A2A2AA;--fg3:#75757E;
+      --accent:#4F9DFF;--tint:#20344F;--onaccent:#FFFFFF;
+      --ok:#45C46E;--oktint:#1C3A29;--warn:#DFA232;--warntint:#3A2E15;--err:#FF6E60;--errtint:#3F211E;
+    }}
+    .panel{fill:var(--panel)}.sunken{fill:var(--sunken)}.chip{fill:var(--chip)}
+    .seg{fill:var(--seg)}.segsel{fill:var(--segsel)}.sep{fill:var(--sep)}
+    .hover{fill:var(--hover)}.track{fill:var(--track)}
+    .acc{fill:var(--accent)}.tint{fill:var(--tint)}.onacc{fill:var(--onaccent)}
+    .ok{fill:var(--ok)}.oktint{fill:var(--oktint)}.warn{fill:var(--warn)}.warntint{fill:var(--warntint)}
+    .err{fill:var(--err)}.errtint{fill:var(--errtint)}
+    .t{fill:var(--fg)}.t2{fill:var(--fg2)}.t3{fill:var(--fg3)}
+    .eo{stroke:var(--edge)}.so2{stroke:var(--fg2)}.so3{stroke:var(--fg3)}
+    .soacc{stroke:var(--accent)}.sopanel{stroke:var(--panel)}
+    .nf{fill:none}
+  </style>
+  <g font-family="-apple-system, system-ui, sans-serif">
+
+    <rect class="panel eo" fill="#FFFFFF" stroke="#D6D6DB" x="4.5" y="14.5" width="359" height="479" rx="12"/>
+    <path class="panel" fill="#FFFFFF" d="M169 15.6 L180 4.2 L191 15.6 Z"/>
+    <path class="eo nf" fill="none" stroke="#D6D6DB" stroke-linecap="round" d="M170 14.5 L180 4.4 L190 14.5"/>
+
+    <text class="t" fill="#16161A" x="20" y="40" font-size="13.5" font-weight="600">AI-TTS</text>
+    <circle class="acc" fill="#0A6CFF" cx="76" cy="35.5" r="3.5"/>
+    <text class="t2" fill="#6B6B73" x="85" y="39.5" font-size="11">Speaking</text>
+    <g transform="translate(338,35)" stroke-width="2.2">
+      <circle class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.7" r="4"/>
+      <g class="so2 nf" stroke="#6B6B73" fill="none">
+        <path d="M0 -7.9V-5.5"/><path d="M0 5.5V7.9"/><path d="M-7.9 0H-5.5"/><path d="M5.5 0H7.9"/>
+        <path d="M-5.6 -5.6L-3.9 -3.9"/><path d="M3.9 3.9L5.6 5.6"/><path d="M5.6 -5.6L3.9 -3.9"/><path d="M-3.9 3.9L-5.6 5.6"/>
+      </g>
+    </g>
+
+    <rect class="seg" fill="#E9E9ED" x="20" y="64" width="328" height="28" rx="8"/>
+    <rect class="segsel eo" fill="#FFFFFF" stroke="#D6D6DB" x="186.5" y="66.5" width="77" height="23" rx="6"/>
+    <text class="t2" fill="#6B6B73" x="61" y="82" font-size="11" text-anchor="middle">Now Playing</text>
+    <text class="t2" fill="#6B6B73" x="143" y="82" font-size="11" text-anchor="middle">Up Next</text>
+    <text class="t" fill="#16161A" x="225" y="82" font-size="11" font-weight="600" text-anchor="middle">Synthesis</text>
+    <text class="t2" fill="#6B6B73" x="307" y="82" font-size="11" text-anchor="middle">History</text>
+
+    <!-- toolbar -->
+    <text class="t2" fill="#6B6B73" x="20" y="119" font-size="11">6 items · about 42s of audio pending</text>
+    <rect class="chip" fill="#ECECF0" x="248" y="104" width="100" height="22" rx="7"/>
+    <text class="t" fill="#16161A" x="298" y="119" font-size="11" text-anchor="middle">Pause synthesis</text>
+
+    <!-- Row metadata convention: "N chars" is the length of the FULL untruncated
+         utterance, not the truncated string drawn in the row.
+         R1 77 chars = "Deploy check complete. The staging rollout is green across all three regions."
+         R2 52 chars = "The platform sync moves to 3:30 in the smaller room."
+         R3 53 chars = "The upgrade branch is still waiting on a green build." -->
+    <!-- R1 generating -->
+    <rect class="warntint" fill="#FBEFD9" x="284" y="139" width="64" height="18" rx="6"/>
+    <text class="warn" fill="#B87400" x="316" y="151.5" font-size="10" font-weight="600" text-anchor="middle">Generating</text>
+    <text class="t" fill="#16161A" x="20" y="150" font-size="12">Deploy check complete. The staging</text>
+    <text class="t" fill="#16161A" x="20" y="168" font-size="12">rollout is green across all three regions.</text>
+    <rect class="track" fill="#E3E3E9" x="20" y="180" width="296" height="4" rx="2"/>
+    <rect class="warn" fill="#B87400" x="20" y="180" width="184" height="4" rx="2"/>
+    <text class="warn" fill="#B87400" x="348" y="184" font-size="10.5" font-weight="600" text-anchor="end">62%</text>
+    <text class="t3" fill="#9C9CA4" x="20" y="197" font-size="10.5">about 7s left · 77 chars · bm_daniel</text>
+    <rect class="sep" fill="#E0E0E5" x="20" y="205" width="328" height="1"/>
+
+    <!-- R2 queued -->
+    <rect class="chip" fill="#ECECF0" x="300" y="213" width="48" height="18" rx="6"/>
+    <text class="t2" fill="#6B6B73" x="324" y="225.5" font-size="10" font-weight="600" text-anchor="middle">Queued</text>
+    <text class="t" fill="#16161A" x="20" y="224" font-size="12">The platform sync moves to 3:30 in the…</text>
+    <text class="t3" fill="#9C9CA4" x="20" y="240" font-size="10.5">queued 2:41 PM · 52 chars · position 2</text>
+    <rect class="sep" fill="#E0E0E5" x="20" y="251" width="328" height="1"/>
+
+    <!-- R3 queued -->
+    <rect class="chip" fill="#ECECF0" x="300" y="259" width="48" height="18" rx="6"/>
+    <text class="t2" fill="#6B6B73" x="324" y="271.5" font-size="10" font-weight="600" text-anchor="middle">Queued</text>
+    <text class="t" fill="#16161A" x="20" y="270" font-size="12">The upgrade branch is still waiting on…</text>
+    <text class="t3" fill="#9C9CA4" x="20" y="286" font-size="10.5">queued 2:41 PM · 53 chars · position 3</text>
+    <rect class="sep" fill="#E0E0E5" x="20" y="297" width="328" height="1"/>
+
+    <!-- section -->
+    <text class="t3" fill="#9C9CA4" x="20" y="315" font-size="10" font-weight="600" letter-spacing="0.7">COMPLETED THIS SESSION</text>
+    <text class="t3" fill="#9C9CA4" x="348" y="315" font-size="10" text-anchor="end">latest 3</text>
+
+    <!-- R4 ready -->
+    <rect class="oktint" fill="#E2F3E8" x="304" y="329" width="44" height="18" rx="6"/>
+    <text class="ok" fill="#1B8F45" x="326" y="341.5" font-size="10" font-weight="600" text-anchor="middle">Ready</text>
+    <text class="t" fill="#16161A" x="20" y="340" font-size="12">Dependency audit finished: no advisori…</text>
+    <text class="t3" fill="#9C9CA4" x="20" y="356" font-size="10.5">cached 2:40 PM · 0:22 · 214 KB</text>
+    <rect class="sep" fill="#E0E0E5" x="20" y="367" width="328" height="1"/>
+
+    <!-- R5 ready -->
+    <rect class="oktint" fill="#E2F3E8" x="304" y="375" width="44" height="18" rx="6"/>
+    <text class="ok" fill="#1B8F45" x="326" y="387.5" font-size="10" font-weight="600" text-anchor="middle">Ready</text>
+    <text class="t" fill="#16161A" x="20" y="386" font-size="12">Reminder: the design review starts in…</text>
+    <text class="t3" fill="#9C9CA4" x="20" y="402" font-size="10.5">cached 2:40 PM · 0:09 · 88 KB</text>
+    <rect class="sep" fill="#E0E0E5" x="20" y="413" width="328" height="1"/>
+
+    <!-- R6 failed -->
+    <rect class="errtint" fill="#FAE6E4" x="306" y="421" width="42" height="18" rx="6"/>
+    <text class="err" fill="#CC3325" x="327" y="433.5" font-size="10" font-weight="600" text-anchor="middle">Failed</text>
+    <text class="t" fill="#16161A" x="20" y="432" font-size="12">The onboarding doc is ready for review…</text>
+    <text class="err" fill="#CC3325" x="20" y="448" font-size="10.5">voice model timed out after 30s</text>
+    <text class="acc" fill="#0A6CFF" x="348" y="448" font-size="10.5" font-weight="600" text-anchor="end">Retry</text>
+
+    <!-- footer -->
+    <rect class="sep" fill="#E0E0E5" x="4" y="462" width="360" height="1"/>
+    <circle class="ok" fill="#1B8F45" cx="24" cy="477.5" r="3.5"/>
+    <text class="t2" fill="#6B6B73" x="34" y="481.5" font-size="10.5">Model hot · bm_daniel · 0.42× realtime</text>
+    <text class="err" fill="#CC3325" x="348" y="481.5" font-size="10.5" text-anchor="end">1 failed</text>
+  </g>
+</svg>

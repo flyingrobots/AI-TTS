@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">AI-TTS menu bar popover — History</title>
+  <desc id="desc">A searchable log of everything spoken, grouped by day. Each row shows the time it was spoken, the text, duration and voice, and a replay button. The first entry is long and truncated with an ellipsis. A persistent mini transport is docked at the bottom.</desc>
+  <style>
+    svg{
+      --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
+      --sep:#E0E0E5;--edge:#D6D6DB;--hover:#F3F3F6;--track:#E3E3E9;
+      --fg:#16161A;--fg2:#6B6B73;--fg3:#9C9CA4;
+      --accent:#0A6CFF;--tint:#E7F0FF;--onaccent:#FFFFFF;
+      --ok:#1B8F45;--oktint:#E2F3E8;--warn:#B87400;--warntint:#FBEFD9;--err:#CC3325;--errtint:#FAE6E4;
+    }
+    @media (prefers-color-scheme:dark){svg{
+      --panel:#2C2C30;--sunken:#242428;--chip:#3A3A40;--seg:#212124;--segsel:#4A4A51;
+      --sep:#3C3C42;--edge:#1B1B1E;--hover:#35353B;--track:#3E3E45;
+      --fg:#F2F2F5;--fg2:#A2A2AA;--fg3:#75757E;
+      --accent:#4F9DFF;--tint:#20344F;--onaccent:#FFFFFF;
+      --ok:#45C46E;--oktint:#1C3A29;--warn:#DFA232;--warntint:#3A2E15;--err:#FF6E60;--errtint:#3F211E;
+    }}
+    .panel{fill:var(--panel)}.sunken{fill:var(--sunken)}.chip{fill:var(--chip)}
+    .seg{fill:var(--seg)}.segsel{fill:var(--segsel)}.sep{fill:var(--sep)}
+    .hover{fill:var(--hover)}.track{fill:var(--track)}
+    .acc{fill:var(--accent)}.tint{fill:var(--tint)}.onacc{fill:var(--onaccent)}
+    .ok{fill:var(--ok)}.oktint{fill:var(--oktint)}.warn{fill:var(--warn)}.warntint{fill:var(--warntint)}
+    .err{fill:var(--err)}.errtint{fill:var(--errtint)}
+    .t{fill:var(--fg)}.t2{fill:var(--fg2)}.t3{fill:var(--fg3)}
+    .eo{stroke:var(--edge)}.so2{stroke:var(--fg2)}.so3{stroke:var(--fg3)}
+    .soacc{stroke:var(--accent)}.sopanel{stroke:var(--panel)}
+    .nf{fill:none}
+  </style>
+  <g font-family="-apple-system, system-ui, sans-serif">
+
+    <rect class="panel eo" fill="#FFFFFF" stroke="#D6D6DB" x="4.5" y="14.5" width="359" height="479" rx="12"/>
+    <path class="panel" fill="#FFFFFF" d="M169 15.6 L180 4.2 L191 15.6 Z"/>
+    <path class="eo nf" fill="none" stroke="#D6D6DB" stroke-linecap="round" d="M170 14.5 L180 4.4 L190 14.5"/>
+
+    <text class="t" fill="#16161A" x="20" y="40" font-size="13.5" font-weight="600">AI-TTS</text>
+    <circle class="acc" fill="#0A6CFF" cx="76" cy="35.5" r="3.5"/>
+    <text class="t2" fill="#6B6B73" x="85" y="39.5" font-size="11">Speaking</text>
+    <g transform="translate(338,35)" stroke-width="2.2">
+      <circle class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.7" r="4"/>
+      <g class="so2 nf" stroke="#6B6B73" fill="none">
+        <path d="M0 -7.9V-5.5"/><path d="M0 5.5V7.9"/><path d="M-7.9 0H-5.5"/><path d="M5.5 0H7.9"/>
+        <path d="M-5.6 -5.6L-3.9 -3.9"/><path d="M3.9 3.9L5.6 5.6"/><path d="M5.6 -5.6L3.9 -3.9"/><path d="M-3.9 3.9L-5.6 5.6"/>
+      </g>
+    </g>
+
+    <rect class="seg" fill="#E9E9ED" x="20" y="64" width="328" height="28" rx="8"/>
+    <rect class="segsel eo" fill="#FFFFFF" stroke="#D6D6DB" x="268.5" y="66.5" width="77" height="23" rx="6"/>
+    <text class="t2" fill="#6B6B73" x="61" y="82" font-size="11" text-anchor="middle">Now Playing</text>
+    <text class="t2" fill="#6B6B73" x="143" y="82" font-size="11" text-anchor="middle">Up Next</text>
+    <text class="t2" fill="#6B6B73" x="225" y="82" font-size="11" text-anchor="middle">Synthesis</text>
+    <text class="t" fill="#16161A" x="307" y="82" font-size="11" font-weight="600" text-anchor="middle">History</text>
+
+    <!-- search -->
+    <rect class="sunken eo" fill="#F4F4F7" stroke="#D6D6DB" x="20.5" y="100.5" width="327" height="27" rx="8"/>
+    <g class="so3 nf" stroke="#9C9CA4" fill="none" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="36" cy="112.6" r="4.6"/><path d="M39.6 116.2 L43 119.6"/>
+    </g>
+    <text class="t3" fill="#9C9CA4" x="52" y="118" font-size="12">Search everything spoken</text>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="147" font-size="10.5">Today · 34 spoken · 18m 42s of audio</text>
+    <text class="acc" fill="#0A6CFF" x="348" y="147" font-size="10.5" text-anchor="end">Export…</text>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="167" font-size="10" font-weight="600" letter-spacing="0.7">TODAY</text>
+
+    <!-- long entry, truncated -->
+    <text class="t3" fill="#9C9CA4" x="20" y="193" font-size="10.5">2:41 PM</text>
+    <text class="t" fill="#16161A" x="76" y="193" font-size="12">All 41 tests pass. The cache-</text>
+    <text class="t" fill="#16161A" x="76" y="209" font-size="12">eviction regression was a stale…</text>
+    <text class="t3" fill="#9C9CA4" x="76" y="226" font-size="10">0:29 · bm_daniel</text>
+    <circle class="chip" fill="#ECECF0" cx="328" cy="203" r="13"/>
+    <path class="t" fill="#16161A" d="M333 203 L325 198.4 L325 207.6 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="76" y="233" width="272" height="1"/>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="255" font-size="10.5">2:38 PM</text>
+    <text class="t" fill="#16161A" x="76" y="255" font-size="12">Index rebuild finished in 38 se…</text>
+    <text class="t3" fill="#9C9CA4" x="76" y="271" font-size="10">0:22 · bm_daniel</text>
+    <circle class="chip" fill="#ECECF0" cx="328" cy="258" r="13"/>
+    <path class="t" fill="#16161A" d="M333 258 L325 253.4 L325 262.6 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="76" y="281" width="272" height="1"/>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="303" font-size="10.5">2:31 PM</text>
+    <text class="t" fill="#16161A" x="76" y="303" font-size="12">Heads up: the staging certifica…</text>
+    <text class="t3" fill="#9C9CA4" x="76" y="319" font-size="10">0:09 · bm_daniel</text>
+    <circle class="chip" fill="#ECECF0" cx="328" cy="306" r="13"/>
+    <path class="t" fill="#16161A" d="M333 306 L325 301.4 L325 310.6 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="76" y="329" width="272" height="1"/>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="351" font-size="10.5">2:06 PM</text>
+    <text class="t" fill="#16161A" x="76" y="351" font-size="12">Backup verification passed. The…</text>
+    <text class="t3" fill="#9C9CA4" x="76" y="367" font-size="10">0:14 · bm_daniel · replayed 2×</text>
+    <circle class="chip" fill="#ECECF0" cx="328" cy="354" r="13"/>
+    <path class="t" fill="#16161A" d="M333 354 L325 349.4 L325 358.6 Z"/>
+    <rect class="sep" fill="#E0E0E5" x="76" y="377" width="272" height="1"/>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="395" font-size="10" font-weight="600" letter-spacing="0.7">YESTERDAY</text>
+
+    <text class="t3" fill="#9C9CA4" x="20" y="419" font-size="10.5">6:52 PM</text>
+    <text class="t" fill="#16161A" x="76" y="419" font-size="12">Nightly digest: 12 commits, 3 o…</text>
+    <text class="t3" fill="#9C9CA4" x="76" y="435" font-size="10">0:41 · bf_isabella</text>
+    <circle class="chip" fill="#ECECF0" cx="328" cy="422" r="13"/>
+    <path class="t" fill="#16161A" d="M333 422 L325 417.4 L325 426.6 Z"/>
+
+    <!-- docked mini transport -->
+    <rect class="sep" fill="#E0E0E5" x="4" y="446" width="360" height="1"/>
+    <circle class="acc" fill="#0A6CFF" cx="36" cy="470" r="15"/>
+    <g class="onacc" fill="#FFFFFF">
+      <rect x="31.6" y="463.5" width="3.6" height="13" rx="1.3"/>
+      <rect x="36.8" y="463.5" width="3.6" height="13" rx="1.3"/>
+    </g>
+    <text class="t" fill="#16161A" x="60" y="466" font-size="11.5">All 41 tests pass. The cache-ev…</text>
+    <rect class="track" fill="#E3E3E9" x="60" y="475" width="200" height="3" rx="1.5"/>
+    <rect class="acc" fill="#0A6CFF" x="60" y="475" width="76" height="3" rx="1.5"/>
+    <text class="t3" fill="#9C9CA4" x="268" y="478.5" font-size="9.5">0:11 / 0:29</text>
+    <g class="t" fill="#16161A">
+      <path d="M334 470 L326 464.5 L326 475.5 Z"/>
+      <rect x="335.4" y="464.5" width="2.4" height="11" rx="1.2"/>
+    </g>
+  </g>
+</svg>
