@@ -57,6 +57,22 @@ Every unresolved question across the set, in one list. The detail and the reason
 
 **Engine** — none open. The evaluation closed with a recommendation (keep Kokoro-82M, local only) and a list of conditions that would reopen it ([engine-evaluation §5](engine-evaluation.md#5-what-would-change-this-answer)).
 
+## How v0.1.0 answered these
+
+Positions taken at implementation time, each reversible and open to challenge:
+
+- **Skip (1)** abandons the current utterance and the next begins; history records `Skipped` with the position reached. The input queue is untouched.
+- **Rewind (2, 12)** is utterance-level: bare `rewind` restarts the current utterance; `rewind --to <id>` brings a previous one back to the head of the plan (a terminal one is replayed as a new utterance with `replay_of` set, reusing cached audio when it exists). No within-utterance N-second seek in v1.
+- **History (3, 4, 5, 16)** is permanent with no automatic expiry, searchable in the menu-bar app, replayable via `rewind --to`, records the submitting client (`source`), and lives in user-only files under `~/Library/Application Support/ai-tts/`. No encryption beyond file permissions.
+- **Synthesis (6, 7)** is entirely on-machine (only a local engine exists) and runs ahead of playback in N parallel workers.
+- **Voice change (8)** applies to utterances submitted after the change. An utterance's voice is stamped at submit and never re-resolved — this diverges from features 7.4 (a SHOULD) in favour of history that says what voice actually spoke.
+- **Ordering (9)** is strictly submission order; a later item that synthesizes first waits for the head.
+- **Views (10)** are distinct: Up Next (playback plan) and Queue (synthesis work) are separate tabs.
+- **Scope (11)** shipped the MUST set.
+- **Priority (13)** is `normal`/`urgent`; urgent inserts at the head of the plan and never interrupts what is being said. True barge-in remains unimplemented and off.
+- **Devices (14)** — one, the system default output.
+- **Content sniffing (15)** — none; fail-closed defaulting stands alone, as §10.5 leaned.
+
 ## What approval means
 
 Approving these documents authorizes implementation of the MUST set in [`features.md`](features.md) against the architecture as written. It does not settle the open questions above — any that remain unanswered at approval time get resolved as they are hit, and the resolution recorded back into the relevant document. The documents stay the spec until tests exist to take over that job.
