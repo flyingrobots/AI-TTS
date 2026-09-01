@@ -7,7 +7,7 @@
 
 ## 1. The problem, stated as failures
 
-This design is not speculative. The setup it replaces failed four ways in one evening, and **three of the four produced silence at exit code 0** — the worst possible failure shape, because every automated caller treats it as success.
+This design is not speculative. The setup it replaces failed four ways in one evening, and **three of the four produced silence at exit code 0**, the worst possible failure shape, because every automated caller treats it as success.
 
 | # | Failure | What the caller saw | What must be true instead |
 |---|---|---|---|
@@ -16,7 +16,7 @@ This design is not speculative. The setup it replaces failed four ways in one ev
 | **F3** | Shell timeout truncated playback mid-sentence | Partial audio, exit 0 | **The caller's process lifetime must not bound playback.** A daemon outlives its clients |
 | **F4** | Two utterances played simultaneously and overlapped | Garbled audio | **Playback is a strictly serialized resource.** Exactly one utterance may hold the output device |
 
-**F1–F3 share one root: the caller inferred outcome from a transport signal.** That is the same defect regardless of layer — an exit code, a hung socket, a dropped stream. The architecture's answer is that **a client never infers; it observes.** Submission and completion are different events with different identifiers, and the daemon will tell you the difference if you ask.
+**F1–F3 share one root: the caller inferred outcome from a transport signal.** That is the same defect regardless of layer: an exit code, a hung socket, a dropped stream. The architecture's answer is that **a client never infers; it observes.** Submission and completion are different events with different identifiers, and the daemon will tell you the difference if you ask.
 
 **F4 is different and simpler:** nothing owned the audio device. One component now does.
 
@@ -36,7 +36,7 @@ The single most important structural decision. **Synthesis and playback have opp
 
 **The payoff is that synthesis runs ahead of playback.** While utterance *n* is being spoken, *n+1* and *n+2* are already rendered and cached. The user hears no gap. If they were one queue, every utterance would pay full synthesis latency at the moment it was needed.
 
-**The cost is that they can diverge**, and the design must say what happens when they do — see §7.
+**The cost is that they can diverge**, and the design must say what happens when they do (§7).
 
 ---
 
@@ -71,8 +71,8 @@ stateDiagram-v2
 - **`Queued` vs `Ready`** is the whole reason for two queues. `Queued` is on the *input* queue; `Ready` is on the *playback* queue. An utterance is on exactly one at a time.
 - **`Failed` is terminal and observable.** F1 and F2 exist because failure was indistinguishable from success. A failed utterance stays in history with its error.
 - **`Skipped` and `Played` are different terminal states** and history must preserve which. "What did you tell me?" and "what did I actually hear?" are different questions.
-- **Sensitivity is assigned at `Submitted` and never changes.** It travels with the utterance through every state and is what §9's routing check reads. An utterance cannot be reclassified after submission — reclassification would mean the same id meant two different things at two times, and history would not be able to say which.
-- **`Paused` belongs to the utterance, not the queue** — pausing stops the current utterance; it does not clear what is behind it.
+- **Sensitivity is assigned at `Submitted` and never changes.** It travels with the utterance through every state and is what §9's routing check reads. An utterance cannot be reclassified after submission. Reclassification would mean the same id meant two different things at two times, and history would not be able to say which.
+- **`Paused` belongs to the utterance, not the queue.** Pausing stops the current utterance; it does not clear what is behind it.
 
 ---
 
@@ -144,7 +144,7 @@ graph TB
 
 ### Wire shape
 
-Newline-delimited JSON, request/response plus a subscription mode. Every response carries `ok` and, on failure, a typed `error` — **never an empty response that a client might read as success (F2).**
+Newline-delimited JSON, request/response plus a subscription mode. Every response carries `ok` and, on failure, a typed `error`, **never an empty response that a client might read as success (F2).**
 
 ```jsonc
 // submit — returns immediately with an id. THIS IS NOT "IT WAS SPOKEN".
@@ -199,9 +199,9 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 | Current position within an utterance | Yes, best-effort | Resume mid-sentence if the offset is known |
 | Audio cache | Yes, subject to eviction | |
 
-**A restored playback queue comes back `Paused`, never `Playing`.** A daemon that restarts and immediately begins speaking is a daemon that talks when nobody expects it — a worse failure than silence, because it happens in a room.
+**A restored playback queue comes back `Paused`, never `Playing`.** A daemon that restarts and immediately begins speaking is a daemon that talks when nobody expects it, a worse failure than silence, because it happens in a room.
 
-**Cache eviction:** audio for terminal utterances is evictable; audio for `Ready` utterances never is. Default policy LRU under a size cap (setting, default ~1 GB), **with history rows retained after their audio is evicted** — the text is the durable record, the audio is a cache. A history entry whose audio has been evicted is marked so, rather than failing on replay.
+**Cache eviction:** audio for terminal utterances is evictable; audio for `Ready` utterances never is. Default policy LRU under a size cap (setting, default ~1 GB), **with history rows retained after their audio is evicted**: the text is the durable record, the audio is a cache. A history entry whose audio has been evicted is marked so, rather than failing on replay.
 
 ---
 
@@ -211,11 +211,11 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 
 - **`pause`** — stops the current utterance, holds its position. **Synthesis continues.** Running ahead while paused is exactly right; the user will want the buffer full when they resume.
 - **`skip`** — current utterance → `Skipped`, next `Ready` utterance begins. **The input queue is untouched.** Skipping one thing is not a request to stop hearing everything.
-- **`rewind`** — either within the current utterance (`seconds`) or to a previous one (`to: utt_id`). **Rewinding to a played utterance replays from cache**; if evicted, it is re-synthesized. Rewind does not delete what was ahead of it — the queue is restored after the replayed item.
+- **`rewind`** — either within the current utterance (`seconds`) or to a previous one (`to: utt_id`). **Rewinding to a played utterance replays from cache**; if evicted, it is re-synthesized. Rewind does not delete what was ahead of it. The queue is restored after the replayed item.
 - **`cancel <id>`** — legal in `Queued`, `Synthesizing` and `Ready`. Cancelling a `Synthesizing` utterance signals the worker; the engine adapter may not support mid-generation abort, in which case the result is discarded on completion. **Cancel is not legal for a `Playing` utterance — that is `skip`**, and keeping them distinct keeps history honest about what happened.
 - **`clear`** — drains a named queue. **Requires naming which one.** There is no single "stop everything" that silently discards unsynthesized input.
 
-**Barge-in.** A high-priority submission (`priority: "urgent"`) may pause the current utterance and play ahead of the queue. **This is off by default** — an agent that can interrupt the user mid-sentence will do so at the wrong moment. When enabled, the interrupted utterance returns to `Ready` at the head of the queue, not to `Skipped`.
+**Barge-in.** A high-priority submission (`priority: "urgent"`) may pause the current utterance and play ahead of the queue. **This is off by default.** An agent that can interrupt the user mid-sentence will do so at the wrong moment. When enabled, the interrupted utterance returns to `Ready` at the head of the queue, not to `Skipped`.
 
 ---
 
@@ -235,14 +235,14 @@ warmup() -> None                                 # optional; called once at daem
 ```
 
 **What the interface demands of any candidate engine:**
-- **Voice enumeration**, so voice selection is a UI concern rather than a shell flag — which is the stated requirement.
+- **Voice enumeration**, so voice selection is a UI concern rather than a shell flag, which is the stated requirement.
 - **Deterministic output for identical input**, or the cache is unsound.
 - **A declared answer on streaming.** Streaming lowers time-to-first-audio for long text; an engine without it must chunk at sentence boundaries instead. **The daemon handles chunking, not the engine adapter**, so a non-streaming engine is not disqualified.
 - **An honest `cancel`.** Returning `false` is fine and is handled (§7). Lying about it is not.
 
 ### A pronunciation lexicon beats an engine swap
 
-**Engine-independent, and worth more than model selection for this workload.** The text this speaks is dense with `ABC-12345`, `featureflag`, `snake_case`, file paths and version strings — exactly what small TTS models mangle, and exactly what no engine change reliably fixes.
+**Engine-independent, and worth more than model selection for this workload.** The text this speaks is dense with `ABC-12345`, `featureflag`, `snake_case`, file paths and version strings: exactly what small TTS models mangle, and exactly what no engine change reliably fixes.
 
 **A user-editable pronunciation lexicon, applied by the daemon before text reaches any engine**, corrects more perceived quality than swapping models. It belongs in the daemon rather than the adapter for the same reason chunking does: it must work identically across engines, and it must survive an engine change.
 
@@ -260,7 +260,7 @@ An earlier draft of this section put the guard at the engine boundary: *a remote
 
 **An engine-level switch knows which engine is selected. It cannot tell a release note from an artifact audit.**
 
-The dangerous case is not someone maliciously enabling a cloud engine. It is **a cloud engine correctly enabled for public content, and then something confidential entering the same queue.** The engine-level guard is satisfied, returns true, and the leak happens anyway. **A guard that passes while the thing it guards against occurs is the same failure family as the four exit-0 silences in §1** — and this one is silent *and* irreversible, because text that reaches a third party cannot be recalled.
+The dangerous case is not someone maliciously enabling a cloud engine. It is **a cloud engine correctly enabled for public content, and then something confidential entering the same queue.** The engine-level guard is satisfied, returns true, and the leak happens anyway. **A guard that passes while the thing it guards against occurs is the same failure family as the four exit-0 silences in §1**, and this one is silent *and* irreversible, because text that reaches a third party cannot be recalled.
 
 **So sensitivity is a property of the utterance, carried from submission through to playback, and routing is decided from it.** The caller knows what the text is; the engine never can.
 
@@ -274,7 +274,7 @@ Every utterance carries a classification, assigned at submit and immutable there
 | `internal` | Not public, not client-identifying | local engines only |
 | `confidential` | **Default.** Client content, colleague or customer names, internal identifiers, access lists, file paths, anything from a working repository | **local engines only, always** |
 
-**Fail-closed by construction: an utterance submitted without a `sensitivity` field is `confidential`.** A caller cannot leak by forgetting; only by explicitly declaring text public. **That is the same move as §1's fix for F4** — not a rule people follow, but a default that makes the unsafe path require an affirmative act.
+**Fail-closed by construction: an utterance submitted without a `sensitivity` field is `confidential`.** A caller cannot leak by forgetting; only by explicitly declaring text public. **That is the same move as §1's fix for F4**: not a rule people follow, but a default that makes the unsafe path require an affirmative act.
 
 **The routing check happens before an engine is selected, not inside one.** An engine adapter is never asked to decide whether it may speak something; the daemon decides, and only offers the utterance to engines eligible for its class. `submit` returns `eligible_engines` so a caller can see the consequence of its own classification immediately rather than discovering it later.
 
@@ -283,7 +283,7 @@ Every utterance carries a classification, assigned at submit and immutable there
 ### The rest of the local-first posture
 
 - **Nothing leaves the machine by default.** No telemetry, no crash reporting, no update pings.
-- **A remote engine adapter remains possible, opt-in, and named at the point of configuration** — but it is now the *second* gate, not the only one.
+- **A remote engine adapter remains possible, opt-in, and named at the point of configuration**, but it is now the *second* gate, not the only one.
 - **The socket is `0600`**; the state DB and cache are user-only.
 - **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs an explicit delete, single entry and range, and that delete must remove the audio too.
 

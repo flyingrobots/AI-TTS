@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Editorial pass over all documentation: restructured overused em-dash
+  connectors into plain sentences and removed small repetitions. No claims,
+  decisions, or open questions changed.
+
 ### Added
 
 - Design documents under `docs/design/`: feature breakdown, architecture, engine

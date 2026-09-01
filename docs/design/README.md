@@ -1,12 +1,12 @@
 # Design documents
 
-Status: **draft for review**. Nothing in this directory is approved and no code should be written from any of it. This file is the index: what each document covers, the order to read them in, and every question that is still open, collected in one place.
+Status: **draft for review**. Nothing in this directory is approved and no code should be written from any of it. This file is the index: what each document covers, the order to read them in, and every question that is still open.
 
 ## Scope
 
 AI-TTS is a local-first, single-user speech daemon for macOS. Agents and scripts submit text; the daemon synthesizes audio ahead of playback with the model held warm, plays exactly one utterance at a time, and gives the user transport control from a menu-bar app. The design exists because the shell-script setup it replaces failed four ways in one evening, three of them silently at exit 0. Those failures are catalogued at the top of [`architecture.md`](architecture.md) and drive everything else.
 
-Out of scope for v1: multiple users, multiple machines, any network transport, and any cloud engine. The last is a confidentiality decision, not a deferral — see [`engine-evaluation.md`](engine-evaluation.md) §1.
+Out of scope for v1: multiple users, multiple machines, any network transport, and any cloud engine. The last is a confidentiality decision, not a deferral (see [`engine-evaluation.md`](engine-evaluation.md) §1).
 
 ## Reading order
 
@@ -18,11 +18,11 @@ Out of scope for v1: multiple users, multiple machines, any network transport, a
 | [`tech-stack.md`](tech-stack.md) | Language and framework choices, with the rejected options and why | architecture, engine-evaluation |
 | [`ui-design.md`](ui-design.md) | Interaction design for the menu-bar app, with mockups in [`mockups/`](mockups/) | features, architecture |
 
-`features.md` separates *what* from *how* and is the document to argue with first — if a feature falls out of it, the sections built on that feature fall with it.
+`features.md` separates *what* from *how* and is the document to argue with first. If a feature falls out of it, the sections built on that feature fall with it.
 
 ## Open questions
 
-Every unresolved question across the set, in one list. The detail and the reasoning live at the linked sections; this is only the ledger, so review can check items off in one place.
+Every unresolved question across the set, in one list. The detail and the reasoning live at the linked sections; this is only the ledger.
 
 **Transport semantics** — the two most important, because they are the controls that get pressed most:
 

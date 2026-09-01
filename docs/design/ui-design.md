@@ -6,7 +6,7 @@ All mockup content is invented. The utterances are the kind of thing an agent sa
 
 ## How to read the mockups
 
-Six SVGs live in [`mockups/`](mockups/). Panel views are drawn at the real proportions of a macOS menu bar popover: a 360 × 480 pt panel with a 12 pt corner radius and the small arrow that points at the tray icon, inside a 368 × 500 canvas so the arrow has room. Type sizes, hit targets and paddings are the numbers I would actually build to, not approximations — 11 pt for chrome, 12 pt for list rows, 13.5 pt for the utterance you are currently listening to.
+Six SVGs live in [`mockups/`](mockups/). Panel views are drawn at the real proportions of a macOS menu bar popover: a 360 × 480 pt panel with a 12 pt corner radius and the small arrow that points at the tray icon, inside a 368 × 500 canvas so the arrow has room. Type sizes, hit targets and paddings are the numbers I would actually build to, not approximations: 11 pt for chrome, 12 pt for list rows, 13.5 pt for the utterance you are currently listening to.
 
 ### Light and dark: one file per view, not two
 
@@ -34,9 +34,9 @@ The app owns **two queues and one plan**, and that distinction drives almost eve
 - The **synthesis queue** is a *work* queue. It answers "what is the machine busy with, and is it keeping up?" Its natural sort is by processing order, and its interesting facts are progress, cost and failure.
 - The **playback queue** is the *speaking plan*. It answers "what are you going to say to me, and in what order?" Its natural sort is the order you will hear things in, and its interesting facts are position and readiness.
 
-The same utterance appears in both, framed differently. This is why the playback queue shows items that have not been synthesized yet, marked `waiting for synthesis` — the brief asked to "view upcoming things you had to say", and the honest answer to that includes everything scheduled, not only the subset that happens to be cached. A playback queue that hides un-synthesized items would make the machine's internal scheduling visible as a gap in your plan, which is exactly backwards.
+The same utterance appears in both, framed differently. This is why the playback queue shows items that have not been synthesized yet, marked `waiting for synthesis`. The brief asked to "view upcoming things you had to say", and the honest answer to that includes everything scheduled, not only the subset that happens to be cached. A playback queue that hides un-synthesized items would make the machine's internal scheduling visible as a gap in your plan, which is exactly backwards.
 
-Playback is **strictly serialized**: one utterance at a time, never overlapping, no mixing. Synthesis is not — the model stays hot and generates ahead of playback, which is the whole point of splitting the queues.
+Playback is **strictly serialized**: one utterance at a time, never overlapping, no mixing. Synthesis is not. The model stays hot and generates ahead of playback, which is the whole point of splitting the queues.
 
 ---
 
@@ -48,7 +48,7 @@ Playback is **strictly serialized**: one utterance at a time, never overlapping,
 
 The utterance text is set at 13.5 pt — larger than any list row in the app — because when you open this panel mid-sentence you are usually trying to read the part you just missed. **Text already spoken is dimmed and text not yet spoken is at full contrast.** That is a cheap approximation of karaoke highlighting that needs only a character offset from the player, no forced alignment, and it turns the panel into a reading aid rather than a decoration.
 
-**Interactions.** Scrub by dragging the progress knob. Rewind, play/pause, skip (see [the interaction model](#the-interaction-model) for what rewind means). The `1.0×` chip cycles common speeds on click and opens the full slider on long-press. The speaker icon mutes without pausing — the queue keeps draining, which is what you want when someone walks up to your desk. The gear pushes [Settings](#5-settings). The two Up Next rows are a peek, not a list: ⌥-click plays one immediately, plain click opens the full queue.
+**Interactions.** Scrub by dragging the progress knob. Rewind, play/pause, skip (see [the interaction model](#the-interaction-model) for what rewind means). The `1.0×` chip cycles common speeds on click and opens the full slider on long-press. The speaker icon mutes without pausing; the queue keeps draining, which is what you want when someone walks up to your desk. The gear pushes [Settings](#5-settings). The two Up Next rows are a peek, not a list: ⌥-click plays one immediately, plain click opens the full queue.
 
 **Empty state.** Header status reads `Idle`. The utterance area is replaced by a single centred line — "Nothing to say right now" — with the last spoken item underneath as a dimmed row and a replay button, because the most common reason to open an idle panel is "what did it just say?". Below that, one line of instruction on how to send text. The transport controls are present but disabled, not removed; a control that disappears makes the panel feel like a different screen.
 
@@ -82,17 +82,17 @@ Completed items are pushed below a `COMPLETED THIS SESSION` divider rather than 
 
 **What it is for.** The order you are going to hear things in, and rearranging it.
 
-The currently playing item is row zero, highlighted with the accent tint and an accent bar, carrying its own inline progress — this is the Music.app pattern, where the up-next list highlights the current track while the player bar persists at the bottom. I kept the docked mini transport at the bottom of this view (and of History) so that pause is reachable from every tab without navigating back. The mild redundancy between the highlighted row and the dock is worth it; requiring a tab change to pause is not.
+The currently playing item is row zero, highlighted with the accent tint and an accent bar, carrying its own inline progress. This is the Music.app pattern, where the up-next list highlights the current track while the player bar persists at the bottom. I kept the docked mini transport at the bottom of this view (and of History) so that pause is reachable from every tab without navigating back. The mild redundancy between the highlighted row and the dock is worth it; requiring a tab change to pause is not.
 
 Per-row actions — play now, move to top, remove — appear **on hover** (row three is drawn in that state) rather than permanently. Four rows each showing three buttons turns a list you scan into a control panel you parse. Reordering is drag-and-drop via the grip; the grips are always visible because an affordance that only appears on hover is an affordance nobody discovers.
 
 Note rows four and five: an item mid-synthesis (`generating · 62%`) and an item not started (`waiting for synthesis`). They hold their position in the plan while the machine catches up.
 
-**Interactions.** Drag to reorder. Hover for actions. ⌥-click plays a row immediately, moving the current utterance back to position one rather than discarding it. `Clear queue` empties everything *after* the current utterance — it deliberately does not stop what is being said, because "stop talking" and "cancel the backlog" are different intentions and one control should not do both.
+**Interactions.** Drag to reorder. Hover for actions. ⌥-click plays a row immediately, moving the current utterance back to position one rather than discarding it. `Clear queue` empties everything *after* the current utterance. It deliberately does not stop what is being said, because "stop talking" and "cancel the backlog" are different intentions and one control should not do both.
 
 **Empty state.** "Nothing queued." with the currently playing item still shown above it if there is one, and a link to History. If nothing is playing either, the whole panel collapses to the same idle state as Now Playing.
 
-**Error state.** The interesting failure here is an item whose cached audio has gone — evicted by the retention policy, or deleted underneath us. The row shows `audio no longer cached` with a `Re-synthesize` action instead of a duration. The queue does not silently drop it, and it does not stall on it: if playback reaches such a row it re-synthesizes on demand and shows the generating state inline.
+**Error state.** The interesting failure here is an item whose cached audio has gone: evicted by the retention policy, or deleted underneath us. The row shows `audio no longer cached` with a `Re-synthesize` action instead of a duration. The queue does not silently drop it, and it does not stall on it: if playback reaches such a row it re-synthesizes on demand and shows the generating state inline.
 
 ---
 
@@ -102,11 +102,11 @@ Note rows four and five: an item mid-synthesis (`generating · 62%`) and an item
 
 **What it is for.** "It should all be there." History is the durable record of everything spoken, and it is the reason cached audio is worth keeping at all.
 
-Rows are grouped by day, timestamped in a fixed left column so the eye can scan times without reading text, and each carries a replay button. The first entry demonstrates truncation: two lines, then an ellipsis. Two lines is the cap — enough to identify an utterance, not enough for a long report to push everything else off screen. Clicking a row expands it to full text in place.
+Rows are grouped by day, timestamped in a fixed left column so the eye can scan times without reading text, and each carries a replay button. The first entry demonstrates truncation: two lines, then an ellipsis. Two lines is the cap: enough to identify an utterance, not enough for a long report to push everything else off screen. Clicking a row expands it to full text in place.
 
 Search is the primary control and sits at the top. This is a log that grows without bound; browsing it chronologically stops working within a week, and the actual use is "what did it tell me about the migration".
 
-**Interactions.** Search filters live across all days. Replay puts the utterance at the head of the playback queue rather than playing it over the top of what is speaking — playback stays serialized, always. Right-click gives copy text, reveal cached audio in Finder, and delete. `Export…` writes the visible (filtered) set as JSON or plain text.
+**Interactions.** Search filters live across all days. Replay puts the utterance at the head of the playback queue rather than playing it over the top of what is speaking. Playback stays serialized, always. Right-click gives copy text, reveal cached audio in Finder, and delete. `Export…` writes the visible (filtered) set as JSON or plain text.
 
 **Empty state.** Two different empties, and they must read differently. No history at all: "Nothing spoken yet" with the send instruction. No search results: "No matches for 'migration'" with a clear-search affordance and the total count so you know the store is not empty.
 
@@ -120,17 +120,17 @@ Search is the primary control and sits at the top. This is a log that grows with
 
 **What it is for.** The brief called out that voice selection should live in the app rather than being a shell flag, so this is a pushed subview reached from the gear, not a separate window. Everything here takes effect immediately; there is no Apply button, and `Done` only dismisses.
 
-Voices are **radio rows, not a dropdown**. There are four; a popup would hide three of them behind a click and hide the descriptors entirely. Each row carries a preview button, because a voice name is not a voice — `bf_isabella` versus `bf_alice` is unanswerable without hearing them, and the model is already hot, so a preview costs a fraction of a second.
+Voices are **radio rows, not a dropdown**. There are four; a popup would hide three of them behind a click and hide the descriptors entirely. Each row carries a preview button, because a voice name is not a voice: `bf_isabella` versus `bf_alice` is unanswerable without hearing them. The model is already hot, so a preview costs a fraction of a second.
 
 Speed is a slider with a numeric readout rather than presets, and it is labelled `1.00×` with two decimals to signal that it is continuous.
 
 Storage separates the two things that actually differ: text history is small and kept, cached audio is large and prunable. The retention popup and the usage bar sit together so that "keep 30 days" and "412 MB of 2 GB" can be read as one sentence. `Clear cache` is styled destructive; it never touches history text.
 
-**Interactions.** Select a voice, preview a voice, drag speed, pick an output device, toggle autoplay, set retention, clear the cache. The scroll indicator on the right edge is drawn deliberately — the content is slightly taller than the popover and I would rather show that honestly than shrink the type.
+**Interactions.** Select a voice, preview a voice, drag speed, pick an output device, toggle autoplay, set retention, clear the cache. The scroll indicator on the right edge is drawn deliberately. The content is slightly taller than the popover, and I would rather show that honestly than shrink the type.
 
 **Empty state.** None; a settings panel always has settings.
 
-**Error state.** Two inline, non-modal failures. A voice that fails to load shows the error on its own row and **selection reverts to the last working voice** — an app that ends up with no usable voice because you clicked the wrong radio is a broken app. A device that disappears is shown in the popup as "MacBook Pro Speakers (unavailable)" with automatic fallback to the system default, and a one-line note saying that fallback happened. Silently redirecting audio to a different speaker is how you say something out loud in a meeting.
+**Error state.** Two inline, non-modal failures. A voice that fails to load shows the error on its own row and **selection reverts to the last working voice**. An app that ends up with no usable voice because you clicked the wrong radio is a broken app. A device that disappears is shown in the popup as "MacBook Pro Speakers (unavailable)" with automatic fallback to the system default, and a one-line note saying that fallback happened. Silently redirecting audio to a different speaker is how you say something out loud in a meeting.
 
 ---
 
@@ -140,7 +140,7 @@ Storage separates the two things that actually differ: text history is small and
 
 Drawn as a proper **template image**: one colour plus alpha at 18 × 18 pt, so macOS tints it for light and dark bars, for the vibrancy behind it, and for the inverted look when the menu is open. The sheet shows all five states at 4× and at actual size in both bars.
 
-The family is **one container and five marks** — the speech bubble never changes, only what is inside it. That gives the set a single silhouette to recognise at 18 pt while keeping the states distinguishable by their interior.
+The family is **one container and five marks**: the speech bubble never changes, only what is inside it. That gives the set a single silhouette to recognise at 18 pt while keeping the states distinguishable by their interior.
 
 - **Idle** — the only *outlined* state. Weight alone answers "is it doing anything" before you resolve the glyph.
 - **Synthesizing** — three dots. The universal "composing" idiom.
@@ -187,7 +187,7 @@ New items **append**; they never interrupt. An agent that can barge into the mid
 The icon answers three questions in decreasing order of urgency, without a click:
 
 1. **Is it doing anything?** Outline versus filled.
-2. **Is it about to talk, or talking?** Dots versus bars — the difference between "audio is being prepared" and "audio is coming out of the speakers right now", which matters when you are deciding whether to put headphones on.
+2. **Is it about to talk, or talking?** Dots versus bars: the difference between "audio is being prepared" and "audio is coming out of the speakers right now", which matters when you are deciding whether to put headphones on.
 3. **Did something break?** The exclamation mark, sticky until acknowledged.
 
 State precedence when several are true at once, since this is the part that gets fumbled in implementation: **error > playing > paused > synthesizing > idle**. Playing outranks synthesizing because playing is the state with an external consequence — sound in the room. Paused outranks synthesizing for the same reason inverted: if you have deliberately held playback, the icon must keep saying so even while the generator works in the background, or the app will look like it ignored you.
@@ -197,9 +197,9 @@ State precedence when several are true at once, since this is the part that gets
 ## Open questions for review
 
 1. **Barge-in.** Should a priority item ever cut off what is currently being said? I have argued no, and proposed head-of-queue insertion instead. If yes, it needs a distinct visual state and probably a distinct sound.
-2. **Input transport.** The mockups show a source chip (`claude-code`, `calendar-watch`), which assumes senders identify themselves. Is that a CLI argument, a Unix socket, or localhost HTTP — and if sources are a real concept, do you want per-source mute or per-source voice?
+2. **Input transport.** The mockups show a source chip (`claude-code`, `calendar-watch`), which assumes senders identify themselves. Is that a CLI argument, a Unix socket, or localhost HTTP? And if sources are a real concept, do you want per-source mute or per-source voice?
 3. **Retention defaults.** I assumed history text is kept forever and cached audio is prunable, defaulting to 30 days with a 2 GB cap. Is a size cap or an age cap the primary control? Showing both may be one knob too many.
-4. **Crash behaviour.** If the app dies mid-utterance, on restart should the queue resume, resume from the start of the interrupted item, or stay paused and wait for you? I lean toward staying paused — waking up to a machine talking is bad.
+4. **Crash behaviour.** If the app dies mid-utterance, on restart should the queue resume, resume from the start of the interrupted item, or stay paused and wait for you? I lean toward staying paused. Waking up to a machine talking is bad.
 5. **Global hotkeys.** Pause is the one control with real urgency and it currently costs a click on a 22 pt target. Is a system-wide hotkey for pause/skip worth the entitlement and the conflict surface?
 6. **Detachable window.** History outgrows a 360 × 480 popover quickly. Should History open in a real resizable window, or is search enough?
 7. **Speed scope.** Global only, as drawn, or a per-utterance override so an agent can mark something as urgent-and-fast?

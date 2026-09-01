@@ -12,16 +12,16 @@ Researched 2026-08-28. Every claim below carries a source. Claims I could not ve
 
 This tool speaks material its user is obliged to keep confidential — personal names and internal identifiers among them.
 
-**Sending that text to a cloud TTS API is disclosing client-confidential material to a third party.** Not "potentially" — the text is the request body. Every cloud option below is evaluated on that basis first and on price second, because at the volumes involved the price differences are trivial and the disclosure is not.
+**Sending that text to a cloud TTS API is disclosing client-confidential material to a third party.** Not "potentially": the text is the request body. Every cloud option below is evaluated on that basis first and on price second, because at the volumes involved the price differences are trivial and the disclosure is not.
 
 Two findings make this decisive rather than cautionary:
 
-- **ElevenLabs Zero Retention Mode is Enterprise-only.** On the Free, Starter, Creator, Pro, and Scale tiers, submitted audio may be used to improve ElevenLabs' models unless the user actively opts out, and the opt-out applies prospectively only — material already submitted may already be in a training set. ([ElevenLabs Zero Retention Mode docs](https://elevenlabs.io/docs/eleven-api/resources/zero-retention-mode))
+- **ElevenLabs Zero Retention Mode is Enterprise-only.** On the Free, Starter, Creator, Pro, and Scale tiers, submitted audio may be used to improve ElevenLabs' models unless the user actively opts out, and the opt-out applies prospectively only, so material already submitted may already be in a training set. ([ElevenLabs Zero Retention Mode docs](https://elevenlabs.io/docs/eleven-api/resources/zero-retention-mode))
 - **OpenAI does not train on API data by default, but retains inputs for up to 30 days** for abuse monitoring. Zero Data Retention requires prior approval on an enterprise agreement and is not available on pay-as-you-go. ([OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data))
 
 So the affordable tier of the best-sounding provider is the one that may train on the text, and the cheapest credible provider still parks it on someone else's disk for a month.
 
-**Rule this implies, if any cloud engine is ever wired in:** cloud TTS may speak only text that would be safe to paste into a public channel — release notes, public documentation, generic UI strings. It may never speak working-repository content, internal notes and analysis, artifact content, or anything naming a colleague, a customer, an internal identifier, or an access list. That boundary has to be enforced in code, not in a habit, because the failure is silent and irreversible.
+**Rule this implies, if any cloud engine is ever wired in:** cloud TTS may speak only text that would be safe to paste into a public channel: release notes, public documentation, generic UI strings. It may never speak working-repository content, internal notes and analysis, artifact content, or anything naming a colleague, a customer, an internal identifier, or an access list. That boundary has to be enforced in code, not in a habit, because the failure is silent and irreversible.
 
 ---
 
@@ -41,7 +41,7 @@ So the affordable tier of the best-sounding provider is the one that may train o
 
 This repo is Apache 2.0 and headed for a public remote at `flyingrobots/AI-TTS`, so licence contamination is a real constraint rather than a formality.
 
-- **Piper is GPL-3.0.** Shelling out to a separate `piper` binary is normally mere aggregation and does not force the calling project to GPL — but linking it as a library, vendoring its code, or distributing it inside an app bundle plausibly does. If Piper is ever considered, that call needs making deliberately and probably needs a lawyer's read, not mine. I am flagging it, not resolving it.
+- **Piper is GPL-3.0.** Shelling out to a separate `piper` binary is normally mere aggregation and does not force the calling project to GPL. Linking it as a library, vendoring its code, or distributing it inside an app bundle plausibly does. If Piper is ever considered, that call needs making deliberately and probably needs a lawyer's read, not mine. I am flagging it, not resolving it.
 - **F5-TTS and XTTS-v2 are both non-commercial on the weights**, even though both ship MIT code. XTTS-v2 is worse than non-commercial: Coqui shut down in January 2024, so there is no longer anyone who *can* sell a commercial licence. Neither belongs in an Apache-2.0 public repo. Rule them out now rather than after someone builds against them.
 
 ### Why Kokoro survives the comparison
@@ -53,9 +53,9 @@ This repo is Apache 2.0 and headed for a public remote at `flyingrobots/AI-TTS`,
 
 ### The strongest challenger, honestly stated
 
-**Chatterbox Turbo (350M, MIT)** is the one that could displace Kokoro. Resemble's own blind listening study reports 65.3% preference for Chatterbox over ElevenLabs against 24.5% the other way ([Resemble](https://www.resemble.ai/learn/models/chatterbox-turbo)) — that is a vendor's self-report on its own model and should be read as marketing, not as an independent benchmark, but the model is MIT-licensed, 4× Kokoro's size (still small), and its code examples list `mps`, implying Apple Silicon support.
+**Chatterbox Turbo (350M, MIT)** is the one that could displace Kokoro. Resemble's own blind listening study reports 65.3% preference for Chatterbox over ElevenLabs against 24.5% the other way ([Resemble](https://www.resemble.ai/learn/models/chatterbox-turbo)). That is a vendor's self-report on its own model and should be read as marketing, not as an independent benchmark. Even so, the model is MIT-licensed, 4× Kokoro's size (still small), and its code examples list `mps`, implying Apple Silicon support.
 
-**If quality on long technical prose turns out to be the real complaint, Chatterbox is the first thing to A/B — not a cloud service.** It keeps every property that makes Kokoro acceptable and may beat it on naturalness.
+**If quality on long technical prose turns out to be the real complaint, Chatterbox is the first thing to A/B, not a cloud service.** It keeps every property that makes Kokoro acceptable and may beat it on naturalness.
 
 ---
 
@@ -71,7 +71,7 @@ Pricing verified against vendor pages where possible.
 | **Cartesia Sonic** | Pro $5/100K, Startup $49/1.25M, Scale $299/8M credits | [pricing](https://cartesia.ai/pricing) | `unverified` |
 | **ElevenLabs** | Creator $22/121K, Pro $99/600K, Scale $299/1.8M, Business $990/6M credits | [pricing](https://elevenlabs.io/pricing) | **May train on input below Enterprise**; ZRM Enterprise-only |
 
-**Derived per-million rates**, arithmetic mine from the credit figures above: ElevenLabs runs **≈$165–182 per million characters** across every tier — the credit-to-character mapping is 1:1 for V2 multilingual models per their pricing page. Cartesia works out to **≈$37–50 per million credits**; I am treating credits as characters on a secondary source ([TextToLab](https://texttolab.com/blog/cartesia-pricing)) because Cartesia's own pricing page does not state a per-character rate — so **the Cartesia per-character figure is `unverified`**.
+**Derived per-million rates**, arithmetic mine from the credit figures above: ElevenLabs runs **≈$165–182 per million characters** across every tier; the credit-to-character mapping is 1:1 for V2 multilingual models per their pricing page. Cartesia works out to **≈$37–50 per million credits**; I am treating credits as characters on a secondary source ([TextToLab](https://texttolab.com/blog/cartesia-pricing)) because Cartesia's own pricing page does not state a per-character rate, so **the Cartesia per-character figure is `unverified`**.
 
 ### The cost finding is that cost does not decide this
 
@@ -88,7 +88,7 @@ At that volume:
 | ElevenLabs | ~$36–40 |
 | **Kokoro (local)** | **$0** |
 
-**Nothing here is expensive.** Even ElevenLabs at the top of the range is under a streaming subscription. So the honest conclusion is that **the cost axis does not discriminate between these options at this volume** — which means the decision rests entirely on confidentiality and licence, and both of those point local.
+**Nothing here is expensive.** Even ElevenLabs at the top of the range is under a streaming subscription. **The cost axis does not discriminate between these options at this volume.** The decision rests entirely on confidentiality and licence, and both of those point local.
 
 Anyone arguing for cloud on cost grounds is arguing about $3 a month. Anyone arguing for cloud on quality grounds is making a real argument, and it should be answered by trying Chatterbox first.
 
@@ -102,7 +102,7 @@ The reasoning, in order of weight:
 
 1. **Confidentiality is not satisfiable with any affordable cloud tier.** The best-sounding provider may train on the text below Enterprise; the cheapest credible one retains it for 30 days. There is no tier of any provider surveyed that is both cheap and zero-retention.
 2. **Cost provides no counter-pressure.** At ~220K chars/month the entire cloud field costs between $3 and $40 a month. Nothing is being saved by accepting the disclosure, and nothing is being spent by refusing it.
-3. **Latency and throughput are already solved locally.** Kokoro synthesises materially faster than realtime on Apple Silicon, so the queue design — not the engine — governs perceived responsiveness.
+3. **Latency and throughput are already solved locally.** Kokoro synthesises materially faster than realtime on Apple Silicon, so the queue design, not the engine, governs perceived responsiveness.
 4. **Apache 2.0 matches the repo** and avoids the GPL question Piper raises and the non-commercial walls F5-TTS and XTTS-v2 hit.
 
 ### The strongest argument against this recommendation
@@ -111,7 +111,7 @@ The reasoning, in order of weight:
 
 If the real complaint after a week of use is *"it mispronounces every identifier and the prosody is flat over long paragraphs,"* that is a genuine quality gap and a 3.3× cost increase to `tts-1-hd` would be trivially affordable. **The counter-argument is defeated only by the confidentiality constraint, not by cost and not by quality.** That is worth being honest about: this recommendation trades some audio quality for a privacy property, and the trade is only obviously correct because of what this specific tool reads aloud.
 
-**The mitigation is not a better engine — it is a pronunciation layer.** A user-editable lexicon that rewrites known identifiers before synthesis (`ABC-12345` → "A B C one two three four five", `featureflag` → "feature flag") will fix more of the perceived quality problem than any model swap, and it works with whatever engine is behind it. That belongs in the architecture regardless of this decision, and I would build it before I would re-open the engine question.
+**The mitigation is not a better engine. It is a pronunciation layer.** A user-editable lexicon that rewrites known identifiers before synthesis (`ABC-12345` → "A B C one two three four five", `featureflag` → "feature flag") will fix more of the perceived quality problem than any model swap, and it works with whatever engine is behind it. That belongs in the architecture regardless of this decision, and I would build it before I would re-open the engine question.
 
 ---
 
@@ -120,9 +120,9 @@ If the real complaint after a week of use is *"it mispronounces every identifier
 Revisit if any of these become true:
 
 - **An engine ships with a genuinely zero-retention free or cheap tier**, contractually, not as an enterprise upsell. That single change makes the cloud field competitive again overnight.
-- **The tool stops reading confidential material** — if it is ever repurposed for public content only, the entire constraint evaporates and `tts-1` at $15/M becomes the obvious default.
+- **The tool stops reading confidential material.** If it is ever repurposed for public content only, the entire constraint evaporates and `tts-1` at $15/M becomes the obvious default.
 - **Volume rises by two orders of magnitude.** At ~20M chars/month, ElevenLabs would cost ~$3,300/mo and local becomes a cost argument as well as a privacy one. This strengthens the recommendation rather than weakening it.
-- **Chatterbox Turbo measurably beats Kokoro on this workload.** Same licence class, same locality, better voice — that is a straight upgrade with no constraint cost. **This is the most likely reason to revisit and the cheapest to test.**
+- **Chatterbox Turbo measurably beats Kokoro on this workload.** Same licence class, same locality, better voice: a straight upgrade with no constraint cost. **This is the most likely reason to revisit and the cheapest to test.**
 - **Apple ships a materially better on-device TTS API.** Fully local by construction, no licence question, no retention question.
 - **Kokoro's MLX/CoreML ports stall.** The Apple Silicon story depends on community ports rather than first-party support; there is at least one open report of NaN/silent output on an MLX build ([HF discussion](https://huggingface.co/mlx-community/Kokoro-82M-bf16/discussions/5)). If that path rots, the calculus changes.
 

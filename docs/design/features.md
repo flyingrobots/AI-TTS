@@ -65,7 +65,7 @@ How text gets into the system.
 
 **1.1** is *"you send THE application your text and it has an internal queue of things to say"*.
 
-**1.2** is the point of a queue. If submitting blocked until the audio finished, the queue would be an implementation detail rather than a feature, and *"put it on THE queue"* would not describe anything. He never says "asynchronous", so the label is [INFERRED] — but rejecting this inference would mean rejecting the queue.
+**1.2** is the point of a queue. If submitting blocked until the audio finished, the queue would be an implementation detail rather than a feature, and *"put it on THE queue"* would not describe anything. He never says "asynchronous", so the label is [INFERRED], but rejecting this inference would mean rejecting the queue.
 
 **1.3** is the direct lesson of the jumble. Note that it is a *submission* requirement as well as a playback one: submitting must be able to happen mid-utterance, and must not cause a second stream to start. See §3.1.
 
@@ -116,7 +116,7 @@ What is playing, what is next.
 
 **3.1 is the highest-confidence requirement in this document** and the only one with a recorded complaint attached. *"a jumble of BM Daniel just speaking two things at once, and it was really kind of obnoxious."* Serialization is the feature; the queue is the mechanism.
 
-**3.5** is separated from 3.3 deliberately. If synthesis runs concurrently, a short item submitted second can finish synthesising first, and *ready order* stops matching *submission order*. **We assume he wants submission order** — but he never says so, and if the ordering ever visibly differs he will notice. Cheap to get right at design time and expensive later.
+**3.5** is separated from 3.3 deliberately. If synthesis runs concurrently, a short item submitted second can finish synthesising first, and *ready order* stops matching *submission order*. **We assume he wants submission order**, but he never says so, and if the ordering ever visibly differs he will notice. Cheap to get right at design time and expensive later.
 
 **3.4** is where the two queues meet, and it is the part of the architecture his description implies without spelling out.
 
@@ -226,7 +226,7 @@ The surface an agent uses. He describes this only as *"you send THE application 
 
 **8.2 is the requirement that tonight's evidence most directly demands, and it is the one most likely to be skipped**, because it is not a feature anyone sees.
 
-Four times in one session the current setup **produced no audio and reported success**. From the caller's side that is indistinguishable from working. The consequence is not a missing sound — it is that **nobody finds out**, and a caller who trusts the exit status will keep reporting that things were spoken when they were not.
+Four times in one session the current setup **produced no audio and reported success**. From the caller's side that is indistinguishable from working. The consequence is not a missing sound. It is that **nobody finds out**, and a caller who trusts the exit status will keep reporting that things were spoken when they were not.
 
 **The honest contract is narrow, and narrow is the point.** Exit 0 should mean *this utterance was accepted onto the queue* — not *it was heard*, which the application cannot know, and not *it will be heard*, which it cannot promise. Anything the client cannot observe should not be encoded in its exit status. **8.5 and 8.7 exist for callers that genuinely need the stronger guarantee**, and they should have to ask for it explicitly.
 
