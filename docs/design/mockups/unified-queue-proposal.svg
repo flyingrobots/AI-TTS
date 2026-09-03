@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">AI-TTS unified player proposal — Queue</title>
+  <desc id="desc">A macOS menu-bar popover with the currently playing clip pinned at the top. Below it, a two-tab Queue and History control has Queue selected. Four upcoming clips appear in playback order with Ready, Synthesizing, and Queued states. Every row has a visible Remove action, and the toolbar has a Clear queue action.</desc>
+  <style>
+    svg{
+      --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
+      --sep:#E0E0E5;--edge:#D6D6DB;--hover:#F3F3F6;--track:#E3E3E9;
+      --fg:#16161A;--fg2:#6B6B73;--fg3:#9C9CA4;
+      --accent:#0A6CFF;--tint:#E7F0FF;--onaccent:#FFFFFF;
+      --ok:#1B8F45;--oktint:#E2F3E8;--warn:#B87400;--warntint:#FBEFD9;--err:#CC3325;--errtint:#FAE6E4;
+    }
+    @media (prefers-color-scheme:dark){svg{
+      --panel:#2C2C30;--sunken:#242428;--chip:#3A3A40;--seg:#212124;--segsel:#4A4A51;
+      --sep:#3C3C42;--edge:#1B1B1E;--hover:#35353B;--track:#3E3E45;
+      --fg:#F2F2F5;--fg2:#A2A2AA;--fg3:#75757E;
+      --accent:#4F9DFF;--tint:#20344F;--onaccent:#FFFFFF;
+      --ok:#45C46E;--oktint:#1C3A29;--warn:#DFA232;--warntint:#3A2E15;--err:#FF6E60;--errtint:#3F211E;
+    }}
+    .panel{fill:var(--panel)}.sunken{fill:var(--sunken)}.chip{fill:var(--chip)}
+    .seg{fill:var(--seg)}.segsel{fill:var(--segsel)}.sep{fill:var(--sep)}
+    .hover{fill:var(--hover)}.track{fill:var(--track)}
+    .acc{fill:var(--accent)}.tint{fill:var(--tint)}.onacc{fill:var(--onaccent)}
+    .ok{fill:var(--ok)}.oktint{fill:var(--oktint)}.warn{fill:var(--warn)}.warntint{fill:var(--warntint)}
+    .err{fill:var(--err)}.errtint{fill:var(--errtint)}
+    .t{fill:var(--fg)}.t2{fill:var(--fg2)}.t3{fill:var(--fg3)}
+    .eo{stroke:var(--edge)}.so2{stroke:var(--fg2)}.so3{stroke:var(--fg3)}
+    .soacc{stroke:var(--accent)}.sopanel{stroke:var(--panel)}.nf{fill:none}
+  </style>
+  <g font-family="-apple-system, system-ui, sans-serif">
+    <!-- popover -->
+    <rect class="panel eo" fill="#FFFFFF" stroke="#D6D6DB" x="4.5" y="14.5" width="359" height="479" rx="12"/>
+    <path class="panel" fill="#FFFFFF" d="M169 15.6 L180 4.2 L191 15.6 Z"/>
+    <path class="eo nf" fill="none" stroke="#D6D6DB" stroke-linecap="round" d="M170 14.5 L180 4.4 L190 14.5"/>
+
+    <!-- header -->
+    <text class="t" fill="#16161A" x="20" y="40" font-size="13.5" font-weight="600">AI-TTS</text>
+    <circle class="acc" fill="#0A6CFF" cx="76" cy="35.5" r="3.5"/>
+    <text class="t2" fill="#6B6B73" x="85" y="39.5" font-size="11">Speaking</text>
+    <g transform="translate(338,35)" stroke-width="2.2">
+      <circle class="so2 nf" stroke="#6B6B73" fill="none" stroke-width="1.7" r="4"/>
+      <g class="so2 nf" stroke="#6B6B73" fill="none">
+        <path d="M0 -7.9V-5.5"/><path d="M0 5.5V7.9"/><path d="M-7.9 0H-5.5"/><path d="M5.5 0H7.9"/>
+        <path d="M-5.6 -5.6L-3.9 -3.9"/><path d="M3.9 3.9L5.6 5.6"/><path d="M5.6 -5.6L3.9 -3.9"/><path d="M-3.9 3.9L-5.6 5.6"/>
+      </g>
+    </g>
+
+    <!-- persistent current clip -->
+    <rect class="tint" fill="#E7F0FF" x="14" y="53" width="340" height="101" rx="9"/>
+    <rect class="acc" fill="#0A6CFF" x="14" y="53" width="3.5" height="101" rx="1.75"/>
+    <text class="acc" fill="#0A6CFF" x="28" y="73" font-size="9.5" font-weight="600" letter-spacing="0.7">NOW PLAYING</text>
+    <text class="t3" fill="#9C9CA4" x="271" y="73" font-size="9.5" text-anchor="end">claude-code</text>
+    <circle class="chip" fill="#ECECF0" cx="307" cy="69" r="11"/>
+    <g class="t" fill="#16161A">
+      <rect x="303.6" y="63" width="2.8" height="12" rx="1"/>
+      <rect x="308.4" y="63" width="2.8" height="12" rx="1"/>
+    </g>
+    <circle class="chip" fill="#ECECF0" cx="337" cy="69" r="11"/>
+    <g class="t" fill="#16161A">
+      <path d="M339 69 L332 64.2 L332 73.8 Z"/>
+      <rect x="340.2" y="64.2" width="2.2" height="9.6" rx="1"/>
+    </g>
+    <text class="t" fill="#16161A" x="28" y="96" font-size="12">All 41 tests pass. The cache-eviction</text>
+    <text class="t" fill="#16161A" x="28" y="113" font-size="12">regression was a stale index entry…</text>
+    <rect class="track" fill="#E3E3E9" x="28" y="126" width="314" height="3" rx="1.5"/>
+    <rect class="acc" fill="#0A6CFF" x="28" y="126" width="120" height="3" rx="1.5"/>
+    <text class="t2" fill="#6B6B73" x="28" y="145" font-size="9.5">0:11</text>
+    <text class="t2" fill="#6B6B73" x="342" y="145" font-size="9.5" text-anchor="end">0:29</text>
+
+    <!-- two-tab content switcher -->
+    <rect class="seg" fill="#E9E9ED" x="20" y="166" width="328" height="28" rx="8"/>
+    <rect class="segsel eo" fill="#FFFFFF" stroke="#D6D6DB" x="22.5" y="168.5" width="160.5" height="23" rx="6"/>
+    <text class="t" fill="#16161A" x="102" y="184" font-size="11" font-weight="600" text-anchor="middle">Queue</text>
+    <text class="t2" fill="#6B6B73" x="266" y="184" font-size="11" text-anchor="middle">History</text>
+
+    <!-- queue toolbar -->
+    <text class="t2" fill="#6B6B73" x="20" y="217" font-size="10.5">4 up next · 1m 02s</text>
+    <text class="err" fill="#CC3325" x="348" y="217" font-size="10.5" text-anchor="end">Clear queue…</text>
+
+    <!-- queue row 1: ready -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="241" r="1.2"/><circle cx="27" cy="241" r="1.2"/><circle cx="22" cy="246" r="1.2"/><circle cx="27" cy="246" r="1.2"/><circle cx="22" cy="251" r="1.2"/><circle cx="27" cy="251" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="244" font-size="11.5">Dependency audit finished: no advisories…</text>
+    <circle class="ok" fill="#1B8F45" cx="43" cy="260" r="3"/>
+    <text class="ok" fill="#1B8F45" x="51" y="263.5" font-size="10">Ready</text>
+    <text class="t3" fill="#9C9CA4" x="91" y="263.5" font-size="10">· claude-code</text>
+    <text class="t2" fill="#6B6B73" x="294" y="263.5" font-size="10" text-anchor="end">0:22</text>
+    <text class="err" fill="#CC3325" x="348" y="263.5" font-size="10" text-anchor="end">Remove</text>
+    <rect class="sep" fill="#E0E0E5" x="40" y="274" width="308" height="1"/>
+
+    <!-- queue row 2: synthesizing -->
+    <rect class="warntint" fill="#FBEFD9" x="14" y="277" width="340" height="48" rx="8" opacity="0.6"/>
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="290" r="1.2"/><circle cx="27" cy="290" r="1.2"/><circle cx="22" cy="295" r="1.2"/><circle cx="27" cy="295" r="1.2"/><circle cx="22" cy="300" r="1.2"/><circle cx="27" cy="300" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="293" font-size="11.5">Deploy check complete. The staging rollout…</text>
+    <text class="warn" fill="#B87400" x="40" y="312.5" font-size="10">Synthesizing… 62%</text>
+    <rect class="track" fill="#E3E3E9" x="137" y="306.5" width="55" height="4" rx="2"/>
+    <rect class="warn" fill="#B87400" x="137" y="306.5" width="34" height="4" rx="2"/>
+    <text class="t3" fill="#9C9CA4" x="294" y="312.5" font-size="10" text-anchor="end">~0:31</text>
+    <text class="err" fill="#CC3325" x="348" y="312.5" font-size="10" text-anchor="end">Remove</text>
+    <rect class="sep" fill="#E0E0E5" x="40" y="326" width="308" height="1"/>
+
+    <!-- queue row 3: queued -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="342" r="1.2"/><circle cx="27" cy="342" r="1.2"/><circle cx="22" cy="347" r="1.2"/><circle cx="27" cy="347" r="1.2"/><circle cx="22" cy="352" r="1.2"/><circle cx="27" cy="352" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="345" font-size="11.5">The platform sync moves to 3:30 today…</text>
+    <text class="t3" fill="#9C9CA4" x="40" y="364.5" font-size="10">Queued · position 3</text>
+    <text class="t3" fill="#9C9CA4" x="294" y="364.5" font-size="10" text-anchor="end">—</text>
+    <text class="err" fill="#CC3325" x="348" y="364.5" font-size="10" text-anchor="end">Remove</text>
+    <rect class="sep" fill="#E0E0E5" x="40" y="378" width="308" height="1"/>
+
+    <!-- queue row 4: ready -->
+    <g class="t3" fill="#9C9CA4"><circle cx="22" cy="394" r="1.2"/><circle cx="27" cy="394" r="1.2"/><circle cx="22" cy="399" r="1.2"/><circle cx="27" cy="399" r="1.2"/><circle cx="22" cy="404" r="1.2"/><circle cx="27" cy="404" r="1.2"/></g>
+    <text class="t" fill="#16161A" x="40" y="397" font-size="11.5">Reminder: the design review starts in ten…</text>
+    <circle class="ok" fill="#1B8F45" cx="43" cy="413" r="3"/>
+    <text class="ok" fill="#1B8F45" x="51" y="416.5" font-size="10">Ready</text>
+    <text class="t3" fill="#9C9CA4" x="91" y="416.5" font-size="10">· calendar-watch</text>
+    <text class="t2" fill="#6B6B73" x="294" y="416.5" font-size="10" text-anchor="end">0:09</text>
+    <text class="err" fill="#CC3325" x="348" y="416.5" font-size="10" text-anchor="end">Remove</text>
+
+    <!-- persistent model health -->
+    <rect class="sep" fill="#E0E0E5" x="4" y="446" width="360" height="1"/>
+    <circle class="ok" fill="#1B8F45" cx="24" cy="469" r="3.5"/>
+    <text class="t2" fill="#6B6B73" x="34" y="473" font-size="10.5">Model hot · bm_daniel · 0.42× realtime</text>
+    <text class="t3" fill="#9C9CA4" x="348" y="473" font-size="10" text-anchor="end">drag to reorder</text>
+  </g>
+</svg>
