@@ -18,7 +18,7 @@ import pytest
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.model import Priority, State
-from aitts.playback import FakeSink
+from aitts.playback import FakeSink, PlaybackController
 
 
 async def rpc(sock: Path, payload: dict[str, Any]) -> dict[str, Any]:
@@ -240,6 +240,62 @@ async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None
         assert len(restored_sink.started) == 1
     finally:
         await restored.stop()
+        shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+async def test_resume_recovers_after_playback_worker_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-playback-recovery-"))
+    sink = FakeSink()
+    original_run = PlaybackController.run
+    crash_requested = asyncio.Event()
+    crash_observed = asyncio.Event()
+    attempts = 0
+
+    async def fail_once(controller: PlaybackController) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            await crash_requested.wait()
+            crash_observed.set()
+            msg = "simulated playback worker failure"
+            raise RuntimeError(msg)
+        await original_run(controller)
+
+    monkeypatch.setattr(PlaybackController, "run", fail_once)
+    d = Daemon(
+        home=tmp_path,
+        engine=FakeEngine(voices=["bm_daniel"]),
+        sink=sink,
+        socket_path=sock_dir / "d.sock",
+    )
+    await d.start()
+    try:
+        await rpc(d.socket_path, {"op": "pause"})
+        submitted = await rpc(
+            d.socket_path,
+            {"op": "submit", "text": "play this when the meeting ends"},
+        )
+
+        async def is_ready() -> bool:
+            item = d.store.get(submitted["id"])
+            return item is not None and item.state is State.READY
+
+        await wait_for_async(is_ready)
+        crash_requested.set()
+        await crash_observed.wait()
+        await asyncio.sleep(0)
+
+        resumed = await rpc(d.socket_path, {"op": "resume"})
+        assert resumed["held"] is False
+
+        async def playback_started() -> bool:
+            return len(sink.started) == 1
+
+        await wait_for_async(playback_started, timeout=0.25)
+    finally:
+        await d.stop()
         shutil.rmtree(sock_dir, ignore_errors=True)
 
 
