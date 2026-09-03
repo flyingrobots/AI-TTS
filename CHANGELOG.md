@@ -5,10 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-09-01
+## [Unreleased]
+
+## [0.1.0] - 2026-09-02
 
 ### Added
 
+- **Design and project foundation**: feature breakdown, architecture, engine
+  evaluation, technology choices, menu-bar UI mockups, consolidated design
+  decisions, Apache 2.0 licensing, contribution and security guidance.
 - **Daemon** (Python 3.12, asyncio): SQLite-backed store, utterance state
   machine with named transitions, parallel synthesis pool, strictly serial
   in-order playback controller that solely owns the audio device, and
@@ -23,27 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `say --wait` and `wait` exit 0 only for Played.
 - **Kokoro-82M engine adapter** via the reference `kokoro` package, one warm
   pipeline per language.
-- **Menu-bar app** (Swift/SwiftUI, `clients/menubar`): tray icon reflecting
-  daemon state, popover with Now Playing / Up Next / Queue / History /
-  Settings, transport controls.
+- **Snapshot protocol**: one daemon request returns status, both queues, the
+  merged playback plan, history, voices and settings; status carries live
+  playback position and history items carry completion time.
+- **Menu-bar app** (Swift/SwiftUI, `clients/menubar`): custom animated template
+  tray icons; event-driven refresh with reconnect; Now Playing progress and
+  clocks; true-plan Up Next with hover actions; synthesis Queue; day-grouped,
+  expandable History; voice previews; Settings; and global transport controls.
 - **Infrastructure**: pytest suite written before the implementation, ruff
   `--select ALL` and `mypy --strict` clean, git hooks in `scripts/hooks/`,
   GitHub Actions CI (Python + Swift), launchd agent plist.
-
-## [Unreleased]
-
-### Added
-
-- Daemon: `snapshot` op (status, both queues, merged plan order, history,
-  voices, settings in one request); live `position_ms` on the current
-  utterance in `status`; `finished_at` on history items.
-- Menu-bar app: custom template tray icon family drawn in code (outlined
-  idle; dots/bars animate only while synthesizing/playing); event-driven
-  refresh over a subscribe stream with reconnect; live progress with
-  elapsed/total clocks; Up Next shows waiting-for-synthesis items in true
-  plan order with hover actions (move to top, remove); History grouped by
-  day with fixed time column, expand-in-place, error text and skipped-at
-  detail; per-voice preview buttons in Settings; icon+label tab bar.
 
 ### Changed
 
@@ -51,10 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connectors into plain sentences and removed small repetitions. No claims,
   decisions, or open questions changed.
 
-### Added
+### Fixed
 
-- Design documents under `docs/design/`: feature breakdown, architecture, engine
-  evaluation, tech stack, UI design with SVG mockups, and an index collecting the
-  open questions. No implementation exists; the design is under review.
-- Repository scaffolding: README, Apache 2.0 LICENSE, NOTICE, CONTRIBUTING,
-  SECURITY, `.gitignore`.
+- The synthesis Queue no longer appears empty while already-generated clips
+  remain scheduled. `Ready` results stay visible in a dedicated section until
+  playback begins.
