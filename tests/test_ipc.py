@@ -173,6 +173,56 @@ async def test_status_reports_shape(daemon: Daemon) -> None:
     assert res["engine"] == "fake"
 
 
+async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None:
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-pause-"))
+    first = Daemon(
+        home=tmp_path,
+        engine=FakeEngine(voices=["bm_daniel"]),
+        sink=FakeSink(),
+        socket_path=sock_dir / "first.sock",
+    )
+    await first.start()
+    try:
+        paused = await rpc(first.socket_path, {"op": "pause"})
+        assert paused["held"] is True
+        assert (await rpc(first.socket_path, {"op": "status"}))["state"] == "paused"
+    finally:
+        await first.stop()
+
+    restored_sink = FakeSink()
+    restored = Daemon(
+        home=tmp_path,
+        engine=FakeEngine(voices=["bm_daniel"]),
+        sink=restored_sink,
+        socket_path=sock_dir / "restored.sock",
+    )
+    await restored.start()
+    try:
+        assert (await rpc(restored.socket_path, {"op": "status"}))["state"] == "paused"
+        submitted = await rpc(
+            restored.socket_path,
+            {"op": "submit", "text": "wait until the meeting ends"},
+        )
+        for _ in range(100):
+            utterance = restored.store.get(submitted["id"])
+            if utterance is not None and utterance.state is State.READY:
+                break
+            await asyncio.sleep(0.005)
+        queued = restored.store.get(submitted["id"])
+        assert queued is not None
+        assert queued.state is State.READY
+        assert restored_sink.started == []
+        await rpc(restored.socket_path, {"op": "resume"})
+        for _ in range(100):
+            if restored_sink.started:
+                break
+            await asyncio.sleep(0.005)
+        assert len(restored_sink.started) == 1
+    finally:
+        await restored.stop()
+        shutil.rmtree(sock_dir, ignore_errors=True)
+
+
 async def test_voices_lists_engine_voices(daemon: Daemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "voices"})
     assert res["ok"] is True

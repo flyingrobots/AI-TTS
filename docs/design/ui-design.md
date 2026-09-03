@@ -45,7 +45,7 @@ playing.
 
 The popover is 368 × 500 points. Its stable vertical structure is:
 
-- app identity, daemon status, and a Settings gear;
+- app identity, daemon status, a global Pause / Resume control, and a Settings gear;
 - the current-playback card;
 - a two-way Queue / History segmented control;
 - the selected list;
@@ -57,15 +57,21 @@ and speed changes.
 
 ## Current playback
 
+The global **Pause** control is always visible, including while idle and while
+Queue is empty. It is a playback gate rather than an operation on one row. Once
+engaged, it becomes **Resume**; incoming clips continue to enter Queue and may
+synthesize, but none can start playing. The hold survives a daemon restart so
+silence remains the safe default during a meeting.
+
 The current card never moves when Queue and History switch. It shows the clip's
-text, voice, elapsed and total time, progress, and restart/pause/skip controls.
+text, voice, elapsed and total time, progress, and restart/skip controls.
 When nothing is playing, the same card becomes a compact idle explanation
 instead of disappearing.
 
-Pause and resume preserve position. Restart starts the current clip again.
-Skip abandons the current hearing, records the reached position in History, and
-allows the next Queue item to begin. Transport never starts a second audio
-stream.
+Pause and resume preserve position. Restart starts the current clip again only
+when the global hold is not engaged. Skip abandons the current hearing and
+records the reached position in History; while held, the next Queue item stays
+ready rather than beginning. Transport never starts a second audio stream.
 
 ## Queue
 

@@ -59,3 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed voice previews and other ready clips appearing under Up Next while the
   Queue looked empty. `Ready`, `Synthesizing…`, and `Queued` clips now share one
   list in actual playback order.
+- Made Pause a persistent global playback hold that is available while idle or
+  with an empty Queue. Incoming speech continues to queue and synthesize, while
+  Skip, Restart, and daemon restarts cannot release the hold; only Resume can.

@@ -205,6 +205,7 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 | History | **Yes, permanently** | *"I want to have a history of all the things you've told me. It should all be there."* |
 | Input queue | **Yes** | Unsynthesized text is not recoverable from anywhere else |
 | Playback queue | **Yes, paused** | See below |
+| Global playback hold | **Yes** | Restarting during a meeting must not unexpectedly speak |
 | Current position within an utterance | Yes, best-effort | Resume mid-sentence if the offset is known |
 | Audio cache | Yes, subject to eviction | |
 
@@ -218,8 +219,8 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 
 **This is where the two queues interact, and the answers must be explicit rather than emergent.**
 
-- **`pause`** — stops the current utterance, holds its position. **Synthesis continues.** Running ahead while paused is exactly right; the user will want the buffer full when they resume.
-- **`skip`** — current utterance → `Skipped`, next `Ready` utterance begins. **The input queue is untouched.** Skipping one thing is not a request to stop hearing everything.
+- **`pause`** — engages a persistent global playback hold, even when there is no current utterance and Queue is empty. A current utterance stops at its present position. **Submission and synthesis continue**, but no audio may start until `resume` explicitly releases the hold. Running ahead while paused is exactly right; the user will want the buffer full when they resume.
+- **`skip`** — current utterance → `Skipped`. The next `Ready` utterance begins only when the global hold is not engaged; otherwise it remains ready for `resume`. **The input queue is untouched.** Skipping one thing is not permission to release a meeting-mode hold.
 - **`rewind`** — either within the current utterance (`seconds`) or to a previous one (`to: utt_id`). **Rewinding to a played utterance replays from cache**; if evicted, it is re-synthesized. Rewind does not delete what was ahead of it. The queue is restored after the replayed item.
 - **`cancel <id>`** — legal in `Queued`, `Synthesizing` and `Ready`. Cancelling a `Synthesizing` utterance signals the worker; the engine adapter may not support mid-generation abort, in which case the result is discarded on completion. **Cancel is not legal for a `Playing` utterance — that is `skip`**, and keeping them distinct keeps history honest about what happened.
 - **`clear`** — drains a named queue. **Requires naming which one.** There is no single "stop everything" that silently discards unsynthesized input.

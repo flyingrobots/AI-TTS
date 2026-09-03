@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
   <title id="ttl">AI-TTS unified player proposal — Queue</title>
-  <desc id="desc">A macOS menu-bar popover with the currently playing clip pinned at the top. Below it, a two-tab Queue and History control has Queue selected. Four upcoming clips appear in playback order with Ready, Synthesizing, and Queued states. An urgent item is explicitly marked independently of its processing state. Every row has a visible Remove action, and the toolbar has a Clear queue action.</desc>
+  <desc id="desc">A macOS menu-bar popover with the currently playing clip pinned at the top and a labeled, always-available global Pause button. Below it, a two-tab Queue and History control has Queue selected. Four upcoming clips appear in playback order with Ready, Synthesizing, and Queued states. An urgent item is explicitly marked independently of its processing state. Every row has a visible Remove action, and the toolbar has a Clear queue action.</desc>
   <style>
     svg{
       --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
@@ -48,11 +48,12 @@
     <rect class="tint" fill="#E7F0FF" x="14" y="53" width="340" height="101" rx="9"/>
     <rect class="acc" fill="#0A6CFF" x="14" y="53" width="3.5" height="101" rx="1.75"/>
     <text class="acc" fill="#0A6CFF" x="28" y="73" font-size="9.5" font-weight="600" letter-spacing="0.7">NOW PLAYING</text>
-    <text class="t3" fill="#9C9CA4" x="271" y="73" font-size="9.5" text-anchor="end">claude-code</text>
-    <circle class="chip" fill="#ECECF0" cx="307" cy="69" r="11"/>
-    <g class="t" fill="#16161A">
-      <rect x="303.6" y="63" width="2.8" height="12" rx="1"/>
-      <rect x="308.4" y="63" width="2.8" height="12" rx="1"/>
+    <text class="t3" fill="#9C9CA4" x="255" y="73" font-size="9.5" text-anchor="end">claude-code</text>
+    <rect class="acc" fill="#0A6CFF" x="264" y="58" width="59" height="22" rx="6"/>
+    <g class="onacc" fill="#FFFFFF">
+      <rect x="271" y="63" width="2.2" height="12" rx="1"/>
+      <rect x="275" y="63" width="2.2" height="12" rx="1"/>
+      <text x="283" y="72.5" font-size="8.5" font-weight="700">PAUSE</text>
     </g>
     <circle class="chip" fill="#ECECF0" cx="337" cy="69" r="11"/>
     <g class="t" fill="#16161A">

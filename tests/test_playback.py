@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from aitts.model import State, Utterance
 from aitts.playback import FakeSink, PlaybackController
@@ -96,16 +97,21 @@ async def test_pause_and_resume(store: Store, sink: FakeSink) -> None:
     task.cancel()
 
 
-async def test_pause_holds_the_queue_not_just_the_utterance(store: Store, sink: FakeSink) -> None:
+async def test_skip_while_paused_does_not_release_global_hold(store: Store, sink: FakeSink) -> None:
     controller = PlaybackController(store, sink)
     a = make_ready(store, "a")
     b = make_ready(store, "b")
     task = await start(controller)
     await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
     await controller.pause()
-    await controller.skip()  # skip from paused: a -> Skipped, playback resumes with b
-    await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
+    await controller.skip()
+    await asyncio.sleep(0.05)
     assert state_of(store, a.id) is State.SKIPPED
+    assert state_of(store, b.id) is State.READY
+    assert controller.held
+    assert sink.started == [Path(a.audio_path or "")]
+    await controller.resume()
+    await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
     task.cancel()
 
 
@@ -131,11 +137,62 @@ async def test_held_controller_starts_nothing_until_resume(store: Store, sink: F
     task.cancel()
 
 
+async def test_pause_while_idle_holds_future_queue_until_resume(
+    store: Store, sink: FakeSink
+) -> None:
+    controller = PlaybackController(store, sink)
+    task = await start(controller)
+    await controller.pause()
+    a = make_ready(store, "a")
+    controller.notify()
+    await asyncio.sleep(0.05)
+    assert controller.held
+    assert store.get_setting("playback_held", "false") == "true"
+    assert state_of(store, a.id) is State.READY
+    assert sink.started == []
+    await controller.resume()
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+    assert store.get_setting("playback_held", "true") == "false"
+    task.cancel()
+
+
+async def test_new_controller_restores_idle_global_hold(store: Store, sink: FakeSink) -> None:
+    first = PlaybackController(store, sink)
+    await first.pause()
+    a = make_ready(store, "a")
+    restored_sink = FakeSink()
+    restored = PlaybackController(store, restored_sink)
+    task = await start(restored)
+    await asyncio.sleep(0.05)
+    assert restored.held
+    assert state_of(store, a.id) is State.READY
+    assert restored_sink.started == []
+    await restored.resume()
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+    task.cancel()
+
+
+async def test_restart_does_not_release_global_hold(store: Store, sink: FakeSink) -> None:
+    controller = PlaybackController(store, sink)
+    a = make_ready(store, "a")
+    task = await start(controller)
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+    await controller.pause()
+    await controller.restart_current()
+    await asyncio.sleep(0.05)
+    assert controller.held
+    assert state_of(store, a.id) is State.PAUSED
+    assert sink.started == [Path(a.audio_path or "")]
+    task.cancel()
+
+
 async def test_adopts_paused_utterance_after_restart(store: Store, sink: FakeSink) -> None:
     a = make_ready(store, "a")
     store.transition(a.id, State.PLAYING)
     store.transition(a.id, State.PAUSED, played_ms=400)
     controller = PlaybackController(store, sink, held=True)
+    assert controller.current_id == a.id
+    assert controller.current_position_ms() == 400
     task = await start(controller)
     await asyncio.sleep(0.02)
     assert sink.started == []  # a restored queue never starts speaking on its own

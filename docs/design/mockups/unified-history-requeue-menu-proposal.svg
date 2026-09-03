@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
   <title id="ttl">AI-TTS unified player proposal — Re-queue urgency menu</title>
-  <desc id="desc">The unified History view with the chevron side of a Re-queue split button open. The default Normal action adds the new clip to the end of Queue. The alternate Urgent action plays it next after the current clip. Original historical priority remains visible but does not silently choose the new priority.</desc>
+  <desc id="desc">The unified History view with a labeled, always-available global Pause button and the chevron side of a Re-queue split button open. The default Normal action adds the new clip to the end of Queue. The alternate Urgent action plays it next after the current clip. Original historical priority remains visible but does not silently choose the new priority.</desc>
   <style>
     svg{
       --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
@@ -48,9 +48,9 @@
     <rect class="tint" fill="#E7F0FF" x="14" y="53" width="340" height="101" rx="9"/>
     <rect class="acc" fill="#0A6CFF" x="14" y="53" width="3.5" height="101" rx="1.75"/>
     <text class="acc" fill="#0A6CFF" x="28" y="73" font-size="9.5" font-weight="600" letter-spacing="0.7">NOW PLAYING</text>
-    <text class="t3" fill="#9C9CA4" x="271" y="73" font-size="9.5" text-anchor="end">claude-code</text>
-    <circle class="chip" fill="#ECECF0" cx="307" cy="69" r="11"/>
-    <g class="t" fill="#16161A"><rect x="303.6" y="63" width="2.8" height="12" rx="1"/><rect x="308.4" y="63" width="2.8" height="12" rx="1"/></g>
+    <text class="t3" fill="#9C9CA4" x="255" y="73" font-size="9.5" text-anchor="end">claude-code</text>
+    <rect class="acc" fill="#0A6CFF" x="264" y="58" width="59" height="22" rx="6"/>
+    <g class="onacc" fill="#FFFFFF"><rect x="271" y="63" width="2.2" height="12" rx="1"/><rect x="275" y="63" width="2.2" height="12" rx="1"/><text x="283" y="72.5" font-size="8.5" font-weight="700">PAUSE</text></g>
     <circle class="chip" fill="#ECECF0" cx="337" cy="69" r="11"/>
     <g class="t" fill="#16161A"><path d="M339 69 L332 64.2 L332 73.8 Z"/><rect x="340.2" y="64.2" width="2.2" height="9.6" rx="1"/></g>
     <text class="t" fill="#16161A" x="28" y="96" font-size="12">All 41 tests pass. The cache-eviction</text>

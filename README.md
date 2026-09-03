@@ -26,7 +26,7 @@ The last one is the clearest statement of the problem: **speech is a serial reso
 - **Accepts text from any client** — an agent, a script, or you.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
-- **Plays one thing at a time**, in order, with play, pause, skip and rewind.
+- **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
 - **Shows you both queues** — what is still being generated, and what is ready and waiting.
 - **Keeps everything ever said**, browsable and replayable.
 - **Lives in the menu bar.** Click the tray icon for the current state; the icon itself tells you at a glance whether it is idle, synthesizing, playing, or paused.

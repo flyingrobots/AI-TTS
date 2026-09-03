@@ -220,14 +220,20 @@ class PlaybackController:
     """Serializes playback and answers to the user, not to the queue."""
 
     def __init__(self, store: Store, sink: AudioSink, *, held: bool = False) -> None:
-        """Wrap ``sink``; ``held`` starts the controller without autoplay."""
+        """Wrap ``sink`` and restore the durable global playback hold."""
         self._store = store
         self._sink = sink
-        self.held = held
+        self.held = held or store.get_setting("playback_held", "false") == "true"
+        if self.held:
+            self._store.set_setting("playback_held", "true")
         self._current_id: str | None = None
         self._sink_active = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
+        if self.held:
+            paused = self._adoptable_paused()
+            if paused is not None:
+                self._current_id = paused.id
 
     @property
     def current_id(self) -> str | None:
@@ -288,6 +294,7 @@ class PlaybackController:
     async def pause(self) -> None:
         """Hold playback. Synthesis continues; the buffer should fill while paused."""
         self.held = True
+        self._store.set_setting("playback_held", "true")
         current = self._current()
         if current is not None and current.state is State.PLAYING and self._sink_active:
             self._sink.pause()
@@ -296,6 +303,7 @@ class PlaybackController:
     async def resume(self) -> None:
         """Release the hold and continue (or adopt a restored paused utterance)."""
         self.held = False
+        self._store.set_setting("playback_held", "false")
         current = self._current()
         if current is None:
             current = self._adoptable_paused()
@@ -321,7 +329,6 @@ class PlaybackController:
         queue is untouched.
         """
         current = self._current()
-        self.held = False
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
             self._cancel_watcher()
             position = self._sink.position_ms() if self._sink_active else current.played_ms or 0
@@ -334,12 +341,13 @@ class PlaybackController:
 
     async def restart_current(self) -> None:
         """Replay the current utterance from its start."""
+        if self.held:
+            return
         current = self._current()
         if current is None or current.audio_path is None:
             return
         if current.state not in (State.PLAYING, State.PAUSED):  # pragma: no cover
             return
-        self.held = False
         self._cancel_watcher()
         if self._sink_active:
             self._sink.stop()

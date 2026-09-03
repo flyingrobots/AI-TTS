@@ -128,7 +128,7 @@ What is playing and what comes next. Internally, readiness still crosses from sy
 
 | # | Feature | Label | Priority |
 |---|---|---|---|
-| 4.1 | Pause and play the current audio | **[STATED]** | **MUST** |
+| 4.1 | Pause all playback at any time; incoming speech continues to queue | **[STATED]** | **MUST** |
 | 4.2 | Skip | **[STATED]** | **MUST** |
 | 4.3 | Rewind | **[STATED]** | **MUST** |
 | 4.4 | Resume from the paused position, not from the start | **[INFERRED]** | **MUST** |
@@ -136,7 +136,12 @@ What is playing and what comes next. Internally, readiness still crosses from sy
 | 4.6 | Volume control in-app | **[PROPOSED]** | **COULD** |
 | 4.7 | Playback speed | **[PROPOSED]** | **COULD** |
 
-**4.1–4.3** are verbatim: *"pause or play THE current audio"*, *"pause, skip, or rewind"*.
+**4.1 was clarified after the unified Queue shipped.** Pause is a global,
+durable playback hold, not merely a control for the current clip. It remains
+available while idle and with an empty Queue. New submissions are accepted and
+may synthesize while held, but no audio starts until the user explicitly
+resumes. **4.2–4.3** retain the original stated meanings: *"pause, skip, or
+rewind"*.
 
 **⚠ 4.2 and 4.3 are the least specified features in the document, and their meanings are not obvious.**
 

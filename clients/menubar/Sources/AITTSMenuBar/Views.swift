@@ -147,7 +147,7 @@ struct CurrentPlaybackCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Text(current == nil ? "CURRENT" : isPaused ? "PAUSED" : "NOW SPEAKING")
+                Text(isPaused ? "PLAYBACK PAUSED" : current == nil ? "CURRENT" : "NOW SPEAKING")
                     .font(.caption2.smallCaps().weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -156,6 +156,22 @@ struct CurrentPlaybackCard: View {
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(.tertiary)
                 }
+                Button {
+                    isPaused ? state.resume() : state.pause()
+                } label: {
+                    Label(
+                        isPaused ? "RESUME" : "PAUSE",
+                        systemImage: isPaused ? "play.fill" : "pause.fill"
+                    )
+                    .font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .help(
+                    isPaused
+                        ? "Resume all playback"
+                        : "Pause all playback; incoming clips will stay queued"
+                )
             }
 
             if let current {
@@ -170,13 +186,12 @@ struct CurrentPlaybackCard: View {
                     } label: {
                         Label("Restart", systemImage: "backward.end.fill")
                     }
-                    .help("Restart the current clip")
-                    Button {
-                        isPaused ? state.resume() : state.pause()
-                    } label: {
-                        Label(isPaused ? "Resume" : "Pause",
-                              systemImage: isPaused ? "play.fill" : "pause.fill")
-                    }
+                    .disabled(isPaused)
+                    .help(
+                        isPaused
+                            ? "Resume playback before restarting the current clip"
+                            : "Restart the current clip"
+                    )
                     Button {
                         state.skip()
                     } label: {
@@ -187,23 +202,15 @@ struct CurrentPlaybackCard: View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
             } else {
-                Text(isPaused ? "Playback is paused" : "Nothing is playing")
+                Text(isPaused ? "All playback is paused" : "Nothing is playing")
                     .font(.system(size: 13, weight: .medium))
                 Text(
                     isPaused
-                        ? "Resume when you are ready to continue the Queue."
+                        ? "Incoming clips will stay in Queue until you resume."
                         : "Queued clips will begin here in playback order."
                 )
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if isPaused {
-                    Button {
-                        state.resume()
-                    } label: {
-                        Label("Resume", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.borderless)
-                }
             }
         }
         .padding(10)
