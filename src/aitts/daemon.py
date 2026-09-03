@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -35,6 +36,10 @@ if TYPE_CHECKING:
 _SPEED_MIN = 0.5
 _SPEED_MAX = 2.0
 _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
+_PLAYBACK_RESTART_MIN_SECONDS = 0.05
+_PLAYBACK_RESTART_MAX_SECONDS = 5.0
+
+log = logging.getLogger(__name__)
 
 
 def _serialize(utt: Utterance, *, history: bool = False) -> dict[str, Any]:
@@ -105,12 +110,28 @@ class Daemon:
             self._store, self._engine, self._cache_dir, workers=self._workers
         )
         self._store.on_transition.append(self._on_transition)
+        loop = asyncio.get_running_loop()
         self._tasks = [
-            asyncio.get_running_loop().create_task(self._pool.run()),
-            asyncio.get_running_loop().create_task(self._controller.run()),
-            asyncio.get_running_loop().create_task(asyncio.to_thread(self._engine.warmup)),
+            loop.create_task(self._pool.run(), name="aitts-synthesis"),
+            loop.create_task(self._supervise_playback(), name="aitts-playback"),
+            loop.create_task(asyncio.to_thread(self._engine.warmup), name="aitts-warmup"),
         ]
         await self._server.start()
+
+    async def _supervise_playback(self) -> None:
+        """Restart the critical playback loop if it exits unexpectedly."""
+        delay = _PLAYBACK_RESTART_MIN_SECONDS
+        while True:
+            try:
+                await self._require_controller().run()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("playback worker failed; restarting in %.2fs", delay)
+            else:  # pragma: no cover - run() is intentionally perpetual
+                log.error("playback worker exited; restarting in %.2fs", delay)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, _PLAYBACK_RESTART_MAX_SECONDS)
 
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""

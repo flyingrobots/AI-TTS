@@ -65,3 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Separated daemon admission (`state: accepting`) from `playback_state`, and
   made status/submission responses explicitly tell machine speakers to keep
   submitting while paused because their speech will be spooled.
+- Supervised the critical playback worker so an unexpected failure is logged
+  and restarted instead of leaving synthesized `Ready` clips stranded after
+  Resume releases a global hold.

@@ -244,7 +244,7 @@ async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None
 
 
 async def test_resume_recovers_after_playback_worker_crash(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     sock_dir = Path(tempfile.mkdtemp(prefix="aitts-playback-recovery-"))
     sink = FakeSink()
@@ -294,6 +294,7 @@ async def test_resume_recovers_after_playback_worker_crash(
             return len(sink.started) == 1
 
         await wait_for_async(playback_started, timeout=0.25)
+        assert "playback worker failed; restarting" in caplog.text
     finally:
         await d.stop()
         shutil.rmtree(sock_dir, ignore_errors=True)
