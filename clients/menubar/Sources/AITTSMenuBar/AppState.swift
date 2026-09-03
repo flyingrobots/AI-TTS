@@ -36,6 +36,16 @@ final class AppState: ObservableObject {
     @Published var reachable = false
     @Published var lastError: String?
 
+    /// Synthesis results that are still queued for playback.
+    var readyForPlayback: [Utterance] {
+        plan.filter { $0.state == "Ready" }
+    }
+
+    /// The synthesis view retains ready results instead of appearing empty.
+    var synthesisQueueIsEmpty: Bool {
+        inputQueue.isEmpty && readyForPlayback.isEmpty
+    }
+
     private let client: DaemonClient
     private let queue = DispatchQueue(label: "aitts.client", qos: .userInitiated)
     private var timer: Timer?

@@ -78,6 +78,26 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(snapshot?.status.engine, "kokoro")
     }
 
+    @MainActor
+    func testReadyVoicePreviewRemainsVisibleInTheSynthesisQueue() throws {
+        let preview = try XCTUnwrap(Utterance(json: [
+            "id": "utt_preview",
+            "text": "Hello. This is the voice bm daniel.",
+            "voice": "bm_daniel",
+            "state": "Ready",
+            "source": "menubar-preview",
+        ]))
+        let state = AppState()
+        state.plan = [preview]
+        state.inputQueue = []
+
+        XCTAssertTrue(state.inputQueue.isEmpty)
+        XCTAssertEqual(state.readyForPlayback, [preview])
+        XCTAssertFalse(state.synthesisQueueIsEmpty)
+        XCTAssertEqual(Tab.upNext.rawValue, "Up Next")
+        XCTAssertEqual(Tab.synthesis.rawValue, "Queue")
+    }
+
     func testTrayStatePrecedence() {
         XCTAssertEqual(TrayState.from(reachable: false, daemonState: "playing"), .error)
         XCTAssertEqual(TrayState.from(reachable: true, daemonState: "playing"), .playing)

@@ -293,33 +293,30 @@ struct PlanRow: View {
     }
 }
 
-// MARK: - Synthesis queue (the work view)
+// MARK: - Synthesis queue (active work plus ready results)
 
 struct SynthesisQueueView: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         VStack(spacing: 0) {
-            if state.inputQueue.isEmpty {
+            if state.synthesisQueueIsEmpty {
                 EmptyPane(text: "The queue is clear.")
             } else {
-                List(state.inputQueue) { item in
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.text).lineLimit(2).font(.system(size: 12))
-                            if let error = item.error {
-                                Text(error).font(.caption2).foregroundStyle(.red)
+                List {
+                    if !state.inputQueue.isEmpty {
+                        Section("WAITING / GENERATING") {
+                            ForEach(state.inputQueue) { item in
+                                SynthesisQueueRow(item: item)
                             }
                         }
-                        Spacer()
-                        StatePill(state: item.state)
-                        Button {
-                            state.cancel(item.id)
-                        } label: {
-                            Image(systemName: "xmark.circle")
+                    }
+                    if !state.readyForPlayback.isEmpty {
+                        Section("READY FOR PLAYBACK") {
+                            ForEach(state.readyForPlayback) { item in
+                                SynthesisQueueRow(item: item)
+                            }
                         }
-                        .buttonStyle(.borderless)
-                        .help("Cancel")
                     }
                 }
                 .listStyle(.plain)
@@ -334,6 +331,31 @@ struct SynthesisQueueView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+        }
+    }
+}
+
+struct SynthesisQueueRow: View {
+    @EnvironmentObject var state: AppState
+    let item: Utterance
+
+    var body: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.text).lineLimit(2).font(.system(size: 12))
+                if let error = item.error {
+                    Text(error).font(.caption2).foregroundStyle(.red)
+                }
+            }
+            Spacer()
+            StatePill(state: item.state)
+            Button {
+                state.cancel(item.id)
+            } label: {
+                Image(systemName: "xmark.circle")
+            }
+            .buttonStyle(.borderless)
+            .help("Cancel")
         }
     }
 }

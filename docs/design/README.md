@@ -67,7 +67,8 @@ Positions taken at implementation time, each reversible and open to challenge:
 - **Synthesis (6, 7)** is entirely on-machine (only a local engine exists) and runs ahead of playback in N parallel workers.
 - **Voice change (8)** applies to utterances submitted after the change. An utterance's voice is stamped at submit and never re-resolved — this diverges from features 7.4 (a SHOULD) in favour of history that says what voice actually spoke.
 - **Ordering (9)** is strictly submission order; a later item that synthesizes first waits for the head.
-- **Views (10)** are distinct: Up Next (playback plan) and Queue (synthesis work) are separate tabs.
+- **Views (10)** are distinct: Up Next is the playback plan; Queue shows active
+  synthesis work and retains `Ready` results until playback begins.
 - **Scope (11)** shipped the MUST set.
 - **Priority (13)** is `normal`/`urgent`; urgent inserts at the head of the plan and never interrupts what is being said. True barge-in remains unimplemented and off.
 - **Devices (14)** — one, the system default output.

@@ -64,7 +64,12 @@ The utterance text is set at 13.5 pt — larger than any list row in the app —
 
 The generating row is the only one that gets extra height, for a determinate progress bar and an estimate. Everything below is one line of text plus one line of metadata — deliberately terse, because this is a monitoring view and rows here are scanned, not read.
 
-Completed items are pushed below a `COMPLETED THIS SESSION` divider rather than removed. An item that finished synthesis has *left* this queue conceptually, but making it vanish destroys the only place you can see that synthesis is working at all. The footer states the fact that justifies the whole architecture: `Model hot · bm_daniel · 0.42× realtime`.
+Completed items that are still waiting to play are pushed below a `READY FOR
+PLAYBACK` divider rather than removed. An item that finished synthesis has
+*left* this queue conceptually, but making it vanish destroys the only place
+you can see that synthesis is working at all. Once playback begins, Up Next
+and then History own the item. The footer states the fact that justifies the
+whole architecture: `Model hot · bm_daniel · 0.42× realtime`.
 
 **Interactions.** `Pause synthesis` stops the generator without touching playback — useful when you want the CPU back but do not want to lose the queue. `Retry` on a failed row re-enqueues it at the head. Clicking a row reveals the full text. Failed rows can be dismissed; queued rows can be cancelled.
 
