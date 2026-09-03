@@ -39,13 +39,14 @@ final class WireProtocolTests: XCTestCase {
         let utterance = Utterance(json: [
             "id": "utt_1", "text": "hello", "voice": "bm_daniel", "state": "Ready",
             "duration_ms": 1200, "position_ms": 300, "finished_at": 1_756_700_000.5,
-            "source": "menubar",
+            "source": "menubar", "priority": "urgent",
         ])
         XCTAssertEqual(utterance?.id, "utt_1")
         XCTAssertEqual(utterance?.durationMs, 1200)
         XCTAssertEqual(utterance?.positionMs, 300)
         XCTAssertEqual(utterance?.finishedAt, 1_756_700_000.5)
         XCTAssertEqual(utterance?.source, "menubar")
+        XCTAssertEqual(utterance?.priority, .urgent)
         XCTAssertNil(Utterance(json: ["id": "utt_2"]))
     }
 
@@ -79,23 +80,36 @@ final class WireProtocolTests: XCTestCase {
     }
 
     @MainActor
-    func testReadyVoicePreviewRemainsVisibleInTheSynthesisQueue() throws {
+    func testUnifiedQueueContainsEveryUpcomingStateExactlyOnce() throws {
+        let current = try XCTUnwrap(Utterance(json: [
+            "id": "utt_current", "text": "Speaking", "voice": "bm_daniel",
+            "state": "Playing", "priority": "normal",
+        ]))
         let preview = try XCTUnwrap(Utterance(json: [
             "id": "utt_preview",
             "text": "Hello. This is the voice bm daniel.",
             "voice": "bm_daniel",
             "state": "Ready",
             "source": "menubar-preview",
+            "priority": "urgent",
+        ]))
+        let synthesizing = try XCTUnwrap(Utterance(json: [
+            "id": "utt_synth", "text": "Generating", "voice": "bm_daniel",
+            "state": "Synthesizing", "priority": "normal",
+        ]))
+        let queued = try XCTUnwrap(Utterance(json: [
+            "id": "utt_queued", "text": "Waiting", "voice": "bm_daniel",
+            "state": "Queued", "priority": "normal",
         ]))
         let state = AppState()
-        state.plan = [preview]
-        state.inputQueue = []
+        state.plan = [current, preview, synthesizing, queued]
 
-        XCTAssertTrue(state.inputQueue.isEmpty)
-        XCTAssertEqual(state.readyForPlayback, [preview])
-        XCTAssertFalse(state.synthesisQueueIsEmpty)
-        XCTAssertEqual(Tab.upNext.rawValue, "Up Next")
-        XCTAssertEqual(Tab.synthesis.rawValue, "Queue")
+        XCTAssertEqual(state.upcoming, [preview, synthesizing, queued])
+        XCTAssertEqual(Set(state.upcoming.map(\.id)).count, state.upcoming.count)
+        XCTAssertEqual(preview.priority, .urgent)
+        XCTAssertEqual(PlaybackTab.allCases.map(\.rawValue), ["Queue", "History"])
+        XCTAssertEqual(RequeuePriority.normal.actionDescription, "Add to end of Queue")
+        XCTAssertEqual(RequeuePriority.urgent.actionDescription, "Play next after current")
     }
 
     func testTrayStatePrecedence() {

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from aitts.model import Sensitivity, State, Utterance
+from aitts.model import Priority, Sensitivity, State, Utterance
 from aitts.store import Store, TransitionError
 
 
@@ -153,6 +153,55 @@ def test_clear_playback_cancels_ready_but_not_playing(store: Store) -> None:
     assert got_b is not None
     assert got_a.state is State.PLAYING
     assert got_b.state is State.CANCELLED
+
+
+def test_clear_pending_cancels_every_upcoming_state_but_not_playing(store: Store) -> None:
+    playing, ready, synthesizing, queued = (submit(store, text) for text in ("a", "b", "c", "d"))
+    for utt in (playing, ready):
+        store.transition(utt.id, State.SYNTHESIZING)
+        store.transition(utt.id, State.READY, audio_path=f"{utt.id}.wav", duration_ms=1)
+    store.transition(playing.id, State.PLAYING)
+    store.transition(synthesizing.id, State.SYNTHESIZING)
+
+    assert store.clear_pending() == 3
+    assert store.get(playing.id).state is State.PLAYING  # type: ignore[union-attr]
+    for utt in (ready, synthesizing, queued):
+        assert store.get(utt.id).state is State.CANCELLED  # type: ignore[union-attr]
+
+
+def test_reorder_pending_requires_and_applies_the_complete_pending_plan(store: Store) -> None:
+    current, first, second = (submit(store, text) for text in ("current", "first", "second"))
+    store.transition(current.id, State.SYNTHESIZING)
+    store.transition(current.id, State.READY, audio_path="current.wav", duration_ms=1)
+    store.transition(current.id, State.PLAYING)
+
+    store.reorder_pending([second.id, first.id])
+    next_item = store.next_pending()
+    assert next_item is not None
+    assert next_item.id == second.id
+    assert [utt.id for utt in store.input_queue()] == [second.id, first.id]
+
+    with pytest.raises(ValueError, match="complete pending plan"):
+        store.reorder_pending([first.id])
+    with pytest.raises(ValueError, match="complete pending plan"):
+        store.reorder_pending([first.id, first.id])
+
+
+def test_history_rows_can_be_removed_or_cleared_without_touching_active_work(store: Store) -> None:
+    first = submit(store, "first", priority=Priority.URGENT)
+    second = submit(store, "second")
+    active = submit(store, "active")
+    store.transition(first.id, State.CANCELLED)
+    store.transition(second.id, State.CANCELLED)
+
+    assert store.remove_history(first.id) is True
+    assert store.get(first.id) is None
+    assert store.remove_history(active.id) is False
+    assert store.get(active.id) is not None
+
+    assert store.clear_history() == 1
+    assert store.history() == []
+    assert store.get(active.id) is not None
 
 
 def test_settings_roundtrip_and_default(store: Store) -> None:

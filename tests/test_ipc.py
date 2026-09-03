@@ -17,6 +17,7 @@ import pytest
 
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
+from aitts.model import Priority, State
 from aitts.playback import FakeSink
 
 
@@ -276,3 +277,88 @@ async def test_snapshot_plan_is_merged_in_plan_order(daemon: Daemon) -> None:
     assert urgent["id"] in ids
     assert first["id"] in ids
     assert ids.index(urgent["id"]) < ids.index(first["id"])
+
+
+async def test_requeue_uses_fresh_priority_and_preserves_original_history(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    original = daemon.store.submit(
+        "historical alert", voice="bm_daniel", speed=1.0, priority=Priority.URGENT
+    )
+    daemon.store.transition(original.id, State.CANCELLED)
+    backlog = await rpc(daemon.socket_path, {"op": "submit", "text": "already waiting"})
+
+    normal = await rpc(daemon.socket_path, {"op": "requeue", "id": original.id})
+    assert normal["ok"] is True
+    assert normal["priority"] == "normal"
+
+    snapshot = await rpc(daemon.socket_path, {"op": "snapshot"})
+    plan = snapshot["plan"]
+    ids = [item["id"] for item in plan]
+    assert ids.index(backlog["id"]) < ids.index(normal["id"])
+    original_history = next(item for item in snapshot["history"] if item["id"] == original.id)
+    assert original_history["priority"] == "urgent"
+
+    urgent = await rpc(
+        daemon.socket_path,
+        {"op": "requeue", "id": original.id, "priority": "urgent"},
+    )
+    assert urgent["priority"] == "urgent"
+    snapshot = await rpc(daemon.socket_path, {"op": "snapshot"})
+    ids = [item["id"] for item in snapshot["plan"]]
+    assert ids.index(urgent["id"]) < ids.index(backlog["id"]) < ids.index(normal["id"])
+
+
+async def test_requeue_rejects_bad_priority_and_nonterminal_target(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    queued = await rpc(daemon.socket_path, {"op": "submit", "text": "still active"})
+    bad_priority = await rpc(
+        daemon.socket_path,
+        {"op": "requeue", "id": queued["id"], "priority": "whenever"},
+    )
+    assert bad_priority["ok"] is False
+    assert bad_priority["error"]["type"] == "bad_request"
+
+    nonterminal = await rpc(
+        daemon.socket_path,
+        {"op": "requeue", "id": queued["id"], "priority": "normal"},
+    )
+    assert nonterminal["ok"] is False
+    assert nonterminal["error"]["type"] == "illegal_state"
+
+
+async def test_unified_clear_queue_cancels_upcoming_work(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    submitted = [
+        await rpc(daemon.socket_path, {"op": "submit", "text": text})
+        for text in ("one", "two", "three")
+    ]
+    cleared = await rpc(daemon.socket_path, {"op": "clear", "queue": "queue"})
+    assert cleared == {"ok": True, "cleared": 3}
+    for item in submitted:
+        got = await rpc(daemon.socket_path, {"op": "get", "id": item["id"]})
+        assert got["item"]["state"] == "Cancelled"
+
+
+async def test_remove_and_clear_history_keep_cached_audio_and_active_work(
+    daemon: Daemon, tmp_path: Path
+) -> None:
+    cached = tmp_path / "cached.wav"
+    cached.write_bytes(b"still cached")
+    first = daemon.store.submit("first", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(first.id, State.SYNTHESIZING)
+    daemon.store.transition(first.id, State.READY, audio_path=str(cached), duration_ms=10)
+    daemon.store.transition(first.id, State.PLAYING)
+    daemon.store.transition(first.id, State.PLAYED, played_ms=10)
+    second = daemon.store.submit("second", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(second.id, State.CANCELLED)
+    active = daemon.store.submit("active", voice="bm_daniel", speed=1.0)
+
+    removed = await rpc(daemon.socket_path, {"op": "remove_history", "id": first.id})
+    assert removed == {"ok": True, "removed": 1, "id": first.id}
+    assert cached.read_bytes() == b"still cached"
+    assert daemon.store.get(first.id) is None
+
+    cleared = await rpc(daemon.socket_path, {"op": "clear", "queue": "history"})
+    assert cleared == {"ok": True, "cleared": 1}
+    assert daemon.store.history() == []
+    assert daemon.store.get(active.id) is not None
