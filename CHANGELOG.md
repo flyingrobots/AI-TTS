@@ -62,3 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made Pause a persistent global playback hold that is available while idle or
   with an empty Queue. Incoming speech continues to queue and synthesize, while
   Skip, Restart, and daemon restarts cannot release the hold; only Resume can.
+- Separated daemon admission (`state: accepting`) from `playback_state`, and
+  made status/submission responses explicitly tell machine speakers to keep
+  submitting while paused because their speech will be spooled.

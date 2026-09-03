@@ -62,15 +62,17 @@ struct Utterance: Identifiable, Equatable {
 }
 
 struct DaemonStatus: Equatable {
-    let state: String
+    let playbackState: String
     let current: Utterance?
     let counts: [String: Int]
     let voice: String
     let engine: String
 
     init?(json: [String: Any]) {
-        guard let state = json["state"] as? String else { return nil }
-        self.state = state
+        guard let playbackState =
+            json["playback_state"] as? String ?? json["state"] as? String
+        else { return nil }
+        self.playbackState = playbackState
         self.current = (json["current"] as? [String: Any]).flatMap(Utterance.init(json:))
         self.counts = json["counts"] as? [String: Int] ?? [:]
         self.voice = json["voice"] as? String ?? ""

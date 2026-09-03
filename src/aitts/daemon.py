@@ -178,6 +178,20 @@ class Daemon:
 
     # -- ops ------------------------------------------------------------
 
+    def _speech_admission(self) -> dict[str, object]:
+        """Tell machine callers that a playback hold is not backpressure."""
+        held = self._require_controller().held
+        return {
+            "accepting_speech": True,
+            "playback_held": held,
+            "submission_disposition": ("spooled_until_resume" if held else "queued_for_playback"),
+            "submission_guidance": (
+                "Speak freely: playback is paused, but speech is accepted and spooled until Resume."
+                if held
+                else "Speak freely: speech is accepted into the playback queue."
+            ),
+        }
+
     async def _op_submit(self, payload: dict[str, Any]) -> dict[str, Any]:
         text = payload.get("text")
         if not isinstance(text, str) or not text.strip():
@@ -209,10 +223,12 @@ class Daemon:
             self._pool.notify()
         return {
             "ok": True,
+            "accepted": True,
             "id": utt.id,
             "state": utt.state.value,
             "sensitivity": utt.sensitivity.value,
             "eligible_engines": eligible_engine_names(self._engines, utt.sensitivity),
+            **self._speech_admission(),
         }
 
     @staticmethod
@@ -407,20 +423,22 @@ class Daemon:
         )
         counts = self._store.counts()
         if current is not None and current.state is State.PLAYING:
-            state = "playing"
+            playback_state = "playing"
         elif controller.held or (current is not None and current.state is State.PAUSED):
-            state = "paused"
+            playback_state = "paused"
         elif counts.get(State.SYNTHESIZING.value, 0) > 0:
-            state = "synthesizing"
+            playback_state = "synthesizing"
         else:
-            state = "idle"
+            playback_state = "idle"
         current_item: dict[str, Any] | None = None
         if current is not None:
             current_item = _serialize(current)
             current_item["position_ms"] = controller.current_position_ms()
         return {
             "ok": True,
-            "state": state,
+            "state": "accepting",
+            **self._speech_admission(),
+            "playback_state": playback_state,
             "current": current_item,
             "counts": counts,
             "engine": self._engine.name,

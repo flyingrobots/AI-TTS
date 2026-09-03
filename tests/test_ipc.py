@@ -66,6 +66,24 @@ async def test_submit_echoes_declared_sensitivity(daemon: Daemon) -> None:
     assert res["sensitivity"] == "public"
 
 
+async def test_paused_daemon_advertises_spooling_and_accepts_speech(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    status = await rpc(daemon.socket_path, {"op": "status"})
+    assert status["state"] == "accepting"
+    assert status["playback_state"] == "paused"
+    assert status["accepting_speech"] is True
+    assert status["playback_held"] is True
+    assert status["submission_disposition"] == "spooled_until_resume"
+    assert status["submission_guidance"].startswith("Speak freely")
+
+    submitted = await rpc(daemon.socket_path, {"op": "submit", "text": "meeting update"})
+    assert submitted["ok"] is True
+    assert submitted["accepted"] is True
+    assert submitted["playback_held"] is True
+    assert submitted["submission_disposition"] == "spooled_until_resume"
+    assert submitted["submission_guidance"].startswith("Speak freely")
+
+
 async def test_submit_without_text_is_bad_request(daemon: Daemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "submit"})
     assert res["ok"] is False
@@ -168,7 +186,9 @@ async def test_socket_is_user_only(daemon: Daemon) -> None:
 async def test_status_reports_shape(daemon: Daemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "status"})
     assert res["ok"] is True
-    assert res["state"] in {"idle", "playing", "paused", "synthesizing", "held"}
+    assert res["state"] == "accepting"
+    assert res["playback_state"] in {"idle", "playing", "paused", "synthesizing"}
+    assert res["accepting_speech"] is True
     assert "counts" in res
     assert res["engine"] == "fake"
 
@@ -185,7 +205,7 @@ async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None
     try:
         paused = await rpc(first.socket_path, {"op": "pause"})
         assert paused["held"] is True
-        assert (await rpc(first.socket_path, {"op": "status"}))["state"] == "paused"
+        assert (await rpc(first.socket_path, {"op": "status"}))["playback_state"] == "paused"
     finally:
         await first.stop()
 
@@ -198,7 +218,7 @@ async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None
     )
     await restored.start()
     try:
-        assert (await rpc(restored.socket_path, {"op": "status"}))["state"] == "paused"
+        assert (await rpc(restored.socket_path, {"op": "status"}))["playback_state"] == "paused"
         submitted = await rpc(
             restored.socket_path,
             {"op": "submit", "text": "wait until the meeting ends"},
@@ -282,7 +302,7 @@ async def test_status_streams_live_position_while_playing(tmp_path: Path) -> Non
 
         async def playing() -> bool:
             res = await rpc(d.socket_path, {"op": "status"})
-            return bool(res["state"] == "playing")
+            return bool(res["playback_state"] == "playing")
 
         await wait_for_async(playing)
         sink.advance_to(4321)
@@ -296,7 +316,13 @@ async def test_status_streams_live_position_while_playing(tmp_path: Path) -> Non
 async def test_snapshot_returns_everything_in_one_request(daemon: Daemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "snapshot"})
     assert res["ok"] is True
-    assert res["status"]["state"] in {"idle", "playing", "paused", "synthesizing"}
+    assert res["status"]["state"] == "accepting"
+    assert res["status"]["playback_state"] in {
+        "idle",
+        "playing",
+        "paused",
+        "synthesizing",
+    }
     for key in ("playback", "input", "plan", "history", "voices", "settings"):
         assert key in res
     assert res["voices"] == ["bm_daniel", "af_bella"]

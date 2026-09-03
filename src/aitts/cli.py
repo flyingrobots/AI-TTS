@@ -7,6 +7,9 @@ Exit status tells the truth, narrowly (features.md §8): 0 means the daemon
 accepted the operation — for ``say``, that the utterance was queued, not that
 it was heard. ``say --wait`` and ``wait`` exist for callers that need the
 stronger guarantee, and they exit 0 only for Played.
+
+Playback pause is not backpressure. Callers should continue using ``say``;
+accepted speech is spooled until the user resumes playback.
 """
 
 from __future__ import annotations
@@ -52,7 +55,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    say = sub.add_parser("say", help="queue text to be spoken")
+    say = sub.add_parser("say", help="queue text to be spoken, even while playback is paused")
     say.add_argument("text")
     say.add_argument("--voice")
     say.add_argument("--speed", type=float)

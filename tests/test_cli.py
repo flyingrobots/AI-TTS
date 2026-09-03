@@ -79,7 +79,10 @@ async def test_status_and_transport_roundtrip(
     capsys.readouterr()
     assert await run_cli(daemon, "status") == EXIT_OK
     status = json.loads(capsys.readouterr().out)
-    assert status["state"] == "paused"
+    assert status["state"] == "accepting"
+    assert status["playback_state"] == "paused"
+    assert status["accepting_speech"] is True
+    assert status["submission_disposition"] == "spooled_until_resume"
     assert await run_cli(daemon, "resume") == EXIT_OK
 
 

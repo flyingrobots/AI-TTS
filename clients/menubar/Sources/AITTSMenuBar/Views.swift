@@ -81,7 +81,7 @@ struct PopoverHeader: View {
 
     private var statusLabel: String {
         guard state.reachable else { return "Daemon unavailable" }
-        switch state.status?.state {
+        switch state.status?.playbackState {
         case "playing": return "Speaking"
         case "paused": return "Playback paused"
         case "synthesizing": return "Preparing speech"
@@ -142,7 +142,7 @@ struct CurrentPlaybackCard: View {
     @EnvironmentObject var state: AppState
 
     private var current: Utterance? { state.status?.current }
-    private var isPaused: Bool { state.status?.state == "paused" }
+    private var isPaused: Bool { state.status?.playbackState == "paused" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {

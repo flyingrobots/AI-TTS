@@ -236,6 +236,7 @@ The surface an agent uses. He describes this only as *"you send THE application 
 | 8.5 | Block until a specific utterance has finished, for callers that need it | **[PROPOSED]** | **SHOULD** |
 | 8.6 | Transport control from the client, not only the UI | **[PROPOSED]** | **COULD** |
 | 8.7 | Stable utterance identifier returned on submission | **[PROPOSED]** | **SHOULD** |
+| 8.8 | Report admission separately from playback hold; paused speakers continue submitting and are spooled | **[STATED]** | **MUST** |
 
 **8.2 is the requirement that tonight's evidence most directly demands, and it is the one most likely to be skipped**, because it is not a feature anyone sees.
 
@@ -244,6 +245,13 @@ Four times in one session the current setup **produced no audio and reported suc
 **The honest contract is narrow, and narrow is the point.** Exit 0 should mean *this utterance was accepted onto the queue* — not *it was heard*, which the application cannot know, and not *it will be heard*, which it cannot promise. Anything the client cannot observe should not be encoded in its exit status. **8.5 and 8.7 exist for callers that genuinely need the stronger guarantee**, and they should have to ask for it explicitly.
 
 **8.7** is unglamorous and enables 8.5, 5.6, and useful log correlation. Nearly free at design time.
+
+**8.8 prevents an agent-side deadlock.** A speaker that sees the word “paused”
+may politely refuse to submit, even though holding those submissions is the
+entire purpose of global Pause. Machine status therefore says the service is
+`accepting`, reports `playback_state` separately, and gives an explicit
+`spooled_until_resume` disposition. Enqueue tools must not use playback state
+as an admission precondition.
 
 ---
 

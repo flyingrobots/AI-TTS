@@ -150,8 +150,16 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 // submit — returns immediately with an id. THIS IS NOT "IT WAS SPOKEN".
 → {"op":"submit", "text":"...", "voice":"bm_daniel", "priority":"normal",
    "sensitivity":"confidential"}          // REQUIRED. omitted ⇒ treated as confidential
-← {"ok":true, "id":"utt_01J...", "state":"Queued", "sensitivity":"confidential",
-   "eligible_engines":["local"]}          // the daemon tells you what may speak it
+← {"ok":true, "accepted":true, "id":"utt_01J...", "state":"Queued",
+   "sensitivity":"confidential", "eligible_engines":["local"],
+   "playback_held":true, "submission_disposition":"spooled_until_resume"}
+
+// status — daemon admission and playback are deliberately separate
+→ {"op":"status"}
+← {"ok":true, "state":"accepting", "accepting_speech":true,
+   "playback_state":"paused", "playback_held":true,
+   "submission_disposition":"spooled_until_resume",
+   "submission_guidance":"Speak freely: playback is paused, but speech is accepted and spooled until Resume."}
 
 // list either queue
 → {"op":"list", "queue":"input"}      // Submitted | Queued | Synthesizing
@@ -182,6 +190,12 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 ← {"event":"state_changed", "id":"utt_...", "from":"Synthesizing", "to":"Ready"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Playing", "to":"Played"}
 ```
+
+`paused` is a playback state, not a daemon availability state. A speaker must
+never suppress submission because `playback_state` is `paused`; it submits
+normally and receives `accepted: true` plus `spooled_until_resume`. The future
+MCP enqueue tool follows the same rule and does not perform a playback-state
+preflight.
 
 **A caller that must know an utterance was actually spoken subscribes and waits for its terminal state.** It does not read an exit code. That is the whole lesson of F1–F3 expressed as protocol.
 

@@ -45,7 +45,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
     private func applyState() {
         let newState = TrayState.from(
-            reachable: state.reachable, daemonState: state.status?.state)
+            reachable: state.reachable, daemonState: state.status?.playbackState)
         guard newState != trayState else { return }
         trayState = newState
         phase = 0

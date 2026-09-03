@@ -78,6 +78,12 @@ uv run ai-tts history
 uv run ai-tts settings --set voice=bm_daniel
 ```
 
+**Pause is a playback hold, never backpressure.** Speakers should continue to
+submit normally while playback is paused; accepted speech is synthesized and
+spooled in Queue until the user resumes. `status` reports the daemon itself as
+`accepting` and reports `playback_state` separately so an agent does not mistake
+temporary silence for refusal.
+
 Every response is JSON. Agents that want more than the CLI speak newline-delimited JSON directly to the Unix socket at `~/Library/Application Support/ai-tts/ai-tts.sock` — the protocol is in [`docs/design/architecture.md`](docs/design/architecture.md) §5, and the CLI is only a convenience over it.
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.

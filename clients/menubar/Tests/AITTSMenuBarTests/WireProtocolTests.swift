@@ -53,7 +53,9 @@ final class WireProtocolTests: XCTestCase {
     func testSnapshotParsesWireShape() {
         let snapshot = Snapshot(json: [
             "status": [
-                "state": "playing",
+                "state": "accepting",
+                "playback_state": "playing",
+                "accepting_speech": true,
                 "current": [
                     "id": "utt_1", "text": "hi", "voice": "v", "state": "Playing",
                     "position_ms": 42,
@@ -71,12 +73,17 @@ final class WireProtocolTests: XCTestCase {
             "voices": ["bm_daniel"],
             "settings": ["voice": "bm_daniel", "speed": 1.25],
         ])
-        XCTAssertEqual(snapshot?.status.state, "playing")
+        XCTAssertEqual(snapshot?.status.playbackState, "playing")
         XCTAssertEqual(snapshot?.status.current?.positionMs, 42)
         XCTAssertEqual(snapshot?.plan.count, 2)
         XCTAssertEqual(snapshot?.plan.last?.state, "Queued")
         XCTAssertEqual(snapshot?.speed, 1.25)
         XCTAssertEqual(snapshot?.status.engine, "kokoro")
+    }
+
+    func testDaemonStatusFallsBackToLegacyState() {
+        let status = DaemonStatus(json: ["state": "paused"])
+        XCTAssertEqual(status?.playbackState, "paused")
     }
 
     @MainActor
