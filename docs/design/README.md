@@ -63,12 +63,11 @@ Positions taken at implementation time, each reversible and open to challenge:
 
 - **Skip (1)** abandons the current utterance and the next begins; history records `Skipped` with the position reached. The input queue is untouched.
 - **Rewind (2, 12)** is utterance-level: bare `rewind` restarts the current utterance; `rewind --to <id>` brings a previous one back to the head of the plan (a terminal one is replayed as a new utterance with `replay_of` set, reusing cached audio when it exists). No within-utterance N-second seek in v1.
-- **History (3, 4, 5, 16)** is permanent with no automatic expiry, searchable in the menu-bar app, replayable via `rewind --to`, records the submitting client (`source`), and lives in user-only files under `~/Library/Application Support/ai-tts/`. No encryption beyond file permissions.
+- **History (3, 4, 5, 16)** is permanent until the user removes an entry or clears it, searchable in the menu-bar app, and re-queueable with a fresh urgency choice. It records the original priority and submitting client (`source`) and lives in user-only files under `~/Library/Application Support/ai-tts/`. Removing history does not implicitly evict cached audio. No encryption beyond file permissions.
 - **Synthesis (6, 7)** is entirely on-machine (only a local engine exists) and runs ahead of playback in N parallel workers.
 - **Voice change (8)** applies to utterances submitted after the change. An utterance's voice is stamped at submit and never re-resolved — this diverges from features 7.4 (a SHOULD) in favour of history that says what voice actually spoke.
-- **Ordering (9)** is strictly submission order; a later item that synthesizes first waits for the head.
-- **Views (10)** are distinct: Up Next is the playback plan; Queue shows active
-  synthesis work and retains `Ready` results until playback begins.
+- **Ordering (9)** is one serialized speaking plan. Normal submissions are FIFO; `urgent` and explicit reordering may move pending clips, but nothing preempts the clip already playing. A later item that synthesizes first still waits for its position in the plan.
+- **Views (10)** use one user-facing Queue in exact playback order. It shows every upcoming clip once with `Ready`, `Synthesizing…`, or `Queued` state. The daemon's input and playback queues remain distinct implementation details, not separate tabs.
 - **Scope (11)** shipped the MUST set.
 - **Priority (13)** is `normal`/`urgent`; urgent inserts at the head of the plan and never interrupts what is being said. True barge-in remains unimplemented and off.
 - **Devices (14)** — one, the system default output.

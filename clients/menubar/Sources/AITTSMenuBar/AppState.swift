@@ -29,21 +29,15 @@ final class AtomicFlag: @unchecked Sendable {
 final class AppState: ObservableObject {
     @Published var status: DaemonStatus?
     @Published var plan: [Utterance] = []
-    @Published var inputQueue: [Utterance] = []
     @Published var history: [Utterance] = []
     @Published var voices: [String] = []
     @Published var speed: Double = 1.0
     @Published var reachable = false
     @Published var lastError: String?
 
-    /// Synthesis results that are still queued for playback.
-    var readyForPlayback: [Utterance] {
-        plan.filter { $0.state == "Ready" }
-    }
-
-    /// The synthesis view retains ready results instead of appearing empty.
-    var synthesisQueueIsEmpty: Bool {
-        inputQueue.isEmpty && readyForPlayback.isEmpty
+    /// The one user-facing queue: every clip that will play after the current one.
+    var upcoming: [Utterance] {
+        plan.filter { ["Queued", "Synthesizing", "Ready"].contains($0.state) }
     }
 
     private let client: DaemonClient
@@ -86,7 +80,6 @@ final class AppState: ObservableObject {
                 }
                 self.status = snapshot.status
                 self.plan = snapshot.plan
-                self.inputQueue = snapshot.input
                 self.history = snapshot.history
                 self.speed = snapshot.speed
                 if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
@@ -144,6 +137,21 @@ final class AppState: ObservableObject {
     func rewind() { send(["op": "rewind"]) }
     func playNow(_ id: String) { send(["op": "rewind", "to": id]) }
     func cancel(_ id: String) { send(["op": "cancel", "id": id]) }
+    func clearQueue() { send(["op": "clear", "queue": "queue"]) }
+    func clearHistory() { send(["op": "clear", "queue": "history"]) }
+    func removeHistory(_ id: String) { send(["op": "remove_history", "id": id]) }
+
+    func requeue(_ id: String, priority: RequeuePriority = .normal) {
+        send(["op": "requeue", "id": id, "priority": priority.rawValue])
+    }
+
+    func reorderQueue(_ ids: [String]) {
+        let byID = Dictionary(uniqueKeysWithValues: upcoming.map { ($0.id, $0) })
+        guard ids.count == byID.count, ids.allSatisfy({ byID[$0] != nil }) else { return }
+        let upcomingIDs = Set(byID.keys)
+        plan = plan.filter { !upcomingIDs.contains($0.id) } + ids.compactMap { byID[$0] }
+        send(["op": "reorder", "ids": ids])
+    }
     func setVoice(_ voice: String) { send(["op": "settings", "set": ["voice": voice]]) }
     func setSpeed(_ speed: Double) { send(["op": "settings", "set": ["speed": speed]]) }
 

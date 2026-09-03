@@ -1,102 +1,125 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
 //
-// The popover, built to the interaction design in docs/design/ui-design.md:
-// Now Playing is the default and usually the only view needed; the playback
-// plan shows everything scheduled including items still waiting for
-// synthesis; history is grouped by day with a fixed time column; per-row
-// actions appear on hover; the transport is reachable from every tab.
+// One playback surface: the current clip stays pinned above a Queue/History
+// switcher. Queue is the exact upcoming playback plan, regardless of synthesis
+// state. History is newest-first and keeps original priority as provenance.
 
 import SwiftUI
 
-enum Tab: String, CaseIterable {
-    case now = "Now Playing"
-    case upNext = "Up Next"
-    case synthesis = "Queue"
+enum PlaybackTab: String, CaseIterable {
+    case queue = "Queue"
     case history = "History"
-    case settings = "Settings"
-
-    var icon: String {
-        switch self {
-        case .now: return "waveform"
-        case .upNext: return "list.bullet"
-        case .synthesis: return "gearshape.arrow.triangle.2.circlepath"
-        case .history: return "clock"
-        case .settings: return "slider.horizontal.3"
-        }
-    }
 }
 
 // MARK: - Shell
 
 struct PopoverView: View {
     @EnvironmentObject var state: AppState
-    @State private var tab: Tab = .now
+    @State private var tab: PlaybackTab = .queue
+    @State private var showingSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
-            TabBar(selected: $tab)
+            PopoverHeader(showingSettings: $showingSettings)
             Divider()
-            Group {
-                if !state.reachable {
-                    UnreachableView()
-                } else {
+            if state.reachable {
+                CurrentPlaybackCard()
+                PlaybackTabBar(selected: $tab)
+                Divider()
+                Group {
                     switch tab {
-                    case .now: NowPlayingView()
-                    case .upNext: UpNextView()
-                    case .synthesis: SynthesisQueueView()
+                    case .queue: QueueView()
                     case .history: HistoryView()
-                    case .settings: SettingsView()
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Divider()
+                ModelHealthFooter()
+            } else {
+                UnreachableView()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
-            TransportBar()
         }
-        .frame(width: 360, height: 480)
+        .frame(width: 368, height: 500)
         .onAppear { state.startPolling(interval: 0.5) }
+        .onDisappear { state.stopPolling() }
+        .sheet(isPresented: $showingSettings) {
+            SettingsSheet(isPresented: $showingSettings)
+                .environmentObject(state)
+        }
     }
 }
 
-struct TabBar: View {
-    @Binding var selected: Tab
+struct PopoverHeader: View {
+    @EnvironmentObject var state: AppState
+    @Binding var showingSettings: Bool
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(Tab.allCases, id: \.self) { tab in
+        HStack(spacing: 8) {
+            Image(systemName: "waveform.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("AI-TTS").font(.headline)
+                Text(statusLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.borderless)
+            .help("Settings")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private var statusLabel: String {
+        guard state.reachable else { return "Daemon unavailable" }
+        switch state.status?.state {
+        case "playing": return "Speaking"
+        case "paused": return "Playback paused"
+        case "synthesizing": return "Preparing speech"
+        default: return "Ready"
+        }
+    }
+}
+
+struct PlaybackTabBar: View {
+    @Binding var selected: PlaybackTab
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(PlaybackTab.allCases, id: \.self) { tab in
                 Button {
                     selected = tab
                 } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab.icon).font(.system(size: 14))
-                        Text(shortLabel(tab)).font(.system(size: 9))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
+                    Text(tab.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(selected == tab ? Color.accentColor : Color.secondary)
                 .background(
-                    selected == tab ? Color.accentColor.opacity(0.12) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 7)
+                    selected == tab ? Color.accentColor.opacity(0.16) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5)
                 )
-                .help(tab.rawValue)
+                .accessibilityAddTraits(selected == tab ? .isSelected : [])
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-    }
-
-    private func shortLabel(_ tab: Tab) -> String {
-        switch tab {
-        case .now: return "Playing"
-        case .upNext: return "Up Next"
-        case .synthesis: return "Queue"
-        case .history: return "History"
-        case .settings: return "Settings"
-        }
+        .padding(3)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Playback view")
     }
 }
 
@@ -105,267 +128,210 @@ struct UnreachableView: View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.bubble").font(.largeTitle)
             Text("The daemon is not running").font(.headline)
-            Text("Start it with:  ai-tts daemon").font(.system(.caption, design: .monospaced))
+            Text("Start it with:  ai-tts daemon")
+                .font(.system(.caption, design: .monospaced))
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-// MARK: - Now Playing
+// MARK: - Current playback
 
-struct NowPlayingView: View {
+struct CurrentPlaybackCard: View {
     @EnvironmentObject var state: AppState
 
+    private var current: Utterance? { state.status?.current }
+    private var isPaused: Bool { state.status?.state == "paused" }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if let current = state.status?.current {
-                HStack {
-                    Text(caption(current))
-                        .font(.caption.smallCaps())
-                        .foregroundStyle(.secondary)
-                    Spacer()
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(current == nil ? "CURRENT" : isPaused ? "PAUSED" : "NOW SPEAKING")
+                    .font(.caption2.smallCaps().weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let current {
                     Text(current.voice)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(.tertiary)
                 }
-                ScrollView {
-                    Text(current.text)
-                        .font(.system(size: 13.5))
-                        .lineSpacing(2.5)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                if let duration = current.durationMs, duration > 0 {
-                    let position = current.positionMs ?? current.playedMs ?? 0
-                    VStack(spacing: 3) {
-                        ProgressView(
-                            value: min(Double(position), Double(duration)),
-                            total: Double(duration))
-                        HStack {
-                            Text(clock(position)).font(
-                                .system(.caption2, design: .monospaced))
-                            Spacer()
-                            Text(clock(duration)).font(
-                                .system(.caption2, design: .monospaced))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                }
-                if let next = state.plan.first(where: { $0.id != current.id }) {
-                    Divider()
-                    HStack(spacing: 6) {
-                        Text("Up next").font(.caption2.smallCaps()).foregroundStyle(.tertiary)
-                        Text(next.text).font(.caption).lineLimit(1)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } else {
-                Spacer()
-                VStack(spacing: 8) {
-                    Text("Nothing to say right now").foregroundStyle(.secondary)
-                    if let last = state.history.first {
-                        HStack(spacing: 6) {
-                            Text(last.text).lineLimit(1).font(.caption)
-                                .foregroundStyle(.tertiary)
-                            ReplayButton(id: last.id)
-                        }
-                        .padding(.horizontal, 24)
-                    }
-                    Text("Send text with:  ai-tts say \"…\"")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                }
-                .frame(maxWidth: .infinity)
-                Spacer()
             }
-        }
-        .padding(12)
-    }
 
-    private func caption(_ current: Utterance) -> String {
-        current.state == "Playing" ? "Now speaking" : current.state
-    }
-}
-
-func clock(_ ms: Int) -> String {
-    let seconds = ms / 1000
-    return String(format: "%d:%02d", seconds / 60, seconds % 60)
-}
-
-struct ReplayButton: View {
-    @EnvironmentObject var state: AppState
-    let id: String
-
-    var body: some View {
-        Button {
-            state.playNow(id)
-        } label: {
-            Image(systemName: "arrow.counterclockwise")
-        }
-        .buttonStyle(.borderless)
-        .help("Replay")
-    }
-}
-
-// MARK: - Up Next (the speaking plan, waiting-for-synthesis included)
-
-struct UpNextView: View {
-    @EnvironmentObject var state: AppState
-    @State private var hovered: String?
-
-    var body: some View {
-        if state.plan.isEmpty {
-            EmptyPane(text: "Nothing queued.")
-        } else {
-            List(state.plan) { item in
-                PlanRow(item: item, hovered: hovered == item.id)
-                    .onHover { inside in hovered = inside ? item.id : nil }
-                    .listRowSeparator(.visible)
-            }
-            .listStyle(.plain)
-        }
-    }
-}
-
-struct PlanRow: View {
-    @EnvironmentObject var state: AppState
-    let item: Utterance
-    let hovered: Bool
-
-    private var isCurrent: Bool { item.state == "Playing" || item.state == "Paused" }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(isCurrent ? Color.accentColor : Color.clear)
-                .frame(width: 3)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.text)
-                    .lineLimit(2)
-                    .font(.system(size: isCurrent ? 12.5 : 12,
-                                  weight: isCurrent ? .medium : .regular))
-                HStack(spacing: 6) {
-                    Text(subtitle).font(.caption2).foregroundStyle(.secondary)
-                    if isCurrent, let duration = item.durationMs, duration > 0 {
-                        ProgressView(
-                            value: Double(item.playedMs ?? 0), total: Double(duration)
-                        )
-                        .controlSize(.small)
-                        .frame(width: 90)
+            if let current {
+                Text(current.text)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                progress(for: current)
+                HStack(spacing: 14) {
+                    Button {
+                        state.rewind()
+                    } label: {
+                        Label("Restart", systemImage: "backward.end.fill")
                     }
+                    .help("Restart the current clip")
+                    Button {
+                        isPaused ? state.resume() : state.pause()
+                    } label: {
+                        Label(isPaused ? "Resume" : "Pause",
+                              systemImage: isPaused ? "play.fill" : "pause.fill")
+                    }
+                    Button {
+                        state.skip()
+                    } label: {
+                        Label("Skip", systemImage: "forward.end.fill")
+                    }
+                    Spacer()
                 }
-            }
-            Spacer(minLength: 4)
-            if hovered && !isCurrent {
-                Button {
-                    state.playNow(item.id)
-                } label: {
-                    Image(systemName: "text.line.first.and.arrowtriangle.forward")
-                }
+                .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .help("Move to the top")
-                Button {
-                    state.cancel(item.id)
-                } label: {
-                    Image(systemName: "xmark.circle")
-                }
-                .buttonStyle(.borderless)
-                .help("Remove")
             } else {
-                StatePill(state: item.state)
+                Text(isPaused ? "Playback is paused" : "Nothing is playing")
+                    .font(.system(size: 13, weight: .medium))
+                Text(
+                    isPaused
+                        ? "Resume when you are ready to continue the Queue."
+                        : "Queued clips will begin here in playback order."
+                )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if isPaused {
+                    Button {
+                        state.resume()
+                    } label: {
+                        Label("Resume", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
         }
-        .padding(.vertical, 2)
-        .background(isCurrent ? Color.accentColor.opacity(0.07) : Color.clear)
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
     }
 
-    private var subtitle: String {
-        switch item.state {
-        case "Queued": return "waiting for synthesis"
-        case "Synthesizing": return "generating…"
-        case "Ready":
-            if let duration = item.durationMs { return clock(duration) }
-            return "ready"
-        case "Playing": return "speaking"
-        case "Paused": return "paused"
-        default: return item.state.lowercased()
+    @ViewBuilder
+    private func progress(for current: Utterance) -> some View {
+        if let duration = current.durationMs, duration > 0 {
+            let position = current.positionMs ?? current.playedMs ?? 0
+            VStack(spacing: 2) {
+                ProgressView(
+                    value: min(Double(position), Double(duration)),
+                    total: Double(duration)
+                )
+                HStack {
+                    Text(clock(position))
+                    Spacer()
+                    Text(clock(duration))
+                }
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.secondary)
+            }
         }
     }
 }
 
-// MARK: - Synthesis queue (active work plus ready results)
+// MARK: - Unified queue
 
-struct SynthesisQueueView: View {
+struct QueueView: View {
     @EnvironmentObject var state: AppState
+    @State private var confirmingClear = false
 
     var body: some View {
         VStack(spacing: 0) {
-            if state.synthesisQueueIsEmpty {
-                EmptyPane(text: "The queue is clear.")
-            } else {
-                List {
-                    if !state.inputQueue.isEmpty {
-                        Section("WAITING / GENERATING") {
-                            ForEach(state.inputQueue) { item in
-                                SynthesisQueueRow(item: item)
-                            }
-                        }
-                    }
-                    if !state.readyForPlayback.isEmpty {
-                        Section("READY FOR PLAYBACK") {
-                            ForEach(state.readyForPlayback) { item in
-                                SynthesisQueueRow(item: item)
-                            }
-                        }
-                    }
-                }
-                .listStyle(.plain)
-            }
-            Divider()
             HStack {
-                Circle().fill(.green).frame(width: 6, height: 6)
-                Text("Model hot · \(state.status?.engine ?? "?") · \(state.status?.voice ?? "")")
-                    .font(.caption2)
+                Text(queueSummary)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Clear queue…") { confirmingClear = true }
+                    .buttonStyle(.borderless)
+                    .disabled(state.upcoming.isEmpty)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+
+            Divider()
+
+            if state.upcoming.isEmpty {
+                EmptyPane(
+                    icon: "text.line.first.and.arrowtriangle.forward",
+                    title: "Queue is empty",
+                    detail: "New clips will appear here in playback order."
+                )
+            } else {
+                List {
+                    ForEach(state.upcoming) { item in
+                        QueueRow(item: item)
+                    }
+                    .onMove(perform: move)
+                }
+                .listStyle(.plain)
+            }
         }
+        .confirmationDialog(
+            "Clear the queue?",
+            isPresented: $confirmingClear,
+            titleVisibility: .visible
+        ) {
+            Button("Clear Queue", role: .destructive) { state.clearQueue() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every upcoming clip, including clips being synthesized, will be cancelled. The current clip will keep playing.")
+        }
+    }
+
+    private var queueSummary: String {
+        let count = state.upcoming.count
+        let urgent = state.upcoming.filter { $0.priority == .urgent }.count
+        let noun = count == 1 ? "clip" : "clips"
+        return urgent == 0 ? "\(count) upcoming \(noun)" : "\(count) upcoming · \(urgent) urgent"
+    }
+
+    private func move(from offsets: IndexSet, to destination: Int) {
+        var reordered = state.upcoming
+        reordered.move(fromOffsets: offsets, toOffset: destination)
+        state.reorderQueue(reordered.map(\.id))
     }
 }
 
-struct SynthesisQueueRow: View {
+struct QueueRow: View {
     @EnvironmentObject var state: AppState
     let item: Utterance
 
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.text).lineLimit(2).font(.system(size: 12))
-                if let error = item.error {
-                    Text(error).font(.caption2).foregroundStyle(.red)
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .help("Drag to reorder")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.text)
+                    .font(.system(size: 12))
+                    .lineLimit(2)
+                HStack(spacing: 6) {
+                    StatePill(state: item.state)
+                    if item.priority == .urgent {
+                        PriorityBadge()
+                    }
+                    Text(item.voice)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.tertiary)
                 }
             }
-            Spacer()
-            StatePill(state: item.state)
+            Spacer(minLength: 4)
             Button {
                 state.cancel(item.id)
             } label: {
                 Image(systemName: "xmark.circle")
             }
             .buttonStyle(.borderless)
-            .help("Cancel")
+            .help("Remove from queue")
         }
-    }
-}
-
-struct EmptyPane: View {
-    let text: String
-
-    var body: some View {
-        VStack { Text(text).foregroundStyle(.secondary) }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 2)
     }
 }
 
@@ -373,32 +339,45 @@ struct StatePill: View {
     let state: String
 
     var body: some View {
-        Text(state)
+        Text(label)
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(color.opacity(0.18), in: Capsule())
+            .background(color.opacity(0.16), in: Capsule())
             .foregroundStyle(color)
+    }
+
+    private var label: String {
+        state == "Synthesizing" ? "Synthesizing…" : state
     }
 
     private var color: Color {
         switch state {
-        case "Playing": return .blue
         case "Ready": return .green
         case "Synthesizing": return .orange
         case "Failed": return .red
-        case "Paused": return .gray
         default: return .secondary
         }
     }
 }
 
-// MARK: - History (day-grouped, fixed time column, expand in place)
+struct PriorityBadge: View {
+    var body: some View {
+        Text("↑ Urgent")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.blue.opacity(0.14), in: Capsule())
+            .foregroundStyle(Color.blue)
+    }
+}
+
+// MARK: - History
 
 struct HistoryView: View {
     @EnvironmentObject var state: AppState
     @State private var query = ""
-    @State private var expanded: Set<String> = []
+    @State private var confirmingClear = false
 
     private var filtered: [Utterance] {
         guard !query.isEmpty else { return state.history }
@@ -428,26 +407,32 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search history", text: $query)
-                .textFieldStyle(.roundedBorder)
-                .padding(8)
+            HStack(spacing: 8) {
+                TextField("Search history", text: $query)
+                    .textFieldStyle(.roundedBorder)
+                Button("Clear history…") { confirmingClear = true }
+                    .buttonStyle(.borderless)
+                    .disabled(state.history.isEmpty)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+
+            Divider()
+
             if filtered.isEmpty {
-                Spacer()
-                Text(query.isEmpty ? "Nothing spoken yet" : "No matches for “\(query)”")
-                    .foregroundStyle(.secondary)
-                if !query.isEmpty {
-                    Text("\(state.history.count) items in history")
-                        .font(.caption2).foregroundStyle(.tertiary)
-                }
-                Spacer()
+                EmptyPane(
+                    icon: "clock.arrow.circlepath",
+                    title: query.isEmpty ? "Nothing spoken yet" : "No matches",
+                    detail: query.isEmpty
+                        ? "Finished clips will appear newest-first."
+                        : "\(state.history.count) clips remain in history."
+                )
             } else {
                 List {
                     ForEach(groups, id: \.day) { group in
                         Section {
                             ForEach(group.items) { item in
-                                HistoryRow(item: item, expanded: expanded.contains(item.id))
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { toggle(item.id) }
+                                HistoryRow(item: item)
                             }
                         } header: {
                             Text(group.day).font(.caption2.smallCaps())
@@ -457,17 +442,22 @@ struct HistoryView: View {
                 .listStyle(.plain)
             }
         }
-    }
-
-    private func toggle(_ id: String) {
-        if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
+        .confirmationDialog(
+            "Clear history?",
+            isPresented: $confirmingClear,
+            titleVisibility: .visible
+        ) {
+            Button("Clear History", role: .destructive) { state.clearHistory() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("History records will be removed. Cached audio remains managed separately.")
+        }
     }
 }
 
 struct HistoryRow: View {
     @EnvironmentObject var state: AppState
     let item: Utterance
-    let expanded: Bool
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -476,31 +466,45 @@ struct HistoryRow: View {
     }()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(time)
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.tertiary)
-                .frame(width: 34, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .top, spacing: 7) {
+                Text(time)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 34, alignment: .leading)
                 Text(item.text)
                     .font(.system(size: 12))
-                    .lineLimit(expanded ? nil : 2)
-                HStack(spacing: 6) {
-                    Text(detail).font(.caption2).foregroundStyle(.secondary)
-                    if let source = item.source {
-                        Text(source)
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                    }
+                    .lineLimit(2)
+                Spacer(minLength: 2)
+                Button {
+                    state.removeHistory(item.id)
+                } label: {
+                    Image(systemName: "xmark.circle")
                 }
-                if let error = item.error {
-                    Text(error).font(.caption2).foregroundStyle(.red)
-                }
+                .buttonStyle(.borderless)
+                .help("Remove from history")
             }
-            Spacer(minLength: 4)
-            ReplayButton(id: item.id)
+
+            HStack(spacing: 6) {
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                if item.priority == .urgent {
+                    PriorityBadge()
+                }
+                Spacer()
+                RequeueControl(id: item.id)
+            }
+            .padding(.leading, 41)
+
+            if let error = item.error {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .padding(.leading, 41)
+            }
         }
-        .padding(.vertical, 1)
+        .padding(.vertical, 2)
     }
 
     private var time: String {
@@ -511,13 +515,80 @@ struct HistoryRow: View {
     private var detail: String {
         let final = item.finalState ?? item.state
         if final == "Skipped", let played = item.playedMs, let total = item.durationMs {
-            return "skipped at \(clock(played)) of \(clock(total))"
+            return "Skipped at \(clock(played)) of \(clock(total))"
+        }
+        if let source = item.source {
+            return "\(final) · \(source)"
         }
         return final
     }
 }
 
+struct RequeueControl: View {
+    @EnvironmentObject var state: AppState
+    let id: String
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button("Re-queue") {
+                state.requeue(id)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 7)
+            .padding(.trailing, 5)
+            .padding(.vertical, 3)
+            .help("Add to end of Queue")
+
+            Divider().frame(height: 17)
+
+            Menu {
+                Button {
+                    state.requeue(id, priority: .normal)
+                } label: {
+                    Label("Normal — Add to end of Queue", systemImage: "checkmark")
+                }
+                Button("Urgent — Play next after current") {
+                    state.requeue(id, priority: .urgent)
+                }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .frame(width: 20, height: 20)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Choose re-queue urgency")
+        }
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
+        }
+        .controlSize(.small)
+    }
+}
+
 // MARK: - Settings
+
+struct SettingsSheet: View {
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Settings").font(.headline)
+                Spacer()
+                Button("Done") { isPresented = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(12)
+            Divider()
+            SettingsView()
+        }
+        .frame(width: 340, height: 430)
+    }
+}
 
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
@@ -588,48 +659,53 @@ struct VoiceRow: View {
     }
 }
 
-// MARK: - Transport (reachable from every tab)
+// MARK: - Shared details
 
-struct TransportBar: View {
-    @EnvironmentObject var state: AppState
-
-    private var isPaused: Bool { state.status?.state == "paused" }
-    private var hasCurrent: Bool { state.status?.current != nil }
+struct EmptyPane: View {
+    let icon: String
+    let title: String
+    let detail: String
 
     var body: some View {
-        HStack(spacing: 20) {
-            Button {
-                state.rewind()
-            } label: {
-                Image(systemName: "backward.end")
-            }
-            .disabled(!hasCurrent)
-            .help("Restart the current utterance")
-
-            Button {
-                isPaused ? state.resume() : state.pause()
-            } label: {
-                Image(systemName: isPaused ? "play.fill" : "pause.fill").font(.title3)
-            }
-            .disabled(!state.reachable)
-            .help(isPaused ? "Resume" : "Pause")
-
-            Button {
-                state.skip()
-            } label: {
-                Image(systemName: "forward.end")
-            }
-            .disabled(!hasCurrent)
-            .help("Skip")
-
-            Spacer()
-
-            if let error = state.lastError {
-                Text(error).font(.caption2).foregroundStyle(.red).lineLimit(1)
-            }
+        VStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(.tertiary)
+            Text(title).font(.headline)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+struct ModelHealthFooter: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(state.lastError == nil ? Color.green : Color.red)
+                .frame(width: 6, height: 6)
+            if let error = state.lastError {
+                Text(error).foregroundStyle(.red)
+            } else {
+                Text("Model hot · \(state.status?.engine ?? "?") · \(state.status?.voice ?? "")")
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .font(.caption2)
+        .lineLimit(1)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+}
+
+func clock(_ ms: Int) -> String {
+    let seconds = ms / 1000
+    return String(format: "%d:%02d", seconds / 60, seconds % 60)
 }

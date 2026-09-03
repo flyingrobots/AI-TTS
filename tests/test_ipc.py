@@ -326,6 +326,32 @@ async def test_requeue_rejects_bad_priority_and_nonterminal_target(daemon: Daemo
     assert nonterminal["error"]["type"] == "illegal_state"
 
 
+async def test_reorder_replaces_the_complete_pending_plan(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    submitted = [
+        await rpc(daemon.socket_path, {"op": "submit", "text": text})
+        for text in ("first", "second", "third")
+    ]
+    reordered_ids = [item["id"] for item in reversed(submitted)]
+
+    reordered = await rpc(
+        daemon.socket_path,
+        {"op": "reorder", "ids": reordered_ids},
+    )
+    snapshot = await rpc(daemon.socket_path, {"op": "snapshot"})
+
+    assert reordered == {"ok": True, "ids": reordered_ids}
+    assert [item["id"] for item in snapshot["plan"]] == reordered_ids
+
+    stale = await rpc(
+        daemon.socket_path,
+        {"op": "reorder", "ids": reordered_ids[:-1]},
+    )
+    assert stale["ok"] is False
+    assert stale["error"]["type"] == "bad_request"
+    assert "complete pending plan" in stale["error"]["message"]
+
+
 async def test_unified_clear_queue_cancels_upcoming_work(daemon: Daemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     submitted = [
@@ -337,6 +363,21 @@ async def test_unified_clear_queue_cancels_upcoming_work(daemon: Daemon) -> None
     for item in submitted:
         got = await rpc(daemon.socket_path, {"op": "get", "id": item["id"]})
         assert got["item"]["state"] == "Cancelled"
+
+
+async def test_removing_ready_queue_item_keeps_cached_audio(daemon: Daemon, tmp_path: Path) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    cached = tmp_path / "ready.wav"
+    cached.write_bytes(b"reusable audio")
+    item = daemon.store.submit("ready", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(item.id, State.SYNTHESIZING)
+    daemon.store.transition(item.id, State.READY, audio_path=str(cached), duration_ms=10)
+
+    removed = await rpc(daemon.socket_path, {"op": "cancel", "id": item.id})
+
+    assert removed["ok"] is True
+    assert removed["state"] == "Cancelled"
+    assert cached.read_bytes() == b"reusable audio"
 
 
 async def test_remove_and_clear_history_keep_cached_audio_and_active_work(

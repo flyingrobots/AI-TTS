@@ -12,6 +12,18 @@ enum WireError: Error, Equatable {
     case malformed
 }
 
+enum RequeuePriority: String, CaseIterable, Equatable {
+    case normal
+    case urgent
+
+    var actionDescription: String {
+        switch self {
+        case .normal: return "Add to end of Queue"
+        case .urgent: return "Play next after current"
+        }
+    }
+}
+
 struct Utterance: Identifiable, Equatable {
     let id: String
     let text: String
@@ -23,6 +35,7 @@ struct Utterance: Identifiable, Equatable {
     let error: String?
     let finalState: String?
     let source: String?
+    let priority: RequeuePriority
     let enqueuedAt: Double?
     let finishedAt: Double?
 
@@ -42,6 +55,7 @@ struct Utterance: Identifiable, Equatable {
         self.error = json["error"] as? String
         self.finalState = json["final_state"] as? String
         self.source = json["source"] as? String
+        self.priority = RequeuePriority(rawValue: json["priority"] as? String ?? "") ?? .normal
         self.enqueuedAt = json["enqueued_at"] as? Double
         self.finishedAt = json["finished_at"] as? Double
     }

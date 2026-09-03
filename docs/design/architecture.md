@@ -36,7 +36,7 @@ The single most important structural decision. **Synthesis and playback have opp
 
 **The payoff is that synthesis runs ahead of playback.** While utterance *n* is being spoken, *n+1* and *n+2* are already rendered and cached. The user hears no gap. If they were one queue, every utterance would pay full synthesis latency at the moment it was needed.
 
-**The cost is that they can diverge**, and the design must say what happens when they do (§7).
+**The cost is that they can diverge**, and the design must say what happens when they do (§7). This boundary is internal. The menu-bar app merges all non-current, non-terminal states into one ordered Queue so an item cannot disappear merely because it crossed from synthesis to playback readiness.
 
 ---
 
@@ -160,13 +160,22 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 
 // transport
 → {"op":"pause"} | {"op":"resume"} | {"op":"skip"}
-→ {"op":"rewind", "to":"utt_..."}      // or {"seconds": 10} within the current utterance
+→ {"op":"rewind"}                         // restart the current utterance
+→ {"op":"rewind", "to":"utt_..."}      // legacy play-next/replay operation
 → {"op":"cancel", "id":"utt_..."}      // legal in Queued, Synthesizing, Ready
 ← {"ok":true, "state":"Paused", "current":"utt_..."}
+
+// unified pending plan
+→ {"op":"snapshot"}                       // current + complete ordered plan + history
+→ {"op":"reorder", "ids":["utt_2","utt_1"]} // every pending id, exactly once
+→ {"op":"clear", "queue":"queue"}       // current keeps playing
 
 // history
 → {"op":"history", "limit":100, "before":"utt_..."}
 ← {"ok":true, "items":[{"id":"...","text":"...","final_state":"Played|Skipped|Failed|Cancelled", ...}]}
+→ {"op":"requeue", "id":"utt_...", "priority":"normal|urgent"}
+→ {"op":"remove_history", "id":"utt_..."}
+→ {"op":"clear", "queue":"history"}
 
 // subscribe — the fix for F1 and F2
 → {"op":"subscribe", "events":["state"]}

@@ -32,21 +32,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   merged playback plan, history, voices and settings; status carries live
   playback position and history items carry completion time.
 - **Menu-bar app** (Swift/SwiftUI, `clients/menubar`): custom animated template
-  tray icons; event-driven refresh with reconnect; Now Playing progress and
-  clocks; true-plan Up Next with hover actions; synthesis Queue; day-grouped,
-  expandable History; voice previews; Settings; and global transport controls.
+  tray icons; event-driven refresh with reconnect; a pinned current-playback
+  card; unified Queue/History tabs; exact playback ordering with inline
+  synthesis state and drag reordering; removable and clearable queues/history;
+  priority-aware history re-queue; voice previews; Settings; and transport
+  controls.
 - **Infrastructure**: pytest suite written before the implementation, ruff
   `--select ALL` and `mypy --strict` clean, git hooks in `scripts/hooks/`,
   GitHub Actions CI (Python + Swift), launchd agent plist.
 
 ### Changed
 
+- Unified the former Now Playing, Up Next, and synthesis Queue surfaces. The
+  current clip is always pinned above two tabs: Queue shows every upcoming clip
+  exactly once, and History is newest-first. Internal synthesis and playback
+  queues remain separate daemon machinery rather than separate user concepts.
+- History re-queue now defaults to Normal (append) and offers an explicit
+  Urgent choice (play next after current). The historical row retains its
+  original priority as provenance.
 - Editorial pass over all documentation: restructured overused em-dash
   connectors into plain sentences and removed small repetitions. No claims,
   decisions, or open questions changed.
 
 ### Fixed
 
-- The synthesis Queue no longer appears empty while already-generated clips
-  remain scheduled. `Ready` results stay visible in a dedicated section until
-  playback begins.
+- Fixed voice previews and other ready clips appearing under Up Next while the
+  Queue looked empty. `Ready`, `Synthesizing…`, and `Queued` clips now share one
+  list in actual playback order.

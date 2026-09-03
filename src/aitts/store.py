@@ -212,6 +212,10 @@ class Store:
         """Utterances on the playback side: Ready, Playing, Paused."""
         return self._by_states(_PLAYBACK_STATES)
 
+    def pending_queue(self) -> list[Utterance]:
+        """Everything that will play after the current utterance, in order."""
+        return self._by_states(_PENDING_STATES)
+
     def head_of_plan(self) -> Utterance | None:
         """Return the earliest non-terminal utterance in plan order."""
         nonterminal = tuple(s for s in State if s not in TERMINAL)
@@ -334,6 +338,51 @@ class Store:
                 self.transition(utt.id, State.CANCELLED)
                 cancelled += 1
         return cancelled
+
+    def clear_pending(self) -> int:
+        """Cancel everything still owed after the current utterance."""
+        cancelled = 0
+        for utt in self._by_states(_PENDING_STATES):
+            if can_transition(utt.state, State.CANCELLED):
+                self.transition(utt.id, State.CANCELLED)
+                cancelled += 1
+        return cancelled
+
+    def reorder_pending(self, utt_ids: list[str]) -> None:
+        """Replace the pending plan order with one exact, complete permutation."""
+        pending = self.pending_queue()
+        pending_ids = [utt.id for utt in pending]
+        if len(utt_ids) != len(set(utt_ids)) or set(utt_ids) != set(pending_ids):
+            msg = "ids must name the complete pending plan exactly once"
+            raise ValueError(msg)
+
+        current = self._by_states((State.PLAYING, State.PAUSED))
+        base = max((utt.order_key for utt in current), default=0.0)
+        with self._db:
+            self._db.executemany(
+                "UPDATE utterances SET order_key = ? WHERE id = ?",
+                [(base + index, utt_id) for index, utt_id in enumerate(utt_ids, start=1)],
+            )
+
+    def remove_history(self, utt_id: str) -> bool:
+        """Remove one terminal history record without touching its cached audio."""
+        placeholders = ",".join("?" * len(TERMINAL))
+        cursor = self._db.execute(
+            f"DELETE FROM utterances WHERE id = ? AND state IN ({placeholders})",  # noqa: S608
+            (utt_id, *(state.value for state in TERMINAL)),
+        )
+        self._db.commit()
+        return cursor.rowcount == 1
+
+    def clear_history(self) -> int:
+        """Remove all terminal history records without touching cached audio."""
+        placeholders = ",".join("?" * len(TERMINAL))
+        cursor = self._db.execute(
+            f"DELETE FROM utterances WHERE state IN ({placeholders})",  # noqa: S608
+            tuple(state.value for state in TERMINAL),
+        )
+        self._db.commit()
+        return cursor.rowcount
 
     def recover(self) -> None:
         """Repair state after a daemon restart (architecture §6).

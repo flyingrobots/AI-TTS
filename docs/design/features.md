@@ -1,6 +1,8 @@
 # Feature breakdown
 
-Status: **draft for review**. No code has been written. Nothing here is settled.
+Status: **implemented in v0.1.0**. This document preserves the provenance of the original requirements. Later product decisions supersede the initial proposal labels where noted below.
+
+The post-implementation queue review closed the largest UI question: the daemon keeps distinct synthesis and playback machinery, but the menu-bar app presents one Queue in actual playback order. The current clip is pinned above Queue and History; Queue rows expose processing state, urgency, removal, clearing, and drag reordering. History is newest-first and supports removal, clearing, and re-queueing with a fresh Normal or Urgent choice.
 
 ## How to read this
 
@@ -71,11 +73,11 @@ How text gets into the system.
 
 **1.4** exists because of the silent exit-0 failures. A caller that cannot tell acceptance from rejection has no way to notice the system has stopped working — which is exactly what happened, four times. See §8.
 
-**1.6** is deliberately **COULD**. It sounds obviously useful and it interacts badly with everything: it complicates the queue view, it makes "upcoming" non-obvious, and nobody has asked for it.
+**1.6 was later approved and implemented.** Urgent means "play next after the current clip"; it never interrupts current playback. Queue rows make urgency visible.
 
-## 2. Synthesis queue
+## 2. Synthesis work queue
 
-The input queue and the work of turning text into audio.
+The internal input queue and the work of turning text into audio. It is not a separate user-facing tab: its states appear inline in the unified Queue.
 
 | # | Feature | Label | Priority |
 |---|---|---|---|
@@ -99,9 +101,9 @@ The input queue and the work of turning text into audio.
 
 **2.9** is genuinely useful for long text and genuinely complicated — chunk boundaries, rewind semantics across chunks, and what a "history entry" then means. **COULD**, and not before the rest works.
 
-## 3. Playback queue
+## 3. Unified playback plan
 
-What is playing, what is next.
+What is playing and what comes next. Internally, readiness still crosses from synthesis to playback; externally, each upcoming clip appears exactly once.
 
 | # | Feature | Label | Priority |
 |---|---|---|---|
@@ -119,6 +121,8 @@ What is playing, what is next.
 **3.5** is separated from 3.3 deliberately. If synthesis runs concurrently, a short item submitted second can finish synthesising first, and *ready order* stops matching *submission order*. **We assume he wants submission order**, but he never says so, and if the ordering ever visibly differs he will notice. Cheap to get right at design time and expensive later.
 
 **3.4** is where the two queues meet, and it is the part of the architecture his description implies without spelling out.
+
+**3.7 and 3.8 were later approved and implemented.** Clearing Queue cancels every upcoming state while the current clip keeps playing. Drag reordering operates on the complete pending plan so no synthesis state can disappear or duplicate.
 
 ## 4. Transport controls
 
@@ -159,10 +163,14 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 | 5.8 | Copy an item's text to the clipboard | **[PROPOSED]** | **COULD** |
 | 5.9 | Export history | **[PROPOSED]** | **COULD** |
 | 5.10 | Retention limit or a way to purge | **[INFERRED]** | **SHOULD** |
+| 5.11 | Remove one history record or clear all history | **[STATED]** | **MUST** |
+| 5.12 | Choose Normal or Urgent when re-queueing history | **[STATED]** | **MUST** |
 
 **5.2 is a strong claim and we have taken it literally.** *"I want to have a history of all THE things you've told me. It should all be there."* We read "all" as *complete, not a recent-items list*, and 5.3 follows: a history that empties on restart is not "all".
 
 **5.6 and 5.7 are ours, and they are the two that make history useful rather than merely present.** He asked for the record; he did not ask to be able to do anything with it. They are marked **SHOULD** rather than **MUST** on that basis — but a complete, permanent, unsearchable log is a strange artifact, and this is the place where his description most likely means more than it says. Worth asking.
+
+**5.11 and 5.12 are later direct requirements.** Re-queue creates a new hearing while retaining the original record and its priority as provenance. Normal appends; Urgent becomes next after the current clip. Deleting history records is intentionally separate from cache eviction.
 
 **5.10 is where the confidentiality point bites.** A complete permanent history of this text is a plaintext record of confidential material sitting in a file on disk. That may be entirely fine — it is his machine — but it should be a decision he makes rather than a consequence of the word "all". Storage location, file permissions, and whether history is ever written unencrypted are in [Open questions](#open-questions).
 
@@ -172,8 +180,8 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 |---|---|---|---|
 | 6.1 | A macOS menu-bar (status-item) icon | **[STATED]** | **MUST** |
 | 6.2 | Clicking it opens a UI | **[STATED]** | **MUST** |
-| 6.3 | A view of the input queue | **[STATED]** | **MUST** |
-| 6.4 | A view of the playback queue | **[STATED]** | **MUST** |
+| 6.3 | Show input-side processing state in the unified Queue | **[STATED]** | **MUST** |
+| 6.4 | Show the exact playback order in that same Queue | **[STATED]** | **MUST** |
 | 6.5 | A view of history | **[STATED]** | **MUST** |
 | 6.6 | Transport controls reachable from that UI | **[STATED]** | **MUST** |
 | 6.7 | See what is currently playing | **[STATED]** | **MUST** |
@@ -183,7 +191,7 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 | 6.11 | Item count or badge on the icon | **[PROPOSED]** | **COULD** |
 | 6.12 | Transport controls in the icon's right-click menu, without opening the panel | **[PROPOSED]** | **COULD** |
 
-**6.3–6.5** are his three "modes": *"I want to be able to view THE input queue, and I want to be able to view THE playback queue"*, *"a history of all THE things you've told me"*, and *"opens up some sort of UI where I can view those modes"*.
+**6.3–6.5 were clarified after use.** Separate Up Next and Queue tabs exposed two internal stages as nearly identical user concepts, and ready voice previews could appear in one while the other looked empty. The approved surface therefore has two tabs, Queue and History, with current playback pinned above both.
 
 **How the three views are presented — tabs, a segmented control, a sidebar, one scrolling panel — is not specified.** *"some sort of UI"* is as far as he goes. That is a mockup question, not a feature question, and mockups are being drawn separately.
 
@@ -234,9 +242,9 @@ Four times in one session the current setup **produced no audio and reported suc
 
 ---
 
-## Everything we are proposing, in one list
+## Everything proposed in the initial design
 
-Nothing below came from James. **Cut any of it without justification.**
+Nothing below came from the original brief. Several items were later requested or approved explicitly; the notes above are authoritative for v0.1.0.
 
 | # | Feature | Priority |
 |---|---|---|
@@ -292,7 +300,7 @@ These are the ones where guessing is worse than asking. **This section is why th
 **Ordering and scope.**
 
 9. **Is playback order strictly submission order?** If synthesis is concurrent, a short item can be ready first. We assume submission order (3.5).
-10. **Is the input queue view actually distinct from the playback queue view in the UI?** You named both. Once synthesis keeps ahead of playback, most items pass through the input queue quickly enough that the view is often empty — is it still a separate mode, or one list with per-item state?
+10. **Resolved:** the input and playback queues remain distinct internally but are one user-facing Queue with per-item state.
 11. **What is in v1?** Everything marked MUST here is roughly *the product as you described it*. That is a large v1. **We can propose a smaller first cut if you would rather see something working sooner** — say the word and that is a separate document.
 
 ## What is deliberately not in this document

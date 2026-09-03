@@ -154,7 +154,10 @@ class Daemon:
             "resume": self._op_resume,
             "skip": self._op_skip,
             "rewind": self._op_rewind,
+            "requeue": self._op_requeue,
+            "reorder": self._op_reorder,
             "cancel": self._op_cancel,
+            "remove_history": self._op_remove_history,
             "clear": self._op_clear,
             "status": self._op_status,
             "snapshot": self._op_snapshot,
@@ -287,15 +290,15 @@ class Daemon:
             controller.notify()
             return self._transport_reply()
         if target.is_terminal:
-            replay = self._replay(target)
+            replay = self._replay(target, priority=target.priority, at_head=True)
             reply = self._transport_reply()
             reply["replay_id"] = replay.id
             return reply
         msg = "rewind target is currently playing; use 'rewind' without 'to' to restart it"
         raise ApiError(ILLEGAL_STATE, msg)
 
-    def _replay(self, target: Utterance) -> Utterance:
-        """Re-enqueue a finished utterance at the head of the plan.
+    def _replay(self, target: Utterance, *, priority: Priority, at_head: bool) -> Utterance:
+        """Create a new hearing of a finished utterance.
 
         Replaying is a new utterance so history stays honest about each
         hearing. Cached audio is reused when it still exists; otherwise the
@@ -306,10 +309,10 @@ class Daemon:
             voice=target.voice,
             speed=target.speed,
             sensitivity=target.sensitivity,
-            priority=target.priority,
+            priority=priority,
             source=target.source,
             replay_of=target.id,
-            at_head=True,
+            at_head=at_head,
         )
         cached = target.audio_path is not None and Path(target.audio_path).exists()
         if cached and target.audio_path is not None:
@@ -322,7 +325,41 @@ class Daemon:
             )
         elif self._pool is not None:
             self._pool.notify()
-        return replay
+        return self._store.get(replay.id) or replay
+
+    async def _op_requeue(self, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            priority = Priority(payload.get("priority", Priority.NORMAL.value))
+        except ValueError as exc:
+            raise ApiError(BAD_REQUEST, str(exc)) from exc
+        target = self._get_utterance(payload)
+        if not target.is_terminal:
+            msg = "only a history item can be re-queued"
+            raise ApiError(ILLEGAL_STATE, msg)
+        replay = self._replay(
+            target,
+            priority=priority,
+            at_head=priority is Priority.URGENT,
+        )
+        return {
+            "ok": True,
+            "id": replay.id,
+            "state": replay.state.value,
+            "priority": replay.priority.value,
+        }
+
+    async def _op_reorder(self, payload: dict[str, Any]) -> dict[str, Any]:
+        utt_ids = payload.get("ids")
+        if not isinstance(utt_ids, list) or not all(isinstance(item, str) for item in utt_ids):
+            msg = "reorder requires an 'ids' array"
+            raise ApiError(BAD_REQUEST, msg)
+        try:
+            self._store.reorder_pending(utt_ids)
+        except ValueError as exc:
+            raise ApiError(BAD_REQUEST, str(exc)) from exc
+        self._server.broadcast({"event": "plan_reordered", "ids": utt_ids})
+        self._require_controller().notify()
+        return {"ok": True, "ids": utt_ids}
 
     async def _op_cancel(self, payload: dict[str, Any]) -> dict[str, Any]:
         utt = self._get_utterance(payload)
@@ -336,17 +373,31 @@ class Daemon:
             after = self._store.transition(utt.id, State.CANCELLED)
         except TransitionError as exc:  # pragma: no cover - guarded above
             raise ApiError(ILLEGAL_STATE, str(exc)) from exc
-        if after.audio_path is not None:
-            Path(after.audio_path).unlink(missing_ok=True)  # noqa: ASYNC240 - one local unlink, sub-ms
         return {"ok": True, "id": after.id, "state": after.state.value}
 
     async def _op_clear(self, payload: dict[str, Any]) -> dict[str, Any]:
         queue = payload.get("queue")
+        if queue == "queue":
+            cleared = self._store.clear_pending()
+            return {"ok": True, "cleared": cleared}
+        if queue == "history":
+            cleared = self._store.clear_history()
+            self._server.broadcast({"event": "history_changed", "cleared": cleared})
+            return {"ok": True, "cleared": cleared}
         if queue not in ("input", "playback"):
-            msg = "clear requires naming a queue: 'input' or 'playback'"
+            msg = "clear requires 'queue': 'queue', 'history', 'input', or 'playback'"
             raise ApiError(BAD_REQUEST, msg)
         cleared = self._store.clear_queue(queue)
         return {"ok": True, "cleared": cleared}
+
+    async def _op_remove_history(self, payload: dict[str, Any]) -> dict[str, Any]:
+        target = self._get_utterance(payload)
+        if not target.is_terminal:
+            msg = "only a history item can be removed"
+            raise ApiError(ILLEGAL_STATE, msg)
+        removed = int(self._store.remove_history(target.id))
+        self._server.broadcast({"event": "history_changed", "removed": target.id})
+        return {"ok": True, "removed": removed, "id": target.id}
 
     async def _op_status(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
