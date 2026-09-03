@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
   <title id="ttl">AI-TTS unified player proposal — Queue</title>
-  <desc id="desc">A macOS menu-bar popover with the currently playing clip pinned at the top. Below it, a two-tab Queue and History control has Queue selected. Four upcoming clips appear in playback order with Ready, Synthesizing, and Queued states. Every row has a visible Remove action, and the toolbar has a Clear queue action.</desc>
+  <desc id="desc">A macOS menu-bar popover with the currently playing clip pinned at the top. Below it, a two-tab Queue and History control has Queue selected. Four upcoming clips appear in playback order with Ready, Synthesizing, and Queued states. An urgent item is explicitly marked independently of its processing state. Every row has a visible Remove action, and the toolbar has a Clear queue action.</desc>
   <style>
     svg{
       --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;
@@ -73,7 +73,7 @@
     <text class="t2" fill="#6B6B73" x="266" y="184" font-size="11" text-anchor="middle">History</text>
 
     <!-- queue toolbar -->
-    <text class="t2" fill="#6B6B73" x="20" y="217" font-size="10.5">4 up next · 1m 02s</text>
+    <text class="t2" fill="#6B6B73" x="20" y="217" font-size="10.5">4 up next · 1 urgent · 1m 02s</text>
     <text class="err" fill="#CC3325" x="348" y="217" font-size="10.5" text-anchor="end">Clear queue…</text>
 
     <!-- queue row 1: ready -->
@@ -81,7 +81,9 @@
     <text class="t" fill="#16161A" x="40" y="244" font-size="11.5">Dependency audit finished: no advisories…</text>
     <circle class="ok" fill="#1B8F45" cx="43" cy="260" r="3"/>
     <text class="ok" fill="#1B8F45" x="51" y="263.5" font-size="10">Ready</text>
-    <text class="t3" fill="#9C9CA4" x="91" y="263.5" font-size="10">· claude-code</text>
+    <text class="t3" fill="#9C9CA4" x="86" y="263.5" font-size="10">·</text>
+    <text class="acc" fill="#0A6CFF" x="96" y="263.5" font-size="10" font-weight="600">↑ Urgent</text>
+    <text class="t3" fill="#9C9CA4" x="143" y="263.5" font-size="10">· claude-code</text>
     <text class="t2" fill="#6B6B73" x="294" y="263.5" font-size="10" text-anchor="end">0:22</text>
     <text class="err" fill="#CC3325" x="348" y="263.5" font-size="10" text-anchor="end">Remove</text>
     <rect class="sep" fill="#E0E0E5" x="40" y="274" width="308" height="1"/>
