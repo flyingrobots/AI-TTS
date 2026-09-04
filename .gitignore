@@ -16,17 +16,40 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+build/
+dist/
+*.whl
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
 
 # Swift / Xcode
 .build/
+.swiftpm/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+*.app/
+*.dSYM/
+*.dmg
+*.pkg
 
 # Runtime state — never commit spoken content or cached audio
 /state/
 *.sqlite
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 *.wav
 *.mp3
 *.pcm
