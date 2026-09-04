@@ -5,10 +5,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 
 class FileAudioArtifacts:
@@ -19,20 +22,37 @@ class FileAudioArtifacts:
         self._root = root
 
     def prepare(self) -> None:
-        """Create the artifact directory if needed."""
+        """Create the artifact directory and sweep unpublished crash debris."""
         self._root.mkdir(parents=True, exist_ok=True)
+        for candidate in self._root.iterdir():
+            if self._is_candidate(candidate) and not self.discard(candidate):
+                log.warning("could not discard stale synthesis candidate %s", candidate)
 
     def target(self, utterance_id: str) -> Path:
-        """Return the canonical WAV path for ``utterance_id``."""
-        return self._root / f"{utterance_id}.wav"
+        """Return a cache-invisible candidate path for ``utterance_id``."""
+        candidate = self._candidate_path(utterance_id)
+        if not self.discard(candidate):
+            msg = f"could not prepare synthesis candidate {candidate}"
+            raise OSError(msg)
+        return candidate
 
     @staticmethod
     def is_usable(path: Path) -> bool:
         """Accept only a regular, non-empty file as synthesized audio."""
         try:
-            return path.is_file() and path.stat().st_size > 0
+            return not path.is_symlink() and path.is_file() and path.stat().st_size > 0
         except OSError:
             return False
+
+    def publish(self, utterance_id: str, candidate: Path) -> Path:
+        """Atomically replace the canonical WAV with one complete candidate."""
+        expected = self._candidate_path(utterance_id)
+        if candidate != expected:
+            msg = f"unexpected synthesis candidate {candidate}"
+            raise ValueError(msg)
+        published = self._published_path(utterance_id)
+        candidate.replace(published)
+        return published
 
     @staticmethod
     def discard(path: Path) -> bool:
@@ -42,3 +62,21 @@ class FileAudioArtifacts:
         except OSError:
             return False
         return True
+
+    def _candidate_path(self, utterance_id: str) -> Path:
+        candidate = self._root / f".{utterance_id}.wav.part"
+        if candidate.parent != self._root:
+            msg = "utterance id must not contain a path separator"
+            raise ValueError(msg)
+        return candidate
+
+    def _published_path(self, utterance_id: str) -> Path:
+        published = self._root / f"{utterance_id}.wav"
+        if published.parent != self._root:
+            msg = "utterance id must not contain a path separator"
+            raise ValueError(msg)
+        return published
+
+    @staticmethod
+    def _is_candidate(path: Path) -> bool:
+        return path.name.startswith(".") and path.name.endswith(".wav.part")

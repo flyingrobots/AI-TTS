@@ -107,3 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevented missing or partial synthesis output from becoming playable. Only a
   non-empty audio artifact can enter `Ready`; engine and best-effort cleanup
   failures remain attached to their item without stopping the worker pool.
+- Made audio publication atomic for process crashes. Engines write to
+  cache-invisible candidates, startup removes abandoned candidates, and only a
+  successful same-directory rename exposes the canonical WAV to playback or
+  cache accounting. Rename failures remain isolated to their item.

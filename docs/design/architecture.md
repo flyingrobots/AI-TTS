@@ -70,10 +70,13 @@ stateDiagram-v2
 
 - **`Queued` vs `Ready`** is the whole reason for two queues. `Queued` is on the *input* queue; `Ready` is on the *playback* queue. An utterance is on exactly one at a time.
 - **`Ready` means usable audio exists.** An engine return is not enough: the
-  artifact boundary must observe a regular, non-empty output file. A missing or
-  unusable result becomes `Failed`, and a partial artifact is discarded on a
-  best-effort basis. Artifact cleanup faults are logged but cannot escape the
-  utterance boundary or stop another worker from draining the queue.
+  artifact boundary must observe a regular, non-empty output file. Engines
+  write to cache-invisible `.part` candidates; only a verified candidate is
+  renamed atomically, within the same directory, to the canonical `.wav` path.
+  Startup sweeps abandoned candidates. A missing or unusable result becomes
+  `Failed`, and a partial artifact is discarded on a best-effort basis.
+  Artifact target, validation, publication, and cleanup faults stay attached
+  to the item and cannot stop another worker from draining the queue.
 - **`Failed` is terminal and observable.** F1 and F2 exist because failure was indistinguishable from success. A failed utterance stays in history with its error.
 - **`Skipped` and `Played` are different terminal states** and history must preserve which. "What did you tell me?" and "what did I actually hear?" are different questions.
 - **Sensitivity is assigned at `Submitted` and never changes.** It travels with the utterance through every state and is what §9's routing check reads. An utterance cannot be reclassified after submission. Reclassification would mean the same id meant two different things at two times, and history would not be able to say which.

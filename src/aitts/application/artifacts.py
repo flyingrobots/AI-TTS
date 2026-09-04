@@ -19,11 +19,15 @@ class AudioArtifactPort(Protocol):
         ...
 
     def target(self, utterance_id: str) -> Path:
-        """Return the engine output path for one utterance."""
+        """Return an unpublished engine output path for one utterance."""
         ...
 
     def is_usable(self, path: Path) -> bool:
         """Return whether ``path`` is a non-empty playable candidate."""
+        ...
+
+    def publish(self, utterance_id: str, candidate: Path) -> Path:
+        """Atomically publish one usable candidate and return its durable path."""
         ...
 
     def discard(self, path: Path) -> bool:

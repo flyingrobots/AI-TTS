@@ -71,7 +71,11 @@ class SynthesisPool:
         utt = self._store.get(utt_id)
         if utt is None:  # pragma: no cover - claimed rows exist
             return
-        out_path = self._artifacts.target(utt.id)
+        try:
+            out_path = self._artifacts.target(utt.id)
+        except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
+            self._record_failure(utt_id, f"artifact target failed: {exc}")
+            return
         try:
             duration_ms = await asyncio.to_thread(
                 self._engine.synthesize, utt.text, utt.voice, utt.speed, out_path
@@ -96,17 +100,50 @@ class SynthesisPool:
             self._discard(utt_id, out_path)
             return
         failure = error
-        if failure is None and not self._artifacts.is_usable(out_path):
-            failure = "synthesis produced no usable audio artifact"
+        if failure is None:
+            try:
+                usable = self._artifacts.is_usable(out_path)
+            except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
+                failure = f"artifact validation failed: {exc}"
+            else:
+                if not usable:
+                    failure = "synthesis produced no usable audio artifact"
+        published_path: Path | None = None
+        if failure is None:
+            try:
+                published_path = self._artifacts.publish(utt_id, out_path)
+            except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
+                failure = f"artifact publication failed: {exc}"
         if failure is not None:
             self._discard(utt_id, out_path)
-            self._store.transition(utt_id, State.FAILED, error=failure)
-            log.warning("synthesis failed for %s: %s", utt_id, failure)
+            self._record_failure(utt_id, failure)
+            return
+        if published_path is None:  # pragma: no cover - guarded by failure handling
+            self._record_failure(utt_id, "artifact publication returned no path")
             return
         self._store.transition(
-            utt_id, State.READY, audio_path=str(out_path), duration_ms=duration_ms
+            utt_id,
+            State.READY,
+            audio_path=str(published_path),
+            duration_ms=duration_ms,
         )
 
     def _discard(self, utt_id: str, out_path: Path) -> None:
-        if not self._artifacts.discard(out_path):
+        try:
+            discarded = self._artifacts.discard(out_path)
+        except Exception:
+            log.warning(
+                "could not discard failed synthesis artifact for %s: %s",
+                utt_id,
+                out_path,
+                exc_info=True,
+            )
+            return
+        if not discarded:
             log.warning("could not discard failed synthesis artifact for %s: %s", utt_id, out_path)
+
+    def _record_failure(self, utt_id: str, error: str) -> None:
+        current = self._store.get(utt_id)
+        if current is not None and current.state is State.SYNTHESIZING:
+            self._store.transition(utt_id, State.FAILED, error=error)
+        log.warning("synthesis failed for %s: %s", utt_id, error)

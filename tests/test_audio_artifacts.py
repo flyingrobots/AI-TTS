@@ -44,6 +44,19 @@ class BlockingCandidateEngine(FakeEngine):
         return 8
 
 
+class OneShotPublishFailureArtifacts(FileAudioArtifacts):
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self._fail_next_publish = True
+
+    def publish(self, utterance_id: str, candidate: Path) -> Path:
+        if self._fail_next_publish:
+            self._fail_next_publish = False
+            msg = "seeded atomic rename failure"
+            raise OSError(msg)
+        return super().publish(utterance_id, candidate)
+
+
 async def test_inflight_candidate_is_hidden_until_atomic_publish(
     store: Store,
     cache_dir: Path,
@@ -77,6 +90,36 @@ async def test_inflight_candidate_is_hidden_until_atomic_publish(
         "published_cache": (f"{utterance.id}.wav",),
         "ready_path": f"{utterance.id}.wav",
         "staging_after_publish": (),
+    }
+
+
+async def test_publish_failure_is_attached_to_item_and_queue_continues(
+    store: Store,
+    cache_dir: Path,
+) -> None:
+    artifacts = OneShotPublishFailureArtifacts(cache_dir)
+    pool = SynthesisPool(store, FakeEngine(voices=["v"]), artifacts, workers=1)
+    failed = store.submit("publish fails", voice="v", speed=1.0)
+    good = store.submit("publish works", voice="v", speed=1.0)
+    task = asyncio.create_task(pool.run())
+    await wait_for(
+        lambda: (current := store.get(good.id)) is not None and current.state is State.READY
+    )
+    failed_after = store.get(failed.id)
+    good_after = store.get(good.id)
+    pool_running = not task.done()
+    task.cancel()
+
+    assert {
+        "failed_state": None if failed_after is None else failed_after.state,
+        "failed_error": None if failed_after is None else failed_after.error,
+        "good_state": None if good_after is None else good_after.state,
+        "pool_running": pool_running,
+    } == {
+        "failed_state": State.FAILED,
+        "failed_error": "artifact publication failed: seeded atomic rename failure",
+        "good_state": State.READY,
+        "pool_running": True,
     }
 
 

@@ -92,7 +92,7 @@ async def test_cleanup_failure_does_not_cancel_synthesis_pool(
         path: Path,
         missing_ok: bool = False,  # noqa: FBT001, FBT002 - matches Path.unlink
     ) -> None:
-        if path.name == f"{partial.id}.wav":
+        if path.name == f".{partial.id}.wav.part" and path.exists():
             msg = "seeded cleanup failure"
             raise OSError(msg)
         original_unlink(path, missing_ok=missing_ok)
