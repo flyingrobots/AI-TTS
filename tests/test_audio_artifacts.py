@@ -57,6 +57,26 @@ class OneShotPublishFailureArtifacts(FileAudioArtifacts):
         return super().publish(utterance_id, candidate)
 
 
+@pytest.mark.oracle("Kokoro selects the soundfile WAV encoder from the output path suffix")
+def test_candidate_is_writable_by_the_suffix_selected_wav_encoder(cache_dir: Path) -> None:
+    import soundfile as sf  # noqa: PLC0415 - exercise Kokoro's lazy encoder dependency
+
+    artifacts = FileAudioArtifacts(cache_dir)
+    artifacts.prepare()
+    candidate = artifacts.target("format-selection")
+
+    sf.write(str(candidate), [0.0, 0.0], 24_000)
+    published = artifacts.publish("format-selection", candidate)
+
+    assert {
+        "published_name": published.name,
+        "published_format": sf.info(str(published)).format,
+    } == {
+        "published_name": "format-selection.wav",
+        "published_format": "WAV",
+    }
+
+
 async def test_inflight_candidate_is_hidden_until_atomic_publish(
     store: Store,
     cache_dir: Path,
