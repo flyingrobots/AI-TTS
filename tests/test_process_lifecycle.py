@@ -55,6 +55,30 @@ raise SystemExit(
 """
 
 
+def _daemon_is_ready(socket_path: Path) -> bool:
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.25)
+            probe.connect(str(socket_path))
+            probe.sendall(b'{"op":"status"}\n')
+            with probe.makefile("rb") as replies:
+                receipt = json.loads(replies.readline())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return receipt.get("ok") is True
+
+
+def _wait_for_daemon(process: subprocess.Popen[str], socket_path: Path) -> bool:
+    startup_deadline = time.monotonic() + 5
+    while time.monotonic() < startup_deadline:
+        if process.poll() is not None:
+            return False
+        if _daemon_is_ready(socket_path):
+            return True
+        time.sleep(0.01)
+    return False
+
+
 def test_sigterm_exits_promptly_while_engine_thread_is_blocked(tmp_path: Path) -> None:
     """Oracle: shutdown completes after durable resources close, not after engine work."""
     socket_dir = Path(tempfile.mkdtemp(prefix="aitts-lifecycle-"))
@@ -69,14 +93,7 @@ def test_sigterm_exits_promptly_while_engine_thread_is_blocked(tmp_path: Path) -
     socket_ready = False
     exited_promptly = False
     try:
-        startup_deadline = time.monotonic() + 5
-        while time.monotonic() < startup_deadline:
-            if socket_path.exists():
-                socket_ready = True
-                break
-            if process.poll() is not None:
-                break
-            time.sleep(0.01)
+        socket_ready = _wait_for_daemon(process, socket_path)
 
         if socket_ready:
             process.send_signal(signal.SIGTERM)
@@ -119,14 +136,7 @@ def test_sigterm_exits_promptly_with_connected_subscriber(tmp_path: Path) -> Non
     subscribed = False
     exited_promptly = False
     try:
-        startup_deadline = time.monotonic() + 5
-        while time.monotonic() < startup_deadline:
-            if socket_path.exists():
-                socket_ready = True
-                break
-            if process.poll() is not None:
-                break
-            time.sleep(0.01)
+        socket_ready = _wait_for_daemon(process, socket_path)
 
         if socket_ready:
             subscriber.settimeout(1)

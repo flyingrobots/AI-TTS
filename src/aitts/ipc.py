@@ -59,6 +59,7 @@ class IPCServer:
         self._socket_path = socket_path
         self._api = api
         self._server: asyncio.Server | None = None
+        self._clients: set[asyncio.StreamWriter] = set()
         self._subscribers: set[asyncio.StreamWriter] = set()
 
     @property
@@ -78,13 +79,20 @@ class IPCServer:
 
     async def stop(self) -> None:
         """Stop serving and remove the socket."""
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
-            self._server = None
-        for writer in list(self._subscribers):
+        server = self._server
+        self._server = None
+        if server is not None:
+            server.close()
+        clients = list(self._clients)
+        for writer in clients:
             writer.close()
+        for writer in clients:
+            with contextlib.suppress(ConnectionError):
+                await writer.wait_closed()
+        self._clients.clear()
         self._subscribers.clear()
+        if server is not None:
+            await server.wait_closed()
         self._socket_path.unlink(missing_ok=True)
 
     def broadcast(self, event: dict[str, Any]) -> None:
@@ -99,6 +107,7 @@ class IPCServer:
     async def _serve_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
+        self._clients.add(writer)
         try:
             while True:
                 try:
@@ -115,6 +124,7 @@ class IPCServer:
                     continue
                 await self._handle_line(line, writer)
         finally:
+            self._clients.discard(writer)
             self._subscribers.discard(writer)
             writer.close()
             with contextlib.suppress(ConnectionError):
