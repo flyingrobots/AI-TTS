@@ -68,3 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supervised the critical playback worker so an unexpected failure is logged
   and restarted instead of leaving synthesized `Ready` clips stranded after
   Resume releases a global hold.
+- Made playback-device failures terminal and visible for the affected clip,
+  then continued through Queue. A natural end racing with Pause is recorded as
+  `Played` instead of leaving an orphaned paused item.

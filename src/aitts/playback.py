@@ -31,6 +31,7 @@ class AudioSink(Protocol):
     """One audio output. ``start`` while active is a contract violation."""
 
     paused: bool
+    error: str | None
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Begin playing the file at ``path`` from ``position_ms``."""
@@ -66,6 +67,7 @@ class FakeSink:
         self.start_positions: list[int] = []
         self.overlaps = 0
         self.paused = False
+        self.error: str | None = None
         self._active = False
         self._natural = False
         self._position = 0
@@ -80,6 +82,7 @@ class FakeSink:
         self.start_positions.append(position_ms)
         self._active = True
         self.paused = False
+        self.error = None
         self._natural = False
         self._position = position_ms
         self._ended = asyncio.Event()
@@ -100,6 +103,15 @@ class FakeSink:
             return
         self._active = False
         self._natural = False
+        self._ended.set()
+
+    def fail_current(self, message: str) -> None:
+        """Simulate an unexpected playback-device failure."""
+        if not self._active:
+            return
+        self._active = False
+        self._natural = False
+        self.error = message
         self._ended.set()
 
     def pause(self) -> None:
@@ -132,6 +144,7 @@ class SoundDeviceSink:
     def __init__(self) -> None:
         """Create the sink; nothing is opened until :meth:`start`."""
         self.paused = False
+        self.error: str | None = None
         self._pause_flag = threading.Event()
         self._stop_flag = threading.Event()
         self._frames_played = 0
@@ -150,6 +163,7 @@ class SoundDeviceSink:
         self._pause_flag.clear()
         self._stop_flag.clear()
         self.paused = False
+        self.error = None
         self._natural = False
         self._frames_played = 0
         self._start_ms = position_ms
@@ -186,7 +200,8 @@ class SoundDeviceSink:
                             break
                         stream.write(block)
                         self._frames_played += len(block)
-        except Exception:  # pragma: no cover - device failures are logged, not fatal
+        except Exception as exc:  # pragma: no cover - requires a real device failure
+            self.error = str(exc) or type(exc).__name__
             log.exception("audio output failed")
             self._natural = False
         finally:
@@ -274,16 +289,26 @@ class PlaybackController:
 
     async def _watch(self) -> None:
         ended = await self._sink.wait()
-        if not ended:
+        if not ended and self._sink.error is None:
             return  # whoever stopped the sink owns the state change
         utt_id = self._current_id
         if utt_id is None:  # pragma: no cover - stop always precedes clearing
             return
         current = self._store.get(utt_id)
-        if current is not None and current.state is State.PLAYING:
-            self._store.transition(utt_id, State.PLAYED, played_ms=current.duration_ms)
+        if current is not None and current.state in (State.PLAYING, State.PAUSED):
+            if ended:
+                self._store.transition(utt_id, State.PLAYED, played_ms=current.duration_ms)
+            else:
+                detail = self._sink.error or "unknown failure"
+                self._store.transition(
+                    utt_id,
+                    State.FAILED,
+                    error=f"playback device error: {detail}",
+                    played_ms=self._sink.position_ms(),
+                )
         self._current_id = None
         self._sink_active = False
+        self._watcher = None
         self.notify()
 
     def _cancel_watcher(self) -> None:

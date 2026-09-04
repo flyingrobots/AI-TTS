@@ -14,16 +14,6 @@ from aitts.store import Store
 from tests.conftest import wait_for
 
 
-class DeviceFailureSink(FakeSink):
-    error: str | None = None
-
-    def fail_current(self, message: str) -> None:
-        self.error = message
-        self._active = False
-        self._natural = False
-        self._ended.set()
-
-
 def make_ready(store: Store, text: str) -> Utterance:
     utt = store.submit(text, voice="v", speed=1.0)
     store.transition(utt.id, State.SYNTHESIZING)
@@ -94,7 +84,7 @@ async def test_skip_records_position_and_advances(store: Store, sink: FakeSink) 
 
 
 async def test_device_failure_marks_current_failed_and_advances(store: Store) -> None:
-    sink = DeviceFailureSink()
+    sink = FakeSink()
     controller = PlaybackController(store, sink)
     a = make_ready(store, "a")
     b = make_ready(store, "b")
