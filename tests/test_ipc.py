@@ -20,6 +20,11 @@ from aitts.engine import FakeEngine
 from aitts.model import Priority, State
 from aitts.playback import FakeSink, PlaybackController
 
+pytestmark = [
+    pytest.mark.medium,
+    pytest.mark.oracle("daemon NDJSON wire contract in docs/design/architecture.md section 5"),
+]
+
 
 async def rpc(sock: Path, payload: dict[str, Any]) -> dict[str, Any]:
     reader, writer = await asyncio.open_unix_connection(str(sock))

@@ -8,10 +8,19 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from aitts.model import State, Utterance
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from tests.conftest import wait_for
+
+pytestmark = [
+    pytest.mark.medium,
+    pytest.mark.oracle(
+        "serialized playback and transport contracts in architecture sections 2 and 7"
+    ),
+]
 
 
 def make_ready(store: Store, text: str) -> Utterance:

@@ -1,11 +1,18 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
+// Test-Size: medium (AppKit rendering and main-actor state)
+// Test-Oracle: daemon wire contract and approved menu-bar interaction design
 
 import XCTest
 
 @testable import AITTSMenuBar
 
 final class WireProtocolTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        executionTimeAllowance = 15
+    }
+
     func testEncodeAppendsNewline() throws {
         let data = try WireProtocol.encode(["op": "status"])
         XCTAssertEqual(data.last, 0x0A)

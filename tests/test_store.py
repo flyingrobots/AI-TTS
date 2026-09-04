@@ -12,6 +12,13 @@ import pytest
 from aitts.model import Priority, Sensitivity, State, Utterance
 from aitts.store import Store, TransitionError
 
+pytestmark = [
+    pytest.mark.medium,
+    pytest.mark.oracle(
+        "queue, history, and recovery contracts in architecture sections 2, 3, and 6"
+    ),
+]
+
 
 def submit(store: Store, text: str = "hello", **kw: object) -> Utterance:
     return store.submit(text, voice="bm_daniel", speed=1.0, **kw)  # type: ignore[arg-type]

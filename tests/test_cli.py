@@ -19,6 +19,11 @@ from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.playback import FakeSink
 
+pytestmark = [
+    pytest.mark.medium,
+    pytest.mark.oracle("CLI behavior in docs/design/features.md section 8"),
+]
+
 
 @pytest.fixture
 async def daemon(tmp_path: Path) -> Any:

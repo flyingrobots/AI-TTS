@@ -9,6 +9,7 @@ jobs:
   python:
     name: lint, typecheck, test (Python)
     runs-on: macos-15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -29,6 +30,7 @@ jobs:
   swift:
     name: build and test (Swift menu-bar app)
     runs-on: macos-15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Build
@@ -36,4 +38,4 @@ jobs:
         run: swift build
       - name: Test
         working-directory: clients/menubar
-        run: swift test
+        run: python3 ../../scripts/run_with_deadline.py 60 swift test

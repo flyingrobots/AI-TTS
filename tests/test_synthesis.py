@@ -8,11 +8,20 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from aitts.engine import FakeEngine
 from aitts.model import State
 from aitts.store import Store
 from aitts.synthesis import SynthesisPool
 from tests.conftest import wait_for
+
+pytestmark = [
+    pytest.mark.medium,
+    pytest.mark.oracle(
+        "synthesis lifecycle and failure-isolation contracts in architecture sections 2 and 4"
+    ),
+]
 
 
 def in_state(store: Store, utt_id: str, state: State) -> object:

@@ -17,6 +17,11 @@ from aitts.model import (
     new_utterance_id,
 )
 
+pytestmark = [
+    pytest.mark.small,
+    pytest.mark.oracle("utterance state machine in docs/design/architecture.md section 3"),
+]
+
 
 def test_terminal_states_have_no_outgoing_transitions() -> None:
     for state in TERMINAL:

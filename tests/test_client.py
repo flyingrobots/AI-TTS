@@ -18,6 +18,11 @@ from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.playback import FakeSink
 
+pytestmark = [
+    pytest.mark.medium,
+    pytest.mark.oracle("daemon client protocol in docs/design/architecture.md section 5"),
+]
+
 
 @pytest.fixture
 async def daemon(tmp_path: Path) -> Any:
