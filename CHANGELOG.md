@@ -79,3 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made playback-device failures terminal and visible for the affected clip,
   then continued through Queue. A natural end racing with Pause is recorded as
   `Played` instead of leaving an orphaned paused item.
+- Enforced the documented audio-cache cap (configurable through
+  `cache_max_bytes`, 1 GiB by default) with persistent LRU ordering. Only
+  terminal or orphaned audio is evicted; queued, Ready, Playing, and Paused
+  work is protected, and history remains available with `audio_cached: false`.

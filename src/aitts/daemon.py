@@ -15,6 +15,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from aitts.adapters.filesystem_cache import FileAudioCache
+from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES, CacheController
 from aitts.engine import eligible_engine_names
 from aitts.ipc import (
     BAD_REQUEST,
@@ -24,7 +26,7 @@ from aitts.ipc import (
     ApiError,
     IPCServer,
 )
-from aitts.model import Priority, Sensitivity, State, Utterance
+from aitts.model import TERMINAL, Priority, Sensitivity, State, Utterance
 from aitts.playback import PlaybackController
 from aitts.store import Store, TransitionError
 from aitts.synthesis import SynthesisPool
@@ -86,6 +88,7 @@ class Daemon:
         self._workers = workers
         self._store = Store(home / "state.db")
         self._cache_dir = home / "cache"
+        self._cache = CacheController(self._store, FileAudioCache(self._cache_dir))
         self._server = IPCServer(socket_path or home / "ai-tts.sock", self)
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
@@ -104,6 +107,7 @@ class Daemon:
     async def start(self) -> None:
         """Recover state, start the workers, and begin serving."""
         self._store.recover()
+        self._enforce_cache_limit()
         held = any(u.state is State.PAUSED for u in self._store.playback_queue())
         self._controller = PlaybackController(self._store, self._sink, held=held)
         self._pool = SynthesisPool(
@@ -160,6 +164,31 @@ class Daemon:
             self._controller.notify()
         if self._pool is not None and utt.state is State.QUEUED:
             self._pool.notify()
+        if utt.state is State.PLAYING and utt.audio_path is not None:
+            self._cache.note_access(Path(utt.audio_path))
+        if utt.state in TERMINAL:
+            self._enforce_cache_limit()
+
+    def _cache_limit(self) -> int:
+        raw = self._store.get_setting("cache_max_bytes", str(DEFAULT_CACHE_MAX_BYTES))
+        try:
+            parsed = int(raw)
+        except ValueError:
+            return DEFAULT_CACHE_MAX_BYTES
+        return parsed if parsed >= 0 else DEFAULT_CACHE_MAX_BYTES
+
+    def _enforce_cache_limit(self) -> None:
+        try:
+            report = self._cache.enforce(max_bytes=self._cache_limit())
+        except OSError:
+            log.warning("could not inspect audio cache", exc_info=True)
+            return
+        if not report.within_limit:
+            log.warning(
+                "audio cache remains above its limit: %d > %d bytes",
+                report.after_bytes,
+                report.max_bytes,
+            )
 
     # -- dispatch ------------------------------------------------------------
 
@@ -351,13 +380,14 @@ class Daemon:
             replay_of=target.id,
             at_head=at_head,
         )
-        cached = target.audio_path is not None and Path(target.audio_path).exists()
-        if cached and target.audio_path is not None:
+        cached_path = Path(target.audio_path) if target.audio_path is not None else None
+        cached = cached_path is not None and self._cache.note_access(cached_path)
+        if cached:
             self._store.transition(replay.id, State.SYNTHESIZING)
             self._store.transition(
                 replay.id,
                 State.READY,
-                audio_path=target.audio_path,
+                audio_path=str(cached_path),
                 duration_ms=target.duration_ms,
             )
         elif self._pool is not None:
@@ -502,6 +532,7 @@ class Daemon:
             "settings": {
                 "voice": self._store.get_setting("voice", self._default_voice()),
                 "speed": float(self._store.get_setting("speed", "1.0")),
+                "cache_max_bytes": self._cache_limit(),
             },
         }
 
@@ -518,9 +549,28 @@ class Daemon:
                     msg = "'speed' must be a number"
                     raise ApiError(BAD_REQUEST, msg)
                 self._store.set_setting("speed", str(speed))
+            elif key == "cache_max_bytes":
+                limit = self._parse_cache_limit(value)
+                if limit is None:
+                    msg = "'cache_max_bytes' must be a non-negative integer"
+                    raise ApiError(BAD_REQUEST, msg)
+                self._store.set_setting("cache_max_bytes", str(limit))
+                self._enforce_cache_limit()
             else:
                 msg = f"unknown setting {key!r}"
                 raise ApiError(BAD_REQUEST, msg)
+
+    @staticmethod
+    def _parse_cache_limit(raw: object) -> int | None:
+        if isinstance(raw, bool) or not isinstance(raw, (int, str)):
+            return None
+        try:
+            limit = int(raw)
+        except ValueError:
+            return None
+        if isinstance(raw, str) and raw.strip() != str(limit):
+            return None
+        return limit if limit >= 0 else None
 
     def _transport_reply(self) -> dict[str, Any]:
         controller = self._require_controller()

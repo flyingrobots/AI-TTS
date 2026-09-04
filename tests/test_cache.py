@@ -9,9 +9,9 @@ import os
 from pathlib import Path
 
 import pytest
-from aitts.adapters.filesystem_cache import FileAudioCache  # type: ignore[import-untyped]
-from aitts.application.cache import CacheController  # type: ignore[import-untyped]
 
+from aitts.adapters.filesystem_cache import FileAudioCache
+from aitts.application.cache import CacheController
 from aitts.model import State
 from aitts.store import Store
 
@@ -63,26 +63,41 @@ def test_cache_cap_evicts_lru_terminal_audio_without_losing_history(
         store,
         cache_dir,
         text="c-ready",
-        accessed_ns=30,
+        accessed_ns=5,
         terminal=False,
     )
 
     report = CacheController(store, FileAudioCache(cache_dir)).enforce(max_bytes=8)
 
-    assert report.before_bytes == 12
-    assert report.after_bytes == 8
-    assert report.evicted_paths == (oldest_path,)
-    assert not oldest_path.exists()
-    assert newer_path.read_bytes() == b"bbbb"
-    assert ready_path.read_bytes() == b"cccc"
     oldest = store.get(oldest_id)
     newer = store.get(newer_id)
     ready = store.get(ready_id)
-    assert oldest is not None
-    assert oldest.state is State.PLAYED
-    assert oldest.audio_path is None
-    assert newer is not None
-    assert newer.audio_path == str(newer_path)
-    assert ready is not None
-    assert ready.state is State.READY
-    assert ready.audio_path == str(ready_path)
+    actual = {
+        "report": (
+            report.before_bytes,
+            report.after_bytes,
+            report.max_bytes,
+            report.evicted_paths,
+            report.failed_paths,
+            report.within_limit,
+        ),
+        "files": {
+            "oldest": oldest_path.read_bytes() if oldest_path.exists() else None,
+            "newer": newer_path.read_bytes() if newer_path.exists() else None,
+            "ready": ready_path.read_bytes() if ready_path.exists() else None,
+        },
+        "rows": {
+            "oldest": None if oldest is None else (oldest.state, oldest.audio_path),
+            "newer": None if newer is None else (newer.state, newer.audio_path),
+            "ready": None if ready is None else (ready.state, ready.audio_path),
+        },
+    }
+    assert actual == {
+        "report": (12, 8, 8, (oldest_path,), (), True),
+        "files": {"oldest": None, "newer": b"bbbb", "ready": b"cccc"},
+        "rows": {
+            "oldest": (State.PLAYED, None),
+            "newer": (State.PLAYED, str(newer_path)),
+            "ready": (State.READY, str(ready_path)),
+        },
+    }

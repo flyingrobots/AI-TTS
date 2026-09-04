@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from aitts.model import (
@@ -253,6 +254,16 @@ class Store:
         ).fetchall()
         return {row["state"]: row["n"] for row in rows}
 
+    def protected_audio_paths(self) -> frozenset[str]:
+        """Return cache paths referenced by work that is not yet terminal."""
+        placeholders = ",".join("?" * len(TERMINAL))
+        rows = self._db.execute(
+            f"SELECT DISTINCT audio_path FROM utterances "  # noqa: S608
+            f"WHERE audio_path IS NOT NULL AND state NOT IN ({placeholders})",
+            tuple(state.value for state in TERMINAL),
+        ).fetchall()
+        return frozenset(str(row["audio_path"]) for row in rows)
+
     # -- writes ----------------------------------------------------------
 
     def transition(  # noqa: PLR0913 - keyword-only fields that may change with state
@@ -299,6 +310,17 @@ class Store:
         for callback in self.on_transition:
             callback(after, current.state)
         return after
+
+    def forget_terminal_audio(self, path: Path) -> int:
+        """Clear history references to one evicted artifact while retaining its rows."""
+        placeholders = ",".join("?" * len(TERMINAL))
+        cursor = self._db.execute(
+            f"UPDATE utterances SET audio_path = NULL "  # noqa: S608
+            f"WHERE audio_path = ? AND state IN ({placeholders})",
+            (str(path), *(state.value for state in TERMINAL)),
+        )
+        self._db.commit()
+        return cursor.rowcount
 
     def claim_for_synthesis(self) -> Utterance | None:
         """Atomically take the earliest Queued utterance into Synthesizing."""

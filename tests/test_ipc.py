@@ -322,6 +322,52 @@ async def test_settings_get_and_set(daemon: Daemon) -> None:
     assert res3["error"]["type"] == "bad_request"
 
 
+async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
+    daemon: Daemon, tmp_path: Path
+) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    cache_dir = tmp_path / "cache"
+    terminal_path = cache_dir / "terminal.wav"
+    terminal_path.write_bytes(b"done")
+    terminal = daemon.store.submit("done", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(terminal.id, State.SYNTHESIZING)
+    daemon.store.transition(terminal.id, State.READY, audio_path=str(terminal_path))
+    daemon.store.transition(terminal.id, State.PLAYING)
+    daemon.store.transition(terminal.id, State.PLAYED)
+
+    ready_path = cache_dir / "ready.wav"
+    ready_path.write_bytes(b"owed")
+    ready = daemon.store.submit("owed", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(ready.id, State.SYNTHESIZING)
+    daemon.store.transition(ready.id, State.READY, audio_path=str(ready_path))
+
+    response = await rpc(
+        daemon.socket_path,
+        {"op": "settings", "set": {"cache_max_bytes": "4"}},
+    )
+    history = await rpc(daemon.socket_path, {"op": "history"})
+    ready_after = daemon.store.get(ready.id)
+
+    assert {
+        "response": response,
+        "terminal_exists": terminal_path.exists(),
+        "ready": (ready_path.exists(), None if ready_after is None else ready_after.state),
+        "history": [(item["id"], item["audio_cached"]) for item in history["items"]],
+    } == {
+        "response": {
+            "ok": True,
+            "settings": {
+                "voice": "bm_daniel",
+                "speed": 1.0,
+                "cache_max_bytes": 4,
+            },
+        },
+        "terminal_exists": False,
+        "ready": (True, State.READY),
+        "history": [(terminal.id, False)],
+    }
+
+
 async def test_history_after_playback(daemon: Daemon) -> None:
     sub = await rpc(daemon.socket_path, {"op": "submit", "text": "remembered"})
 
