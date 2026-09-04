@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.filesystem_cache import FileAudioCache
+from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES, CacheController
 from aitts.engine import eligible_engine_names
 from aitts.ipc import (
@@ -110,7 +111,12 @@ class Daemon:
         self._store.recover()
         self._enforce_cache_limit()
         held = any(u.state is State.PAUSED for u in self._store.playback_queue())
-        self._controller = PlaybackController(self._store, self._sink, held=held)
+        self._controller = PlaybackController(
+            self._store,
+            self._sink,
+            ImmediatePlaybackSchedule(),
+            held=held,
+        )
         self._pool = SynthesisPool(
             self._store,
             self._engine,

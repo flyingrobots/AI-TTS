@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Recovery fault campaign**: deterministic post-commit crash injection at
   every state-repair boundary, proving repeated restart converges with queued
   text intact and no persisted item left `Playing`.
+- **Deterministic playback scheduler**: explicit plan and sink-result
+  checkpoints for exhaustive ordering of the current watcher/control race.
+  Playback tests now use condition witnesses instead of fixed-duration sleeps.
 - **Checkout-independent distribution**: a typed Python wheel with both CLI
   entry points, an ad-hoc-signed native `.app` builder, and a shell-free
   launch-agent renderer using the installed executable's absolute path.

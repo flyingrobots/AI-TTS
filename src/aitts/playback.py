@@ -17,9 +17,11 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from aitts.application.playback_schedule import PlaybackCheckpoint
 from aitts.model import State
 
 if TYPE_CHECKING:
+    from aitts.application.playback_schedule import PlaybackSchedulePort
     from aitts.model import Utterance
     from aitts.store import Store
 
@@ -234,10 +236,18 @@ class SoundDeviceSink:
 class PlaybackController:
     """Serializes playback and answers to the user, not to the queue."""
 
-    def __init__(self, store: Store, sink: AudioSink, *, held: bool = False) -> None:
+    def __init__(
+        self,
+        store: Store,
+        sink: AudioSink,
+        schedule: PlaybackSchedulePort,
+        *,
+        held: bool = False,
+    ) -> None:
         """Wrap ``sink`` and restore the durable global playback hold."""
         self._store = store
         self._sink = sink
+        self._schedule = schedule
         self.held = held or store.get_setting("playback_held", "false") == "true"
         if self.held:
             self._store.set_setting("playback_held", "true")
@@ -271,12 +281,14 @@ class PlaybackController:
     async def run(self) -> None:
         """Start the next in-order utterance whenever the device is free."""
         while True:
+            await self._schedule.checkpoint(PlaybackCheckpoint.BEFORE_PLAN)
             if self._current_id is None and not self.held:
                 nxt = self._store.next_pending()
                 if nxt is not None and nxt.state is State.READY and nxt.audio_path is not None:
                     self._begin(nxt.id, Path(nxt.audio_path), position_ms=0)
                     continue
             self._wake.clear()
+            await self._schedule.checkpoint(PlaybackCheckpoint.PLAN_IDLE)
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._wake.wait(), timeout=0.1)
 
@@ -289,6 +301,7 @@ class PlaybackController:
 
     async def _watch(self) -> None:
         ended = await self._sink.wait()
+        await self._schedule.checkpoint(PlaybackCheckpoint.SINK_RESULT)
         if not ended and self._sink.error is None:
             return  # whoever stopped the sink owns the state change
         utt_id = self._current_id

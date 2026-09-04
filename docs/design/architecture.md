@@ -133,13 +133,17 @@ graph TB
 
 - **Daemon** — long-lived, model resident. **This is what makes generation hot rather than cold**, and it is what makes F3 impossible: playback is not bounded by any client's process lifetime.
 - **Playback controller** — **the only component permitted to touch the audio device.** It is single-threaded by construction. This is the entire fix for F4; overlap is not prevented by convention but by there being one owner.
+- **Playback scheduling port** — names the controller's plan and sink-result
+  yield boundaries. Production passes them immediately; deterministic tests
+  can gate either side and enumerate event-loop interleavings without sleeps.
 - **Synthesis worker pool** — N parallel workers. N is a setting, not a constant.
 - **Engine adapter** — see §8. The engine is a detail, not the architecture.
 - **Process-termination adapter** — SIGTERM first closes the socket, cancels
   workers, and commits/closes SQLite. It then exits at the OS boundary without
   waiting for cancelled `to_thread` work: Python cannot interrupt a native
   model call, and loop teardown would otherwise join that thread indefinitely.
-  A partial unreferenced WAV is safe to overwrite or evict on the next start.
+  An unpublished `.part` candidate is cache-invisible and swept on the next
+  start.
 - **Store** — the single source of truth for both queues, history and settings. **Components communicate through it rather than with each other**, so state is inspectable at one place rather than reconstructed from several.
 - **Clients are thin and interchangeable.** The tray app and the CLI have the same rights and use the same protocol. **Nothing the tray can do is unavailable to an agent.**
 - **The agent-facing boundary is hexagonal.** `SpeechServicePort` accepts and
