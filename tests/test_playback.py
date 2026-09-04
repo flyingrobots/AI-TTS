@@ -14,6 +14,16 @@ from aitts.store import Store
 from tests.conftest import wait_for
 
 
+class DeviceFailureSink(FakeSink):
+    error: str | None = None
+
+    def fail_current(self, message: str) -> None:
+        self.error = message
+        self._active = False
+        self._natural = False
+        self._ended.set()
+
+
 def make_ready(store: Store, text: str) -> Utterance:
     utt = store.submit(text, voice="v", speed=1.0)
     store.transition(utt.id, State.SYNTHESIZING)
@@ -80,6 +90,41 @@ async def test_skip_records_position_and_advances(store: Store, sink: FakeSink) 
     assert got.state is State.SKIPPED
     assert got.played_ms == 700
     await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
+    task.cancel()
+
+
+async def test_device_failure_marks_current_failed_and_advances(store: Store) -> None:
+    sink = DeviceFailureSink()
+    controller = PlaybackController(store, sink)
+    a = make_ready(store, "a")
+    b = make_ready(store, "b")
+    task = await start(controller)
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+
+    sink.fail_current("default output unavailable")
+
+    await wait_for(lambda: state_of(store, a.id) is State.FAILED)
+    failed = store.get(a.id)
+    assert failed is not None
+    assert failed.error == "playback device error: default output unavailable"
+    await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
+    assert sink.overlaps == 0
+    task.cancel()
+
+
+async def test_natural_end_racing_pause_is_still_recorded_as_played(
+    store: Store, sink: FakeSink
+) -> None:
+    controller = PlaybackController(store, sink)
+    utterance = make_ready(store, "almost finished")
+    task = await start(controller)
+    await wait_for(lambda: state_of(store, utterance.id) is State.PLAYING)
+
+    await controller.pause()
+    sink.finish_current()
+
+    await wait_for(lambda: state_of(store, utterance.id) is State.PLAYED)
+    assert controller.current_id is None
     task.cancel()
 
 
