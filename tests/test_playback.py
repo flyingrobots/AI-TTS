@@ -80,6 +80,29 @@ class DeterministicPlaybackSchedule:
         self._block_next_plan = True
 
 
+class DelayedReleaseSink(FakeSink):
+    """A sink whose device remains occupied until the test releases it."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stop_requested = asyncio.Event()
+        self._release_pending = False
+
+    def start(self, path: Path, *, position_ms: int = 0) -> None:
+        if self._release_pending:
+            msg = "sink is already active; playback is strictly serialized"
+            raise RuntimeError(msg)
+        super().start(path, position_ms=position_ms)
+
+    def stop(self) -> None:
+        self._release_pending = True
+        self.stop_requested.set()
+
+    def release_stop(self) -> None:
+        self._release_pending = False
+        super().stop()
+
+
 @dataclass(frozen=True, slots=True)
 class InterleavingCase:
     terminal_first: bool
@@ -163,6 +186,29 @@ async def test_skip_records_position_and_advances(store: Store, sink: FakeSink) 
     assert got.state is State.SKIPPED
     assert got.played_ms == 700
     await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
+    task.cancel()
+
+
+async def test_skip_waits_for_device_release_before_starting_next(store: Store) -> None:
+    sink = DelayedReleaseSink()
+    controller, schedule = playback_controller(store, sink)
+    a = make_ready(store, "a")
+    b = make_ready(store, "b")
+    task = await start(controller, schedule)
+    await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+
+    skip_task = asyncio.create_task(controller.skip())
+    await sink.stop_requested.wait()
+    try:
+        assert not skip_task.done()
+        assert state_of(store, b.id) is State.READY
+        assert sink.started == [Path(f"/x/{a.id}.wav")]
+    finally:
+        sink.release_stop()
+        await skip_task
+
+    await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
+    assert sink.overlaps == 0
     task.cancel()
 
 
