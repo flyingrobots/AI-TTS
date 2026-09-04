@@ -38,6 +38,93 @@ async def run_pool(pool: SynthesisPool) -> asyncio.Task[None]:
     return task
 
 
+class MissingArtifactEngine(FakeEngine):
+    def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
+        if text == "missing":
+            return 123
+        return super().synthesize(text, voice, speed, out_path)
+
+
+class PartialWriteFailureEngine(FakeEngine):
+    def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
+        if text == "partial":
+            out_path.write_bytes(b"partial audio")
+            msg = "seeded disk full"
+            raise OSError(msg)
+        return super().synthesize(text, voice, speed, out_path)
+
+
+async def test_success_without_audio_is_failed_and_queue_continues(
+    store: Store, cache_dir: Path
+) -> None:
+    engine = MissingArtifactEngine(voices=["v"])
+    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    missing = store.submit("missing", voice="v", speed=1.0)
+    good = store.submit("good", voice="v", speed=1.0)
+    task = await run_pool(pool)
+    await wait_for(in_state(store, good.id, State.READY))
+    missing_after = store.get(missing.id)
+    good_after = store.get(good.id)
+    task.cancel()
+
+    assert {
+        "missing_state": None if missing_after is None else missing_after.state,
+        "missing_error": None if missing_after is None else missing_after.error,
+        "good_state": None if good_after is None else good_after.state,
+    } == {
+        "missing_state": State.FAILED,
+        "missing_error": "synthesis produced no usable audio artifact",
+        "good_state": State.READY,
+    }
+
+
+async def test_cleanup_failure_does_not_cancel_synthesis_pool(
+    store: Store, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = PartialWriteFailureEngine(voices=["v"])
+    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    partial = store.submit("partial", voice="v", speed=1.0)
+    good = store.submit("good", voice="v", speed=1.0)
+    original_unlink = Path.unlink
+
+    def fail_partial_cleanup(
+        path: Path,
+        missing_ok: bool = False,  # noqa: FBT001, FBT002 - matches Path.unlink
+    ) -> None:
+        if path.name == f"{partial.id}.wav":
+            msg = "seeded cleanup failure"
+            raise OSError(msg)
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", fail_partial_cleanup)
+    task = await run_pool(pool)
+
+    def good_finished_or_pool_stopped() -> bool:
+        good_after = store.get(good.id)
+        return task.done() or (good_after is not None and good_after.state is State.READY)
+
+    await wait_for(good_finished_or_pool_stopped)
+    partial_after = store.get(partial.id)
+    good_after = store.get(good.id)
+    pool_running = not task.done()
+    if task.done():
+        task.exception()
+    else:
+        task.cancel()
+
+    assert {
+        "partial_state": None if partial_after is None else partial_after.state,
+        "partial_error": None if partial_after is None else partial_after.error,
+        "good_state": None if good_after is None else good_after.state,
+        "pool_running": pool_running,
+    } == {
+        "partial_state": State.FAILED,
+        "partial_error": "seeded disk full",
+        "good_state": State.READY,
+        "pool_running": True,
+    }
+
+
 async def test_synthesizes_queued_to_ready(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"], duration_ms=1234)
     pool = SynthesisPool(store, engine, cache_dir, workers=1)
