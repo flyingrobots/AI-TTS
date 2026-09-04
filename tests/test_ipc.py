@@ -183,6 +183,61 @@ async def test_malformed_json_gets_error_not_disconnect(daemon: Daemon) -> None:
     await writer.wait_closed()
 
 
+async def test_invalid_utf8_gets_typed_error_without_disconnect(daemon: Daemon) -> None:
+    reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
+    writer.write(b"\xff\n")
+    await writer.drain()
+    responses: list[dict[str, Any]] = []
+    first_line = await reader.readline()
+    if first_line:
+        responses.append(json.loads(first_line))
+        writer.write(b'{"op": "status"}\n')
+        await writer.drain()
+        second_line = await reader.readline()
+        if second_line:
+            responses.append(json.loads(second_line))
+    writer.close()
+    await writer.wait_closed()
+
+    observed = [
+        responses[0] if responses else None,
+        {"ok": responses[1].get("ok"), "state": responses[1].get("state")}
+        if len(responses) > 1
+        else None,
+    ]
+    assert observed == [
+        {"ok": False, "error": {"type": "bad_request", "message": "not valid JSON"}},
+        {"ok": True, "state": "accepting"},
+    ]
+
+
+async def test_valid_request_below_one_mib_line_limit_is_accepted(daemon: Daemon) -> None:
+    reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
+    request = json.dumps({"op": "status", "padding": "x" * 70_000}).encode() + b"\n"
+    writer.write(request)
+    await writer.drain()
+    response_line = await reader.readline()
+    writer.close()
+    await writer.wait_closed()
+
+    assert {
+        "request_below_limit": len(request) <= 1024 * 1024,
+        "response_present": bool(response_line),
+        "response": (
+            {
+                "ok": json.loads(response_line).get("ok"),
+                "state": json.loads(response_line).get("state"),
+            }
+            if response_line
+            else None
+        ),
+    } == {
+        "request_below_limit": True,
+        "response_present": True,
+        "response": {"ok": True, "state": "accepting"},
+    }
+
+
 async def test_socket_is_user_only(daemon: Daemon) -> None:
     mode = stat.S_IMODE(daemon.socket_path.stat().st_mode)
     assert mode == 0o600
