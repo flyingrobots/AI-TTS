@@ -21,6 +21,7 @@ from aitts.model import State
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from aitts.application.artifacts import AudioArtifactPort
     from aitts.engine import Engine
     from aitts.store import Store
 
@@ -30,11 +31,18 @@ log = logging.getLogger(__name__)
 class SynthesisPool:
     """Drains the input queue into rendered, cached audio."""
 
-    def __init__(self, store: Store, engine: Engine, cache_dir: Path, *, workers: int = 2) -> None:
+    def __init__(
+        self,
+        store: Store,
+        engine: Engine,
+        artifacts: AudioArtifactPort,
+        *,
+        workers: int = 2,
+    ) -> None:
         """Create a pool of ``workers`` synthesis workers over ``engine``."""
         self._store = store
         self._engine = engine
-        self._cache_dir = cache_dir
+        self._artifacts = artifacts
         self._workers = max(1, workers)
         self._wake = asyncio.Event()
 
@@ -44,7 +52,7 @@ class SynthesisPool:
 
     async def run(self) -> None:
         """Run the workers until cancelled."""
-        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        self._artifacts.prepare()
         async with asyncio.TaskGroup() as group:
             for _ in range(self._workers):
                 group.create_task(self._worker())
@@ -63,7 +71,7 @@ class SynthesisPool:
         utt = self._store.get(utt_id)
         if utt is None:  # pragma: no cover - claimed rows exist
             return
-        out_path = self._cache_dir / f"{utt.id}.wav"
+        out_path = self._artifacts.target(utt.id)
         try:
             duration_ms = await asyncio.to_thread(
                 self._engine.synthesize, utt.text, utt.voice, utt.speed, out_path
@@ -85,13 +93,20 @@ class SynthesisPool:
         if current is None or current.state is not State.SYNTHESIZING:
             # Cancelled underneath us: the engine could not abort, so the
             # result is discarded on completion (architecture §7).
-            out_path.unlink(missing_ok=True)
+            self._discard(utt_id, out_path)
             return
-        if error is not None:
-            out_path.unlink(missing_ok=True)
-            self._store.transition(utt_id, State.FAILED, error=error)
-            log.warning("synthesis failed for %s: %s", utt_id, error)
+        failure = error
+        if failure is None and not self._artifacts.is_usable(out_path):
+            failure = "synthesis produced no usable audio artifact"
+        if failure is not None:
+            self._discard(utt_id, out_path)
+            self._store.transition(utt_id, State.FAILED, error=failure)
+            log.warning("synthesis failed for %s: %s", utt_id, failure)
             return
         self._store.transition(
             utt_id, State.READY, audio_path=str(out_path), duration_ms=duration_ms
         )
+
+    def _discard(self, utt_id: str, out_path: Path) -> None:
+        if not self._artifacts.discard(out_path):
+            log.warning("could not discard failed synthesis artifact for %s: %s", utt_id, out_path)

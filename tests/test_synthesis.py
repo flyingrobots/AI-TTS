@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.engine import FakeEngine
 from aitts.model import State
 from aitts.store import Store
@@ -58,7 +59,7 @@ async def test_success_without_audio_is_failed_and_queue_continues(
     store: Store, cache_dir: Path
 ) -> None:
     engine = MissingArtifactEngine(voices=["v"])
-    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     missing = store.submit("missing", voice="v", speed=1.0)
     good = store.submit("good", voice="v", speed=1.0)
     task = await run_pool(pool)
@@ -82,7 +83,7 @@ async def test_cleanup_failure_does_not_cancel_synthesis_pool(
     store: Store, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     engine = PartialWriteFailureEngine(voices=["v"])
-    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     partial = store.submit("partial", voice="v", speed=1.0)
     good = store.submit("good", voice="v", speed=1.0)
     original_unlink = Path.unlink
@@ -127,7 +128,7 @@ async def test_cleanup_failure_does_not_cancel_synthesis_pool(
 
 async def test_synthesizes_queued_to_ready(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"], duration_ms=1234)
-    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     utt = store.submit("hello", voice="v", speed=1.0)
     task = await run_pool(pool)
     await wait_for(in_state(store, utt.id, State.READY))
@@ -141,7 +142,7 @@ async def test_synthesizes_queued_to_ready(store: Store, cache_dir: Path) -> Non
 
 async def test_failure_is_recorded_and_queue_continues(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"], fail_texts={"bad"})
-    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     bad = store.submit("bad", voice="v", speed=1.0)
     good = store.submit("good", voice="v", speed=1.0)
     task = await run_pool(pool)
@@ -155,7 +156,7 @@ async def test_failure_is_recorded_and_queue_continues(store: Store, cache_dir: 
 
 async def test_cancel_during_synthesis_discards_result(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"], delay_s=0.1)
-    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     utt = store.submit("slow", voice="v", speed=1.0)
     task = await run_pool(pool)
     await wait_for(in_state(store, utt.id, State.SYNTHESIZING))
@@ -172,7 +173,7 @@ async def test_cancel_during_synthesis_discards_result(store: Store, cache_dir: 
 
 async def test_workers_run_in_parallel(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"], delay_s=0.1)
-    pool = SynthesisPool(store, engine, cache_dir, workers=2)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=2)
     a = store.submit("a", voice="v", speed=1.0)
     b = store.submit("b", voice="v", speed=1.0)
     task = await run_pool(pool)
@@ -184,7 +185,7 @@ async def test_workers_run_in_parallel(store: Store, cache_dir: Path) -> None:
 
 async def test_notify_wakes_idle_pool(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"])
-    pool = SynthesisPool(store, engine, cache_dir, workers=1)
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     task = await run_pool(pool)
     await asyncio.sleep(0.02)
     utt = store.submit("later", voice="v", speed=1.0)

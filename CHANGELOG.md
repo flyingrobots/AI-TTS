@@ -101,3 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made failed SQLite commits roll back before control returns. The live daemon
   can no longer observe non-durable queue state that disappears on restart,
   and the database connection factory is an explicit fault-injection port.
+- Prevented missing or partial synthesis output from becoming playable. Only a
+  non-empty audio artifact can enter `Ready`; engine and best-effort cleanup
+  failures remain attached to their item without stopping the worker pool.

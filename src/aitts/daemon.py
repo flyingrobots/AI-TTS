@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES, CacheController
 from aitts.engine import eligible_engine_names
@@ -111,7 +112,10 @@ class Daemon:
         held = any(u.state is State.PAUSED for u in self._store.playback_queue())
         self._controller = PlaybackController(self._store, self._sink, held=held)
         self._pool = SynthesisPool(
-            self._store, self._engine, self._cache_dir, workers=self._workers
+            self._store,
+            self._engine,
+            FileAudioArtifacts(self._cache_dir),
+            workers=self._workers,
         )
         self._store.on_transition.append(self._on_transition)
         loop = asyncio.get_running_loop()
