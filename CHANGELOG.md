@@ -94,3 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the launch-agent plist that hard-coded one checkout's virtual
   environment. Release artifacts now install and launch without retaining a
   path to the repository.
+- Made daemon JSONL parsing strict and total for bounded input. Invalid UTF-8
+  now receives a typed error without poisoning the connection, and the
+  configured 1 MiB request limit is no longer shadowed by asyncio's 64 KiB
+  default.

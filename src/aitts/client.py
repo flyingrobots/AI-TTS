@@ -10,11 +10,11 @@ for its terminal state; it does not read an exit code (architecture.md §5).
 
 from __future__ import annotations
 
-import json
 import socket
 import time
 from typing import TYPE_CHECKING, Any
 
+from aitts.adapters.jsonl import JsonlDecodeError, decode_json_object, encode_json_object
 from aitts.model import TERMINAL, State
 
 if TYPE_CHECKING:
@@ -62,11 +62,11 @@ class Client:
         """
         sock = self._connect()
         try:
-            sock.sendall(json.dumps(payload).encode() + b"\n")
+            sock.sendall(encode_json_object(payload))
             line = self._read_line(sock)
         finally:
             sock.close()
-        response: dict[str, Any] = json.loads(line)
+        response = self._decode_line(line)
         if not response.get("ok", False):
             error = response.get("error") or {}
             raise DaemonError(str(error.get("type", "internal")), str(error.get("message", "")))
@@ -96,15 +96,15 @@ class Client:
         sock = self._connect()
         sock.settimeout(timeout)
         try:
-            sock.sendall(b'{"op": "subscribe"}\n')
+            sock.sendall(encode_json_object({"op": "subscribe"}))
             line, buffer = self._read_buffered_line(sock, b"")
-            ack = json.loads(line)
+            ack = self._decode_line(line)
             if not ack.get("ok", False):  # pragma: no cover - subscribe cannot fail
                 msg = "subscription refused"
                 raise DaemonUnreachableError(msg)
             while True:
                 line, buffer = self._read_buffered_line(sock, buffer)
-                yield json.loads(line)
+                yield self._decode_line(line)
         except TimeoutError as exc:
             msg = "timed out waiting for an event"
             raise DaemonUnreachableError(msg) from exc
@@ -121,6 +121,14 @@ class Client:
             buffer += chunk
         line, _, rest = buffer.partition(b"\n")
         return line, rest
+
+    @staticmethod
+    def _decode_line(line: bytes) -> dict[str, Any]:
+        try:
+            return decode_json_object(line)
+        except JsonlDecodeError as exc:
+            msg = f"daemon returned invalid JSONL: {exc}"
+            raise DaemonUnreachableError(msg) from exc
 
     def wait_for_terminal(self, utt_id: str, *, timeout: float | None = None) -> str:
         """Block until ``utt_id`` reaches a terminal state; return that state.

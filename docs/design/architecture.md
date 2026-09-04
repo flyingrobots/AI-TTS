@@ -161,7 +161,12 @@ graph TB
 
 ### Wire shape
 
-Newline-delimited JSON, request/response plus a subscription mode. Every response carries `ok` and, on failure, a typed `error`, **never an empty response that a client might read as success (F2).**
+Newline-delimited JSON, request/response plus a subscription mode. Every line
+is UTF-8 and contains exactly one JSON object. Request lines are limited to 1
+MiB including their newline. Malformed JSON, invalid UTF-8, non-object JSON,
+and over-limit lines receive a typed `bad_request`; they never become an empty
+response that a client might read as success (F2). A malformed line below the
+limit does not poison the connection, so a corrected next request can proceed.
 
 ```jsonc
 // submit — returns immediately with an id. THIS IS NOT "IT WAS SPOKEN".

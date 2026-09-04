@@ -213,7 +213,7 @@ async def test_invalid_utf8_gets_typed_error_without_disconnect(daemon: Daemon) 
 
 async def test_valid_request_below_one_mib_line_limit_is_accepted(daemon: Daemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
-    request = json.dumps({"op": "status", "padding": "x" * 70_000}).encode() + b"\n"
+    request = json.dumps({"op": "status"}).encode() + (b" " * 70_000) + b"\n"
     writer.write(request)
     await writer.drain()
     response_line = await reader.readline()
@@ -235,6 +235,20 @@ async def test_valid_request_below_one_mib_line_limit_is_accepted(daemon: Daemon
         "request_below_limit": True,
         "response_present": True,
         "response": {"ok": True, "state": "accepting"},
+    }
+
+
+async def test_over_one_mib_line_gets_typed_error_before_disconnect(daemon: Daemon) -> None:
+    reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
+    writer.write((b" " * (1024 * 1024 + 2)) + b"\n")
+    await writer.drain()
+    response_line = await reader.readline()
+    writer.close()
+    await writer.wait_closed()
+
+    assert json.loads(response_line) == {
+        "ok": False,
+        "error": {"type": "bad_request", "message": "request line too large"},
     }
 
 

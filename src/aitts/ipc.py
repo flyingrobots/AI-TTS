@@ -13,16 +13,20 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
+
+from aitts.adapters.jsonl import (
+    MAX_JSONL_LINE_BYTES,
+    JsonlDecodeError,
+    decode_json_object,
+    encode_json_object,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 log = logging.getLogger(__name__)
-
-_MAX_LINE_BYTES = 1024 * 1024
 
 BAD_REQUEST = "bad_request"
 NOT_FOUND = "not_found"
@@ -66,7 +70,9 @@ class IPCServer:
         """Bind the socket (mode 0600) and begin serving."""
         self._socket_path.unlink(missing_ok=True)
         self._server = await asyncio.start_unix_server(
-            self._serve_client, path=str(self._socket_path)
+            self._serve_client,
+            path=str(self._socket_path),
+            limit=MAX_JSONL_LINE_BYTES + 1,
         )
         self._socket_path.chmod(0o600)
 
@@ -83,7 +89,7 @@ class IPCServer:
 
     def broadcast(self, event: dict[str, Any]) -> None:
         """Send an event line to every subscriber, dropping dead connections."""
-        line = json.dumps(event).encode() + b"\n"
+        line = encode_json_object(event)
         for writer in list(self._subscribers):
             try:
                 writer.write(line)
@@ -97,12 +103,15 @@ class IPCServer:
             while True:
                 try:
                     line = await reader.readline()
-                except (ConnectionError, asyncio.LimitOverrunError):  # pragma: no cover
+                except ConnectionError:  # pragma: no cover
+                    break
+                except ValueError:
+                    await self._reply(writer, _error(BAD_REQUEST, "request line too large"))
                     break
                 if not line:
                     break
-                if len(line) > _MAX_LINE_BYTES:
-                    await self._reply(writer, _error("bad_request", "request line too large"))
+                if len(line) > MAX_JSONL_LINE_BYTES:
+                    await self._reply(writer, _error(BAD_REQUEST, "request line too large"))
                     continue
                 await self._handle_line(line, writer)
         finally:
@@ -113,12 +122,9 @@ class IPCServer:
 
     async def _handle_line(self, line: bytes, writer: asyncio.StreamWriter) -> None:
         try:
-            payload = json.loads(line)
-        except json.JSONDecodeError:
-            await self._reply(writer, _error("bad_request", "not valid JSON"))
-            return
-        if not isinstance(payload, dict):
-            await self._reply(writer, _error("bad_request", "expected a JSON object"))
+            payload = decode_json_object(line)
+        except JsonlDecodeError as exc:
+            await self._reply(writer, _error(BAD_REQUEST, str(exc)))
             return
         if payload.get("op") == "subscribe":
             self._subscribers.add(writer)
@@ -135,7 +141,7 @@ class IPCServer:
 
     @staticmethod
     async def _reply(writer: asyncio.StreamWriter, payload: dict[str, Any]) -> None:
-        writer.write(json.dumps(payload).encode() + b"\n")
+        writer.write(encode_json_object(payload))
         with contextlib.suppress(ConnectionError):
             await writer.drain()
 
