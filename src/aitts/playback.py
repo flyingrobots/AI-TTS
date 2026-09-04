@@ -324,10 +324,18 @@ class PlaybackController:
         self._watcher = None
         self.notify()
 
-    def _cancel_watcher(self) -> None:
-        if self._watcher is not None:
-            self._watcher.cancel()
-            self._watcher = None
+    async def _release_sink(self) -> None:
+        """Stop playback and wait until the device can be acquired again."""
+        watcher = self._watcher
+        self._watcher = None
+        if watcher is not None:
+            watcher.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watcher
+        if self._sink_active:
+            self._sink.stop()
+            await self._sink.wait()
+            self._sink_active = False
 
     async def pause(self) -> None:
         """Hold playback. Synthesis continues; the buffer should fill while paused."""
@@ -368,11 +376,8 @@ class PlaybackController:
         """
         current = self._current()
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
-            self._cancel_watcher()
             position = self._sink.position_ms() if self._sink_active else current.played_ms or 0
-            if self._sink_active:
-                self._sink.stop()
-                self._sink_active = False
+            await self._release_sink()
             self._store.transition(current.id, State.SKIPPED, played_ms=position)
             self._current_id = None
         self.notify()
@@ -386,10 +391,7 @@ class PlaybackController:
             return
         if current.state not in (State.PLAYING, State.PAUSED):  # pragma: no cover
             return
-        self._cancel_watcher()
-        if self._sink_active:
-            self._sink.stop()
-            self._sink_active = False
+        await self._release_sink()
         if current.state is State.PAUSED:
             self._store.transition(current.id, State.PLAYING)
         self._sink.start(Path(current.audio_path), position_ms=0)
