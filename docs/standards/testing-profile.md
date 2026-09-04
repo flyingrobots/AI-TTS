@@ -58,8 +58,8 @@ need red-on-parent evidence or the written irreproducible-failure carve-out.
 | Playback | exactly one owner; FIFO/priority plan; hold survives controls | `PlaybackController`; architecture §§2 and 7 | deterministic fake sink and explicit race regressions | replace hand-picked races with seeded scheduler exploration |
 | Synthesis and cache | failures isolate; ready audio is usable; disk remains bounded | synthesis pool/cache ports; architecture §§2, 4, and 6 | generated LRU model, real filesystem contract, seeded unlink failure | add fault injection for synthesis writes and full disk |
 | Menu-bar app | one truthful unified Queue/History and global hold | Swift client model plus daemon snapshot; UI design | Swift model/client tests | UI automation and accessibility journey absent |
-| Kokoro lifecycle | production engine starts and stops without wedging | engine adapter/process lifecycle | manual live acceptance only | deterministic teardown contract and fault isolation absent |
-| Distribution | installed binaries and app do not depend on a checkout | wheel/app/launch artifacts | not yet gated | add clean-machine install and launch lifecycle acceptance |
+| Kokoro lifecycle | production engine starts and stops without wedging | engine adapter/process lifecycle | bounded non-cooperative shutdown process test; manual live acceptance | add automated real-Kokoro synthesis and teardown acceptance |
+| Distribution | installed binaries and app do not depend on a checkout | wheel/app/launch artifacts | isolated wheel install, bundle/plist contracts, signed bundle CI build | add clean external-machine install and launch lifecycle acceptance |
 
 ## Adoption ledger
 
@@ -75,6 +75,10 @@ Enforced now:
   suite deadline.
 - a configurable 1 GiB-default LRU cache cap, generated policy reference model,
   terminal-only filesystem contract, and seeded unlink-failure check.
+- bounded process shutdown when a native engine call ignores cancellation;
+- an OS-backed single-instance contract for the menu-bar process;
+- installable wheel, standalone app-bundle, and shell-free launch-agent
+  contracts, with real release-bundle construction in CI.
 
 Still open for v0.1.0 readiness where the product makes the corresponding
 promise:
@@ -83,7 +87,7 @@ promise:
 - seeded store and synthesis-write fault injection for persistence and recovery
   claims;
 - systematic playback interleaving exploration beyond named regressions;
-- Kokoro teardown, install, and launch lifecycle acceptance;
+- real-Kokoro synthesis/teardown and clean external-machine launch acceptance;
 - final cross-language release matrix on the published commit.
 
 Review this profile whenever a new trust boundary or durability promise is

@@ -4,7 +4,7 @@ A local text-to-speech application for macOS, built for agents that talk.
 
 You send it text. It queues that text, synthesizes audio in the background with the model held warm in memory, and plays it back through a separate, strictly serialized queue that you control from the menu bar.
 
-> **Status: v0.1.0 — working.** The daemon, CLI, and menu-bar app are implemented and tested against the design under [`docs/design/`](docs/design/). See [Project status](#project-status) and [Using it](#using-it).
+> **Status: v0.1.0 release candidate.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. No `v0.1.0` tag or release has been published yet. See [Project status](#project-status) and [Using it](#using-it).
 
 ## Why
 
@@ -27,8 +27,8 @@ The last one is the clearest statement of the problem: **speech is a serial reso
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
-- **Shows you both queues** — what is still being generated, and what is ready and waiting.
-- **Keeps everything ever said**, browsable and replayable.
+- **Shows one playback plan** — the current clip, everything upcoming in Queue, and removable local History.
+- **Keeps local playback history** until you remove an item or clear it, with one-click priority-aware re-queue.
 - **Lives in the menu bar.** Click the tray icon for the current state; the icon itself tells you at a glance whether it is idle, synthesizing, playing, or paused.
 - **Configurable in the app** — voice, speed, output device — not as shell flags.
 
@@ -58,27 +58,73 @@ These are stated at this level on purpose. **This repository is public**, so the
 
 ## Using it
 
+Install the Python tools from a source checkout. Kokoro stays an optional,
+locally resolved dependency so this repository never vendors or redistributes
+its Python environment:
+
 ```sh
-# install (Python 3.12+, uv)
+# requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
+uv tool install --force --python 3.12 --with "kokoro>=0.9.4" .
+
+# build an ad-hoc-signed, checkout-independent menu-bar app
+python3 scripts/build_app_bundle.py \
+  --output "$HOME/Applications/AI-TTS.app" \
+  --force
+
+# install and start a shell-free per-user launch agent
+AI_TTS_BIN="$(uv tool dir --bin)/ai-tts"
+python3 scripts/render_launch_agent.py \
+  --executable "$AI_TTS_BIN" \
+  --force
+launchctl bootout "gui/$(id -u)" \
+  "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" \
+  "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist"
+open "$HOME/Applications/AI-TTS.app"
+```
+
+The installed app bundle contains only the native menu executable and its
+metadata. It does not contain the Python environment, model, or voice assets.
+Its ad-hoc signature is suitable for this local source-install workflow; it is
+not a notarized package for third-party distribution.
+
+Use the installed CLI from the uv tool bin directory (or run
+`uv tool update-shell` once to put that directory on `PATH`):
+
+```sh
+# exit 0 means "accepted onto the queue", nothing more
+ai-tts say "Hello from an agent."
+
+# exit 0 only after the clip reaches Played
+ai-tts say "Deploy finished." --wait
+
+# transport and visibility
+ai-tts pause
+ai-tts resume
+ai-tts skip
+ai-tts rewind
+ai-tts list playback
+ai-tts history
+ai-tts settings --set voice=bm_daniel
+
+# agent-native MCP server: 100% JSONL, one JSON object per stdio line
+ai-tts-mcp
+```
+
+For development from the checkout instead:
+
+```sh
 uv sync --all-extras
 
 # run the daemon (holds Kokoro-82M warm, owns the audio device)
 uv run ai-tts daemon
 
-# speak — exit 0 means "accepted onto the queue", nothing more
-uv run ai-tts say "Hello from an agent."
-
-# speak and know it was actually heard — exit 0 only for Played
-uv run ai-tts say "Deploy finished." --wait
-
-# transport and visibility
-uv run ai-tts pause | resume | skip | rewind
-uv run ai-tts list playback
-uv run ai-tts history
-uv run ai-tts settings --set voice=bm_daniel
-
-# agent-native MCP server: MCP JSON-RPC, one JSON object per stdio line
+uv run ai-tts say "Hello from the checkout." --wait
 uv run ai-tts-mcp
+
+# development-only menu launch; the instance lock rejects duplicates
+cd clients/menubar
+swift run
 ```
 
 **Pause is a playback hold, never backpressure.** Speakers should continue to
@@ -103,22 +149,16 @@ tool encoding, and the Unix-socket adapter owns daemon NDJSON encoding. See
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
 
-**Menu-bar app** (Swift):
-
-```sh
-cd clients/menubar && swift run
-```
-
-**Run the daemon at login** (launchd):
-
-```sh
-cp scripts/launchd/com.flyingrobots.ai-tts.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.flyingrobots.ai-tts.plist
-```
-
 ## Project status
 
-v0.1.0. The daemon (Python 3.12, asyncio), the CLI client, the Kokoro-82M engine adapter, and a Swift menu-bar app are implemented, with the test suite encoding the design semantics: the state machine, strict serial in-order playback, fail-closed sensitivity, restart recovery, and truthful exit codes. The design documents remain the spec; where v1 diverges (utterance-level rather than within-utterance rewind, stock SwiftUI controls rather than the pixel mockups), the divergence is deliberate and noted in the code.
+The v0.1.0 implementation is a release candidate, not a published release. The
+Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
+and native Swift menu-bar app are implemented. The suite encodes the state
+machine, serialized playback plan, global hold, fail-closed sensitivity,
+restart recovery, bounded cache and shutdown, single-instance menu process,
+public schemas, and checkout-independent release artifacts. The remaining
+release-readiness work and accepted blind spots are tracked in
+[`docs/standards/testing-profile.md`](docs/standards/testing-profile.md).
 
 ## Licence
 

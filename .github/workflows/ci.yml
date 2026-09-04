@@ -26,6 +26,8 @@ jobs:
         run: uv run mypy
       - name: Pytest
         run: uv run pytest
+      - name: Build Python release artifacts
+        run: uv build --offline
 
   swift:
     name: build and test (Swift menu-bar app)
@@ -39,3 +41,7 @@ jobs:
       - name: Test
         working-directory: clients/menubar
         run: python3 ../../scripts/run_with_deadline.py 60 swift test
+      - name: Build signed app bundle
+        run: python3 scripts/build_app_bundle.py --output dist/AI-TTS.app
+      - name: Verify app bundle
+        run: codesign --verify --deep --strict dist/AI-TTS.app

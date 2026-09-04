@@ -1,6 +1,6 @@
 # AI-TTS — Tech stack
 
-Status: **draft for review**. These are proposals with reasoning attached, not decisions. Where a choice could reasonably go the other way, the alternative is written down with the reason it lost, so review can overturn the choice rather than re-derive it.
+Status: **accepted for v0.1.0**. Where a choice could reasonably go the other way, the alternative is written down with the reason it lost, so a later review can overturn the choice rather than re-derive it.
 
 The constraints doing the work here come from the other documents:
 
@@ -30,12 +30,12 @@ The seam between them is already load-bearing in the architecture: **nothing the
 | State | `sqlite3`, stdlib, WAL mode | [architecture §6](architecture.md#6-persistence) chose SQLite; the stdlib driver is enough for a single-process daemon |
 | Concurrency | One asyncio loop; synthesis in a thread-pool executor | Playback and IPC are I/O-bound and belong on the loop. Synthesis is the only CPU-heavy work and the executor gives it N workers — N is the setting the architecture asks for |
 | Process supervision | `launchd` user agent | The daemon must outlive clients (F3) and restart on crash. macOS already ships the supervisor; adding another is a dependency for a solved problem |
-| Packaging | `uv`, `pyproject.toml`, pinned lock | Single-user developer tool installed on its owner's machine, not a notarized `.pkg`. If distribution ever matters this reopens |
+| Packaging | source wheel/sdist, `uv tool`, ad-hoc-signed `.app`, generated launchd plist | Checkout-independent on the owner's machine, but deliberately not a notarized third-party package; the Python environment is never bundled |
 | Lint / types / tests | `ruff` (all rules on), `mypy --strict`, `pytest` | House rule: maximal strictness, warnings promoted to errors |
 
 The one genuinely uncomfortable dependency is transitive, and it is worse than the Piper situation flagged in [engine-evaluation §2](engine-evaluation.md#2-local-models): `misaki`'s G2P fallback arrives via `espeakng-loader`, which **bundles `libespeak-ng.dylib` (GPL-3.0) and loads it into the Python process**. That is dynamic linking, not mere aggregation. Verified against the working install at `~/git/kokoro` (2026-09-01): the venv there holds `kokoro 0.9.4` and `misaki 0.9.4`, both Apache-2.0 by their own metadata, alongside `espeakng-loader 0.2.4` shipping the dylib inside the wheel. `torch` is 2.10.0, so that machine is already running the exact reference path this document proposes.
 
-What keeps this survivable: GPL obligations attach on *distribution*, and this project distributes source that depends on `kokoro`, never a bundled environment containing the dylib. The hard rule that follows — **AI-TTS must never vendor, bundle, or redistribute its Python environment** — is recorded here so the packaging row above ("uv, not a notarized `.pkg`") reads as the licence boundary it is, not merely a convenience. Worth confirming during review whether the espeak fallback can be disabled outright, because the identifiers this tool speaks are heading for the pronunciation lexicon anyway ([architecture §8](architecture.md#8-the-engine-interface)).
+What keeps this survivable: this project distributes source that depends on `kokoro`, never a bundled environment containing the dylib. The hard rule that follows — **AI-TTS must never vendor, bundle, or redistribute its Python environment** — is recorded here so the packaging row above reads as the project boundary, not merely a convenience. The local app bundle therefore contains only the native menu executable and metadata. Worth confirming during review whether the espeak fallback can be disabled outright, because the identifiers this tool speaks are heading for the pronunciation lexicon anyway ([architecture §8](architecture.md#8-the-engine-interface)).
 
 ## Menu-bar app: Swift 5.10+, SwiftUI in an AppKit shell
 

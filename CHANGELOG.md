@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-09-02
-
 ### Added
 
 - **Design and project foundation**: feature breakdown, architecture, engine
@@ -48,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Binding testing standard**: repository-wide rules for contract boundaries,
   named oracles, assertion calibration, deterministic generated evidence,
   explicit size classes, hermeticity, and trustworthy CI signals.
+- **Checkout-independent distribution**: a typed Python wheel with both CLI
+  entry points, an ad-hoc-signed native `.app` builder, and a shell-free
+  launch-agent renderer using the installed executable's absolute path.
 
 ### Changed
 
@@ -90,3 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevented duplicate menu-bar icons with an OS-backed per-user instance lock.
   The invariant also applies to development launches, where bundle metadata
   and Launch Services cannot prevent a second `swift run` process.
+- Removed the launch-agent plist that hard-coded one checkout's virtual
+  environment. Release artifacts now install and launch without retaining a
+  path to the repository.

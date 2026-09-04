@@ -15,8 +15,8 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from scripts.build_app_bundle import assemble_app_bundle  # type: ignore[import-not-found]
-from scripts.render_launch_agent import render_launch_agent  # type: ignore[import-not-found]
+from scripts.build_app_bundle import assemble_app_bundle
+from scripts.render_launch_agent import render_launch_agent
 
 pytestmark = [
     pytest.mark.medium,
@@ -92,7 +92,7 @@ def test_wheel_installs_cli_entry_points_outside_checkout(tmp_path: Path) -> Non
     uv = shutil.which("uv") or "uv"
     wheel_dir = tmp_path / "wheel"
     build = subprocess.run(  # noqa: S603
-        [uv, "build", "--wheel", "--out-dir", str(wheel_dir)],
+        [uv, "build", "--offline", "--wheel", "--out-dir", str(wheel_dir)],
         cwd=REPOSITORY,
         check=False,
         capture_output=True,
