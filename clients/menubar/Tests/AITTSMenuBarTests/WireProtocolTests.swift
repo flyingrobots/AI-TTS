@@ -13,6 +13,17 @@ final class WireProtocolTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testOnlyOneMenuBarInstanceCanHoldLock() throws {
+        let lockURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ai-tts-single-instance-\(UUID().uuidString).lock")
+        defer { try? FileManager.default.removeItem(at: lockURL) }
+
+        var first: SingleInstanceLock? = try XCTUnwrap(SingleInstanceLock(url: lockURL))
+        XCTAssertNil(SingleInstanceLock(url: lockURL))
+        first = nil
+        XCTAssertNotNil(SingleInstanceLock(url: lockURL))
+    }
+
     func testEncodeAppendsNewline() throws {
         let data = try WireProtocol.encode(["op": "status"])
         XCTAssertEqual(data.last, 0x0A)
