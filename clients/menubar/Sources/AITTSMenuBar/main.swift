@@ -18,9 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 MainActor.assumeIsolated {
+    guard let instanceLock = SingleInstanceLock() else { return }
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
     let delegate = AppDelegate()
     app.delegate = delegate
-    app.run()
+    withExtendedLifetime(instanceLock) {
+        app.run()
+    }
 }

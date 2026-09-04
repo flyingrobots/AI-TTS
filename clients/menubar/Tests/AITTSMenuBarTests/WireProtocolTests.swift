@@ -19,7 +19,9 @@ final class WireProtocolTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: lockURL) }
 
         var first: SingleInstanceLock? = try XCTUnwrap(SingleInstanceLock(url: lockURL))
-        XCTAssertNil(SingleInstanceLock(url: lockURL))
+        withExtendedLifetime(first) {
+            XCTAssertNil(SingleInstanceLock(url: lockURL))
+        }
         first = nil
         XCTAssertNotNil(SingleInstanceLock(url: lockURL))
     }

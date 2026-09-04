@@ -87,3 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ignores cancellation. SIGTERM now closes the socket and durable store first,
   then exits through a process-lifecycle adapter instead of waiting indefinitely
   for Python's executor finalizers.
+- Prevented duplicate menu-bar icons with an OS-backed per-user instance lock.
+  The invariant also applies to development launches, where bundle metadata
+  and Launch Services cannot prevent a second `swift run` process.
