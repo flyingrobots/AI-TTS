@@ -1,0 +1,131 @@
+# Copyright 2026 James Ross
+# SPDX-License-Identifier: Apache-2.0
+
+"""Unix-socket adapter for the public speech application port."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+
+from pydantic import ValidationError
+
+from aitts.application.schemas import (
+    CancelSpeech,
+    CancelSpeechReceipt,
+    ClearQueueReceipt,
+    EnqueueSpeech,
+    EnqueueSpeechReceipt,
+    HistoryQuery,
+    HistoryView,
+    PlaybackControlReceipt,
+    PublicSchema,
+    QueueView,
+    RequeueSpeech,
+    RequeueSpeechReceipt,
+    SpeechServiceError,
+    SpeechStatus,
+    VoiceCatalog,
+)
+from aitts.client import Client, DaemonError, DaemonUnreachableError
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+SchemaT = TypeVar("SchemaT", bound=PublicSchema)
+
+
+class DaemonRequestClient(Protocol):
+    """Raw request boundary consumed by this encoding adapter."""
+
+    def request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Exchange one daemon NDJSON request and response."""
+        ...
+
+
+class UnixSocketSpeechAdapter:
+    """Encode public commands to daemon NDJSON and decode typed public results."""
+
+    def __init__(self, client: DaemonRequestClient) -> None:
+        """Wrap a raw daemon request client."""
+        self._client = client
+
+    @classmethod
+    def connect(cls, socket_path: Path) -> UnixSocketSpeechAdapter:
+        """Connect the adapter to a daemon Unix-socket path."""
+        return cls(Client(socket_path))
+
+    def enqueue_speech(self, request: EnqueueSpeech) -> EnqueueSpeechReceipt:
+        """Encode one speech request and decode its admission receipt."""
+        payload = {"op": "submit", **request.model_dump(mode="json", exclude_none=True)}
+        return self._exchange(payload, EnqueueSpeechReceipt)
+
+    def speech_status(self) -> SpeechStatus:
+        """Decode daemon admission and playback state."""
+        return self._exchange({"op": "status"}, SpeechStatus)
+
+    def list_queue(self) -> QueueView:
+        """Decode the daemon snapshot's unified pending plan."""
+        response = self._request({"op": "snapshot", "limit": 1})
+        return self._decode(QueueView, {"items": response.get("plan")})
+
+    def list_history(self, query: HistoryQuery) -> HistoryView:
+        """Encode history pagination and decode terminal items."""
+        payload = {"op": "history", **query.model_dump(mode="json", exclude_none=True)}
+        response = self._request(payload)
+        return self._decode(HistoryView, {"items": response.get("items")})
+
+    def list_voices(self) -> VoiceCatalog:
+        """Decode the daemon's current voice catalog."""
+        return self._exchange({"op": "voices"}, VoiceCatalog)
+
+    def pause_playback(self) -> PlaybackControlReceipt:
+        """Send a global playback hold."""
+        return self._exchange({"op": "pause"}, PlaybackControlReceipt)
+
+    def resume_playback(self) -> PlaybackControlReceipt:
+        """Release the global playback hold."""
+        return self._exchange({"op": "resume"}, PlaybackControlReceipt)
+
+    def skip_current(self) -> PlaybackControlReceipt:
+        """Skip the current clip."""
+        return self._exchange({"op": "skip"}, PlaybackControlReceipt)
+
+    def restart_current(self) -> PlaybackControlReceipt:
+        """Restart the current clip from zero."""
+        return self._exchange({"op": "rewind"}, PlaybackControlReceipt)
+
+    def cancel_speech(self, request: CancelSpeech) -> CancelSpeechReceipt:
+        """Encode a targeted cancellation."""
+        return self._exchange({"op": "cancel", "id": request.id}, CancelSpeechReceipt)
+
+    def requeue_speech(self, request: RequeueSpeech) -> RequeueSpeechReceipt:
+        """Encode a history replay with explicit urgency."""
+        payload = {"op": "requeue", **request.model_dump(mode="json")}
+        return self._exchange(payload, RequeueSpeechReceipt)
+
+    def clear_queue(self) -> ClearQueueReceipt:
+        """Cancel every pending clip without touching the current clip."""
+        return self._exchange({"op": "clear", "queue": "queue"}, ClearQueueReceipt)
+
+    def _exchange(self, payload: dict[str, Any], schema: type[SchemaT]) -> SchemaT:
+        response = self._request(payload)
+        public = {key: value for key, value in response.items() if key != "ok"}
+        return self._decode(schema, public)
+
+    def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self._client.request(payload)
+        except DaemonError as exc:
+            raise SpeechServiceError(exc.error_type, str(exc)) from exc
+        except DaemonUnreachableError as exc:
+            code = "unreachable"
+            raise SpeechServiceError(code, str(exc)) from exc
+
+    @staticmethod
+    def _decode(schema: type[SchemaT], payload: object) -> SchemaT:
+        try:
+            return schema.model_validate(payload)
+        except ValidationError as exc:
+            msg = f"daemon returned a response outside the public {schema.__name__} schema"
+            code = "invalid_response"
+            raise SpeechServiceError(code, msg) from exc

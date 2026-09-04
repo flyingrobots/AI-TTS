@@ -83,6 +83,10 @@ graph TB
     subgraph clients["Clients"]
         CLI["CLI client<br/>(agents, scripts)"]
         TRAY["Menu-bar app<br/>(macOS tray)"]
+        MCPHOST["MCP host<br/>(AI agents)"]
+        MCP["MCP adapter<br/>JSONL over stdio"]
+        PORT["SpeechServicePort<br/>public schemas"]
+        SOCKET["Unix-socket adapter<br/>NDJSON codec"]
     end
 
     subgraph daemon["Daemon — long-lived, model resident"]
@@ -100,6 +104,10 @@ graph TB
 
     CLI -->|submit, query, transport| IPC
     TRAY -->|submit, query, transport| IPC
+    MCPHOST <-->|MCP JSONL| MCP
+    MCP --> PORT
+    PORT --> SOCKET
+    SOCKET -->|daemon NDJSON| IPC
     IPC -->|events| CLI
     IPC -->|events| TRAY
     IPC <--> STORE
@@ -121,6 +129,10 @@ graph TB
 - **Engine adapter** — see §8. The engine is a detail, not the architecture.
 - **Store** — the single source of truth for both queues, history and settings. **Components communicate through it rather than with each other**, so state is inspectable at one place rather than reconstructed from several.
 - **Clients are thin and interchangeable.** The tray app and the CLI have the same rights and use the same protocol. **Nothing the tray can do is unavailable to an agent.**
+- **The agent-facing boundary is hexagonal.** `SpeechServicePort` accepts and
+  returns immutable public schemas. The MCP adapter owns MCP tool-schema
+  translation; the Unix-socket adapter owns daemon NDJSON encoding and
+  decoding. The application port imports neither MCP nor either wire format.
 
 ---
 
@@ -193,11 +205,37 @@ Newline-delimited JSON, request/response plus a subscription mode. Every respons
 
 `paused` is a playback state, not a daemon availability state. A speaker must
 never suppress submission because `playback_state` is `paused`; it submits
-normally and receives `accepted: true` plus `spooled_until_resume`. The future
-MCP enqueue tool follows the same rule and does not perform a playback-state
-preflight.
+normally and receives `accepted: true` plus `spooled_until_resume`. The MCP
+`enqueue_speech` tool follows the same rule and does not perform a
+playback-state preflight.
 
 **A caller that must know an utterance was actually spoken subscribes and waits for its terminal state.** It does not read an exit code. That is the whole lesson of F1–F3 expressed as protocol.
+
+### MCP: JSONL stdio adapter around a public port
+
+`ai-tts-mcp` exposes the speech application to MCP hosts. It supports exactly
+one transport: MCP JSON-RPC as newline-delimited JSON over standard input and
+standard output. Each message occupies one line, messages contain no embedded
+newlines, and stdout contains no banners or logs. Diagnostics belong on
+stderr. There is deliberately no HTTP, SSE, or listening network socket.
+
+The adapter publishes typed tools for enqueue, truthful status, the unified
+queue, history, voices, global pause/resume, skip/restart, targeted cancel,
+priority-aware requeue, and queue clear. MCP argument and result schemas are
+derived from type annotations and the public models in
+`src/aitts/application/schemas.py`.
+
+The dependency direction is one-way:
+
+```text
+MCP JSONL adapter -> SpeechServicePort <- Unix-socket NDJSON adapter
+                           |
+                    public schemas
+```
+
+The MCP adapter never constructs daemon wire dictionaries. The socket adapter
+never imports MCP types. A malformed daemon success response becomes the
+public `invalid_response` error rather than a partially trusted result.
 
 ---
 

@@ -11,7 +11,9 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [{ name = "James Ross" }]
 dependencies = [
+    "mcp>=2,<3",
     "numpy>=1.26",
+    "pydantic>=2.11,<3",
     "sounddevice>=0.5",
     "soundfile>=0.13",
 ]
@@ -21,9 +23,11 @@ kokoro = ["kokoro>=0.9.4"]
 
 [project.scripts]
 ai-tts = "aitts.cli:main"
+ai-tts-mcp = "aitts.adapters.mcp:main"
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.138",
     "mypy>=1.14",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
@@ -83,3 +87,9 @@ addopts = "-q --timeout=30"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+markers = [
+    "small: single-process hermetic test with no sockets, filesystem, threads, or sleeps",
+    "medium: single-machine hermetic test that may use owned filesystem, loopback/Unix sockets, or threads",
+    "large: test that crosses a machine boundary or depends on an external service",
+    "oracle(source): authority from which the expected behavior is derived",
+]

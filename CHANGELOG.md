@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Infrastructure**: pytest suite written before the implementation, ruff
   `--select ALL` and `mypy --strict` clean, git hooks in `scripts/hooks/`,
   GitHub Actions CI (Python + Swift), launchd agent plist.
+- **Agent-native MCP server** (`ai-tts-mcp`): a stdio-only, 100% JSONL tool
+  surface for enqueue, truthful status, unified Queue/History reads, voices,
+  playback controls, cancellation, priority-aware requeue, and queue clear.
+  A transport-neutral `SpeechServicePort` and immutable public schemas sit
+  between the MCP and Unix-socket encoding adapters.
+- **Binding testing standard**: repository-wide rules for contract boundaries,
+  named oracles, assertion calibration, deterministic generated evidence,
+  explicit size classes, hermeticity, and trustworthy CI signals.
 
 ### Changed
 

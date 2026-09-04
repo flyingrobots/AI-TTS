@@ -76,6 +76,9 @@ uv run ai-tts pause | resume | skip | rewind
 uv run ai-tts list playback
 uv run ai-tts history
 uv run ai-tts settings --set voice=bm_daniel
+
+# agent-native MCP server: MCP JSON-RPC, one JSON object per stdio line
+uv run ai-tts-mcp
 ```
 
 **Pause is a playback hold, never backpressure.** Speakers should continue to
@@ -85,6 +88,18 @@ spooled in Queue until the user resumes. `status` reports the daemon itself as
 temporary silence for refusal.
 
 Every response is JSON. Agents that want more than the CLI speak newline-delimited JSON directly to the Unix socket at `~/Library/Application Support/ai-tts/ai-tts.sock` — the protocol is in [`docs/design/architecture.md`](docs/design/architecture.md) §5, and the CLI is only a convenience over it.
+
+MCP hosts should launch `ai-tts-mcp` as a local stdio server. The process emits
+only newline-delimited MCP JSON-RPC on stdout; there is no HTTP or SSE mode.
+Its typed tools cover enqueue, status, the unified Queue and History, voices,
+global pause/resume, skip/restart, cancel, priority-aware requeue, and queue
+clear. `enqueue_speech` remains available while globally paused: new clips are
+accepted, synthesized, and spooled until Resume.
+
+The MCP boundary uses a hexagonal port-and-adapter design. Public immutable
+schemas and `SpeechServicePort` are transport-neutral; the MCP adapter owns MCP
+tool encoding, and the Unix-socket adapter owns daemon NDJSON encoding. See
+[`docs/design/architecture.md`](docs/design/architecture.md) §5.
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
 
