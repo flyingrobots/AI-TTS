@@ -46,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Binding testing standard**: repository-wide rules for contract boundaries,
   named oracles, assertion calibration, deterministic generated evidence,
   explicit size classes, hermeticity, and trustworthy CI signals.
+- **Recovery fault campaign**: deterministic post-commit crash injection at
+  every state-repair boundary, proving repeated restart converges with queued
+  text intact and no persisted item left `Playing`.
 - **Checkout-independent distribution**: a typed Python wheel with both CLI
   entry points, an ad-hoc-signed native `.app` builder, and a shell-free
   launch-agent renderer using the installed executable's absolute path.

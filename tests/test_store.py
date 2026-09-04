@@ -36,6 +36,24 @@ class OneShotCommitFailure(sqlite3.Connection):
         super().commit()
 
 
+class SeededRecoveryError(RuntimeError):
+    """Deterministic process-crash stand-in carrying its replay seed."""
+
+
+class CrashAfterCommit(sqlite3.Connection):
+    crash_after: int | None = None
+
+    def commit(self) -> None:
+        super().commit()
+        if self.crash_after is None:
+            return
+        self.crash_after -= 1
+        if self.crash_after == 0:
+            self.crash_after = None
+            msg = "seeded recovery crash"
+            raise SeededRecoveryError(msg)
+
+
 def test_failed_commit_never_leaks_non_durable_state(
     tmp_path: Path,
 ) -> None:
@@ -296,3 +314,66 @@ def test_recover_requeues_synthesizing_and_pauses_playing(tmp_path: Path) -> Non
     assert got_a.state is State.QUEUED  # unsynthesized text is not recoverable elsewhere
     assert got_b.state is State.PAUSED  # a restored queue never starts speaking on its own
     st2.close()
+
+
+@pytest.mark.parametrize("crash_after", [1, 2, 3], ids=lambda seed: f"after_commit_{seed}")
+def test_recovery_converges_after_each_committed_crash_point(
+    tmp_path: Path,
+    crash_after: int,
+) -> None:
+    real_connect = sqlite3.connect
+    connections: list[CrashAfterCommit] = []
+
+    def connect(path: str) -> sqlite3.Connection:
+        connection = real_connect(path, factory=CrashAfterCommit)
+        connections.append(connection)
+        return connection
+
+    database = tmp_path / f"recovery-{crash_after}.db"
+    original = Store(database, connect=connect)
+    queued = submit(original, "queued")
+    synthesizing_a = submit(original, "synthesizing-a")
+    synthesizing_b = submit(original, "synthesizing-b")
+    playing = submit(original, "playing")
+    ready = submit(original, "ready")
+    original.transition(synthesizing_a.id, State.SYNTHESIZING)
+    original.transition(synthesizing_b.id, State.SYNTHESIZING)
+    original.transition(playing.id, State.SYNTHESIZING)
+    original.transition(playing.id, State.READY, audio_path="playing.wav", duration_ms=1)
+    original.transition(playing.id, State.PLAYING)
+    original.transition(ready.id, State.SYNTHESIZING)
+    original.transition(ready.id, State.READY, audio_path="ready.wav", duration_ms=1)
+    original.close()
+
+    interrupted = Store(database, connect=connect)
+    connections[-1].crash_after = crash_after
+    with pytest.raises(SeededRecoveryError, match="seeded recovery crash"):
+        interrupted.recover()
+    interrupted.close()
+
+    restarted = Store(database, connect=connect)
+    restarted.recover()
+
+    def text_and_state(utterance_id: str) -> tuple[str, State] | None:
+        utterance = restarted.get(utterance_id)
+        return None if utterance is None else (utterance.text, utterance.state)
+
+    recovered = {
+        utterance_id: text_and_state(utterance_id)
+        for utterance_id in (
+            queued.id,
+            synthesizing_a.id,
+            synthesizing_b.id,
+            playing.id,
+            ready.id,
+        )
+    }
+    restarted.close()
+
+    assert recovered == {
+        queued.id: ("queued", State.QUEUED),
+        synthesizing_a.id: ("synthesizing-a", State.QUEUED),
+        synthesizing_b.id: ("synthesizing-b", State.QUEUED),
+        playing.id: ("playing", State.PAUSED),
+        ready.id: ("ready", State.READY),
+    }
