@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,55 @@ pytestmark = [
 
 def submit(store: Store, text: str = "hello", **kw: object) -> Utterance:
     return store.submit(text, voice="bm_daniel", speed=1.0, **kw)  # type: ignore[arg-type]
+
+
+class OneShotCommitFailure(sqlite3.Connection):
+    fail_next_commit = False
+
+    def commit(self) -> None:
+        if self.fail_next_commit:
+            self.fail_next_commit = False
+            msg = "seeded commit failure"
+            raise sqlite3.OperationalError(msg)
+        super().commit()
+
+
+def test_failed_commit_never_leaks_non_durable_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_connect = sqlite3.connect
+    connections: list[OneShotCommitFailure] = []
+
+    def connect(path: str) -> sqlite3.Connection:
+        connection = real_connect(path, factory=OneShotCommitFailure)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr("aitts.store.sqlite3.connect", connect)
+    database = tmp_path / "fault.db"
+    store = Store(database)
+    connections[0].fail_next_commit = True
+    error: str | None = None
+    try:
+        submit(store, "must be durable")
+    except sqlite3.OperationalError as exc:
+        error = str(exc)
+    visible_after_failure = store.counts()
+    store.close()
+
+    reopened = Store(database)
+    durable_after_reopen = reopened.counts()
+    reopened.close()
+
+    assert {
+        "error": error,
+        "visible_after_failure": visible_after_failure,
+        "durable_after_reopen": durable_after_reopen,
+    } == {
+        "error": "seeded commit failure",
+        "visible_after_failure": {},
+        "durable_after_reopen": {},
+    }
 
 
 def test_submit_defaults_to_confidential(store: Store) -> None:
