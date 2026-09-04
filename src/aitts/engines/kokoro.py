@@ -101,7 +101,7 @@ class KokoroEngine:
             msg = "the engine produced no audio"
             raise SynthesisError(msg)
         samples = np.concatenate(chunks)
-        sf.write(str(out_path), samples, _SAMPLE_RATE)
+        sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
         return int(len(samples) / _SAMPLE_RATE * 1000)
 
     def list_voices(self) -> list[str]:

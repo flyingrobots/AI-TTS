@@ -8,12 +8,14 @@ from __future__ import annotations
 import asyncio
 import threading
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.engine import FakeEngine
+from aitts.engines.kokoro import KokoroEngine
 from aitts.model import State
 from aitts.store import Store
 from aitts.synthesis import SynthesisPool
@@ -57,21 +59,36 @@ class OneShotPublishFailureArtifacts(FileAudioArtifacts):
         return super().publish(utterance_id, candidate)
 
 
-@pytest.mark.oracle("Kokoro selects the soundfile WAV encoder from the output path suffix")
-def test_candidate_is_writable_by_the_suffix_selected_wav_encoder(cache_dir: Path) -> None:
+class StubKokoroEngine(KokoroEngine):
+    def _pipeline(self, voice: str) -> Any:
+        del voice
+
+        def pipeline(
+            text: str, *, voice: str, speed: float
+        ) -> tuple[tuple[None, None, list[float]]]:
+            del text, voice, speed
+            return ((None, None, [0.0, 0.0]),)
+
+        return pipeline
+
+
+@pytest.mark.oracle("KokoroEngine's public synthesize contract promises a WAV artifact")
+def test_kokoro_writes_wav_to_atomic_candidate(cache_dir: Path) -> None:
     import soundfile as sf  # noqa: PLC0415 - exercise Kokoro's lazy encoder dependency
 
     artifacts = FileAudioArtifacts(cache_dir)
     artifacts.prepare()
     candidate = artifacts.target("format-selection")
 
-    sf.write(str(candidate), [0.0, 0.0], 24_000)
+    duration_ms = StubKokoroEngine().synthesize("format", "af_aoede", 1.0, candidate)
     published = artifacts.publish("format-selection", candidate)
 
     assert {
+        "duration_ms": duration_ms,
         "published_name": published.name,
         "published_format": sf.info(str(published)).format,
     } == {
+        "duration_ms": 0,
         "published_name": "format-selection.wav",
         "published_format": "WAV",
     }
