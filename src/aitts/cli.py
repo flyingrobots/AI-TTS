@@ -178,6 +178,9 @@ def _run_client_command(args: argparse.Namespace) -> int:
 
 def _run_daemon(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    from aitts.adapters.process_lifecycle import (  # noqa: PLC0415 - daemon-only adapter
+        ImmediateProcessTerminator,
+    )
     from aitts.daemon import Daemon  # noqa: PLC0415 - heavy import only for the daemon
     from aitts.playback import SoundDeviceSink  # noqa: PLC0415
 
@@ -190,6 +193,7 @@ def _run_daemon(args: argparse.Namespace) -> int:
         from aitts.engines.kokoro import KokoroEngine  # noqa: PLC0415
 
         engine = KokoroEngine()
+    terminator = ImmediateProcessTerminator()
 
     async def serve() -> None:
         daemon = Daemon(
@@ -209,6 +213,7 @@ def _run_daemon(args: argparse.Namespace) -> int:
         )
         await stop.wait()
         await daemon.stop()
+        terminator.terminate(EXIT_OK)
 
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(serve())

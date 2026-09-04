@@ -11,6 +11,7 @@ from aitts.application.cache import (
     CacheEntry,
     CacheMetadataPort,
 )
+from aitts.application.lifecycle import ProcessTerminationPort
 from aitts.application.ports import SpeechServicePort
 from aitts.application.schemas import (
     CancelSpeech,
@@ -53,6 +54,7 @@ __all__ = [
     "HistoryView",
     "PlaybackControlReceipt",
     "PlaybackState",
+    "ProcessTerminationPort",
     "QueueItem",
     "QueueView",
     "RequeueSpeech",

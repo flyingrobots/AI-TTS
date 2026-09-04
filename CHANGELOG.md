@@ -83,3 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cache_max_bytes`, 1 GiB by default) with persistent LRU ordering. Only
   terminal or orphaned audio is evicted; queued, Ready, Playing, and Paused
   work is protected, and history remains available with `audio_cached: false`.
+- Bounded daemon shutdown even when a native engine warmup or synthesis call
+  ignores cancellation. SIGTERM now closes the socket and durable store first,
+  then exits through a process-lifecycle adapter instead of waiting indefinitely
+  for Python's executor finalizers.
