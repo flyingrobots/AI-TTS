@@ -253,6 +253,12 @@ public `invalid_response` error rather than a partially trusted result.
 
 **SQLite for state, files for audio.** SQLite because both queues, history and settings want transactional updates and ordered queries, and because a half-written state file after a crash is exactly the ambiguity this design is trying to remove.
 
+Every explicit SQLite write is commit-or-rollback. If commit fails, the same
+live `Store` instance must immediately observe the pre-write state; it may not
+expose a phantom row that disappears only after restart. The connection factory
+is a port so this promise is exercised with deterministic commit faults rather
+than inferred from happy-path reopen tests.
+
 ```
 ~/Library/Application Support/ai-tts/     (macOS)
   state.db          utterances, queue positions, settings
@@ -264,7 +270,7 @@ public `invalid_response` error rather than a partially trusted result.
 
 | | Survives | Why |
 |---|---|---|
-| History | **Yes, permanently** | *"I want to have a history of all the things you've told me. It should all be there."* |
+| History | **Yes, until explicitly removed** | Local history survives restart; individual removal and Clear History are deliberate user actions |
 | Input queue | **Yes** | Unsynthesized text is not recoverable from anywhere else |
 | Playback queue | **Yes, paused** | See below |
 | Global playback hold | **Yes** | Restarting during a meeting must not unexpectedly speak |

@@ -13,7 +13,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from aitts.model import (
     TERMINAL,
@@ -73,6 +73,18 @@ class TransitionError(Exception):
     """Raised when a state change is not permitted by the state machine."""
 
 
+class DatabaseConnectionFactoryPort(Protocol):
+    """Construct the SQLite connection consumed by the durable-store adapter."""
+
+    def __call__(self, database: str, /) -> sqlite3.Connection:
+        """Open one connection to ``database``."""
+        ...
+
+
+def _sqlite_connect(database: str) -> sqlite3.Connection:
+    return sqlite3.connect(database)
+
+
 def _row_to_utterance(row: sqlite3.Row) -> Utterance:
     return Utterance(
         id=row["id"],
@@ -97,20 +109,32 @@ def _row_to_utterance(row: sqlite3.Row) -> Utterance:
 class Store:
     """Transactional state for both queues, history, and settings."""
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(
+        self,
+        db_path: Path,
+        *,
+        connect: DatabaseConnectionFactoryPort = _sqlite_connect,
+    ) -> None:
         """Open (creating if needed) the state database at ``db_path``."""
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(str(db_path))
+        self._db = connect(str(db_path))
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(_SCHEMA)
-        self._db.commit()
+        self._commit_or_rollback()
         self.on_transition: list[Callable[[Utterance, State], None]] = []
 
     def close(self) -> None:
         """Close the underlying database connection."""
         self._db.close()
+
+    def _commit_or_rollback(self) -> None:
+        try:
+            self._db.commit()
+        except BaseException:
+            self._db.rollback()
+            raise
 
     # -- submission ------------------------------------------------------
 
@@ -169,7 +193,7 @@ class Store:
                 utt.replay_of,
             ),
         )
-        self._db.commit()
+        self._commit_or_rollback()
         return utt
 
     def _tail_order_key(self) -> float:
@@ -303,7 +327,7 @@ class Store:
             f"UPDATE utterances SET {', '.join(sets)} WHERE id = ?",  # noqa: S608
             params,
         )
-        self._db.commit()
+        self._commit_or_rollback()
         after = self.get(utt_id)
         if after is None:  # pragma: no cover - row cannot vanish mid-update
             raise KeyError(utt_id)
@@ -319,7 +343,7 @@ class Store:
             f"WHERE audio_path = ? AND state IN ({placeholders})",
             (str(path), *(state.value for state in TERMINAL)),
         )
-        self._db.commit()
+        self._commit_or_rollback()
         return cursor.rowcount
 
     def claim_for_synthesis(self) -> Utterance | None:
@@ -341,7 +365,7 @@ class Store:
             "UPDATE utterances SET order_key = ? WHERE id = ?",
             (self._head_order_key(), utt_id),
         )
-        self._db.commit()
+        self._commit_or_rollback()
         after = self.get(utt_id)
         if after is None:  # pragma: no cover - row cannot vanish mid-update
             raise KeyError(utt_id)
@@ -393,7 +417,7 @@ class Store:
             f"DELETE FROM utterances WHERE id = ? AND state IN ({placeholders})",  # noqa: S608
             (utt_id, *(state.value for state in TERMINAL)),
         )
-        self._db.commit()
+        self._commit_or_rollback()
         return cursor.rowcount == 1
 
     def clear_history(self) -> int:
@@ -403,7 +427,7 @@ class Store:
             f"DELETE FROM utterances WHERE state IN ({placeholders})",  # noqa: S608
             tuple(state.value for state in TERMINAL),
         )
-        self._db.commit()
+        self._commit_or_rollback()
         return cursor.rowcount
 
     def recover(self) -> None:
@@ -432,4 +456,4 @@ class Store:
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (key, value),
         )
-        self._db.commit()
+        self._commit_or_rollback()

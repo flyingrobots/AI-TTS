@@ -37,7 +37,7 @@ class OneShotCommitFailure(sqlite3.Connection):
 
 
 def test_failed_commit_never_leaks_non_durable_state(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     real_connect = sqlite3.connect
     connections: list[OneShotCommitFailure] = []
@@ -47,9 +47,8 @@ def test_failed_commit_never_leaks_non_durable_state(
         connections.append(connection)
         return connection
 
-    monkeypatch.setattr("aitts.store.sqlite3.connect", connect)
     database = tmp_path / "fault.db"
-    store = Store(database)
+    store = Store(database, connect=connect)
     connections[0].fail_next_commit = True
     error: str | None = None
     try:
@@ -59,7 +58,7 @@ def test_failed_commit_never_leaks_non_durable_state(
     visible_after_failure = store.counts()
     store.close()
 
-    reopened = Store(database)
+    reopened = Store(database, connect=connect)
     durable_after_reopen = reopened.counts()
     reopened.close()
 

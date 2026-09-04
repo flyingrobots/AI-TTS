@@ -98,3 +98,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now receives a typed error without poisoning the connection, and the
   configured 1 MiB request limit is no longer shadowed by asyncio's 64 KiB
   default.
+- Made failed SQLite commits roll back before control returns. The live daemon
+  can no longer observe non-durable queue state that disappears on restart,
+  and the database connection factory is an explicit fault-injection port.
