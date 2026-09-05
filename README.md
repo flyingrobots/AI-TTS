@@ -281,12 +281,16 @@ On-screen captions are off by default. Open the AI-TTS menu-bar popover, choose
 the gear icon, and enable **On-screen captions**. While a clip is actively
 playing, the Current card also shows a captions-bubble shortcut beside playback
 speed. The click-through panel appears at the bottom center of the active
-display and shows the exact active segment; multi-part documents also show
-`PART n OF m`. Captions are segment-level, not word-timed karaoke, and the
-panel is absent while no segment is active. The preference is shared through
-the daemon: the menu toggle and MCP `set_captions_enabled` tool update the same
-persisted value, while `get_caption_settings` reports it without opening the
-menu.
+display and shows one short phrase from the exact active segment; it never puts
+an entire Markdown section or document segment on screen at once. Cues prefer
+sentence and clause punctuation, are capped at 12 words and 84 characters, and
+render in at most two lines. They advance from the reported clip position and
+duration using the observed playback rate. That is smooth phrase-level timing,
+not word-timed karaoke, so boundaries are intentionally approximate. Multi-part
+documents also show `PART n OF m`, and the panel is absent while no segment is
+active. The preference is shared through the daemon: the menu toggle and MCP
+`set_captions_enabled` tool update the same persisted value, while
+`get_caption_settings` reports it without opening the menu.
 
 Use the installed CLI from the uv tool bin directory (or run
 `uv tool update-shell` once to put that directory on `PATH`):

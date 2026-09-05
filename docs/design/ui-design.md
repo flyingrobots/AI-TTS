@@ -132,12 +132,22 @@ adapter unhides it without activation immediately before ordering the caption
 panel. This makes the panel eligible for display without taking focus from the
 application where the user is working.
 
-The overlay contains the daemon's exact active spoken segment and, for a
-document, `PART n OF m`. It is segment-level transcription: it deliberately
-does not fabricate word timing or karaoke highlighting. The toggle updates the
-local presentation optimistically and submits the persisted change to the
-daemon. The daemon broadcasts `settings_changed`; its event-driven snapshot
-then confirms the shared value and can also apply an MCP-originated change.
+The overlay projects the daemon's exact active spoken segment into small
+presentation-only cues; a long Markdown section is never displayed all at
+once. Each cue prefers sentence or clause punctuation, contains at most 12
+words and 84 characters, and renders in at most two lines. An unbroken token is
+split rather than allowed to expand the presentation. For a document, the
+overlay also shows `PART n OF m`.
+
+The daemon reports clip-level position and duration, not word timestamps. The
+menu therefore advances cues proportionally by an estimated spoken-text weight,
+anchored to the latest position and locally advanced at the observed 0.5×–3×
+playback rate. It freezes while paused and periodically re-anchors to daemon
+state. This is intentionally approximate phrase timing; it does not fabricate
+word alignment or karaoke highlighting. The toggle updates the local
+presentation optimistically and submits the persisted change to the daemon.
+The daemon broadcasts `settings_changed`; its event-driven snapshot then
+confirms the shared value and can also apply an MCP-originated change.
 The first shared-setting build migrates an existing local `UserDefaults` value
 only when the daemon has no explicit caption preference. Enabling captions does
 not start or accelerate background polling; the existing five-second refresh

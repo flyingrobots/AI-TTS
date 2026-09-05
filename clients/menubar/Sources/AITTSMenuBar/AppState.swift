@@ -38,6 +38,9 @@ final class AppState: ObservableObject {
     @Published var reachable = false
     @Published var lastError: String?
 
+    private(set) var statusObservedAt = Date()
+    private(set) var observedPlaybackRate: Double = 1.0
+
     /// The one user-facing queue: every clip that will play after the current one.
     var upcoming: [Utterance] {
         plan.filter { ["Queued", "Synthesizing", "Ready"].contains($0.state) }
@@ -90,6 +93,7 @@ final class AppState: ObservableObject {
     func refresh() {
         queue.async { [speech] in
             let snapshot = try? speech.snapshot()
+            let observedAt = Date()
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.reachable = snapshot != nil
@@ -97,6 +101,8 @@ final class AppState: ObservableObject {
                     self.status = nil
                     return
                 }
+                self.statusObservedAt = observedAt
+                self.observedPlaybackRate = snapshot.playbackRate
                 self.status = snapshot.status
                 self.plan = snapshot.plan
                 self.history = snapshot.history
