@@ -446,6 +446,59 @@ async def test_status_exposes_exact_active_segment_for_captions(tmp_path: Path) 
         shutil.rmtree(sock_dir, ignore_errors=True)
 
 
+async def test_status_exposes_literal_agent_speech_as_one_caption_segment(
+    tmp_path: Path,
+) -> None:
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-literal-caption-"))
+    sink = FakeSink()
+    daemon = Daemon(
+        home=tmp_path,
+        engine=FakeEngine(voices=["bm_george"], duration_ms=900),
+        sink=sink,
+        workers=1,
+        socket_path=sock_dir / "d.sock",
+    )
+    await daemon.start()
+    try:
+        text = "# Literal agent speech keeps **its syntax**."
+        submitted = await rpc(
+            daemon.socket_path,
+            {
+                "op": "submit",
+                "text": text,
+                "voice": "bm_george",
+                "source": "codex",
+                "content_format": "plain_text",
+            },
+        )
+        await wait_for_async(lambda: rpc_has_started(sink))
+        status = await rpc(daemon.socket_path, {"op": "status"})
+        current = status.get("current", {})
+
+        assert {
+            "parent_id": current.get("id"),
+            "parent_text": current.get("text"),
+            "stored_children": daemon.store.segments(submitted["id"]),
+            "active_segment": current.get("active_segment"),
+        } == {
+            "parent_id": submitted["id"],
+            "parent_text": text,
+            "stored_children": [],
+            "active_segment": {
+                "index": 0,
+                "number": 1,
+                "count": 1,
+                "text": text,
+                "state": "Playing",
+                "duration_ms": 900,
+                "position_ms": 0,
+            },
+        }
+    finally:
+        await daemon.stop()
+        shutil.rmtree(sock_dir, ignore_errors=True)
+
+
 async def rpc_has_started(sink: FakeSink) -> bool:
     await asyncio.sleep(0)
     return bool(sink.started)

@@ -1,7 +1,9 @@
 # AI-TTS — menu-bar UI design
 
-Status: **the menu-bar surface is approved and implemented in v0.1.0; native
-OS entry points are accepted and planned next**.
+Status: **the menu-bar surface and native OS adapters are approved and
+implemented**. Installed Services dispatch, the caption overlay, and App Intent
+indexing have direct system evidence. Representative host, live Accessibility,
+and real Shortcuts invocation acceptance remain open.
 
 The current design was approved after exercising the original five-tab app.
 That use exposed a conceptual leak: **Up Next** and **Queue** were two views of
@@ -221,8 +223,9 @@ flight; paused and error remain visually stable.
 
 The current implementation does not claim waveform scrubbing, word-synchronized
 karaoke highlighting, mute-without-pause, output-device selection, cache
-retention controls, history export, a detachable History window, selected-text
-or selected-file Services, Accessibility-based selection reading, clipboard
-admission, or App Intents. The playback ideas came from the earlier mockups;
-the native entry points are an accepted post-v0.1.0 goalpost. None is part of
-the shipped surface until its installed-system proof exists.
+retention controls, history export, or a detachable History window. Text/file
+Services, explicit Accessibility/clipboard admission, and App Intents are now
+part of the implemented surface. Their compatibility claims remain bounded by
+the installed evidence in [`os-integration.md`](os-integration.md): Services
+dispatch and App Intent indexing are proved locally, while the representative
+host, live Accessibility, and real Shortcuts invocation matrix remains open.

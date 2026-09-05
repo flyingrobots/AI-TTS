@@ -476,3 +476,42 @@ The CLI now coerces both voice-generation `speed` and `playback_rate` values to
 numbers before encoding NDJSON. The focused socket regression returns exit 0,
 reports 1.5, and leaves validation of the discrete choice set at the daemon
 boundary. The complete CLI suite is green.
+
+## Installed caption-panel acceptance
+
+The signed app installed at `/Users/james/Applications/AI-TTS.app` was run
+against a private Unix-socket fixture that reported one active segment. The
+fixture performed no synthesis and emitted no audio. Captions were enabled from
+their originally absent preference only for the run.
+
+macOS reported exactly one on-screen window owned by the isolated AI-TTS
+process: a 760 by 132 point, fully opaque layer-3 panel positioned at the bottom
+center of the active display. A window-only capture showed the exact fixture
+text, `Caption acceptance. No audio is playing.`, centered inside the expected
+black rounded panel. The user directly confirmed seeing the captions. The
+frontmost application identifier was unchanged throughout, proving this
+fixture did not repeat the earlier focus-stealing TextEdit interaction.
+
+The fixture process was then terminated, the previously absent caption
+preference was restored to absent/off, and the normal installed app was
+relaunched hidden against the real daemon. The real daemon remained accepting,
+unheld, and idle.
+
+Two additional assertions close the ordinary-speech and preference boundaries.
+A deliberate daemon mutant removed the virtual one-part `active_segment` for a
+literal, non-composite agent submission; the focused Python test failed with
+`active_segment: None`. A deliberate menu-state mutant made the caption setter
+a no-op; the focused Swift test failed three assertions covering observable
+state, persisted preference, and the 0.5-second caption refresh cadence. After
+both mutants were removed, these commands passed:
+
+```console
+.venv/bin/pytest -q \
+  tests/test_ipc.py::test_status_exposes_literal_agent_speech_as_one_caption_segment
+# 1 passed
+
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar \
+  --filter WireProtocolTests.testCaptionPreferenceIsOffByDefaultAndPersistsEachToggle
+# Executed 1 test, with 0 failures
+```

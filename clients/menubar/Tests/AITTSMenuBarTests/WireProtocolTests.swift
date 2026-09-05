@@ -144,6 +144,36 @@ final class WireProtocolTests: XCTestCase {
             CaptionPresentation.shouldShow(enabled: true, reachable: true, status: idle))
     }
 
+    @MainActor
+    func testCaptionPreferenceIsOffByDefaultAndPersistsEachToggle() throws {
+        let suite = "ai-tts-caption-preference-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let ports = InertApplicationPorts()
+        let state = AppState(
+            speech: ports,
+            documentEnqueuer: ports,
+            currentSelectionEnqueuer: ports,
+            clipboardEnqueuer: ports,
+            defaults: defaults
+        )
+        defer { state.stopPolling() }
+
+        XCTAssertFalse(state.captionsEnabled)
+        XCTAssertEqual(state.backgroundPollingInterval, 5.0)
+
+        state.setCaptionsEnabled(true)
+        XCTAssertTrue(state.captionsEnabled)
+        XCTAssertTrue(defaults.bool(forKey: "captionsEnabled"))
+        XCTAssertEqual(state.backgroundPollingInterval, 0.5)
+
+        state.setCaptionsEnabled(false)
+        XCTAssertFalse(state.captionsEnabled)
+        XCTAssertFalse(defaults.bool(forKey: "captionsEnabled"))
+        XCTAssertEqual(state.backgroundPollingInterval, 5.0)
+    }
+
     func testDaemonStatusFallsBackToLegacyState() {
         let status = DaemonStatus(daemonJSON: ["state": "paused"])
         XCTAssertEqual(status?.playbackState, "paused")

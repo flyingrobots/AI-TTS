@@ -1,9 +1,11 @@
 # Feature breakdown
 
-Status: **the v0.1.0 feature set is implemented; native OS entry points are
-accepted and planned next**. This document preserves the provenance of the
-original requirements. Later product decisions supersede the initial proposal
-labels where noted below.
+Status: **the v0.1.0 feature set and native OS adapters are implemented**.
+Installed Services dispatch, the caption overlay, and App Intent indexing have
+direct system evidence; the remaining native work is the representative host,
+live Accessibility, and real Shortcuts invocation matrix. This document
+preserves the provenance of the original requirements. Later product decisions
+supersede the initial proposal labels where noted below.
 
 The post-implementation queue review closed the largest UI question: the daemon keeps distinct synthesis and playback machinery, but the menu-bar app presents one Queue in actual playback order. The current clip is pinned above Queue and History; Queue rows expose processing state, urgency, removal, clearing, and drag reordering. History is newest-first and supports removal, clearing, and re-queueing with a fresh Normal or Urgent choice.
 
@@ -352,6 +354,13 @@ and points to the Service or explicit clipboard action.
 fragile focus timing and mutates another application's behavior and the global
 pasteboard. “Integrated” does not authorize invisible observation or state
 changes.
+
+**9.8 and 9.9 were later implemented.** Clipboard admission is one explicit,
+read-only action through `SelectionEnqueueing`. Six App Intents expose literal
+text, one document, Pause, Resume, Skip, and live playback rate through the
+same application ports. The installed bundle is indexed by macOS; a real
+Shortcuts invocation remains an acceptance step rather than an implementation
+gap.
 
 ---
 
