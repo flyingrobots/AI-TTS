@@ -76,7 +76,7 @@ in [`os-integration.md`](os-integration.md).
 | Service shortcut | User-assigned macOS Services shortcut | Avoids a global event tap and its monitoring permission |
 | Menu fallback | `ApplicationServices` Accessibility APIs behind `SelectedTextReaderPort` | Best-effort access for nonparticipating hosts, queried once after explicit invocation |
 | Clipboard fallback | Read-only AppKit pasteboard adapter | Works after an explicit copy and never saves, replaces, or restores clipboard state |
-| Automation | `AppIntents` in the menu executable | Typed Shortcuts, Siri, and Spotlight actions reuse existing application ports; compiler metadata is generated and validated before signing |
+| Automation | `AppIntents` in the menu executable | Typed actions for custom macOS Shortcuts reuse existing application ports; compiler metadata is generated and validated before signing |
 
 The Swift package has a sibling `AITTSMacEntryPoints` target for the Services
 provider and explicit Accessibility and clipboard adapters. It depends inward

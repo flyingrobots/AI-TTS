@@ -43,8 +43,10 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   file; both enter the same confidential, Normal-priority queue as the app and
   agent clients.
 - **Exports six App Intents** for Read Text, Read File, Pause, Resume, Skip, and
-  Set Playback Speed. They reuse the same application boundaries and are
-  packaged as App Shortcuts for system automation.
+  Set Playback Speed. They reuse the same application boundaries and appear in
+  the action library when building a custom Shortcut. The bundle also emits
+  `AppShortcutsProvider` metadata, but macOS does not expose that metadata as
+  preconfigured App Shortcuts.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.

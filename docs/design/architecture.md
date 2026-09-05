@@ -537,7 +537,7 @@ Every utterance carries a classification, assigned at submit and immutable there
 - **Nothing leaves the machine by default.** No telemetry, no crash reporting, no update pings.
 - **A remote engine adapter remains possible, opt-in, and named at the point of configuration**, but it is now the *second* gate, not the only one.
 - **The socket is `0600`**; the state DB and cache are user-only.
-- **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs an explicit delete, single entry and range, and that delete must remove the audio too.
+- **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs explicit single-entry and clear-all deletion. Those operations remove history records; cached audio remains governed by the separate bounded-cache policy.
 
 ## 10. Decisions taken at implementation
 

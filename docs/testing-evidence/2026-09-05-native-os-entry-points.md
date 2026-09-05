@@ -344,10 +344,13 @@ passes an available `IntentFile.fileURL` to document admission; transport maps
 to existing commands; playback speed maps the same six UI rates to
 `setPlaybackRate`. All intents set `openAppWhenRun` to false.
 
-`AITTSAppShortcuts` supplies six corresponding system shortcuts and phrases.
+`AITTSAppShortcuts` supplies six corresponding provider records and phrases.
 The release builder uses the active Xcode toolchain to emit constant values and
 generate `Contents/Resources/Metadata.appintents`, then validates its semantic
-inventory before applying the bundle signature.
+inventory before applying the bundle signature. Apple’s current macOS guidance
+clarifies that these provider records do not become preconfigured App Shortcuts
+on macOS; the six underlying App Intent actions instead appear while a person
+builds a custom shortcut.
 
 ### Falsification
 
@@ -452,5 +455,23 @@ AI-TTS user shortcut, and `shortcuts run PauseSpeechIntent` returned `Couldn't
 find shortcut`. Playback remained unheld and the frontmost application record
 remained unchanged. This negative receipt establishes that the CLI cannot turn
 the generated type identifier into a real invocation by itself; acceptance
-requires a user shortcut containing the indexed action, or an invocation from
-another system surface.
+requires a user shortcut containing the indexed action.
+
+## Platform-contract correction
+
+Apple’s current
+[App Shortcuts platform guidance](https://developer.apple.com/design/human-interface-guidelines/app-shortcuts#macOS)
+states that preconfigured App Shortcuts are not supported on macOS. App Intent
+actions remain supported as building blocks for custom shortcuts. The observed
+six `appShortcuts` rows in `linkd` therefore prove metadata indexing only; they
+do not prove six ready-made macOS shortcuts, Siri phrases, or Spotlight
+commands.
+
+The installed Xcode 26.6 toolchain was also probed for Apple’s documented
+`AppIntentsTesting` module, which can run intents out of process on supported
+toolchains. `swiftc -typecheck` failed with `no such module
+'AppIntentsTesting'`; no framework or Swift module exists in the installed
+macOS SDK. That potentially headless acceptance route is unavailable on this
+machine. The remaining supported acceptance boundary is a custom shortcut
+created in the foreground Shortcuts editor and then run through
+`/usr/bin/shortcuts` or the editor itself.

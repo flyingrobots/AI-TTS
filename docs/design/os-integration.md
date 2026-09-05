@@ -32,8 +32,8 @@ The primary entry point is a macOS Service for selected text. A second Service
 accepts one selected text, Markdown, or text-bearing PDF file. The menu-bar app
 also offers **Read Current Selection…** through the Accessibility API for
 applications that do not participate correctly in Services, and **Read
-Clipboard** as an explicit low-permission fallback. Six App Intents extend the
-same application boundaries into Shortcuts, Siri, and Spotlight.
+Clipboard** as an explicit low-permission fallback. Six App Intent actions
+extend the same application boundaries into custom Shortcuts automation.
 
 A **Service** is an action AI-TTS exports so another application can hand it a
 current selection through macOS. **Accessibility** is the separate permissioned
@@ -125,7 +125,7 @@ flowchart TD
     CLIPBOARD["Read Clipboard action"]
     CLIPBOARDADAPTER["Clipboard adapter"]
     FILE["One selected file"] --> FILESERVICE["File Service adapter"]
-    AUTOMATION["Shortcuts, Siri, or Spotlight"] --> INTENTS["App Intents adapter"]
+    AUTOMATION["Custom Shortcut"] --> INTENTS["App Intents adapter"]
 
     TEXTSERVICE --> SELECTION["EnqueueSelection"]
     MENU --> CURRENTUSE["EnqueueCurrentSelection"]
@@ -177,7 +177,7 @@ uses the same typed speech port and local daemon socket.
 | Menu-bar selection action | Accessibility reader | `SelectedTextReaderPort`, then `SelectionEnqueueing` | Always literal `plain_text` |
 | Explicit clipboard action | Pasteboard reader | `SelectionEnqueueing` | Always literal `plain_text` |
 | Selected Finder file | Services provider | Existing `DocumentEnqueueing` | Extension or extractor chooses Markdown versus plain text |
-| Shortcut, Siri, or Spotlight | App Intent | The same selection, document, or speech-command boundary | Explicit intent parameter type chooses the path |
+| Custom Shortcut | App Intent | The same selection, document, or speech-command boundary | Explicit intent parameter type chooses the path |
 
 The core must not import `AppKit`, `ApplicationServices`, `UniformTypeIdentifiers`,
 or `AppIntents`. Those frameworks stay in macOS adapters and composition. The
@@ -370,12 +370,17 @@ clearer user action.
 ## 9. App Intents extend the application into automation
 
 App Intents are the right adapter for automation, not the first answer to
-selection. They can expose AI-TTS actions to Shortcuts, Siri, Spotlight, and
-other system experiences, with typed parameters for text or files. Apple’s
+selection. They expose AI-TTS actions to the macOS Shortcuts action library,
+with typed parameters for text or files. Apple’s
 [App Intents](https://developer.apple.com/documentation/AppIntents/app-intents)
 and
 [parameter](https://developer.apple.com/documentation/appintents/adding-parameters-to-an-app-intent)
-documentation establish that discovery and input model.
+documentation establish that discovery and input model. Apple’s current
+[App Shortcuts platform guidance](https://developer.apple.com/design/human-interface-guidelines/app-shortcuts#macOS)
+draws an important boundary: preconfigured App Shortcuts are not supported on
+macOS, while actions created with App Intents are available for people to use
+in custom shortcuts. The emitted `AppShortcutsProvider` records are therefore
+metadata evidence, not a promise of ready-made macOS shortcuts.
 
 The implemented intents are **Read Text**, **Read File**, **Pause**,
 **Resume**, **Skip**, and **Set Playback Speed**. Read Text delegates to
@@ -385,14 +390,14 @@ fork.
 
 The release builder compiles the Swift executable, performs a focused constant
 extraction, and runs the active Xcode toolchain's App Intents metadata
-processor. It validates the exact six actions, six App Shortcuts, and six
-playback-rate values in `Contents/Resources/Metadata.appintents` before signing
-the bundle. SwiftPM compilation, bundle assembly, signing, installation, and
-system indexing are verified locally. A real Shortcuts invocation remains a
-separate acceptance boundary. The stock `shortcuts` CLI lists and runs saved
-user shortcuts; it does not address a generated App Shortcut by its Swift type
-name. Acceptance therefore needs one user-created shortcut containing the
-installed action, or an equivalent invocation through Siri or Spotlight.
+processor. It validates the exact six actions, six emitted provider records,
+and six playback-rate values in `Contents/Resources/Metadata.appintents` before
+signing the bundle. SwiftPM compilation, bundle assembly, signing,
+installation, and system indexing are verified locally. A real custom-Shortcut
+invocation remains a separate acceptance boundary. The stock `shortcuts` CLI
+lists and runs saved user shortcuts; it does not address an App Intent by its
+Swift type name. Acceptance therefore needs one user-created shortcut
+containing the installed action.
 
 In summary, App Intents extend a finished capability into automation. They do
 not replace the direct Service interaction or justify weakening the bundle
@@ -416,7 +421,7 @@ and which remain future work.
 | Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing`; Queue's **Read…** menu calls those ports | Implemented and contract-tested |
 | The app can read another app’s selection | `AccessibilitySelectionReader` queries one explicit PID and distinguishes trust, focus, support, empty, and AX failures | Implemented; live permission/host acceptance pending |
 | The prior foreground application survives popover activation | `PopoverOpenSequence` stores an external PID before its activation closure; focused tests falsify the event order | Implemented and contract-tested |
-| App Intents are packaged for system discovery | Six typed intents and six App Shortcuts delegate through injected application ports; the release builder validates generated `Metadata.appintents` before signing; macOS `linkd` indexed the installed URL, all six identifiers, and six shortcut records | Implemented; installed system indexing verified, real invocation pending |
+| App Intents are packaged for system discovery | Six typed intents delegate through injected application ports; the release builder validates generated `Metadata.appintents` before signing; macOS `linkd` indexed the installed URL, all six action identifiers, and six provider records | Implemented; installed system indexing verified, real custom-Shortcut invocation pending |
 
 The repository audit read the live Swift port, composition, status-controller,
 and bundle-builder code. The installed macOS SDK was also checked for
@@ -429,7 +434,7 @@ In summary, the Services path has installed dispatch evidence, while its
 representative host matrix remains incomplete. Accessibility and the explicit
 clipboard fallback are executable and contract-tested, but live
 permission/focus acceptance remains. App Intents are package-verified, with
-installed system indexing verified and real Shortcuts invocation still
+installed system indexing verified and real custom-Shortcut invocation still
 unclaimed.
 
 ## 11. Delivery order and the definition of done
@@ -445,7 +450,7 @@ mechanisms.
 | 2. Text and file Services | Generated bundle advertises both commands; providers delegate once to the correct use case | Bundle/plist contract tests, adapter tests with owned pasteboards, installed Services discovery |
 | 3. Native acceptance | Selection and file requests enqueue through the installed app without clipboard mutation or Accessibility prompt | Manual matrix across TextEdit, Safari, a Chromium app, VS Code, Preview, and Finder; record host limitations honestly |
 | 4. Accessibility fallback | Explicit menu action captures the prior app and reads one selection after trust | Port/adapter tests plus permission-denied, unsupported-element, empty-selection, and focus-transfer acceptance |
-| 5. App Intents | System automation delegates to existing use cases | Installed metadata discovery and real Shortcuts invocation from a checkout-independent signed bundle |
+| 5. App Intents | Custom Shortcuts automation delegates to existing use cases | Installed metadata discovery and real custom-Shortcut invocation from a checkout-independent signed bundle |
 
 The first goalpost is complete when all of the following are true:
 
