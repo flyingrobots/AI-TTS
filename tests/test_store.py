@@ -366,6 +366,64 @@ def test_composite_submission_persists_original_and_owned_spoken_segments(
     }
 
 
+def test_composite_audio_is_protected_until_its_parent_is_terminal(
+    store: Store,
+    tmp_path: Path,
+) -> None:
+    parent = store.submit(
+        "document",
+        voice="v",
+        speed=1.0,
+        spoken_segments=("Only segment.",),
+    )
+    work = store.claim_for_synthesis()
+    assert work is not None
+    artifact = tmp_path / "only-segment.wav"
+    store.finish_synthesis(work, audio_path=str(artifact), duration_ms=1000)
+
+    protected_while_ready = store.protected_audio_paths()
+    store.transition(parent.id, State.CANCELLED)
+    protected_after_cancel = store.protected_audio_paths()
+    forgotten = store.forget_terminal_audio(artifact)
+    segment_after_eviction = store.get_segment(parent.id, 0)
+
+    assert {
+        "protected_while_ready": protected_while_ready,
+        "protected_after_cancel": protected_after_cancel,
+        "forgotten": forgotten,
+        "audio_path_after_eviction": (
+            None if segment_after_eviction is None else segment_after_eviction.audio_path
+        ),
+    } == {
+        "protected_while_ready": frozenset({str(artifact)}),
+        "protected_after_cancel": frozenset(),
+        "forgotten": 1,
+        "audio_path_after_eviction": None,
+    }
+
+
+def test_cancelling_composite_parent_settles_every_child(store: Store) -> None:
+    parent = store.submit(
+        "document",
+        voice="v",
+        speed=1.0,
+        spoken_segments=("Ready child.", "Busy child.", "Queued child."),
+    )
+    ready = store.claim_for_synthesis()
+    busy = store.claim_for_synthesis()
+    assert ready is not None
+    assert busy is not None
+    store.finish_synthesis(ready, audio_path="ready.wav", duration_ms=1000)
+
+    store.transition(parent.id, State.CANCELLED)
+
+    assert [segment.state for segment in store.segments(parent.id)] == [
+        State.CANCELLED,
+        State.CANCELLED,
+        State.CANCELLED,
+    ]
+
+
 def test_recover_requeues_synthesizing_and_pauses_playing(tmp_path: Path) -> None:
     db = tmp_path / "state.db"
     st = Store(db)

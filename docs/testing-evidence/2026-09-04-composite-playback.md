@@ -335,3 +335,24 @@ adapter because the new `segment_count` and `composite` receipt fields were
 correctly rejected as undocumented extras. The public schemas now model those
 fields, composite progress, and the optional active segment with backward-safe
 legacy defaults.
+
+## RED: composite cache ownership and cancellation
+
+The durable store boundary must protect every cached child artifact while its
+top-level document remains non-terminal. Once that parent becomes terminal,
+cache eviction must clear the child reference just as it does for a legacy
+clip. Parent cancellation must also settle Ready, Synthesizing, and Queued
+children so no orphan work remains claimable or indefinitely visible.
+
+The focused command exited 1 with both tests failing:
+
+```console
+uv run pytest \
+  tests/test_store.py::test_composite_audio_is_protected_until_its_parent_is_terminal \
+  tests/test_store.py::test_cancelling_composite_parent_settles_every_child -q
+```
+
+The non-terminal child path was absent from protection; terminal eviction
+forgot zero references and left the child path intact. The cancelled parent
+left its three children Ready, Synthesizing, and Queued instead of settling all
+three as Cancelled.
