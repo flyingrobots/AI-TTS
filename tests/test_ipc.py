@@ -71,6 +71,45 @@ async def test_submit_echoes_declared_sensitivity(daemon: Daemon) -> None:
     assert res["sensitivity"] == "public"
 
 
+async def test_submit_preserves_markdown_parent_and_creates_clean_internal_plan(
+    daemon: Daemon,
+) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    opening = " ".join(f"opening{i}." for i in range(260))
+    details = " ".join(f"detail{i}." for i in range(260))
+    markdown = f"# Opening **Notes**\n\n{opening}\n\n## Details\n\n{details}"
+
+    response = await rpc(
+        daemon.socket_path,
+        {"op": "submit", "text": markdown, "voice": "bm_daniel", "speed": 1.25},
+    )
+    parent = daemon.store.get(response["id"])
+    segments = daemon.store.segments(response["id"])
+
+    assert {
+        "response_segment_count": response.get("segment_count"),
+        "response_composite": response.get("composite"),
+        "parent_text": None if parent is None else parent.text,
+        "parent_profile": None if parent is None else (parent.voice, parent.speed),
+        "spoken_count": len(segments),
+        "spoken_has_markdown_heading": any("#" in segment.text for segment in segments),
+        "opening_heading": segments[0].text.startswith("Opening Notes.") if segments else False,
+        "details_heading": any(
+            segment.text.startswith("Details.") and "detail0" in segment.text
+            for segment in segments
+        ),
+    } == {
+        "response_segment_count": 4,
+        "response_composite": True,
+        "parent_text": markdown,
+        "parent_profile": ("bm_daniel", 1.25),
+        "spoken_count": 4,
+        "spoken_has_markdown_heading": False,
+        "opening_heading": True,
+        "details_heading": True,
+    }
+
+
 async def test_paused_daemon_advertises_spooling_and_accepts_speech(daemon: Daemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     status = await rpc(daemon.socket_path, {"op": "status"})

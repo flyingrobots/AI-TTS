@@ -168,3 +168,14 @@ Ready immediately; later children continue through the same workers. The
 deterministic second-child gate observed the parent and first child Ready while
 the second child remained Synthesizing, with `bm_george` at 1.5 on both engine
 calls. The full synthesis and store suites are green.
+
+## RED: daemon document admission
+
+The wire contract now submits a 522-word Markdown document through the running
+daemon while playback is held. Its public parent must retain the exact source
+and requested profile, while the private speech plan contains four clean
+segments and the submit response declares that composite shape.
+
+The focused IPC test exited 1. The parent/profile controls passed, but the
+daemon reported no composite metadata and persisted zero children, so neither
+normalized heading could be found.
