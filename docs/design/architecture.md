@@ -2,10 +2,10 @@
 
 **Status:** the core is implemented in v0.1.0 (`src/aitts/`); the selected-text
 application use case, native text/file Services, explicit Accessibility and
-clipboard menu actions, and packaged App Intents are implemented.
-Representative installed-host, live Accessibility, and installed Shortcuts
-acceptance remain explicitly pending. This document remains the spec; the test
-suite encodes implemented semantics.
+clipboard menu actions, and installed, system-indexed App Intents are
+implemented. Representative installed-host, live Accessibility, and real
+Shortcuts-invocation acceptance remain explicitly pending. This document
+remains the spec; the test suite encodes implemented semantics.
 **Scope:** a local-first, single-user speech daemon that accepts text from many clients, synthesizes ahead of playback, and gives the user transport control over what is spoken.
 
 ---

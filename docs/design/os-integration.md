@@ -2,8 +2,8 @@
 title: "Read Anywhere on macOS: Native AI-TTS Entry Points"
 date: 2026-09-05
 author: James Ross
-description: "The accepted design for reading selected text and selected files through macOS Services, with an explicit Accessibility fallback and later App Intents."
-tags: [ai-tts, macos, services, accessibility, hexagonal-architecture]
+description: "The accepted design for reading text and files through macOS Services, explicit fallbacks, and App Intents."
+tags: [ai-tts, macos, services, accessibility, app-intents, hexagonal-architecture]
 draft: false
 status: published
 project: ai-tts
@@ -18,10 +18,11 @@ related:
 
 **Decision:** accepted on 2026-09-05. **Implementation status:** the shared
 selected-text use case, native text/file Services, explicit Accessibility and
-clipboard menu actions, and six App Intents are implemented. Installed-host,
-live Accessibility, and installed App Intent acceptance remain in progress.
-The document distinguishes executable behavior from future acceptance claims
-so that design intent never masquerades as product behavior.
+clipboard menu actions, and six installed, system-indexed App Intents are
+implemented. Representative host, live Accessibility, and real Shortcuts
+invocation acceptance remain in progress. The document distinguishes executable
+behavior from future acceptance claims so that design intent never masquerades
+as product behavior.
 
 ## 1. The decision in one minute
 
@@ -386,9 +387,9 @@ The release builder compiles the Swift executable, performs a focused constant
 extraction, and runs the active Xcode toolchain's App Intents metadata
 processor. It validates the exact six actions, six App Shortcuts, and six
 playback-rate values in `Contents/Resources/Metadata.appintents` before signing
-the bundle. This proves SwiftPM compilation, bundle assembly, and signing;
-installation, system indexing, and real Shortcuts invocation remain separate
-acceptance boundaries.
+the bundle. SwiftPM compilation, bundle assembly, signing, installation, and
+system indexing are verified locally. A real Shortcuts invocation remains a
+separate acceptance boundary.
 
 In summary, App Intents extend a finished capability into automation. They do
 not replace the direct Service interaction or justify weakening the bundle
@@ -412,7 +413,7 @@ and which remain future work.
 | Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing`; Queue's **Read…** menu calls those ports | Implemented and contract-tested |
 | The app can read another app’s selection | `AccessibilitySelectionReader` queries one explicit PID and distinguishes trust, focus, support, empty, and AX failures | Implemented; live permission/host acceptance pending |
 | The prior foreground application survives popover activation | `PopoverOpenSequence` stores an external PID before its activation closure; focused tests falsify the event order | Implemented and contract-tested |
-| App Intents are packaged for system discovery | Six typed intents and six App Shortcuts delegate through injected application ports; the release builder validates generated `Metadata.appintents` before signing | Implemented and package-verified; installed discovery/invocation pending |
+| App Intents are packaged for system discovery | Six typed intents and six App Shortcuts delegate through injected application ports; the release builder validates generated `Metadata.appintents` before signing; macOS `linkd` indexed the installed URL, all six identifiers, and six shortcut records | Implemented; installed system indexing verified, real invocation pending |
 
 The repository audit read the live Swift port, composition, status-controller,
 and bundle-builder code. The installed macOS SDK was also checked for
@@ -425,7 +426,8 @@ In summary, the Services path has installed dispatch evidence, while its
 representative host matrix remains incomplete. Accessibility and the explicit
 clipboard fallback are executable and contract-tested, but live
 permission/focus acceptance remains. App Intents are package-verified, with
-installed system discovery and invocation still unclaimed.
+installed system indexing verified and real Shortcuts invocation still
+unclaimed.
 
 ## 11. Delivery order and the definition of done
 

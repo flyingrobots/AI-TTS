@@ -77,7 +77,8 @@ primary selected-text and selected-file entry points; text is literal,
 confidential, and Normal; one file reuses `DocumentEnqueueing`; Accessibility
 is an explicit implemented fallback and never a background detector; clipboard
 input is explicit and non-mutating. Six App Intents now have validated bundle
-metadata; installed discovery and invocation remain separate acceptance gates.
+metadata and verified installed system indexing; real invocation remains a
+separate acceptance gate.
 Multi-file Service admission is deferred rather than left ambiguous.
 See [`os-integration.md`](os-integration.md).
 
@@ -115,8 +116,8 @@ Positions taken at implementation time, each reversible and open to challenge:
   Service uses the existing `EnqueueDocument`; both have installed-system
   dispatch evidence. Representative host-menu acceptance remains open.
   Accessibility is implemented with live permission/host acceptance still
-  open. App Intents are implemented and package-verified, while installed
-  discovery and real Shortcuts invocation remain open.
+  open. App Intents are installed and indexed by macOS, while a real Shortcuts
+  invocation remains open.
 
 ## What approval means
 

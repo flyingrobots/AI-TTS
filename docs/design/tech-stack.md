@@ -89,8 +89,9 @@ generates both Service dictionaries under `NSServices`, performs Swift constant
 extraction for the App Intents, validates the exact semantic inventory under
 `Metadata.appintents`, and signs only afterward. This proves SwiftPM
 compilation, manual bundle assembly, and signing. Installed Services discovery,
-App Intents indexing, and real invocations remain separate acceptance gates;
-merely compiling an `AppIntent` type is not distribution proof.
+App Intents indexing, and real invocations are separate acceptance gates. The
+local installed bundle is indexed; a real Shortcuts invocation remains open.
+Merely compiling an `AppIntent` type is not distribution proof.
 
 ## CLI client: part of the daemon's Python package
 

@@ -225,7 +225,7 @@ Text is **confidential by default**: an utterance submitted without an explicit 
 The v0.1.0 implementation is a release candidate, not a published release. The
 Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
 native Swift menu-bar app, native selected-text/selected-file Services,
-explicit Accessibility/clipboard fallbacks, and six package-verified App
+explicit Accessibility/clipboard fallbacks, and six installed-and-indexed App
 Intents are implemented. The suite encodes the state machine and serialized
 playback plan,
 global hold, fail-closed sensitivity, restart recovery, bounded cache and

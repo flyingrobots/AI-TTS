@@ -417,3 +417,31 @@ A clean temporary release bundle then passed the builder's own validator and
 This proves compiler extraction, bundle placement, semantic validation, and
 post-metadata signing. The candidate was not installed in this slice, so system
 indexing and a real Shortcuts invocation remain unclaimed.
+
+## Slice 5b: installed App Intent indexing
+
+Commit `1b1ff6a` produced a clean signed candidate whose executable SHA-256 was
+`9f80f640cc448d08c7051a48f2982dc8b4efee842d5de62dd5f0e8c86fba8b6b`.
+The running prior app was terminated by its exact executable path, and its
+signed bundle was retained at
+`/private/tmp/ai-tts-install-rollback.EoXBxW/AI-TTS.previous.app`. The candidate
+then replaced only `/Users/james/Applications/AI-TTS.app` and LaunchServices
+registered that exact path.
+
+The installed executable retained the candidate SHA-256 and passed
+`codesign --verify --deep --strict`. Its `extract.actionsdata` still contained
+the exact six action titles, six shortcut identifiers, and six playback rates.
+`pbs -dump` continued to resolve both installed Services to the same bundle.
+
+The live `linkd` metadata store was queried read-only after registration. Its
+`bundles` table resolved `com.flyingrobots.ai-tts.menubar` to
+`/Users/james/Applications/AI-TTS.app/`; its `actions` table contained exactly
+the six identifiers; and `appShortcuts` contained six rows for the bundle.
+This is installed system-indexing evidence, not a claim that a human-visible
+Shortcuts journey has run.
+
+Finally, LaunchServices started the menu app with background and hidden flags.
+The exact installed process appeared as PID 93872, while `lsappinfo front`
+reported the same frontmost application record before and after launch. No
+window was opened and no synthetic input was sent. A real Shortcuts invocation
+remains the only open App Intent acceptance gate.

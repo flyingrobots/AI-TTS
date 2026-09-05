@@ -80,7 +80,8 @@ Enforced now:
   `NSPerformService` admission receipts;
 - six typed App Intents with exact adapter mappings, generated
   `Metadata.appintents`, fail-closed semantic validation, and post-metadata
-  bundle signing;
+  bundle signing, plus installed `linkd` indexing of all six actions and six
+  App Shortcut records;
 - explicit plain-text/Markdown submission policy across CLI, MCP, raw daemon,
   and native file adapters, including legacy-wire compatibility;
 - a configurable 1 GiB-default LRU cache cap, generated policy reference model,
@@ -107,7 +108,7 @@ promise:
 
 - real-Kokoro synthesis/teardown and clean external-machine launch acceptance;
 - representative installed Services-menu and keyboard-shortcut host matrix;
-- installed App Intent indexing and real Shortcuts invocation;
+- real Shortcuts invocation against the installed App Intent;
 - final cross-language release matrix on the published commit.
 
 Review this profile whenever a new trust boundary or durability promise is
