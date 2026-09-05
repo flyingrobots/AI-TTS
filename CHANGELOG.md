@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Hardened GitHub Actions to an explicit read-only token, immutable action
+  commit pins, non-persisted checkout credentials, a reviewed `uv` version,
+  and frozen project commands that cannot silently rewrite dependency state.
 - Enforced the owner-only storage contract for confidential speech. Daemon
   startup now migrates state/cache directories to `0700` and SQLite/audio files
   to `0600`, refuses symlinked state roots, and creates synthesis candidates

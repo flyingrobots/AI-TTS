@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -11,21 +14,26 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.9.18"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Sync dependencies
-        run: uv sync --dev
+        run: uv sync --frozen --dev
       - name: Ruff
-        run: uv run ruff check
+        run: uv run --frozen ruff check .
       - name: Ruff format
-        run: uv run ruff format --check
+        run: uv run --frozen ruff format --check .
       - name: Mypy
-        run: uv run mypy
+        run: uv run --frozen mypy
       - name: Pytest
-        run: uv run pytest
+        run: uv run --frozen pytest
       - name: Build Python release artifacts
         run: uv build --offline
 
@@ -34,7 +42,9 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Build
         working-directory: clients/menubar
         run: swift build

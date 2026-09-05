@@ -65,6 +65,9 @@ need red-on-parent evidence or the written irreproducible-failure carve-out.
 
 Enforced now:
 
+- a least-privilege GitHub Actions trust boundary with read-only token access,
+  immutable action SHAs, non-persisted checkout credentials, a pinned `uv`, and
+  frozen lockfile consumption;
 - named oracle and explicit size class on every collected Python test;
 - per-class time ceilings and a whole-suite latency budget;
 - deterministic generated round trips for new public schemas and encoding;
