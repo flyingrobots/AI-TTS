@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
+from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES, CacheController
 from aitts.engine import eligible_engine_names
 from aitts.ipc import (
@@ -94,7 +95,7 @@ class Daemon:
         socket_path: Path | None = None,
     ) -> None:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
-        home.mkdir(parents=True, exist_ok=True)
+        secure_private_state(home)
         self._home = home
         self._engines: dict[str, Engine] = {"local": engine}
         self._engine = engine

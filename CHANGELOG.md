@@ -75,6 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Enforced the owner-only storage contract for confidential speech. Daemon
+  startup now migrates state/cache directories to `0700` and SQLite/audio files
+  to `0600`, refuses symlinked state roots, and creates synthesis candidates
+  privately before an engine can write speech into them.
 - Fixed voice previews and other ready clips appearing under Up Next while the
   Queue looked empty. `Ready`, `Synthesizing…`, and `Queued` clips now share one
   list in actual playback order.

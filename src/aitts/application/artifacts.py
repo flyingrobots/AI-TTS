@@ -19,7 +19,7 @@ class AudioArtifactPort(Protocol):
         ...
 
     def target(self, utterance_id: str) -> Path:
-        """Return an unpublished engine output path for one utterance."""
+        """Return a private empty unpublished output file for one utterance."""
         ...
 
     def is_usable(self, path: Path) -> bool:

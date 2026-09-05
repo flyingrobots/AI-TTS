@@ -15,6 +15,11 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
+from aitts.adapters.private_files import (
+    ensure_private_directory,
+    ensure_private_file,
+    secure_existing_file,
+)
 from aitts.model import (
     TERMINAL,
     Priority,
@@ -29,7 +34,6 @@ from aitts.model import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
 QueueName = Literal["input", "playback"]
 
@@ -146,15 +150,23 @@ class Store:
         connect: DatabaseConnectionFactoryPort = _sqlite_connect,
     ) -> None:
         """Open (creating if needed) the state database at ``db_path``."""
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_private_directory(db_path.parent, normalize_existing=False)
+        ensure_private_file(db_path)
+        self._secure_database_sidecars(db_path)
         self._db = connect(str(db_path))
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(_SCHEMA)
         self._commit_or_rollback()
+        self._secure_database_sidecars(db_path)
         self.on_transition: list[Callable[[Utterance, State], None]] = []
         self.on_segment_transition: list[Callable[[UtteranceSegment, State], None]] = []
+
+    @staticmethod
+    def _secure_database_sidecars(db_path: Path) -> None:
+        for suffix in ("-wal", "-shm", "-journal"):
+            secure_existing_file(Path(f"{db_path}{suffix}"))
 
     def close(self) -> None:
         """Close the underlying database connection."""

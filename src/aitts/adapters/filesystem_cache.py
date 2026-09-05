@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from aitts.adapters.private_files import ensure_private_directory, secure_existing_file
 from aitts.application.cache import CacheEntry
 
 if TYPE_CHECKING:
@@ -22,12 +23,13 @@ class FileAudioCache:
 
     def inventory(self) -> tuple[CacheEntry, ...]:
         """Inventory regular, non-symlink WAV files directly under the cache root."""
-        self._root.mkdir(parents=True, exist_ok=True)
+        ensure_private_directory(self._root)
         entries: list[CacheEntry] = []
         for path in sorted(self._root.glob("*.wav")):
             if path.is_symlink() or not path.is_file():
                 continue
             try:
+                secure_existing_file(path)
                 stat = path.stat()
             except FileNotFoundError:
                 continue

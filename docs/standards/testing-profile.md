@@ -91,6 +91,10 @@ Enforced now:
   and native file adapters, including legacy-wire compatibility;
 - a configurable 1 GiB-default LRU cache cap, generated policy reference model,
   terminal-only filesystem contract, and seeded unlink-failure check.
+- owner-only private state under a permissive process umask, including startup
+  migration to `0700` directories and `0600` SQLite/audio files, live SQLite
+  sidecars, private in-flight synthesis candidates, and refusal of a symlinked
+  daemon home;
 - bounded process shutdown when a native engine call ignores cancellation;
 - an OS-backed single-instance contract for the menu-bar process;
 - installable wheel, standalone app-bundle, and shell-free launch-agent

@@ -544,7 +544,11 @@ Every utterance carries a classification, assigned at submit and immutable there
 
 - **Nothing leaves the machine by default.** No telemetry, no crash reporting, no update pings.
 - **A remote engine adapter remains possible, opt-in, and named at the point of configuration**, but it is now the *second* gate, not the only one.
-- **The socket is `0600`**; the state DB and cache are user-only.
+- **The socket is `0600`**. Daemon startup opens the state and cache directories
+  without following their final path components, normalizes both directories to
+  `0700`, and normalizes the SQLite database, its sidecars, and cached audio to
+  `0600`. New synthesis candidates exist as `0600` files before an engine writes
+  speech into them, so a permissive inherited umask cannot widen access.
 - **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs explicit single-entry and clear-all deletion. Those operations remove history records; cached audio remains governed by the separate bounded-cache policy.
 
 ## 10. Decisions taken at implementation

@@ -8,6 +8,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from aitts.adapters.private_files import (
+    create_private_file,
+    ensure_private_directory,
+    secure_existing_file,
+)
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -23,10 +29,15 @@ class FileAudioArtifacts:
 
     def prepare(self) -> None:
         """Create the artifact directory and sweep unpublished crash debris."""
-        self._root.mkdir(parents=True, exist_ok=True)
-        for candidate in self._root.iterdir():
-            if self._is_candidate(candidate) and not self.discard(candidate):
-                log.warning("could not discard stale synthesis candidate %s", candidate)
+        ensure_private_directory(self._root)
+        for member in self._root.iterdir():
+            if self._is_candidate(member):
+                if not self.discard(member):
+                    log.warning("could not discard stale synthesis candidate %s", member)
+                continue
+            if member.is_symlink() or not member.is_file():
+                continue
+            secure_existing_file(member)
 
     def target(self, utterance_id: str) -> Path:
         """Return a cache-invisible candidate path for ``utterance_id``."""
@@ -34,6 +45,7 @@ class FileAudioArtifacts:
         if not self.discard(candidate):
             msg = f"could not prepare synthesis candidate {candidate}"
             raise OSError(msg)
+        create_private_file(candidate)
         return candidate
 
     @staticmethod
@@ -50,6 +62,7 @@ class FileAudioArtifacts:
         if candidate != expected:
             msg = f"unexpected synthesis candidate {candidate}"
             raise ValueError(msg)
+        secure_existing_file(candidate)
         published = self._published_path(utterance_id)
         candidate.replace(published)
         return published
