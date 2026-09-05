@@ -306,6 +306,35 @@ async def test_status_reports_shape(daemon: Daemon) -> None:
     assert res["engine"] == "fake"
 
 
+async def test_playback_rate_setting_accepts_only_ui_choices(daemon: Daemon) -> None:
+    accepted: list[float] = []
+    for rate in (0.5, 0.75, 1.0, 1.5, 2.0, 3.0):
+        response = await rpc(
+            daemon.socket_path,
+            {"op": "settings", "set": {"playback_rate": rate}},
+        )
+        settings = response.get("settings", {})
+        if response.get("ok") is True:
+            accepted.append(settings.get("playback_rate"))
+
+    rejected = await rpc(
+        daemon.socket_path,
+        {"op": "settings", "set": {"playback_rate": 1.25}},
+    )
+
+    assert {
+        "accepted": accepted,
+        "rejected_ok": rejected.get("ok"),
+        "rejected_type": rejected.get("error", {}).get("type"),
+        "persisted": daemon.store.get_setting("playback_rate", "missing"),
+    } == {
+        "accepted": [0.5, 0.75, 1.0, 1.5, 2.0, 3.0],
+        "rejected_ok": False,
+        "rejected_type": "bad_request",
+        "persisted": "3.0",
+    }
+
+
 async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None:
     sock_dir = Path(tempfile.mkdtemp(prefix="aitts-pause-"))
     first = Daemon(

@@ -248,3 +248,13 @@ position, cancels every remaining child (including synthesis work), and
 unblocks the next parent. The strengthened skip case completed child zero,
 skipped child one at 350 ms, cancelled child two, and recorded 1,350 ms on the
 parent. The complete playback and store suites are green.
+
+## RED: discrete playback-rate setting
+
+The daemon settings contract must accept exactly the six UI choices (0.5,
+0.75, 1, 1.5, 2, and 3), persist the latest choice independently from
+synthesis speed, and reject an unsupported 1.25 value as a bad request.
+
+The focused IPC test exited 1: every supported value was rejected as an
+unknown setting and nothing was persisted. The unsupported value already
+failed closed as the control.
