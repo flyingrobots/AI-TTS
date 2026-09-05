@@ -130,7 +130,7 @@ def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
         if not sep:
             msg = f"--set expects KEY=VALUE, got {pair!r}"
             raise SystemExit(msg)
-        updates[key] = float(value) if key == "speed" else value
+        updates[key] = float(value) if key in {"speed", "playback_rate"} else value
     return {"op": "settings", "set": updates} if updates else {"op": "settings"}
 
 

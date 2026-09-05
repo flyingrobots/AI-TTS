@@ -469,3 +469,10 @@ The CLI regression sends `settings --set playback_rate=1.5` through the real
 socket adapter and expects the persisted 1.5 response. It exited 1 against the
 generic string-valued settings parser: the command returned daemon-error exit
 code 1 with no settings payload instead of success and 1.5.
+
+## GREEN: CLI playback-rate parity
+
+The CLI now coerces both voice-generation `speed` and `playback_rate` values to
+numbers before encoding NDJSON. The focused socket regression returns exit 0,
+reports 1.5, and leaves validation of the discrete choice set at the daemon
+boundary. The complete CLI suite is green.
