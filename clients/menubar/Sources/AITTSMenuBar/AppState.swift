@@ -32,6 +32,7 @@ final class AppState: ObservableObject {
     @Published var history: [Utterance] = []
     @Published var voices: [String] = []
     @Published var speed: Double = 1.0
+    @Published var playbackRate: Double = 1.0
     @Published var reachable = false
     @Published var lastError: String?
 
@@ -82,6 +83,7 @@ final class AppState: ObservableObject {
                 self.plan = snapshot.plan
                 self.history = snapshot.history
                 self.speed = snapshot.speed
+                self.playbackRate = snapshot.playbackRate
                 if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
             }
         }
@@ -154,6 +156,10 @@ final class AppState: ObservableObject {
     }
     func setVoice(_ voice: String) { send(["op": "settings", "set": ["voice": voice]]) }
     func setSpeed(_ speed: Double) { send(["op": "settings", "set": ["speed": speed]]) }
+    func setPlaybackRate(_ rate: Double) {
+        playbackRate = rate
+        send(["op": "settings", "set": ["playback_rate": rate]])
+    }
 
     func preview(_ voice: String) {
         // A fixed, generated sentence: genuinely public text.

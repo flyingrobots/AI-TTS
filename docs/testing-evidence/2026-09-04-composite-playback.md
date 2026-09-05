@@ -280,3 +280,11 @@ order. The initial seam deliberately defaults decoded snapshots to 1.0.
 `swift test --quiet` exited 1 only at snapshot decoding: the choice/label
 contract passed, while a wire value of 1.5 was observed as the deliberate 1.0
 default.
+
+## GREEN: menu-bar playback-rate dropdown
+
+The snapshot decoder now carries `playback_rate` into `AppState`. The Now
+Playing transport exposes an exact six-value menu and optimistically updates
+before sending the settings operation; the existing Settings slider is relabeled
+as voice-generation speed to keep the two controls distinct. All 12 Swift tests
+are green.

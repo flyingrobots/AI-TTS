@@ -198,6 +198,15 @@ struct CurrentPlaybackCard: View {
                         Label("Skip", systemImage: "forward.end.fill")
                     }
                     Spacer()
+                    Picker("Playback speed", selection: playbackRate) {
+                        ForEach(PlaybackRate.allCases, id: \.self) { rate in
+                            Text(rate.label).tag(rate)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 72)
+                    .help("Change playback speed immediately")
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
@@ -218,6 +227,13 @@ struct CurrentPlaybackCard: View {
         .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
         .padding(.horizontal, 10)
         .padding(.top, 8)
+    }
+
+    private var playbackRate: Binding<PlaybackRate> {
+        Binding(
+            get: { PlaybackRate(rawValue: state.playbackRate) ?? .normal },
+            set: { state.setPlaybackRate($0.rawValue) }
+        )
     }
 
     @ViewBuilder
@@ -613,7 +629,9 @@ struct SettingsView: View {
                 }
                 .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
 
-                Text("Speed").font(.caption.smallCaps()).foregroundStyle(.secondary)
+                Text("Voice generation speed")
+                    .font(.caption.smallCaps())
+                    .foregroundStyle(.secondary)
                 HStack {
                     Slider(
                         value: Binding(

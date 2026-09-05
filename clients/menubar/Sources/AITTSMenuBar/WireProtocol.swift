@@ -24,7 +24,7 @@ enum RequeuePriority: String, CaseIterable, Equatable {
     }
 }
 
-enum PlaybackRate: Double, CaseIterable, Equatable {
+enum PlaybackRate: Double, CaseIterable, Equatable, Hashable {
     case half = 0.5
     case threeQuarters = 0.75
     case normal = 1.0
@@ -112,7 +112,7 @@ struct Snapshot {
         self.voices = json["voices"] as? [String] ?? []
         let settings = json["settings"] as? [String: Any]
         self.speed = settings?["speed"] as? Double ?? 1.0
-        self.playbackRate = 1.0
+        self.playbackRate = settings?["playback_rate"] as? Double ?? 1.0
     }
 
     private static func items(_ value: Any?) -> [Utterance] {
