@@ -59,7 +59,7 @@ TRANSITIONS: Mapping[State, frozenset[State]] = MappingProxyType(
         # unsynthesized text is not recoverable from anywhere else.
         State.QUEUED: frozenset({State.SYNTHESIZING, State.CANCELLED}),
         State.SYNTHESIZING: frozenset({State.READY, State.FAILED, State.CANCELLED, State.QUEUED}),
-        State.READY: frozenset({State.PLAYING, State.CANCELLED}),
+        State.READY: frozenset({State.PLAYING, State.CANCELLED, State.FAILED}),
         State.PLAYING: frozenset({State.PLAYED, State.PAUSED, State.SKIPPED, State.FAILED}),
         State.PAUSED: frozenset({State.PLAYING, State.PLAYED, State.SKIPPED, State.FAILED}),
         State.PLAYED: frozenset(),

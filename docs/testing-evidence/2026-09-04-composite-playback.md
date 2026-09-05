@@ -377,3 +377,10 @@ The focused test exited 1 against the unfixed state transition. The failed
 child and cancelled sibling were recorded, but the pool task crashed on the
 illegal Ready-to-Failed parent transition. The parent remained Ready without
 an error and the following clip remained Queued.
+
+## GREEN: failure after first-segment readiness
+
+Ready parents may now enter Failed, matching the existing synthesis and
+playback failure paths. The regression observes a Failed parent with the
+segment error, Cancelled and Failed children, a Ready following clip, and a
+still-running synthesis pool. The complete synthesis suite is green.

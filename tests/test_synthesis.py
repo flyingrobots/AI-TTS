@@ -282,7 +282,7 @@ async def test_later_segment_failure_fails_ready_parent_and_queue_continues(
 
     assert observed == {
         "parent_state": State.FAILED,
-        "parent_error": "segment failed: synthesis failed for test input",
+        "parent_error": "segment failed: fake engine refuses to speak 'Bad segment.'",
         "segment_states": [State.CANCELLED, State.FAILED],
         "following_state": State.READY,
         "worker_running": True,
