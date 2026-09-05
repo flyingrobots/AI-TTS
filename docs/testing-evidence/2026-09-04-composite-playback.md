@@ -179,3 +179,11 @@ segments and the submit response declares that composite shape.
 The focused IPC test exited 1. The parent/profile controls passed, but the
 daemon reported no composite metadata and persisted zero children, so neither
 normalized heading could be found.
+
+## GREEN: daemon document admission
+
+Admission now creates the engine-neutral speech plan before persistence. Exact
+single-clip prose stays on the legacy path; normalized Markdown or multi-part
+text stores child rows. Empty spoken projections fail closed. The response
+reports `segment_count` and `composite`, while all public queue/history text
+continues to come from the untouched parent. The focused IPC contract is green.

@@ -30,6 +30,7 @@ from aitts.ipc import (
 )
 from aitts.model import TERMINAL, Priority, Sensitivity, State, Utterance
 from aitts.playback import PlaybackController
+from aitts.segmentation import prepare_speech_segments
 from aitts.store import Store, TransitionError
 from aitts.synthesis import SynthesisPool
 
@@ -270,6 +271,11 @@ class Daemon:
             self._store.get_setting("speed", "1.0")
         )
         source = payload.get("source")
+        spoken_segments = prepare_speech_segments(text)
+        if not spoken_segments:
+            msg = "submit text contains no speakable content"
+            raise ApiError(BAD_REQUEST, msg)
+        composite = spoken_segments != (text,)
         utt = self._store.submit(
             text,
             voice=str(voice),
@@ -278,6 +284,7 @@ class Daemon:
             priority=priority,
             source=source if isinstance(source, str) else None,
             at_head=priority is Priority.URGENT,
+            spoken_segments=spoken_segments if composite else None,
         )
         if self._pool is not None:
             self._pool.notify()
@@ -287,6 +294,8 @@ class Daemon:
             "id": utt.id,
             "state": utt.state.value,
             "sensitivity": utt.sensitivity.value,
+            "segment_count": len(spoken_segments),
+            "composite": composite,
             "eligible_engines": eligible_engine_names(self._engines, utt.sensitivity),
             **self._speech_admission(),
         }
