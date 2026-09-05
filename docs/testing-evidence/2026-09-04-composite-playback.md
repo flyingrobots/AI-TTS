@@ -315,3 +315,17 @@ deliberately leaves `activeSegment` nil.
 
 `swift test --quiet` exited 1 only on the expected non-nil `ActiveSegment`;
 segment count and completed count decoded correctly as controls.
+
+## GREEN: opt-in macOS caption panel
+
+Swift now decodes the complete active segment. A borderless non-activating
+`NSPanel` joins all Spaces, floats above ordinary windows, ignores mouse input,
+and renders up to four centered lines of the exact spoken segment. A persisted
+caption toggle is available beside the playback-rate dropdown and in Settings;
+disabled, unreachable, and no-active-segment states all hide the panel. Child
+state changes now produce daemon events so captions advance immediately.
+
+The visibility oracle was calibrated by temporarily ignoring the opt-in flag;
+its focused Swift test exited 1 on the disabled case while reachable/active
+controls stayed valid. The mutation was reverted, and all 13 Swift tests plus
+the focused backend caption test are green.

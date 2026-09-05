@@ -43,6 +43,35 @@ struct ActiveSegment: Equatable {
     let state: String
     let durationMs: Int?
     let positionMs: Int?
+
+    init?(json: [String: Any]) {
+        guard let index = json["index"] as? Int,
+            let number = json["number"] as? Int,
+            let count = json["count"] as? Int,
+            let text = json["text"] as? String,
+            let state = json["state"] as? String
+        else { return nil }
+        self.index = index
+        self.number = number
+        self.count = count
+        self.text = text
+        self.state = state
+        self.durationMs = json["duration_ms"] as? Int
+        self.positionMs = json["position_ms"] as? Int
+    }
+
+    init(
+        index: Int, number: Int, count: Int, text: String, state: String,
+        durationMs: Int?, positionMs: Int?
+    ) {
+        self.index = index
+        self.number = number
+        self.count = count
+        self.text = text
+        self.state = state
+        self.durationMs = durationMs
+        self.positionMs = positionMs
+    }
 }
 
 struct Utterance: Identifiable, Equatable {
@@ -84,7 +113,8 @@ struct Utterance: Identifiable, Equatable {
         self.finishedAt = json["finished_at"] as? Double
         self.segmentCount = json["segment_count"] as? Int ?? 1
         self.completedSegments = json["completed_segments"] as? Int ?? 0
-        self.activeSegment = nil
+        self.activeSegment = (json["active_segment"] as? [String: Any])
+            .flatMap(ActiveSegment.init(json:))
     }
 }
 

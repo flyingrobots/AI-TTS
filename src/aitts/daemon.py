@@ -28,7 +28,7 @@ from aitts.ipc import (
     ApiError,
     IPCServer,
 )
-from aitts.model import TERMINAL, Priority, Sensitivity, State, Utterance
+from aitts.model import TERMINAL, Priority, Sensitivity, State, Utterance, UtteranceSegment
 from aitts.playback import PLAYBACK_RATES, PlaybackController
 from aitts.segmentation import prepare_speech_segments
 from aitts.store import Store, TransitionError
@@ -125,6 +125,7 @@ class Daemon:
             workers=self._workers,
         )
         self._store.on_transition.append(self._on_transition)
+        self._store.on_segment_transition.append(self._on_segment_transition)
         loop = asyncio.get_running_loop()
         self._tasks = [
             loop.create_task(self._pool.run(), name="aitts-synthesis"),
@@ -178,6 +179,25 @@ class Daemon:
         if utt.state is State.PLAYING and utt.audio_path is not None:
             self._cache.note_access(Path(utt.audio_path))
         if utt.state in TERMINAL:
+            self._enforce_cache_limit()
+
+    def _on_segment_transition(self, segment: UtteranceSegment, from_state: State) -> None:
+        self._server.broadcast(
+            {
+                "event": "segment_state_changed",
+                "id": segment.utterance_id,
+                "segment_index": segment.index,
+                "from": from_state.value,
+                "to": segment.state.value,
+            }
+        )
+        if self._controller is not None and segment.state in (State.READY, State.PLAYING):
+            self._controller.notify()
+        if self._pool is not None and segment.state is State.QUEUED:
+            self._pool.notify()
+        if segment.state is State.PLAYING and segment.audio_path is not None:
+            self._cache.note_access(Path(segment.audio_path))
+        if segment.state in TERMINAL:
             self._enforce_cache_limit()
 
     def _cache_limit(self) -> int:

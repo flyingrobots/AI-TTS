@@ -119,6 +119,29 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(PlaybackRate.allCases.map(\.label), ["0.5×", "0.75×", "1×", "1.5×", "2×", "3×"])
     }
 
+    func testCaptionPresentationIsOptInAndRequiresAnActiveSegment() throws {
+        let active = try XCTUnwrap(DaemonStatus(json: [
+            "playback_state": "playing",
+            "current": [
+                "id": "utt_1", "text": "source", "voice": "v", "state": "Playing",
+                "active_segment": [
+                    "index": 0, "number": 1, "count": 2, "text": "spoken",
+                    "state": "Playing",
+                ],
+            ],
+        ]))
+        let idle = try XCTUnwrap(DaemonStatus(json: ["playback_state": "idle"]))
+
+        XCTAssertTrue(
+            CaptionPresentation.shouldShow(enabled: true, reachable: true, status: active))
+        XCTAssertFalse(
+            CaptionPresentation.shouldShow(enabled: false, reachable: true, status: active))
+        XCTAssertFalse(
+            CaptionPresentation.shouldShow(enabled: true, reachable: false, status: active))
+        XCTAssertFalse(
+            CaptionPresentation.shouldShow(enabled: true, reachable: true, status: idle))
+    }
+
     func testDaemonStatusFallsBackToLegacyState() {
         let status = DaemonStatus(json: ["state": "paused"])
         XCTAssertEqual(status?.playbackState, "paused")

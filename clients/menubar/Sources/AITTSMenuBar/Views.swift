@@ -198,6 +198,14 @@ struct CurrentPlaybackCard: View {
                         Label("Skip", systemImage: "forward.end.fill")
                     }
                     Spacer()
+                    Button {
+                        state.setCaptionsEnabled(!state.captionsEnabled)
+                    } label: {
+                        Image(
+                            systemName: state.captionsEnabled
+                                ? "captions.bubble.fill" : "captions.bubble")
+                    }
+                    .help(state.captionsEnabled ? "Hide on-screen captions" : "Show on-screen captions")
                     Picker("Playback speed", selection: playbackRate) {
                         ForEach(PlaybackRate.allCases, id: \.self) { rate in
                             Text(rate.label).tag(rate)
@@ -649,6 +657,17 @@ struct SettingsView: View {
                         .font(.system(.caption, design: .monospaced))
                         .frame(width: 44, alignment: .trailing)
                 }
+
+                Toggle(
+                    "On-screen captions",
+                    isOn: Binding(
+                        get: { state.captionsEnabled },
+                        set: { state.setCaptionsEnabled($0) }
+                    )
+                )
+                Text("Shows the exact segment currently being spoken without taking focus.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 Divider()
                 Button("Quit AI-TTS Menu Bar") { NSApp.terminate(nil) }

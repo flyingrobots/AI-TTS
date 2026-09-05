@@ -14,6 +14,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let state: AppState
+    private let captionPanel: CaptionPanelController
     private var cancellables: Set<AnyCancellable> = []
     private var animationTimer: Timer?
     private var phase = 0
@@ -21,6 +22,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
     init(state: AppState) {
         self.state = state
+        self.captionPanel = CaptionPanelController(state: state)
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
@@ -39,6 +41,16 @@ final class StatusController: NSObject, NSPopoverDelegate {
             .combineLatest(state.$reachable)
             .sink { [weak self] _, _ in
                 Task { @MainActor in self?.applyState() }
+            }
+            .store(in: &cancellables)
+        state.$status
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.captionPanel.updateVisibility() }
+            }
+            .store(in: &cancellables)
+        state.$captionsEnabled
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.captionPanel.updateVisibility() }
             }
             .store(in: &cancellables)
     }
@@ -81,6 +93,8 @@ final class StatusController: NSObject, NSPopoverDelegate {
     }
 
     nonisolated func popoverDidClose(_ notification: Notification) {
-        Task { @MainActor in self.state.startPolling(interval: 5.0) }
+        Task { @MainActor in
+            self.state.startPolling(interval: self.state.backgroundPollingInterval)
+        }
     }
 }

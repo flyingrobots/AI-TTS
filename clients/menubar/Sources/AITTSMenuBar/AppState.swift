@@ -33,6 +33,7 @@ final class AppState: ObservableObject {
     @Published var voices: [String] = []
     @Published var speed: Double = 1.0
     @Published var playbackRate: Double = 1.0
+    @Published var captionsEnabled: Bool
     @Published var reachable = false
     @Published var lastError: String?
 
@@ -42,13 +43,16 @@ final class AppState: ObservableObject {
     }
 
     private let client: DaemonClient
+    private let defaults: UserDefaults
     private let queue = DispatchQueue(label: "aitts.client", qos: .userInitiated)
     private var timer: Timer?
     private var eventThread: Thread?
     private let eventsFlag = AtomicFlag()
 
-    init(client: DaemonClient = DaemonClient()) {
+    init(client: DaemonClient = DaemonClient(), defaults: UserDefaults = .standard) {
         self.client = client
+        self.defaults = defaults
+        self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
     }
 
     // MARK: - Refresh
@@ -160,6 +164,13 @@ final class AppState: ObservableObject {
         playbackRate = rate
         send(["op": "settings", "set": ["playback_rate": rate]])
     }
+    func setCaptionsEnabled(_ enabled: Bool) {
+        captionsEnabled = enabled
+        defaults.set(enabled, forKey: "captionsEnabled")
+        startPolling(interval: enabled ? 0.5 : 5.0)
+    }
+
+    var backgroundPollingInterval: TimeInterval { captionsEnabled ? 0.5 : 5.0 }
 
     func preview(_ voice: String) {
         // A fixed, generated sentence: genuinely public text.
