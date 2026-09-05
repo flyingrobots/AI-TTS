@@ -237,6 +237,26 @@ class Daemon:
             raise ApiError(INTERNAL, msg)
         return self._controller
 
+    def _serialize_utterance(
+        self,
+        utt: Utterance,
+        *,
+        history: bool = False,
+    ) -> dict[str, Any]:
+        item = _serialize(utt, history=history)
+        segments = self._store.segments(utt.id)
+        item["composite"] = bool(segments)
+        item["segment_count"] = len(segments) if segments else 1
+        item["completed_segments"] = sum(
+            segment.state in (State.PLAYED, State.SKIPPED) for segment in segments
+        )
+        if history and segments:
+            item["audio_cached"] = all(
+                segment.audio_path is not None and Path(segment.audio_path).exists()
+                for segment in segments
+            )
+        return item
+
     # -- ops ------------------------------------------------------------
 
     def _speech_admission(self) -> dict[str, object]:
@@ -315,7 +335,7 @@ class Daemon:
 
     async def _op_get(self, payload: dict[str, Any]) -> dict[str, Any]:
         utt = self._get_utterance(payload)
-        return {"ok": True, "item": _serialize(utt, history=utt.is_terminal)}
+        return {"ok": True, "item": self._serialize_utterance(utt, history=utt.is_terminal)}
 
     def _get_utterance(self, payload: dict[str, Any]) -> Utterance:
         utt_id = payload.get("id")
@@ -337,7 +357,7 @@ class Daemon:
         else:
             msg = "list requires 'queue': 'input' or 'playback'"
             raise ApiError(BAD_REQUEST, msg)
-        return {"ok": True, "items": [_serialize(u) for u in items]}
+        return {"ok": True, "items": [self._serialize_utterance(u) for u in items]}
 
     async def _op_history(self, payload: dict[str, Any]) -> dict[str, Any]:
         limit = payload.get("limit", 100)
@@ -346,7 +366,10 @@ class Daemon:
             raise ApiError(BAD_REQUEST, msg)
         before = payload.get("before")
         items = self._store.history(limit=limit, before=before if isinstance(before, str) else None)
-        return {"ok": True, "items": [_serialize(u, history=True) for u in items]}
+        return {
+            "ok": True,
+            "items": [self._serialize_utterance(u, history=True) for u in items],
+        }
 
     async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
@@ -502,8 +525,30 @@ class Daemon:
             playback_state = "idle"
         current_item: dict[str, Any] | None = None
         if current is not None:
-            current_item = _serialize(current)
+            current_item = self._serialize_utterance(current)
             current_item["position_ms"] = controller.current_position_ms()
+            segment = controller.current_segment
+            segments = self._store.segments(current.id)
+            if segment is not None:
+                current_item["active_segment"] = {
+                    "index": segment.index,
+                    "number": segment.index + 1,
+                    "count": len(segments),
+                    "text": segment.text,
+                    "state": segment.state.value,
+                    "duration_ms": segment.duration_ms,
+                    "position_ms": controller.current_segment_position_ms(),
+                }
+            elif not segments and current.state in (State.PLAYING, State.PAUSED):
+                current_item["active_segment"] = {
+                    "index": 0,
+                    "number": 1,
+                    "count": 1,
+                    "text": current.text,
+                    "state": current.state.value,
+                    "duration_ms": current.duration_ms,
+                    "position_ms": controller.current_position_ms(),
+                }
         return {
             "ok": True,
             "state": "accepting",
@@ -527,9 +572,9 @@ class Daemon:
         return {
             "ok": True,
             "status": status,
-            "playback": [_serialize(u) for u in playback],
-            "input": [_serialize(u) for u in pending],
-            "plan": [_serialize(u) for u in plan],
+            "playback": [self._serialize_utterance(u) for u in playback],
+            "input": [self._serialize_utterance(u) for u in pending],
+            "plan": [self._serialize_utterance(u) for u in plan],
             "history": history["items"],
             "voices": self._engine.list_voices(),
             "settings": settings["settings"],

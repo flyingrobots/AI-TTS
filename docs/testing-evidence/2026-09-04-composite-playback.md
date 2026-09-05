@@ -298,3 +298,11 @@ state, child duration, and child-relative position.
 
 The focused IPC test exited 1 with the parent controls correct and both
 `segment_count` and `active_segment` absent from status.
+
+## GREEN: active-segment caption payload
+
+The controller now exposes its active child and child-relative playhead,
+including a recovered Paused child. Daemon serialization annotates every item
+with composite progress and status embeds the exact active spoken segment;
+legacy clips receive an equivalent one-segment caption payload. The focused
+manual-sink contract and full IPC/playback suites are green.

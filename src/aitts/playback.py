@@ -322,11 +322,28 @@ class PlaybackController:
             paused = self._adoptable_paused()
             if paused is not None:
                 self._current_id = paused.id
+                segment = self._store.next_unfinished_segment(paused.id)
+                if segment is not None and segment.state is State.PAUSED:
+                    self._current_segment_index = segment.index
 
     @property
     def current_id(self) -> str | None:
         """The utterance currently holding the device, if any."""
         return self._current_id
+
+    @property
+    def current_segment(self) -> UtteranceSegment | None:
+        """Return the exact active child, when the current item is composite."""
+        if self._current_id is None or self._current_segment_index is None:
+            return None
+        return self._store.get_segment(self._current_id, self._current_segment_index)
+
+    def current_segment_position_ms(self) -> int | None:
+        """Return child-relative position for captions and segment progress."""
+        segment = self.current_segment
+        if segment is None:
+            return None
+        return self._sink.position_ms() if self._sink_active else segment.played_ms
 
     def current_position_ms(self) -> int | None:
         """Live playhead position for the current utterance, if there is one."""
