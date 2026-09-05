@@ -38,6 +38,31 @@ The single most important structural decision. **Synthesis and playback have opp
 
 **The cost is that they can diverge**, and the design must say what happens when they do (§7). This boundary is internal. The menu-bar app merges all non-current, non-terminal states into one ordered Queue so an item cannot disappear merely because it crossed from synthesis to playback readiness.
 
+### A document is one queue entry with a nested queue
+
+A long document must not become either one enormous engine call or dozens of
+independent top-level utterances. The durable parent keeps the exact submitted
+text, queue position, sensitivity, voice, and voice-generation speed. Its
+ordered child rows contain only the clean text and lifecycle data needed to
+synthesize and play independently.
+
+Markdown input is parsed with a GitHub-flavored Markdown AST. Headings create
+strong section boundaries and receive terminal punctuation; inline syntax is
+silent; link labels, image alt text, list content, table cells, and fenced-code
+content remain speakable. HTML interpretation and automatic URL linking are
+disabled. The source Markdown is never replaced by this spoken projection.
+
+Chunking targets 180 spoken words and never intentionally exceeds 220. It
+prefers whole heading sections, then nearby paragraph and sentence boundaries,
+and falls back to a word boundary only when necessary. Short plain prose keeps
+its exact legacy single-clip identity.
+
+Child synthesis may run ahead, but child zero alone is sufficient to move the
+parent to `Ready`. Playback then descends into that child queue in index order.
+The parent continues to occupy its one top-level plan position—and therefore
+blocks every later top-level item—until its final child finishes. Every child
+resolves the same immutable voice and generation speed from the parent.
+
 ---
 
 ## 3. Utterance lifecycle
@@ -51,6 +76,7 @@ stateDiagram-v2
     Queued --> Synthesizing : worker picks it up
     Synthesizing --> Ready : audio rendered and cached
     Synthesizing --> Failed : engine error
+    Ready --> Failed : later document segment or playback preparation fails
     Ready --> Playing : playback controller acquires the device
     Playing --> Played : reached the end
     Playing --> Paused : user pauses
@@ -273,8 +299,8 @@ than inferred from happy-path reopen tests.
 
 ```
 ~/Library/Application Support/ai-tts/     (macOS)
-  state.db          utterances, queue positions, settings
-  cache/            <utterance-id>.wav
+  state.db          utterances, child segments, queue positions, settings
+  cache/            <utterance-id>.wav or <utterance-id>_segment_<index>.wav
   ai-tts.sock       the IPC socket, mode 0600
 ```
 
@@ -291,7 +317,12 @@ than inferred from happy-path reopen tests.
 
 **A restored playback queue comes back `Paused`, never `Playing`.** A daemon that restarts and immediately begins speaking is a daemon that talks when nobody expects it, a worse failure than silence, because it happens in a room.
 
-**Cache eviction:** audio for terminal utterances is evictable; audio for `Ready` utterances never is. Default policy LRU under a size cap (setting, default ~1 GB), **with history rows retained after their audio is evicted**: the text is the durable record, the audio is a cache. A history entry whose audio has been evicted is marked so, rather than failing on replay.
+**Cache eviction:** audio for terminal utterances is evictable; audio owned by
+any non-terminal parent never is, including already-played children of a
+partially heard document. Default policy LRU under a size cap (setting, default
+~1 GB), **with parent and child history rows retained after their audio is
+evicted**: the text is the durable record, the audio is a cache. A history entry
+whose audio has been evicted is marked so, rather than failing on replay.
 
 ---
 
@@ -299,11 +330,18 @@ than inferred from happy-path reopen tests.
 
 **This is where the two queues interact, and the answers must be explicit rather than emergent.**
 
-- **`pause`** — engages a persistent global playback hold, even when there is no current utterance and Queue is empty. A current utterance stops at its present position. **Submission and synthesis continue**, but no audio may start until `resume` explicitly releases the hold. Running ahead while paused is exactly right; the user will want the buffer full when they resume.
-- **`skip`** — current utterance → `Skipped`. The next `Ready` utterance begins only when the global hold is not engaged; otherwise it remains ready for `resume`. **The input queue is untouched.** Skipping one thing is not permission to release a meeting-mode hold.
-- **`rewind`** — either within the current utterance (`seconds`) or to a previous one (`to: utt_id`). **Rewinding to a played utterance replays from cache**; if evicted, it is re-synthesized. Rewind does not delete what was ahead of it. The queue is restored after the replayed item.
-- **`cancel <id>`** — legal in `Queued`, `Synthesizing` and `Ready`. Cancelling a `Synthesizing` utterance signals the worker; the engine adapter may not support mid-generation abort, in which case the result is discarded on completion. **Cancel is not legal for a `Playing` utterance — that is `skip`**, and keeping them distinct keeps history honest about what happened.
+- **`pause`** — engages a persistent global playback hold, even when there is no current utterance and Queue is empty. A current utterance stops at its present parent/child position. **Submission and synthesis continue**, but no audio may start until `resume` explicitly releases the hold. Running ahead while paused is exactly right; the user will want the buffer full when they resume.
+- **`skip`** — current parent → `Skipped`; an active child becomes `Skipped` and every unfinished sibling becomes `Cancelled`. The next `Ready` parent begins only when the global hold is not engaged; otherwise it remains ready for `resume`. **The input queue is untouched.** Skipping one thing is not permission to release a meeting-mode hold.
+- **`rewind`** — restarts the current parent at child zero or targets a previous parent (`to: utt_id`). **Rewinding to a played document recreates its child plan and reuses every child artifact when the full set remains cached**; if incomplete, its children are re-synthesized. Rewind does not delete what was ahead of it. The queue is restored after the replayed item.
+- **`cancel <id>`** — legal in `Queued`, `Synthesizing` and `Ready`. Cancelling a parent atomically cancels every unfinished child and signals the worker; the engine adapter may not support mid-generation abort, in which case the result is discarded on completion. **Cancel is not legal for a `Playing` utterance — that is `skip`**, and keeping them distinct keeps history honest about what happened.
 - **`clear`** — drains a named queue. **Requires naming which one.** There is no single "stop everything" that silently discards unsynthesized input.
+
+**Live playback rate.** The controller persists and accepts exactly 0.5×,
+0.75×, 1×, 1.5×, 2×, and 3×. The active sink reads the choice at every output
+block, so a change does not restart the file and reported position remains in
+source-audio time. The current sink changes rate by resampling and therefore
+does not promise pitch preservation; independent pitch control remains outside
+the current contract.
 
 **Barge-in.** A high-priority submission (`priority: "urgent"`) may pause the current utterance and play ahead of the queue. **This is off by default.** An agent that can interrupt the user mid-sentence will do so at the wrong moment. When enabled, the interrupted utterance returns to `Ready` at the head of the queue, not to `Skipped`.
 
@@ -327,7 +365,7 @@ warmup() -> None                                 # optional; called once at daem
 **What the interface demands of any candidate engine:**
 - **Voice enumeration**, so voice selection is a UI concern rather than a shell flag, which is the stated requirement.
 - **Deterministic output for identical input**, or the cache is unsound.
-- **A declared answer on streaming.** Streaming lowers time-to-first-audio for long text; an engine without it must chunk at sentence boundaries instead. **The daemon handles chunking, not the engine adapter**, so a non-streaming engine is not disqualified.
+- **A declared answer on streaming.** Streaming lowers time-to-first-audio for long text; an engine without it uses the daemon's structural document chunks instead. **The daemon handles chunking, not the engine adapter**, so a non-streaming engine is not disqualified.
 - **An honest `cancel`.** Returning `false` is fine and is handled (§7). Lying about it is not.
 
 ### A pronunciation lexicon beats an engine swap
@@ -336,7 +374,10 @@ warmup() -> None                                 # optional; called once at daem
 
 **A user-editable pronunciation lexicon, applied by the daemon before text reaches any engine**, corrects more perceived quality than swapping models. It belongs in the daemon rather than the adapter for the same reason chunking does: it must work identically across engines, and it must survive an engine change.
 
-**Chunking is the daemon's job.** Long text is split at sentence boundaries into separately cacheable segments so that skip and rewind have somewhere to land, and so that a long paragraph does not block the queue on one large generation.
+**Chunking is the daemon's job.** Long text is projected through its Markdown
+tree and split at heading, paragraph, sentence, then bounded word boundaries
+into separately cacheable children. That gives skip/restart durable places to
+land and lets playback start without waiting for one document-sized generation.
 
 ---
 

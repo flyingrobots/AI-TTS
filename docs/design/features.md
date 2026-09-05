@@ -32,6 +32,12 @@ The capitalised "THE" is a dictation artifact and carries no emphasis.
 
 "BM Daniels" is the voice identifier `bm_daniel`. Treated throughout as *the currently selected voice*, not as a hardcoded default.
 
+Later direct requirements added document-sized queue entries with an internal
+queue, structure-aware chunking, one voice for the whole document, Markdown
+syntax-tree projection, live playback rates of 0.5×, 0.75×, 1×, 1.5×, 2×, and
+3×, and on-screen subtitles. Those requirements supersede the initial
+proposal labels on 2.9 and 4.7 and add 2.10, 2.11, and 6.13 below.
+
 ### The incident, which is also a requirement
 
 Two utterances played simultaneously:
@@ -89,7 +95,9 @@ The internal input queue and the work of turning text into audio. It is not a se
 | 2.6 | Show a failed item as failed in the UI rather than dropping it silently | **[INFERRED]** | **SHOULD** |
 | 2.7 | Bound the cache — by size, age, or count | **[PROPOSED]** | **SHOULD** |
 | 2.8 | Reuse cached audio when the identical text is submitted again | **[PROPOSED]** | **COULD** |
-| 2.9 | Split long text into chunks so playback can begin before the whole item is synthesised | **[PROPOSED]** | **COULD** |
+| 2.9 | Split one long document into a parent-owned internal clip queue so playback can begin before the whole document is synthesised while later top-level items remain blocked | **[STATED]** | **MUST** |
+| 2.10 | Parse Markdown structurally and speak its content without raw syntax | **[STATED]** | **MUST** |
+| 2.11 | Bind every internal document clip to the parent's single immutable voice and voice-generation speed | **[STATED]** | **MUST** |
 
 **2.1–2.3** are close to verbatim: *"process THE queue by generating THE audio for it and having that audio cached and ready for playback"*, and *"Separately, there should be a playback queue"*.
 
@@ -99,7 +107,13 @@ The internal input queue and the work of turning text into audio. It is not a se
 
 **2.7** is ours, and the confidentiality point applies: cached audio of confidential text accumulating without bound on disk is a real consideration and not merely a housekeeping one. See §5 and [Open questions](#open-questions).
 
-**2.9** is genuinely useful for long text and genuinely complicated — chunk boundaries, rewind semantics across chunks, and what a "history entry" then means. **COULD**, and not before the rest works.
+**2.9–2.11 were later requested and implemented.** The exact submitted
+document remains the one queue/history record. Its private child queue prefers
+heading and paragraph boundaries, then sentences, with a bounded word fallback.
+The first child makes the parent playable; the parent still occupies one place
+in the serialized plan until every child is terminal. Markdown is projected
+through an AST rather than stripped with regular expressions, and children
+resolve voice and generation speed only through their parent.
 
 ## 3. Unified playback plan
 
@@ -134,7 +148,7 @@ What is playing and what comes next. Internally, readiness still crosses from sy
 | 4.4 | Resume from the paused position, not from the start | **[INFERRED]** | **MUST** |
 | 4.5 | Global keyboard shortcuts for pause / skip | **[PROPOSED]** | **COULD** |
 | 4.6 | Volume control in-app | **[PROPOSED]** | **COULD** |
-| 4.7 | Playback speed | **[PROPOSED]** | **COULD** |
+| 4.7 | Change playback speed dynamically during playback using 0.5×, 0.75×, 1×, 1.5×, 2×, or 3× | **[STATED]** | **MUST** |
 
 **4.1 was clarified after the unified Queue shipped.** Pause is a global,
 durable playback hold, not merely a control for the current clip. It remains
@@ -153,6 +167,10 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 **4.4** is unstated and would be an obvious bug if missed.
 
 **4.6** is marked **COULD** because macOS already has a system volume control and a per-app mixer. Building a second one is duplicated surface unless he specifically wants it.
+
+**4.7 was later requested and implemented.** It is a persisted playback
+setting, separate from voice-generation speed, and applies to an already active
+audio source without restarting it.
 
 ## 5. History
 
@@ -195,6 +213,7 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 | 6.10 | Icon indicates state at a glance — idle, speaking, paused | **[PROPOSED]** | **SHOULD** |
 | 6.11 | Item count or badge on the icon | **[PROPOSED]** | **COULD** |
 | 6.12 | Transport controls in the icon's right-click menu, without opening the panel | **[PROPOSED]** | **COULD** |
+| 6.13 | Opt-in on-screen subtitles for the segment currently being spoken | **[STATED]** | **SHOULD** |
 
 **6.3–6.5 were clarified after use.** Separate Up Next and Queue tabs exposed two internal stages as nearly identical user concepts, and ready voice previews could appear in one while the other looked empty. The approved surface therefore has two tabs, Queue and History, with current playback pinned above both.
 
@@ -204,6 +223,11 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 
 **6.10** is ours and cheap. It is also the fastest way to notice the failure mode that actually occurred — *silence with everything apparently fine*. An icon that shows "idle" when you expected "speaking" surfaces in one glance what four exit-0 successes concealed.
 
+**6.13 was later requested and implemented.** The overlay is opt-in,
+non-activating, click-through, and available across Spaces. It shows exact
+segment text and document-part progress. It does not claim word timestamps or
+karaoke highlighting.
+
 ## 7. Configuration
 
 | # | Feature | Label | Priority |
@@ -212,7 +236,7 @@ Both are in [Open questions](#open-questions). **We recommend not guessing**: th
 | 7.2 | Settings persist across restarts | **[INFERRED]** | **MUST** |
 | 7.3 | Settings reachable from the menu-bar UI | **[INFERRED]** | **SHOULD** |
 | 7.4 | Voice change applies to items not yet synthesised | **[INFERRED]** | **SHOULD** |
-| 7.5 | Speech rate / pitch | **[PROPOSED]** | **COULD** |
+| 7.5 | Independent pitch control | **[PROPOSED]** | **COULD** |
 | 7.6 | Output device selection | **[PROPOSED]** | **COULD** |
 | 7.7 | Launch at login | **[PROPOSED]** | **COULD** |
 | 7.8 | Per-caller voice, so different agents sound different | **[PROPOSED]** | **COULD** |
@@ -278,7 +302,7 @@ Nothing below came from the original brief. Several items were later requested o
 | 6.10 | Icon shows state at a glance | SHOULD |
 | 6.11 | Count badge on icon | COULD |
 | 6.12 | Transport in the right-click menu | COULD |
-| 7.5 | Speech rate / pitch | COULD |
+| 7.5 | Independent pitch control | COULD |
 | 7.6 | Output device selection | COULD |
 | 7.7 | Launch at login | COULD |
 | 7.8 | Per-caller voice | COULD |

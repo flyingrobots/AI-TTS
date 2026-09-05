@@ -72,6 +72,12 @@ Positions taken at implementation time, each reversible and open to challenge:
 - **Priority (13)** is `normal`/`urgent`; urgent inserts at the head of the plan and never interrupts what is being said. True barge-in remains unimplemented and off.
 - **Devices (14)** — one, the system default output.
 - **Content sniffing (15)** — none; fail-closed defaulting stands alone, as §10.5 leaned.
+- **Documents** are one top-level history/queue item with a durable internal
+  clip queue. Markdown is projected through an AST, structural boundaries drive
+  chunks, and every child inherits one immutable parent voice/profile.
+- **Playback rate and captions** are live menu-bar controls. Rate is one of six
+  discrete values; captions are an opt-in, focus-free active-segment overlay
+  and do not claim word-level synchronization.
 
 ## What approval means
 

@@ -64,14 +64,35 @@ synthesize, but none can start playing. The hold survives a daemon restart so
 silence remains the safe default during a meeting.
 
 The current card never moves when Queue and History switch. It shows the clip's
-text, voice, elapsed and total time, progress, and restart/skip controls.
+text, voice, elapsed and total time, progress, and restart/skip controls. A
+composite document remains one card and one Queue row while exposing its current
+part and total part count.
 When nothing is playing, the same card becomes a compact idle explanation
 instead of disappearing.
 
-Pause and resume preserve position. Restart starts the current clip again only
+Pause and resume preserve position across internal document clips. Restart
+starts the current document again at its first cached clip only
 when the global hold is not engaged. Skip abandons the current hearing and
 records the reached position in History; while held, the next Queue item stays
 ready rather than beginning. Transport never starts a second audio stream.
+
+The current card also exposes a playback-rate dropdown with exactly 0.5×,
+0.75×, 1×, 1.5×, 2×, and 3×. It changes the active source immediately and is
+separate from voice-generation speed, which affects future synthesis.
+
+## On-screen captions
+
+Captions are off by default and persist as a local UI preference. The caption
+bubble beside playback rate toggles a borderless, non-activating panel near the
+bottom center of the active display. The panel floats across Spaces, ignores
+mouse events, and disappears whenever captions are disabled, the daemon is
+unreachable, or no clip is active.
+
+The overlay contains the daemon's exact active spoken segment and, for a
+document, `PART n OF m`. It is segment-level transcription: it deliberately
+does not fabricate word timing or karaoke highlighting. The menu app refreshes
+position while captions are enabled and advances the overlay immediately when
+the daemon reports a child-state transition.
 
 ## Queue
 
@@ -123,7 +144,8 @@ dropdown. Each voice has a preview control because a model identifier is not an
 audible description. Preview creates an Urgent public clip, so it becomes next
 after the current clip and is visible in Queue like every other submission.
 
-Speed is continuous from 0.5× to 2.0× and applies to future submissions.
+Voice-generation speed is continuous from 0.5× to 2.0× and applies to future submissions.
+On-screen captions can also be enabled or disabled here.
 Settings take effect immediately; Done only dismisses the sheet.
 
 ## Tray state
@@ -149,7 +171,7 @@ flight; paused and error remain visually stable.
 
 ## Deliberate boundaries for v0.1.0
 
-The current implementation does not claim waveform scrubbing, partial-text
+The current implementation does not claim waveform scrubbing, word-synchronized
 karaoke highlighting, mute-without-pause, output-device selection, cache
 retention controls, history export, or a detachable History window. Those were
 ideas in the earlier mockups, not prerequisites of the approved unified

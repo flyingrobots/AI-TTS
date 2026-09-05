@@ -24,13 +24,23 @@ The last one is the clearest statement of the problem: **speech is a serial reso
 ## What it does
 
 - **Accepts text from any client** — an agent, a script, or you.
+- **Treats a long document as one queue item with an internal clip queue**, so
+  its first section can play while later sections are still being synthesized
+  and nothing submitted afterward can cut through it.
+- **Reads Markdown as authored prose.** A Markdown syntax tree removes markup,
+  preserves human labels and code content, and turns headings into spoken
+  section cues without changing the stored source document.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
 - **Shows one playback plan** — the current clip, everything upcoming in Queue, and removable local History.
 - **Keeps local playback history** until you remove an item or clear it, with one-click priority-aware re-queue.
 - **Lives in the menu bar.** Click the tray icon for the current state; the icon itself tells you at a glance whether it is idle, synthesizing, playing, or paused.
-- **Configurable in the app** — voice, speed, output device — not as shell flags.
+- **Changes playback rate live** at 0.5×, 0.75×, 1×, 1.5×, 2×, or 3× without
+  restarting the current clip.
+- **Shows opt-in on-screen captions** for the active spoken segment in a
+  click-through panel that does not steal focus.
+- **Configurable in the app** — voice and voice-generation speed — not as shell flags.
 
 ## Design documents
 
