@@ -397,3 +397,12 @@ The focused end-to-end socket test exited 1 against the legacy parent-only
 replay path. The fresh parent correctly preserved the original text, profile,
 and `replay_of`, but its child list was empty and both `composite` and
 `segment_count` were absent from the response.
+
+## GREEN: composite history replay
+
+Replay now clones persisted child text rather than re-parsing or flattening the
+original parent. A complete cached source plan is republished synchronously
+under the fresh parent, preserving each path and duration; an incomplete cache
+falls back to ordinary child synthesis. The response reports the same
+composite shape as submission. The focused socket contract and complete IPC
+suite are green.

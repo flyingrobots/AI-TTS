@@ -28,7 +28,15 @@ from aitts.ipc import (
     ApiError,
     IPCServer,
 )
-from aitts.model import TERMINAL, Priority, Sensitivity, State, Utterance, UtteranceSegment
+from aitts.model import (
+    TERMINAL,
+    Priority,
+    Sensitivity,
+    State,
+    SynthesisWork,
+    Utterance,
+    UtteranceSegment,
+)
 from aitts.playback import PLAYBACK_RATES, PlaybackController
 from aitts.segmentation import prepare_speech_segments
 from aitts.store import Store, TransitionError
@@ -432,6 +440,7 @@ class Daemon:
         hearing. Cached audio is reused when it still exists; otherwise the
         text is re-synthesized.
         """
+        source_segments = self._store.segments(target.id)
         replay = self._store.submit(
             target.text,
             voice=target.voice,
@@ -441,7 +450,23 @@ class Daemon:
             source=target.source,
             replay_of=target.id,
             at_head=at_head,
+            spoken_segments=tuple(segment.text for segment in source_segments) or None,
         )
+        if source_segments:
+            cached_segments: list[tuple[UtteranceSegment, Path]] = []
+            for segment in source_segments:
+                if segment.audio_path is None:
+                    break
+                path = Path(segment.audio_path)
+                if not self._cache.note_access(path):
+                    break
+                cached_segments.append((segment, path))
+            if len(cached_segments) == len(source_segments):
+                self._restore_cached_segments(replay, cached_segments)
+            elif self._pool is not None:
+                self._pool.notify()
+            return self._store.get(replay.id) or replay
+
         cached_path = Path(target.audio_path) if target.audio_path is not None else None
         cached = cached_path is not None and self._cache.note_access(cached_path)
         if cached:
@@ -455,6 +480,28 @@ class Daemon:
         elif self._pool is not None:
             self._pool.notify()
         return self._store.get(replay.id) or replay
+
+    def _restore_cached_segments(
+        self,
+        replay: Utterance,
+        cached_segments: list[tuple[UtteranceSegment, Path]],
+    ) -> None:
+        """Publish a complete cached child plan under one fresh parent."""
+        self._store.transition(replay.id, State.SYNTHESIZING)
+        for source, path in cached_segments:
+            child = self._store.transition_segment(replay.id, source.index, State.SYNTHESIZING)
+            self._store.finish_synthesis(
+                SynthesisWork(
+                    id=child.artifact_id,
+                    utterance_id=replay.id,
+                    segment_index=child.index,
+                    text=child.text,
+                    voice=replay.voice,
+                    speed=replay.speed,
+                ),
+                audio_path=str(path),
+                duration_ms=source.duration_ms,
+            )
 
     async def _op_requeue(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -470,11 +517,14 @@ class Daemon:
             priority=priority,
             at_head=priority is Priority.URGENT,
         )
+        segments = self._store.segments(replay.id)
         return {
             "ok": True,
             "id": replay.id,
             "state": replay.state.value,
             "priority": replay.priority.value,
+            "composite": bool(segments),
+            "segment_count": len(segments) if segments else 1,
         }
 
     async def _op_reorder(self, payload: dict[str, Any]) -> dict[str, Any]:
