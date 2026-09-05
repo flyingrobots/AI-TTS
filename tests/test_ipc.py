@@ -335,6 +335,59 @@ async def test_playback_rate_setting_accepts_only_ui_choices(daemon: Daemon) -> 
     }
 
 
+async def test_status_exposes_exact_active_segment_for_captions(tmp_path: Path) -> None:
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-captions-"))
+    sink = FakeSink()
+    daemon = Daemon(
+        home=tmp_path,
+        engine=FakeEngine(voices=["bm_george"], duration_ms=1200),
+        sink=sink,
+        workers=1,
+        socket_path=sock_dir / "d.sock",
+    )
+    await daemon.start()
+    try:
+        submitted = await rpc(
+            daemon.socket_path,
+            {
+                "op": "submit",
+                "text": "# Caption **Heading**\n\nSpoken body.",
+                "voice": "bm_george",
+            },
+        )
+        await wait_for_async(lambda: rpc_has_started(sink))
+        status = await rpc(daemon.socket_path, {"op": "status"})
+        current = status.get("current", {})
+
+        assert {
+            "parent_id": current.get("id"),
+            "parent_text": current.get("text"),
+            "segment_count": current.get("segment_count"),
+            "active_segment": current.get("active_segment"),
+        } == {
+            "parent_id": submitted["id"],
+            "parent_text": "# Caption **Heading**\n\nSpoken body.",
+            "segment_count": 1,
+            "active_segment": {
+                "index": 0,
+                "number": 1,
+                "count": 1,
+                "text": "Caption Heading.\n\nSpoken body.",
+                "state": "Playing",
+                "duration_ms": 1200,
+                "position_ms": 0,
+            },
+        }
+    finally:
+        await daemon.stop()
+        shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+async def rpc_has_started(sink: FakeSink) -> bool:
+    await asyncio.sleep(0)
+    return bool(sink.started)
+
+
 async def test_idle_global_pause_survives_daemon_restart(tmp_path: Path) -> None:
     sock_dir = Path(tempfile.mkdtemp(prefix="aitts-pause-"))
     first = Daemon(

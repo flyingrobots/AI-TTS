@@ -288,3 +288,13 @@ Playing transport exposes an exact six-value menu and optimistically updates
 before sending the settings operation; the existing Settings slider is relabeled
 as voice-generation speed to keep the two controls distinct. All 12 Swift tests
 are green.
+
+## RED: active-segment caption payload
+
+A dedicated manual sink holds a normalized one-segment Markdown document in
+Playing. Status must retain the exact Markdown parent while exposing an
+`active_segment` containing only the spoken text, index/number/count, child
+state, child duration, and child-relative position.
+
+The focused IPC test exited 1 with the parent controls correct and both
+`segment_count` and `active_segment` absent from status.
