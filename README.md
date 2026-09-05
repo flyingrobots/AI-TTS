@@ -110,6 +110,143 @@ launchctl bootstrap "gui/$(id -u)" \
 open "$HOME/Applications/AI-TTS.app"
 ```
 
+### Install for coding agents
+
+AI-TTS supports two local agent integrations. Use the CLI for any agent that
+can run shell commands. Add the MCP adapter when the host supports local stdio
+MCP servers and you want typed speech, status, queue, history, and transport
+tools. Both integrations talk to the same daemon and serialized playback
+queue; neither starts a second model or audio player.
+
+The agent must run on the same Mac as AI-TTS and be allowed to execute the
+installed binary and connect to the user-only Unix socket. A cloud-only agent
+cannot reach a daemon on your laptop.
+
+#### 1. Resolve and verify the installed commands
+
+After completing the installation above, print the uv tool binary directory:
+
+```sh
+uv tool dir --bin
+```
+
+Use the absolute paths from that directory in agent instructions. This is more
+reliable than assuming that a non-login agent shell inherited your interactive
+`PATH`. Verify the daemon before configuring an agent:
+
+```sh
+AI_TTS_BIN="$(uv tool dir --bin)/ai-tts"
+
+"$AI_TTS_BIN" status
+"$AI_TTS_BIN" voices
+"$AI_TTS_BIN" say "AI-TTS agent setup is connected." \
+  --source setup-check
+```
+
+For checkout-only development, run `uv sync --all-extras` and substitute
+absolute paths such as `/path/to/ai-tts/.venv/bin/ai-tts` and
+`/path/to/ai-tts/.venv/bin/ai-tts-mcp`. Those paths follow that checkout and
+virtual environment, so prefer the uv tool installation for durable,
+machine-wide agent instructions.
+
+The final command prints a JSON receipt. `"accepted": true` means the daemon
+owns the utterance and has placed it in the plan; it does not mean playback has
+already finished. If `status` reports `"playback_held": true`, the check is
+still accepted and remains silent until the user resumes playback. Do not make
+an installer or an agent release that hold automatically.
+
+#### 2. Give any shell-capable agent a speech policy
+
+Put a short policy in the agent's persistent system/developer instructions or
+repository instruction file. Replace the example executable and voice with
+absolute values reported by the commands above. Omit `--voice` if every agent
+should use the current daemon default.
+
+```md
+## Spoken updates
+
+- Use only `/Users/alex/.local/bin/ai-tts` for speech. Do not fall back to the
+  macOS `say` command, `afplay`, a one-off TTS process, or another audio player.
+- When the user asks you to speak, enqueue one concise, literal summary with:
+  `/Users/alex/.local/bin/ai-tts say "<summary>" --source codex --voice bm_george`
+- Pass generated prose as one shell argument. Speech is literal plain text by
+  default; add `--format markdown` only when Markdown projection is intended.
+- Treat exit code 0 and `"accepted": true` as queue admission, not proof that
+  the utterance finished. Use `--wait` only when the task truly requires a
+  Played outcome; it can remain blocked while global playback is paused.
+- Continue submitting requested speech while playback is paused. The daemon
+  safely synthesizes and spools it. Never resume, skip, cancel, or clear the
+  user's playback unless the user asks.
+- Omit `--sensitivity` or use `--sensitivity confidential` unless the user has
+  affirmatively classified the text less restrictively.
+- Do not speak when the user says they are in a call, meeting, recording, or
+  other situation where audible output would be disruptive.
+```
+
+Use a stable `--source` value such as `codex`, `claude-code`, or
+`release-bot`. It appears in Queue and History provenance. A stable `--voice`
+also gives one agent a consistent audible identity; `ai-tts voices` lists the
+valid ids on the installed engine.
+
+For Codex, append the policy instead of overwriting existing instructions:
+
+- `~/.codex/AGENTS.md` applies it across repositories;
+- a repository-root `AGENTS.md` applies it to that project; and
+- a more deeply nested `AGENTS.md` can specialize it for one subtree.
+
+Codex reads its instruction chain when a session starts, so start a new
+session after editing the file. The
+[official Codex `AGENTS.md` guide](https://developers.openai.com/codex/guides/agents-md)
+documents discovery and precedence. You can check what loaded before asking
+for audio:
+
+```sh
+codex --ask-for-approval never "Summarize the active spoken-update instructions."
+```
+
+Then ask the agent, for example, “Use AI-TTS to say that the build passed.” A
+correct CLI invocation returns an admission receipt immediately and lets the
+daemon finish synthesis and playback independently of the agent process.
+
+#### 3. Optionally give Codex typed MCP tools
+
+The CLI policy is sufficient for speech. MCP is the richer option when the
+agent should also inspect status, list Queue or History, discover voices, or
+control playback with explicit typed tools. Register the installed local stdio
+server with Codex:
+
+```sh
+codex mcp add ai-tts -- "$(uv tool dir --bin)/ai-tts-mcp"
+codex mcp list
+```
+
+Start a new Codex session, then use `/mcp` to confirm that `ai-tts` is active.
+Codex's desktop app, CLI, and IDE extension share this local MCP configuration.
+The [official Codex MCP guide](https://developers.openai.com/codex/mcp)
+documents the same `codex mcp add <name> -- <stdio-command>` form.
+
+The server exposes these tools:
+
+- `enqueue_speech`
+- `speech_status`
+- `list_speech_queue`
+- `list_speech_history`
+- `list_speech_voices`
+- `pause_speech_playback` and `resume_speech_playback`
+- `skip_current_speech` and `restart_current_speech`
+- `cancel_queued_speech`, `requeue_speech`, and `clear_speech_queue`
+
+Ask Codex to “use the AI-TTS `enqueue_speech` tool” if tool choice is
+ambiguous. The MCP server's own instructions tell the agent that a global hold
+does not reject new speech. Keep the behavioral rules from step 2 as well: MCP
+provides capability and schemas, while the instruction file says when the
+agent should use them and which user-owned transport actions require a request.
+
+For another MCP-capable agent host, configure a local stdio server whose
+command is the absolute path to `ai-tts-mcp`, with no arguments. Host-specific
+configuration formats differ, but the process contract does not: stdout is MCP
+JSON-RPC only, and the adapter connects to the already-running local daemon.
+
 The installed app bundle contains only the native menu executable and its
 metadata. It does not contain the Python environment, model, or voice assets.
 Its ad-hoc signature is suitable for this local source-install workflow; it is
