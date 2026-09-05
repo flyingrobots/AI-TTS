@@ -395,6 +395,7 @@ and which remain future work.
 | Selected-text application policy exists | `SpeechApplication.swift` defines `SelectionEnqueueing` and `EnqueueSelection`; focused application tests record falsification | Implemented |
 | The app advertises Services | Generated metadata and installed `pbs` discovery contain exact text and file `NSServices` entries | Implemented; installed discovery verified |
 | Service requests delegate to shared use cases | Focused adapter tests plus installed `NSPerformService` text/file invocations reached exact daemon submissions without changing the general pasteboard | Implemented; TextEdit menu verified, remaining host matrix pending |
+| Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing` | Application use cases implemented; macOS adapters and UX pending |
 | The app can read another app’s selection | No Accessibility adapter or trust UX | Planned |
 | The prior foreground application survives popover activation | `StatusController` calls `makeKey()` without retaining the previous process | Planned |
 | App Intents are discoverable from the installed bundle | No App Intent target or verified metadata packaging | Deferred |

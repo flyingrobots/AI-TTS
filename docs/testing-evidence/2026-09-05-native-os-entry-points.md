@@ -187,3 +187,47 @@ before the fixture's purpose was understood. The controlled document was
 closed without saving, and foreground host automation stopped. The remaining
 matrix requires an explicitly coordinated interactive session or an isolated
 GUI test session; it will not be run by taking focus from active work.
+
+## Slice 4a: explicit text-acquisition use cases
+
+The Accessibility and clipboard paths first converge in application code, not
+in AppKit. `EnqueueCurrentSelection` accepts only a previously captured process
+identifier, reads exact text through `SelectedTextReaderPort`, and delegates to
+`SelectionEnqueueing` with configured provenance. `EnqueueClipboard` performs
+the same orchestration through `ClipboardTextReaderPort`. Neither use case can
+choose format, sensitivity, priority, voice, speed, or segmentation policy.
+
+### Falsification
+
+A deliberate orchestration mutant replaced a missing prior PID with `0`,
+discarded the Accessibility reader's result in favor of an empty string, and
+made clipboard enqueue a no-op. The focused application contract reported six
+named assertion failures:
+
+```console
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test --filter SpeechApplicationTests
+# Executed 6 tests, with 6 failures (0 unexpected)
+```
+
+The failures exposed the missing typed refusal, unexpected PID `0` read,
+unexpected empty selection admission, absent clipboard read, and absent exact
+text/source request. All three pre-existing selection/document tests remained
+green, so the red result was behavior-specific. The mutant was then removed.
+
+### Green
+
+The final current-selection use case rejects a missing prior process before
+calling any reader, passes the exact captured PID to the reader, and passes the
+exact returned text to selection admission with configured provenance. The
+clipboard use case reads exactly once and delegates the exact string through
+the same admission boundary.
+
+```console
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test --filter SpeechApplicationTests
+# Executed 6 tests, with 0 failures
+
+python3 ../../scripts/run_with_deadline.py 60 swift test
+# Executed 39 tests, with 0 failures
+```

@@ -36,6 +36,17 @@ public enum SpeechSelectionError: Error, Equatable, LocalizedError, Sendable {
     }
 }
 
+public enum CurrentSelectionError: Error, Equatable, LocalizedError, Sendable {
+    case noPriorApplication
+
+    public var errorDescription: String? {
+        switch self {
+        case .noPriorApplication:
+            "Open AI-TTS from the menu bar while another application has a selection."
+        }
+    }
+}
+
 public struct SpeechSubmission: Equatable, Sendable {
     public let text: String
     public let contentFormat: SpeechContentFormat
@@ -115,6 +126,26 @@ public protocol SelectionEnqueueing: Sendable {
     func enqueueSelection(_ text: String, source: String) throws
 }
 
+/// Outbound port for reading one explicit selection from a known application.
+public protocol SelectedTextReaderPort: Sendable {
+    func readSelectedText(from processIdentifier: Int32) throws -> String
+}
+
+/// Outbound port for reading the clipboard's current string representation.
+public protocol ClipboardTextReaderPort: Sendable {
+    func readClipboardText() throws -> String
+}
+
+/// Inbound application port for the explicit current-selection action.
+public protocol CurrentSelectionEnqueueing: Sendable {
+    func enqueueCurrentSelection(from processIdentifier: Int32?) throws
+}
+
+/// Inbound application port for the explicit clipboard fallback.
+public protocol ClipboardEnqueueing: Sendable {
+    func enqueueClipboard() throws
+}
+
 public struct EnqueueSelection: SelectionEnqueueing, Sendable {
     private let speech: any SpeechServicePort
 
@@ -137,6 +168,51 @@ public struct EnqueueSelection: SelectionEnqueueing, Sendable {
                 source: source
             )
         )
+    }
+}
+
+public struct EnqueueCurrentSelection: CurrentSelectionEnqueueing, Sendable {
+    private let reader: any SelectedTextReaderPort
+    private let selectionEnqueuer: any SelectionEnqueueing
+    private let source: String
+
+    public init(
+        reader: any SelectedTextReaderPort,
+        selectionEnqueuer: any SelectionEnqueueing,
+        source: String
+    ) {
+        self.reader = reader
+        self.selectionEnqueuer = selectionEnqueuer
+        self.source = source
+    }
+
+    public func enqueueCurrentSelection(from processIdentifier: Int32?) throws {
+        guard let processIdentifier else {
+            throw CurrentSelectionError.noPriorApplication
+        }
+        let selectedText = try reader.readSelectedText(from: processIdentifier)
+        try selectionEnqueuer.enqueueSelection(selectedText, source: source)
+    }
+}
+
+public struct EnqueueClipboard: ClipboardEnqueueing, Sendable {
+    private let reader: any ClipboardTextReaderPort
+    private let selectionEnqueuer: any SelectionEnqueueing
+    private let source: String
+
+    public init(
+        reader: any ClipboardTextReaderPort,
+        selectionEnqueuer: any SelectionEnqueueing,
+        source: String
+    ) {
+        self.reader = reader
+        self.selectionEnqueuer = selectionEnqueuer
+        self.source = source
+    }
+
+    public func enqueueClipboard() throws {
+        let selectedText = try reader.readClipboardText()
+        try selectionEnqueuer.enqueueSelection(selectedText, source: source)
     }
 }
 
