@@ -120,3 +120,47 @@ uv run ruff format --check
 uv run mypy
 # Success: no issues found in 57 source files
 ```
+
+## Slice 3: installed Services acceptance
+
+No new automated assertion was introduced in this slice. This is large,
+machine-specific acceptance evidence for the exact committed implementation at
+`8129da7`.
+
+The release builder created an ad-hoc-signed candidate outside the checkout.
+`codesign --verify --deep --strict` passed, and AppKit's own Services database
+parser accepted both entries. The candidate then replaced only
+`/Users/james/Applications/AI-TTS.app`; the previous bundle was retained in the
+owned temporary acceptance directory as a rollback copy. The installed
+executable was byte-identical to the candidate at SHA-256
+`05339e100864ab8c02278ad42c2787257971499528c466136b8a2d4138886d56`.
+
+After Launch Services refresh and app restart, `pbs -dump` reported both
+installed entries against bundle identifier
+`com.flyingrobots.ai-tts.menubar` and path
+`/Users/james/Applications/AI-TTS.app`:
+
+- **Read Selection with AI-TTS**, message `readSelection`, sending
+  `public.utf8-plain-text`;
+- **Read File with AI-TTS**, message `readFile`, sending
+  `public.plain-text`, `net.daringfireball.markdown`, or `com.adobe.pdf` files.
+
+The preflight daemon was accepting, idle, unheld, and had no queued item.
+Playback was held only for the acceptance requests. A named request pasteboard
+then invoked each installed command through `NSPerformService`:
+
+| Invocation | System result | Daemon observation | General pasteboard |
+|---|---|---|---|
+| exact selected text `AI-TTS native Service acceptance 8129da7.` | `performed=true` | one Ready, confidential, Normal, literal item from `macos-service:text` | change count `268` before and after |
+| one Markdown file | `performed=true` | one Ready, confidential, Normal document retaining exact Markdown source from `macos-service:file:service-acceptance.md` | change count `268` before and after |
+| two supported files | `performed=true` | no third item; the two-item queue remained unchanged | change count `268` before and after |
+
+The two acceptance items were cancelled by their exact ids, playback was
+restored to unheld, and the final queue was empty. The existing daemon process
+was not restarted or replaced.
+
+This proves installed registration and dispatch independently of any one host
+application. It does not prove where TextEdit, Safari, Chromium, VS Code,
+Preview, or Finder chooses to place an applicable Service in its menus, nor an
+assigned keyboard shortcut. That representative host matrix remains open and
+must not be inferred from the successful programmatic invocations.

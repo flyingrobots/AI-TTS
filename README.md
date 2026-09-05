@@ -175,10 +175,12 @@ Both external client boundaries use a hexagonal port-and-adapter design. The
 Python agent boundary keeps MCP schemas separate from daemon NDJSON. The native
 Swift boundary is compile-time separated into `AITTSApplication` (public
 models, ports, and use cases), `AITTSMacAdapters` (PDFKit, selected-file access,
-and Unix-socket translation), and `AITTSMenuBar` (AppKit/SwiftUI presentation
-and composition). A future Finder, Services, or Shortcuts target can call the
-same `DocumentEnqueueing` use case without importing the menu UI or rebuilding
-file and socket policy. See
+and Unix-socket translation), `AITTSMacEntryPoints` (native Services request
+translation), and `AITTSMenuBar` (AppKit/SwiftUI presentation and composition).
+The installed text and file Services call `SelectionEnqueueing` and
+`DocumentEnqueueing` without importing the menu UI or rebuilding speech, file,
+or socket policy. Future Accessibility and Shortcuts adapters must use those
+same application boundaries. See
 [`docs/design/architecture.md`](docs/design/architecture.md) §4.
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
@@ -187,11 +189,13 @@ Text is **confidential by default**: an utterance submitted without an explicit 
 
 The v0.1.0 implementation is a release candidate, not a published release. The
 Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
-and native Swift menu-bar app are implemented. The suite encodes the state
-machine, serialized playback plan, global hold, fail-closed sensitivity,
-restart recovery, bounded cache and shutdown, single-instance menu process,
-public schemas, and checkout-independent release artifacts. The remaining
-release-readiness work and accepted blind spots are tracked in
+native Swift menu-bar app, and native selected-text/selected-file Services are
+implemented. The suite encodes the state machine, serialized playback plan,
+global hold, fail-closed sensitivity, restart recovery, bounded cache and
+shutdown, single-instance menu process, public schemas, and
+checkout-independent release artifacts. Representative Services-menu host
+acceptance and the remaining release-readiness work and accepted blind spots
+are tracked in
 [`docs/standards/testing-profile.md`](docs/standards/testing-profile.md).
 
 ## Licence

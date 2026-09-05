@@ -109,17 +109,18 @@ Positions taken at implementation time, each reversible and open to challenge:
 - **Playback rate and captions** are live menu-bar controls. Rate is one of six
   discrete values; captions are an opt-in, focus-free active-segment overlay
   and do not claim word-level synchronization.
-- **OS integration** was not part of v0.1.0. Its accepted next design adds a
-  selected-text Service through a new `EnqueueSelection` use case and a
-  selected-file Service through the existing `EnqueueDocument` use case.
+- **OS integration** was not part of the original v0.1.0 scope and is now in
+  progress. The selected-text Service uses `EnqueueSelection`; the selected-file
+  Service uses the existing `EnqueueDocument`; both have installed-system
+  dispatch evidence. Representative host-menu acceptance remains open.
   Accessibility and App Intents remain later, evidence-gated adapters.
 
 ## What approval means
 
 The v0.1.0 documents now describe implemented behavior unless they explicitly
 say otherwise. Approval of [`os-integration.md`](os-integration.md) locks its
-MUST behavior and sequencing as the next implementation target; it does not
-permit documentation to claim those adapters are shipped before their tests,
-installed-system acceptance, and exact-bundle evidence exist. Any later change
-to the accepted selection, permission, or privacy policy must be recorded back
-into these documents with the implementation change.
+MUST behavior and sequencing for the remaining slices; it does not permit
+documentation to claim host compatibility, Accessibility coverage, or App
+Intent discovery before their own installed-system evidence exists. Any later
+change to the accepted selection, permission, or privacy policy must be
+recorded back into these documents with the implementation change.

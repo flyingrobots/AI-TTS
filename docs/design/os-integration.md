@@ -393,8 +393,8 @@ and which remain future work.
 | Documents share one inbound application port | `SpeechApplication.swift` defines `DocumentEnqueueing` and `EnqueueDocument` | Implemented |
 | Text and documents carry explicit content format | `SpeechContentFormat`, `SpeechSubmission`, and `SpeechDocument` | Implemented |
 | Selected-text application policy exists | `SpeechApplication.swift` defines `SelectionEnqueueing` and `EnqueueSelection`; focused application tests record falsification | Implemented |
-| The app advertises Services | The generated `Info.plist` contract contains exact text and file `NSServices` entries | Implemented; installed discovery pending |
-| Service requests delegate to shared use cases | `MacServiceProvider` consumes isolated request pasteboards and has focused delegation/refusal tests | Implemented; installed host matrix pending |
+| The app advertises Services | Generated metadata and installed `pbs` discovery contain exact text and file `NSServices` entries | Implemented; installed discovery verified |
+| Service requests delegate to shared use cases | Focused adapter tests plus installed `NSPerformService` text/file invocations reached exact daemon submissions without changing the general pasteboard | Implemented; installed host-menu matrix pending |
 | The app can read another app’s selection | No Accessibility adapter or trust UX | Planned |
 | The prior foreground application survives popover activation | `StatusController` calls `makeKey()` without retaining the previous process | Planned |
 | App Intents are discoverable from the installed bundle | No App Intent target or verified metadata packaging | Deferred |
