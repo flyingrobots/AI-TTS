@@ -35,6 +35,16 @@ enum PlaybackRate: Double, CaseIterable, Equatable, Hashable {
     var label: String { String(format: "%g×", rawValue) }
 }
 
+struct ActiveSegment: Equatable {
+    let index: Int
+    let number: Int
+    let count: Int
+    let text: String
+    let state: String
+    let durationMs: Int?
+    let positionMs: Int?
+}
+
 struct Utterance: Identifiable, Equatable {
     let id: String
     let text: String
@@ -49,6 +59,9 @@ struct Utterance: Identifiable, Equatable {
     let priority: RequeuePriority
     let enqueuedAt: Double?
     let finishedAt: Double?
+    let segmentCount: Int
+    let completedSegments: Int
+    let activeSegment: ActiveSegment?
 
     init?(json: [String: Any]) {
         guard let id = json["id"] as? String,
@@ -69,6 +82,9 @@ struct Utterance: Identifiable, Equatable {
         self.priority = RequeuePriority(rawValue: json["priority"] as? String ?? "") ?? .normal
         self.enqueuedAt = json["enqueued_at"] as? Double
         self.finishedAt = json["finished_at"] as? Double
+        self.segmentCount = json["segment_count"] as? Int ?? 1
+        self.completedSegments = json["completed_segments"] as? Int ?? 0
+        self.activeSegment = nil
     }
 }
 

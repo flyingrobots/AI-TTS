@@ -59,7 +59,12 @@ final class WireProtocolTests: XCTestCase {
         let utterance = Utterance(json: [
             "id": "utt_1", "text": "hello", "voice": "bm_daniel", "state": "Ready",
             "duration_ms": 1200, "position_ms": 300, "finished_at": 1_756_700_000.5,
-            "source": "menubar", "priority": "urgent",
+            "source": "menubar", "priority": "urgent", "segment_count": 3,
+            "completed_segments": 1,
+            "active_segment": [
+                "index": 1, "number": 2, "count": 3, "text": "Clean spoken text.",
+                "state": "Playing", "duration_ms": 500, "position_ms": 125,
+            ],
         ])
         XCTAssertEqual(utterance?.id, "utt_1")
         XCTAssertEqual(utterance?.durationMs, 1200)
@@ -67,6 +72,13 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(utterance?.finishedAt, 1_756_700_000.5)
         XCTAssertEqual(utterance?.source, "menubar")
         XCTAssertEqual(utterance?.priority, .urgent)
+        XCTAssertEqual(utterance?.segmentCount, 3)
+        XCTAssertEqual(utterance?.completedSegments, 1)
+        XCTAssertEqual(
+            utterance?.activeSegment,
+            ActiveSegment(
+                index: 1, number: 2, count: 3, text: "Clean spoken text.",
+                state: "Playing", durationMs: 500, positionMs: 125))
         XCTAssertNil(Utterance(json: ["id": "utt_2"]))
     }
 

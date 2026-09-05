@@ -306,3 +306,12 @@ including a recovered Paused child. Daemon serialization annotates every item
 with composite progress and status embeds the exact active spoken segment;
 legacy clips receive an equivalent one-segment caption payload. The focused
 manual-sink contract and full IPC/playback suites are green.
+
+## RED: Swift active-caption decoding
+
+The Swift `Utterance` model must decode document progress and the complete
+nested active-segment payload. Its initial seam decodes progress but
+deliberately leaves `activeSegment` nil.
+
+`swift test --quiet` exited 1 only on the expected non-nil `ActiveSegment`;
+segment count and completed count decoded correctly as controls.
