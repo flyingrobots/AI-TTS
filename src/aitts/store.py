@@ -21,6 +21,7 @@ from aitts.model import (
     Sensitivity,
     State,
     Utterance,
+    UtteranceSegment,
     can_transition,
     new_utterance_id,
 )
@@ -149,12 +150,14 @@ class Store:
         source: str | None = None,
         replay_of: str | None = None,
         at_head: bool = False,
+        spoken_segments: tuple[str, ...] | None = None,
     ) -> Utterance:
         """Accept text onto the input queue and return the Queued utterance.
 
         Sensitivity defaults to confidential: a caller cannot leak by
         forgetting, only by explicitly declaring text public (architecture §9).
         """
+        del spoken_segments
         now = time.time()
         order_key = self._head_order_key() if at_head else self._tail_order_key()
         utt = Utterance(
@@ -219,6 +222,11 @@ class Store:
             (utt_id,),
         ).fetchone()
         return _row_to_utterance(row) if row else None
+
+    def segments(self, utt_id: str) -> list[UtteranceSegment]:
+        """Return the ordered internal speech queue owned by ``utt_id``."""
+        del utt_id
+        return []
 
     def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
         placeholders = ",".join("?" * len(states))

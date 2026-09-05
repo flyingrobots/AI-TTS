@@ -296,6 +296,40 @@ def test_persistence_across_reopen(tmp_path: Path) -> None:
     st2.close()
 
 
+def test_composite_submission_persists_original_and_owned_spoken_segments(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "composite.db"
+    original = "# Opening\n\nOriginal **Markdown** remains searchable."
+    spoken = ("Opening.\n\nOriginal Markdown remains searchable.", "Second section.")
+    first = Store(database)
+    submitted = first.submit(
+        original,
+        voice="bm_george",
+        speed=1.25,
+        spoken_segments=spoken,
+    )
+    first.close()
+
+    reopened = Store(database)
+    parent = reopened.get(submitted.id)
+    segments = reopened.segments(submitted.id)
+    reopened.close()
+
+    assert {
+        "parent": (
+            None if parent is None else (parent.text, parent.voice, parent.speed, parent.state)
+        ),
+        "segments": [(item.index, item.text, item.state) for item in segments],
+    } == {
+        "parent": (original, "bm_george", 1.25, State.QUEUED),
+        "segments": [
+            (0, spoken[0], State.QUEUED),
+            (1, spoken[1], State.QUEUED),
+        ],
+    }
+
+
 def test_recover_requeues_synthesizing_and_pauses_playing(tmp_path: Path) -> None:
     db = tmp_path / "state.db"
     st = Store(db)

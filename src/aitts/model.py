@@ -105,3 +105,22 @@ class Utterance:
     def is_terminal(self) -> bool:
         """Whether this utterance has reached a final state."""
         return self.state in TERMINAL
+
+
+@dataclass(frozen=True, slots=True)
+class UtteranceSegment:
+    """One ordered, persisted synthesis/playback unit owned by an utterance."""
+
+    utterance_id: str
+    index: int
+    text: str
+    state: State
+    error: str | None = None
+    duration_ms: int | None = None
+    played_ms: int | None = None
+    audio_path: str | None = None
+
+    @property
+    def artifact_id(self) -> str:
+        """Return the cache-safe identity of this segment's audio artifact."""
+        return f"{self.utterance_id}_segment_{self.index:04d}"

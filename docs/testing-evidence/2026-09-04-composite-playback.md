@@ -93,3 +93,21 @@ inline child nodes. Its focused test exited 1 after losing the heading,
 emphasis, link label, image alt text, quote, list, and table cell content while
 the fenced-code leaf remained. The tree traversal was restored before the
 green run.
+
+## RED: durable parent-owned segment queue
+
+The storage contract enters through `Store.submit` and a reopen of its SQLite
+database. One parent must preserve the exact original Markdown plus its single
+voice and synthesis-speed profile, while an ordered child queue durably stores
+the clean spoken segments. Children begin Queued and do not duplicate mutable
+voice configuration.
+
+With `spoken_segments` accepted but intentionally discarded, this focused
+command exited 1:
+
+```console
+uv run pytest tests/test_store.py::test_composite_submission_persists_original_and_owned_spoken_segments -q
+```
+
+The reopened parent retained its original text and profile, while the observed
+child list was empty instead of the two expected Queued segments.
