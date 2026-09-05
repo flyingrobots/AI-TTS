@@ -244,3 +244,46 @@ async def test_first_composite_segment_is_ready_while_second_is_still_synthesizi
     finally:
         engine.release_second.set()
         task.cancel()
+
+
+async def test_later_segment_failure_fails_ready_parent_and_queue_continues(
+    store: Store,
+    cache_dir: Path,
+) -> None:
+    engine = FakeEngine(voices=["v"], fail_texts={"Bad segment."})
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
+    parent = store.submit(
+        "document",
+        voice="v",
+        speed=1.0,
+        spoken_segments=("Good segment.", "Bad segment."),
+    )
+    following = store.submit("following", voice="v", speed=1.0)
+    task = await run_pool(pool)
+
+    def following_is_ready_or_pool_crashed() -> bool:
+        item = store.get(following.id)
+        return task.done() or (item is not None and item.state is State.READY)
+
+    await wait_for(following_is_ready_or_pool_crashed, timeout=1)
+    parent_after = store.get(parent.id)
+    following_after = store.get(following.id)
+    observed = {
+        "parent_state": None if parent_after is None else parent_after.state,
+        "parent_error": None if parent_after is None else parent_after.error,
+        "segment_states": [segment.state for segment in store.segments(parent.id)],
+        "following_state": None if following_after is None else following_after.state,
+        "worker_running": not task.done(),
+    }
+    if task.done():
+        task.exception()
+    else:
+        task.cancel()
+
+    assert observed == {
+        "parent_state": State.FAILED,
+        "parent_error": "segment failed: synthesis failed for test input",
+        "segment_states": [State.CANCELLED, State.FAILED],
+        "following_state": State.READY,
+        "worker_running": True,
+    }

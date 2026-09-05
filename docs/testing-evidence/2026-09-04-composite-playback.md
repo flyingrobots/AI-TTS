@@ -364,3 +364,16 @@ is non-terminal. Eviction clears either kind of terminal reference and reports
 the combined row count. A parent terminal transition atomically cancels every
 non-terminal child while preserving already terminal child outcomes. Both
 focused contracts and the complete store suite are green.
+
+## RED: failure after first-segment readiness
+
+This bug regression runs a one-worker pool over a document whose first child
+succeeds and whose second child deterministically fails, followed by an
+ordinary clip. Because first-child publication intentionally makes the parent
+Ready, the later failure must still move that parent to Failed, settle sibling
+work, and leave the worker alive to synthesize the following clip.
+
+The focused test exited 1 against the unfixed state transition. The failed
+child and cancelled sibling were recorded, but the pool task crashed on the
+illegal Ready-to-Failed parent transition. The parent remained Ready without
+an error and the following clip remained Queued.
