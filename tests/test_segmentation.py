@@ -96,3 +96,18 @@ Win rate. 42%.
 
 print("ready")""",
     )
+
+
+def test_yaml_front_matter_is_metadata_not_spoken_content() -> None:
+    text = """---
+title: "Internal document title"
+date: 2026-09-04
+visibility: private
+---
+
+# Spoken title
+
+This body should be heard.
+"""
+
+    assert prepare_speech_segments(text) == ("Spoken title.\n\nThis body should be heard.",)

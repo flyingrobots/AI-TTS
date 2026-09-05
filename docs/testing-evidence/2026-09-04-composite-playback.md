@@ -406,3 +406,15 @@ under the fresh parent, preserving each path and duration; an incomplete cache
 falls back to ordinary child synthesis. The response reports the same
 composite shape as submission. The focused socket contract and complete IPC
 suite are green.
+
+## RED: YAML front matter is not narration
+
+The actual SalesOS Markdown begins with static-site YAML front matter. The
+document admission boundary must treat that delimited header as metadata and
+begin its spoken projection at the body heading; keys such as `date`,
+`visibility`, and `scope` must never become narration.
+
+The focused regression exited 1 against the AST-only Markdown path after the
+real document plan exposed its opening as `title: ... date: ...`. It returned
+the metadata as an extra first segment before the otherwise-correct body
+segment.
