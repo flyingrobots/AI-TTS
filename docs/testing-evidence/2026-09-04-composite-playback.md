@@ -187,3 +187,14 @@ single-clip prose stays on the legacy path; normalized Markdown or multi-part
 text stores child rows. Empty spoken projections fail closed. The response
 reports `segment_count` and `composite`, while all public queue/history text
 continues to come from the untouched parent. The focused IPC contract is green.
+
+## RED: nested playback serialization
+
+The playback contract places a normal clip after a two-child document. The
+single sink must start child zero, then child one, then the following parent;
+the latter remains Ready until the document reaches one parent-level Played
+state. Child lifecycle must be observable and overlap must remain zero.
+
+The focused test exited 1 immediately after the first plan cycle. Both children
+and the parent remained Ready and the sink started nothing, because legacy
+playback requires a single parent `audio_path`.

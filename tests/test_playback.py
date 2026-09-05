@@ -31,6 +31,17 @@ def make_ready(store: Store, text: str) -> Utterance:
     return store.transition(utt.id, State.READY, audio_path=f"/x/{utt.id}.wav", duration_ms=1000)
 
 
+def make_composite_ready(store: Store, text: str, segments: tuple[str, ...]) -> Utterance:
+    parent = store.submit(text, voice="v", speed=1.0, spoken_segments=segments)
+    for _ in segments:
+        work = store.claim_for_synthesis()
+        assert work is not None
+        store.finish_synthesis(work, audio_path=f"/x/{work.id}.wav", duration_ms=1000)
+    ready = store.get(parent.id)
+    assert ready is not None
+    return ready
+
+
 def state_of(store: Store, utt_id: str) -> State:
     got = store.get(utt_id)
     assert got is not None
@@ -158,6 +169,46 @@ async def test_plays_serially_in_submission_order(store: Store, sink: FakeSink) 
     assert [p.name for p in sink.started] == [f"{a.id}.wav", f"{b.id}.wav"]
     assert sink.overlaps == 0
     task.cancel()
+
+
+async def test_composite_blocks_following_clip_while_children_play_in_order(
+    store: Store,
+    sink: FakeSink,
+) -> None:
+    controller, schedule = playback_controller(store, sink)
+    document = make_composite_ready(store, "original document", ("part one", "part two"))
+    following = make_ready(store, "following")
+    task = await start(controller, schedule)
+    try:
+        assert {
+            "parent_state": state_of(store, document.id),
+            "segment_states": [segment.state for segment in store.segments(document.id)],
+            "started": [path.name for path in sink.started],
+        } == {
+            "parent_state": State.PLAYING,
+            "segment_states": [State.PLAYING, State.READY],
+            "started": [f"{document.id}_segment_0000.wav"],
+        }
+
+        sink.finish_current()
+        await wait_for(lambda: len(sink.started) == 2)
+        assert state_of(store, following.id) is State.READY
+        assert [segment.state for segment in store.segments(document.id)] == [
+            State.PLAYED,
+            State.PLAYING,
+        ]
+
+        sink.finish_current()
+        await wait_for(lambda: state_of(store, following.id) is State.PLAYING)
+        assert state_of(store, document.id) is State.PLAYED
+        assert [path.name for path in sink.started] == [
+            f"{document.id}_segment_0000.wav",
+            f"{document.id}_segment_0001.wav",
+            f"{following.id}.wav",
+        ]
+        assert sink.overlaps == 0
+    finally:
+        task.cancel()
 
 
 async def test_holds_order_when_head_is_not_ready(store: Store, sink: FakeSink) -> None:
