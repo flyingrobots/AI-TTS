@@ -1,10 +1,12 @@
 # Design documents
 
-Status: **the core design is implemented in v0.1.0; native OS entry points are
-accepted and planned next**. These documents remain the reference, and proposed
-behavior is labelled separately from shipped behavior. This file is the index:
-what each document covers, the order to read them in, and every question that
-is still open.
+Status: **the v0.1.0 design and native OS adapters are implemented**. Installed
+Services dispatch, the caption overlay, and App Intent indexing have direct
+system evidence. Representative host, live Accessibility, and real Shortcuts
+invocation acceptance remain open. These documents remain the reference, and
+proposed behavior is labelled separately from shipped behavior. This file is
+the index: what each document covers, the order to read them in, and which
+decisions or acceptance gates remain open.
 
 ## Scope
 
@@ -31,54 +33,59 @@ Out of scope for v1: multiple users, multiple machines, any network transport, a
 
 `features.md` separates *what* from *how* and is the document to argue with
 first. If a feature falls out of it, the sections built on that feature fall
-with it. `os-integration.md` is the implementation-ready decision record for
-the next native goalpost; it explicitly marks the ports that exist and the
-adapters that do not.
+with it. `os-integration.md` is the decision record and live acceptance ledger
+for native entry points; it distinguishes implemented adapters from system
+journeys that have not yet been exercised.
 
-## Open questions
+## Decision and acceptance ledger
 
-Every unresolved question across the set, in one list. The detail and the reasoning live at the linked sections; this is only the ledger.
+The original review questions are preserved below because their reasoning still
+defines the product boundary. Sections 1–14 were resolved for v0.1.0 as recorded
+in [How v0.1.0 answered these](#how-v010-answered-these). Question 15 remains a
+deliberately unresolved future policy choice. The native acceptance gates are
+tracked separately under **OS integration**.
 
 **Transport semantics** — the two most important, because they are the controls that get pressed most:
 
-1. What does **skip** actually do — abandon the current utterance, or drop the next one unheard? ([features §Open questions #1](features.md#open-questions))
-2. What does **rewind** actually do — back N seconds within the current utterance (and what is N?), or replay the previous one? ([features #2](features.md#open-questions), [architecture §10.1](architecture.md#10-open-questions-for-review))
+1. What does **skip** actually do — abandon the current utterance, or drop the next one unheard? ([features §Resolved questions #1](features.md#questions-resolved-for-v010))
+2. What does **rewind** actually do — back N seconds within the current utterance (and what is N?), or replay the previous one? ([features #2](features.md#questions-resolved-for-v010), [architecture §10.1](architecture.md#10-decisions-taken-at-implementation))
 
 **History:**
 
-3. "It should all be there" — permanent, with no automatic expiry? ([features #3](features.md#open-questions), [architecture §10.4](architecture.md#10-open-questions-for-review))
-4. Searchable and replayable, or only a record? ([features #4](features.md#open-questions))
-5. Where does history live and does it need protection beyond file permissions, given the text is client-confidential? ([features #5](features.md#open-questions))
+3. "It should all be there" — permanent, with no automatic expiry? ([features #3](features.md#questions-resolved-for-v010), [architecture §10.4](architecture.md#10-decisions-taken-at-implementation))
+4. Searchable and replayable, or only a record? ([features #4](features.md#questions-resolved-for-v010))
+5. Where does history live and does it need protection beyond file permissions, given the text is client-confidential? ([features #5](features.md#questions-resolved-for-v010))
 
 **Synthesis:**
 
-6. Confirm synthesis stays entirely on-machine, or name the exception explicitly. ([features #6](features.md#open-questions))
-7. Confirm "cached and ready" means synthesize *ahead of* playback. Most of the queue design rests on this reading. ([features #7](features.md#open-questions))
-8. On a voice change, what happens to audio already rendered in the old voice? ([features #8](features.md#open-questions))
+6. Confirm synthesis stays entirely on-machine, or name the exception explicitly. ([features #6](features.md#questions-resolved-for-v010))
+7. Confirm "cached and ready" means synthesize *ahead of* playback. Most of the queue design rests on this reading. ([features #7](features.md#questions-resolved-for-v010))
+8. On a voice change, what happens to audio already rendered in the old voice? ([features #8](features.md#questions-resolved-for-v010))
 
 **Ordering and scope:**
 
-9. Is playback order strictly submission order, even when a short item synthesizes first? ([features #9](features.md#open-questions))
-10. Are the input-queue and playback-queue views actually distinct in the UI, or one list with per-item state? ([features #10](features.md#open-questions))
-11. Is the full MUST set the v1, or should a smaller first cut be proposed as a separate document? ([features #11](features.md#open-questions))
+9. Is playback order strictly submission order, even when a short item synthesizes first? ([features #9](features.md#questions-resolved-for-v010))
+10. Are the input-queue and playback-queue views actually distinct in the UI, or one list with per-item state? ([features #10](features.md#questions-resolved-for-v010))
+11. Is the full MUST set the v1, or should a smaller first cut be proposed as a separate document? ([features #11](features.md#questions-resolved-for-v010))
 
 **Architecture:**
 
-12. Is within-utterance seeking required for v1, or is utterance-level rewind enough? ([architecture §10.1](architecture.md#10-open-questions-for-review))
-13. Are two priority levels (`normal`/`urgent`) sufficient, and is barge-in correctly off by default? ([architecture §10.2](architecture.md#10-open-questions-for-review))
-14. One output device, or is routing a setting the playback controller owns? ([architecture §10.3](architecture.md#10-open-questions-for-review))
-15. Should the daemon *refuse* text that looks confidential but was declared `public`, or is fail-closed defaulting enough? Deliberately unresolved. ([architecture §10.5](architecture.md#10-open-questions-for-review))
-16. Should history record which client submitted each utterance? ([architecture §10.6](architecture.md#10-open-questions-for-review))
+12. Is within-utterance seeking required for v1, or is utterance-level rewind enough? ([architecture §10.1](architecture.md#10-decisions-taken-at-implementation))
+13. Are two priority levels (`normal`/`urgent`) sufficient, and is barge-in correctly off by default? ([architecture §10.2](architecture.md#10-decisions-taken-at-implementation))
+14. One output device, or is routing a setting the playback controller owns? ([architecture §10.3](architecture.md#10-decisions-taken-at-implementation))
+15. Should the daemon *refuse* text that looks confidential but was declared `public`, or is fail-closed defaulting enough? Deliberately unresolved. ([architecture §10.5](architecture.md#10-decisions-taken-at-implementation))
+16. Should history record which client submitted an utterance? ([architecture §10.6](architecture.md#10-decisions-taken-at-implementation))
 
 **Engine** — none open. The evaluation closed with a recommendation (keep Kokoro-82M, local only) and a list of conditions that would reopen it ([engine-evaluation §5](engine-evaluation.md#5-what-would-change-this-answer)).
 
-**OS integration** — none open for the first goalpost. macOS Services are the
+**OS integration** — no design decisions remain open. macOS Services are the
 primary selected-text and selected-file entry points; text is literal,
 confidential, and Normal; one file reuses `DocumentEnqueueing`; Accessibility
 is an explicit implemented fallback and never a background detector; clipboard
 input is explicit and non-mutating. Six App Intents now have validated bundle
 metadata and verified installed system indexing; real invocation remains a
-separate acceptance gate.
+separate acceptance gate. The representative host matrix and live Accessibility
+journey are also acceptance work, not implementation gaps.
 Multi-file Service admission is deferred rather than left ambiguous.
 See [`os-integration.md`](os-integration.md).
 

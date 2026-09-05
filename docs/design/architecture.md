@@ -539,7 +539,12 @@ Every utterance carries a classification, assigned at submit and immutable there
 - **The socket is `0600`**; the state DB and cache are user-only.
 - **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs an explicit delete, single entry and range, and that delete must remove the audio too.
 
-## 10. Open questions for review
+## 10. Decisions taken at implementation
+
+The original review questions are preserved below. Items 1–4 and 6 were
+resolved for v0.1.0 in [`README.md`](README.md#how-v010-answered-these); item 5
+remains deliberately unresolved because the implemented fail-closed default is
+safe without a heuristic content sniffer.
 
 1. **Rewind granularity** — is within-utterance seeking required, or is utterance-level rewind enough for v1? Seeking needs the offset tracked and complicates resume-after-restart.
 2. **Priority levels** — is `normal`/`urgent` sufficient, or is a numeric priority wanted? Barge-in default (off) is a judgement call worth confirming.

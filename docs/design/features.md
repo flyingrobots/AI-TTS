@@ -63,7 +63,7 @@ These are not anecdotes. **Serialized playback** and **an exit code that reflect
 
 This tool speaks whatever its callers hand it, and in practice that includes **material its user is obliged to keep confidential** — personal names and internal identifiers among them.
 
-He did not say this — it is an observation about the material, not an instruction — but it constrains two areas that would otherwise have easy answers: **where history is stored** and **whether synthesis may ever leave the machine**. Both are marked **[INFERRED]** and both appear in [Open questions](#open-questions).
+He did not say this — it is an observation about the material, not an instruction — but it constrains two areas that would otherwise have easy answers: **where history is stored** and **whether synthesis may ever leave the machine**. Both are marked **[INFERRED]** and their original review questions are preserved in [Questions resolved for v0.1.0](#questions-resolved-for-v010).
 
 Stated at this level on purpose. **This repository is public**, so the design constraint belongs here and the specifics of what has passed through the tool do not.
 
@@ -117,7 +117,7 @@ The internal input queue and the work of turning text into audio. It is not a se
 
 **2.5** is unstated and load-bearing. A queue that stops on one bad item is a queue that stops. Given that four failures tonight were silent, the failure mode to design against is *the system quietly ceasing to speak*.
 
-**2.7** is ours, and the confidentiality point applies: cached audio of confidential text accumulating without bound on disk is a real consideration and not merely a housekeeping one. See §5 and [Open questions](#open-questions).
+**2.7** is ours, and the confidentiality point applies: cached audio of confidential text accumulating without bound on disk is a real consideration and not merely a housekeeping one. See §5 and [Questions resolved for v0.1.0](#questions-resolved-for-v010).
 
 **2.9–2.12 were later requested and implemented.** The exact submitted input
 remains the one queue/history record. Its private child queue prefers structural
@@ -175,7 +175,7 @@ rewind"*.
 - **Skip** could mean: abandon the current utterance and start the next one, or drop the next item without playing it. The first is the common reading. He does not say.
 - **Rewind** is ambiguous in two directions at once. **Within the current utterance** — go back some number of seconds, and he does not say how many — or **across the queue**, meaning replay the previous utterance, which is really a history operation. His pairing of it with "pause, skip" suggests a transport control; the existence of a full history (§5) makes the second reading plausible too.
 
-Both are in [Open questions](#open-questions). **We recommend not guessing**: these are the two controls he will use most and the cost of picking wrong is that the buttons feel wrong every time.
+Both are preserved in [Questions resolved for v0.1.0](#questions-resolved-for-v010). The implementation choices remain explicit because these are the two controls the user will press most often and a semantic change must be deliberate.
 
 **4.4** is unstated and would be an obvious bug if missed.
 
@@ -208,7 +208,7 @@ audio source without restarting it.
 
 **5.11 and 5.12 are later direct requirements.** Re-queue creates a new hearing while retaining the original record and its priority as provenance. Normal appends; Urgent becomes next after the current clip. Deleting history records is intentionally separate from cache eviction.
 
-**5.10 is where the confidentiality point bites.** A complete permanent history of this text is a plaintext record of confidential material sitting in a file on disk. That may be entirely fine — it is his machine — but it should be a decision he makes rather than a consequence of the word "all". Storage location, file permissions, and whether history is ever written unencrypted are in [Open questions](#open-questions).
+**5.10 is where the confidentiality point bites.** A complete permanent history of this text is a plaintext record of confidential material sitting in a file on disk. That may be entirely fine — it is his machine — but it should be a decision he makes rather than a consequence of the word "all". The adopted storage, permission, and retention decisions are linked from [Questions resolved for v0.1.0](#questions-resolved-for-v010).
 
 ## 6. Menu-bar UI
 
@@ -265,7 +265,7 @@ fail locally with guidance instead of becoming empty queue entries.
 
 **7.1** is *"THE BM Daniels setting could be something that is configurable in that application itself"*. Note **his own "could"** — this is the one feature he explicitly softened, and we have kept it **MUST** anyway only because "configurable in the application" is trivially cheap once a settings surface exists. **If a settings surface does not exist in v1, this drops to SHOULD without argument.**
 
-**7.4** matters because of the cache: if audio is synthesised ahead, a voice change mid-queue leaves already-rendered items in the old voice. Re-synthesising them is a choice, not an obvious answer. In [Open questions](#open-questions).
+**7.4** matters because of the cache: if audio is synthesised ahead, a voice change mid-queue leaves already-rendered items in the old voice. Re-synthesising them is a choice, not an obvious answer. The immutable-at-admission decision is linked from [Questions resolved for v0.1.0](#questions-resolved-for-v010).
 
 **7.8** is ours and speculative, but it is the kind of thing that is nearly free if the submission API carries a caller identifier from the start (§1.5, §8.2) and awkward to retrofit.
 
@@ -398,11 +398,14 @@ Nothing below came from the original brief. Several items were later requested o
 
 Twenty-five proposals. **Eight are SHOULD** — 2.7, 3.7, 5.6, 5.7, 6.10, 8.4, 8.5, 8.7 — and those are the ones we would argue for. The other seventeen are **COULD** and we would not.
 
-## Open questions
+## Questions resolved for v0.1.0
 
-These are the ones where guessing is worse than asking. **This section is why the document is worth reviewing rather than approving.**
+These are the questions that made the original feature proposal reviewable.
+They are retained as decision provenance, not as current blockers. The adopted
+answers are recorded together in
+[`README.md` § How v0.1.0 answered these](README.md#how-v010-answered-these).
 
-**Transport semantics — the two we most need answered.**
+**Transport semantics.**
 
 1. **What does *skip* do?** Abandon the current utterance and move to the next, or drop the next item unheard?
 2. **What does *rewind* do?** Go back N seconds within the current utterance — and if so, **what is N?** — or replay the previous utterance? Both readings fit what you said, and these are the controls you will press most often.
@@ -422,7 +425,7 @@ These are the ones where guessing is worse than asking. **This section is why th
 **Ordering and scope.**
 
 9. **Is playback order strictly submission order?** If synthesis is concurrent, a short item can be ready first. We assume submission order (3.5).
-10. **Resolved:** the input and playback queues remain distinct internally but are one user-facing Queue with per-item state.
+10. **The input and playback queues remain distinct internally but are one user-facing Queue with per-item state.**
 11. **What is in v1?** Everything marked MUST here is roughly *the product as you described it*. That is a large v1. **We can propose a smaller first cut if you would rather see something working sooner** — say the word and that is a separate document.
 
 ## What is deliberately not in this document

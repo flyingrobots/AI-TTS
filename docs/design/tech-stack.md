@@ -1,9 +1,11 @@
 # AI-TTS — Tech stack
 
-Status: **accepted for v0.1.0, with the post-v0.1.0 native OS integration
-stack accepted and planned**. Where a choice could reasonably go the other way,
-the alternative is written down with the reason it lost, so a later review can
-overturn the choice rather than re-derive it.
+Status: **implemented for v0.1.0 and the native OS integration goalpost**.
+Installed Services dispatch and App Intent indexing have direct system
+evidence; representative host, live Accessibility, and real Shortcuts
+invocation acceptance remain open. Where a choice could reasonably go the
+other way, the alternative is written down with the reason it lost, so a later
+review can overturn the choice rather than re-derive it.
 
 The constraints doing the work here come from the other documents:
 
@@ -76,13 +78,13 @@ in [`os-integration.md`](os-integration.md).
 | Clipboard fallback | Read-only AppKit pasteboard adapter | Works after an explicit copy and never saves, replaces, or restores clipboard state |
 | Automation | `AppIntents` in the menu executable | Typed Shortcuts, Siri, and Spotlight actions reuse existing application ports; compiler metadata is generated and validated before signing |
 
-The Swift package should add a sibling `AITTSMacEntryPoints` target for the
-Services provider and optional Accessibility and clipboard adapters. It depends
-inward on `AITTSApplication`; the `AITTSMenuBar` executable remains the
-composition root that registers the provider and injects `EnqueueSelection`
-and `EnqueueDocument`. `AITTSApplication` imports no AppKit or
-ApplicationServices types, and `AITTSMacAdapters` continues to own outbound
-file/PDF and Unix-socket translation.
+The Swift package has a sibling `AITTSMacEntryPoints` target for the Services
+provider and explicit Accessibility and clipboard adapters. It depends inward
+on `AITTSApplication`; the `AITTSMenuBar` executable remains the composition
+root that registers the provider and injects `EnqueueSelection` and
+`EnqueueDocument`. `AITTSApplication` imports no AppKit or ApplicationServices
+types, and `AITTSMacAdapters` continues to own outbound file/PDF and Unix-socket
+translation.
 
 The hand-built app bundle is a load-bearing part of this choice. The builder
 generates both Service dictionaries under `NSServices`, performs Swift constant
@@ -122,5 +124,5 @@ Merely compiling an `AppIntent` type is not distribution proof.
 ## What I could not establish
 
 - **Actual synthesis throughput of `kokoro` on PyTorch/MPS on the target machine.** Every performance figure inherited from the engine evaluation is `unverified`. Fix: a ten-line spike script against the environment that already exists at `~/git/kokoro`, timed, before the queue design is validated against real numbers.
-- **Whether `sounddevice` supports pause-and-resume at a sample offset cleanly on CoreAudio**, which within-utterance rewind ([architecture §10.1](architecture.md#10-open-questions-for-review)) would need. If it does not, the fallback is chunk-granular seeking, which is another argument for utterance-level rewind in v1.
+- **Whether `sounddevice` supports pause-and-resume at a sample offset cleanly on CoreAudio**, which within-utterance rewind ([architecture §10.1](architecture.md#10-decisions-taken-at-implementation)) would need. If it does not, the fallback is chunk-granular seeking, which is another argument for utterance-level rewind in v1.
 - **Whether `misaki` operates fully without espeak-ng present.** The working install at `~/git/kokoro` has `espeakng-loader` present, so it demonstrates the path *with* the fallback, not without it. This is the licence question above wearing its practical clothes.
