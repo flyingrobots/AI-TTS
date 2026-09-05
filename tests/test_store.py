@@ -386,6 +386,53 @@ def test_recover_requeues_synthesizing_and_pauses_playing(tmp_path: Path) -> Non
     st2.close()
 
 
+def test_recover_repairs_interrupted_children_without_replaying_completed_work(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "composite-recovery.db"
+    original = Store(database)
+    parent = original.submit(
+        "document",
+        voice="v",
+        speed=1.0,
+        spoken_segments=("playing", "synthesizing", "already ready"),
+    )
+    first = original.claim_for_synthesis()
+    second = original.claim_for_synthesis()
+    third = original.claim_for_synthesis()
+    assert first is not None
+    assert second is not None
+    assert third is not None
+    original.finish_synthesis(first, audio_path="first.wav", duration_ms=1000)
+    original.finish_synthesis(third, audio_path="third.wav", duration_ms=1000)
+    original.transition(parent.id, State.PLAYING, played_ms=400)
+    original.transition_segment(parent.id, 0, State.PLAYING, played_ms=400)
+    original.close()
+
+    restarted = Store(database)
+    restarted.recover()
+    recovered_parent = restarted.get(parent.id)
+    recovered_segments = restarted.segments(parent.id)
+    restarted.close()
+
+    assert {
+        "parent": None
+        if recovered_parent is None
+        else (recovered_parent.state, recovered_parent.played_ms),
+        "segments": [
+            (segment.index, segment.state, segment.played_ms, segment.audio_path)
+            for segment in recovered_segments
+        ],
+    } == {
+        "parent": (State.PAUSED, 400),
+        "segments": [
+            (0, State.PAUSED, 400, "first.wav"),
+            (1, State.QUEUED, None, None),
+            (2, State.READY, None, "third.wav"),
+        ],
+    }
+
+
 @pytest.mark.parametrize("crash_after", [1, 2, 3], ids=lambda seed: f"after_commit_{seed}")
 def test_recovery_converges_after_each_committed_crash_point(
     tmp_path: Path,

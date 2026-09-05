@@ -207,3 +207,15 @@ waiting between children, accumulates document position from completed child
 durations, and releases the top-level queue only when no child remains. The
 focused contract observed child 0, child 1, then the following legacy clip,
 with zero overlap; the complete playback suite is green.
+
+## RED: composite crash recovery
+
+The recovery test persists a document with child zero Playing at 400 ms, child
+one Synthesizing, and child two already Ready. After reopening, the parent and
+active child must be Paused at the recorded position, interrupted synthesis
+must be Queued, and the completed artifact must remain Ready rather than being
+replayed.
+
+The focused test exited 1. Parent recovery already produced Paused at 400 ms,
+but its children remained Playing and Synthesizing; the independently Ready
+child stayed correct as the control.
