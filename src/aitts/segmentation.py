@@ -6,6 +6,10 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+
+from markdown_it import MarkdownIt
+from markdown_it.tree import SyntaxTreeNode
 
 TARGET_SEGMENT_WORDS = 180
 MAX_SEGMENT_WORDS = 220
@@ -14,6 +18,18 @@ _WORD = re.compile(r"[A-Za-z0-9]+")
 _MARKDOWN_HEADING = re.compile(r"(?m)^[ \t]{0,3}#{1,6}[ \t]+")
 _PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n")
 _SENTENCE_BREAK = re.compile(r"[.!?](?:[\]\)\"']*)\s")
+_PLAIN_MARKDOWN_NODES = frozenset({"root", "paragraph", "inline", "text", "softbreak"})
+_INLINE_BREAK_NODES = frozenset({"softbreak", "hardbreak"})
+_CODE_NODES = frozenset({"code_block", "fence"})
+_TABLE_CELL_NODES = frozenset({"th", "td"})
+_TERMINAL_PUNCTUATION = (".", "!", "?", ":", ";")
+_TASK_MARKER = re.compile(r"^\[[ xX]\][ \t]+")
+
+
+@dataclass(frozen=True, slots=True)
+class _SpokenBlock:
+    text: str
+    starts_section: bool = False
 
 
 def segment_text(text: str) -> tuple[str, ...]:
@@ -32,7 +48,103 @@ def segment_text(text: str) -> tuple[str, ...]:
 
 def prepare_speech_segments(text: str) -> tuple[str, ...]:
     """Return the engine-neutral spoken projection of a submitted document."""
-    return segment_text(text)
+    tree = SyntaxTreeNode(MarkdownIt("gfm-like", {"html": False, "linkify": False}).parse(text))
+    if _is_plain_text_tree(tree):
+        return segment_text(text)
+
+    sections: list[list[str]] = []
+    current: list[str] = []
+    for block in _render_blocks(tree):
+        if block.starts_section and current:
+            sections.append(current)
+            current = []
+        if block.text:
+            current.append(block.text)
+    if current:
+        sections.append(current)
+
+    return tuple(
+        segment
+        for section in sections
+        for segment in segment_text("\n\n".join(section))
+        if segment.strip()
+    )
+
+
+def _is_plain_text_tree(node: SyntaxTreeNode) -> bool:
+    return all(
+        child.type in _PLAIN_MARKDOWN_NODES and _is_plain_text_tree(child)
+        for child in node.children
+    )
+
+
+def _render_blocks(node: SyntaxTreeNode) -> tuple[_SpokenBlock, ...]:
+    rendered: list[_SpokenBlock] = []
+    for child in node.children:
+        if child.type == "heading":
+            rendered.append(
+                _SpokenBlock(
+                    _with_terminal_punctuation(_inline_text(child)),
+                    starts_section=True,
+                )
+            )
+        elif child.type == "paragraph":
+            rendered.append(_SpokenBlock(_inline_text(child)))
+        elif child.type in _CODE_NODES:
+            rendered.append(_SpokenBlock(child.content.strip()))
+        elif child.type in {"bullet_list", "ordered_list"}:
+            rendered.append(_SpokenBlock(_render_list(child)))
+        elif child.type == "table":
+            rendered.append(_SpokenBlock(_render_table(child)))
+        elif child.type != "hr":
+            rendered.extend(_render_blocks(child))
+    return tuple(rendered)
+
+
+def _render_list(node: SyntaxTreeNode) -> str:
+    start = int(node.attrs.get("start", 1)) if node.type == "ordered_list" else None
+    items: list[str] = []
+    for offset, item in enumerate(node.children):
+        content = " ".join(block.text for block in _render_blocks(item) if block.text)
+        content = _TASK_MARKER.sub("", content)
+        if start is not None:
+            content = f"{start + offset}. {content}"
+        items.append(_with_terminal_punctuation(content))
+    return "\n".join(items)
+
+
+def _render_table(node: SyntaxTreeNode) -> str:
+    rows: list[str] = []
+    for row in _nodes_of_type(node, "tr"):
+        cells = [_inline_text(cell) for cell in row.children if cell.type in _TABLE_CELL_NODES]
+        rows.append(_with_terminal_punctuation(". ".join(cell for cell in cells if cell)))
+    return "\n".join(row for row in rows if row)
+
+
+def _nodes_of_type(node: SyntaxTreeNode, node_type: str) -> tuple[SyntaxTreeNode, ...]:
+    found: list[SyntaxTreeNode] = []
+    for child in node.children:
+        if child.type == node_type:
+            found.append(child)
+        else:
+            found.extend(_nodes_of_type(child, node_type))
+    return tuple(found)
+
+
+def _inline_text(node: SyntaxTreeNode) -> str:
+    pieces: list[str] = []
+    for child in node.children:
+        if child.type in _INLINE_BREAK_NODES:
+            pieces.append(" ")
+        elif child.children:
+            pieces.append(_inline_text(child))
+        elif child.type != "html_inline":
+            pieces.append(child.content)
+    return re.sub(r"\s+", " ", "".join(pieces)).strip()
+
+
+def _with_terminal_punctuation(text: str) -> str:
+    return text if not text or text.endswith(_TERMINAL_PUNCTUATION) else f"{text}."
 
 
 def _structural_sections(text: str) -> tuple[str, ...]:

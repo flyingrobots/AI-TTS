@@ -65,7 +65,7 @@ def test_plain_text_speech_plan_retains_exact_clip_identity() -> None:
 def test_markdown_speech_plan_removes_syntax_and_adds_prosody_hints() -> None:
     text = """# Revenue **Review**
 
-Read [SalesOS](https://example.test) and `OpportunityPort`.
+Read [**SalesOS**](https://example.test) and `OpportunityPort`. ![Pipeline diagram](diagram.png)
 
 > **Important:** no raw markup.
 
@@ -84,7 +84,7 @@ print("ready")
     assert prepare_speech_segments(text) == (
         """Revenue Review.
 
-Read SalesOS and OpportunityPort.
+Read SalesOS and OpportunityPort. Pipeline diagram
 
 Important: no raw markup.
 

@@ -73,3 +73,23 @@ uv run pytest tests/test_segmentation.py -q
 The Markdown example returned every raw marker and the link destination instead
 of the expected spoken text. The adjacent plain-text identity control passed,
 isolating the missing normalization behavior.
+
+## GREEN: AST-based Markdown projection
+
+`prepare_speech_segments` now parses GitHub-flavored Markdown with
+`markdown-it-py` and walks its syntax tree. Structural nodes drive boundaries
+and punctuation while leaf text supplies spoken content. HTML interpretation
+and automatic URL linking are disabled. Plain-text-only trees still return the
+original clip byte for byte.
+
+The focused suite is green:
+
+```console
+uv run pytest tests/test_segmentation.py -q
+```
+
+The nested-node oracle was calibrated by temporarily dropping traversal into
+inline child nodes. Its focused test exited 1 after losing the heading,
+emphasis, link label, image alt text, quote, list, and table cell content while
+the fenced-code leaf remained. The tree traversal was restored before the
+green run.
