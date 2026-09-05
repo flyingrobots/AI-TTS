@@ -426,3 +426,38 @@ Admission now recognizes one leading `---` YAML fence (including the standard
 through the Markdown AST. An unterminated or non-leading thematic break remains
 ordinary Markdown. The focused regression and complete segmentation suite are
 green.
+
+## Final verification
+
+The complete repository gates passed on the final implementation tree:
+
+```console
+uv run ruff check
+# All checks passed!
+
+uv run ruff format --check
+# 84 files already formatted
+
+uv run mypy
+# Success: no issues found in 57 source files
+
+uv run pytest
+# 193 passed in 4.31s
+
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test
+# 13 tests, 0 failures
+
+swift build
+# Build complete
+
+cd ../..
+uv build
+# source distribution and wheel built successfully
+```
+
+The production document requested for playback was also projected through the
+final admission code without synthesizing it again. Its exact 44,267-character
+source became 49 child clips and 5,605 spoken words; the largest clip was 192
+words. The first clip begins `SalesOS recent development history.` rather than
+the YAML metadata that preceded the body.
