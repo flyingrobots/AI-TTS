@@ -270,3 +270,13 @@ the source, position, state, and persistence controls unchanged while the sink
 remained at 1.0. The IPC test accepts exactly the six requested choices and
 rejects 1.25. The existing exact settings-response test also RED-confirmed the
 new field before its expected wire shape was updated.
+
+## RED: menu-bar playback-rate contract
+
+The Swift wire model must expose the daemon's persisted playback rate, and its
+UI enum must enumerate exactly the six requested values and labels in dropdown
+order. The initial seam deliberately defaults decoded snapshots to 1.0.
+
+`swift test --quiet` exited 1 only at snapshot decoding: the choice/label
+contract passed, while a wire value of 1.5 was observed as the deliberate 1.0
+default.

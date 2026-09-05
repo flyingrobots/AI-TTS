@@ -91,14 +91,20 @@ final class WireProtocolTests: XCTestCase {
             "input": [["id": "utt_2", "text": "next", "voice": "v", "state": "Queued"]],
             "history": [],
             "voices": ["bm_daniel"],
-            "settings": ["voice": "bm_daniel", "speed": 1.25],
+            "settings": ["voice": "bm_daniel", "speed": 1.25, "playback_rate": 1.5],
         ])
         XCTAssertEqual(snapshot?.status.playbackState, "playing")
         XCTAssertEqual(snapshot?.status.current?.positionMs, 42)
         XCTAssertEqual(snapshot?.plan.count, 2)
         XCTAssertEqual(snapshot?.plan.last?.state, "Queued")
         XCTAssertEqual(snapshot?.speed, 1.25)
+        XCTAssertEqual(snapshot?.playbackRate, 1.5)
         XCTAssertEqual(snapshot?.status.engine, "kokoro")
+    }
+
+    func testPlaybackRateChoicesMatchTransportContract() {
+        XCTAssertEqual(PlaybackRate.allCases.map(\.rawValue), [0.5, 0.75, 1, 1.5, 2, 3])
+        XCTAssertEqual(PlaybackRate.allCases.map(\.label), ["0.5×", "0.75×", "1×", "1.5×", "2×", "3×"])
     }
 
     func testDaemonStatusFallsBackToLegacyState() {

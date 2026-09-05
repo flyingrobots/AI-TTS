@@ -24,6 +24,17 @@ enum RequeuePriority: String, CaseIterable, Equatable {
     }
 }
 
+enum PlaybackRate: Double, CaseIterable, Equatable {
+    case half = 0.5
+    case threeQuarters = 0.75
+    case normal = 1.0
+    case oneAndHalf = 1.5
+    case double = 2.0
+    case triple = 3.0
+
+    var label: String { String(format: "%g×", rawValue) }
+}
+
 struct Utterance: Identifiable, Equatable {
     let id: String
     let text: String
@@ -88,6 +99,7 @@ struct Snapshot {
     let history: [Utterance]
     let voices: [String]
     let speed: Double
+    let playbackRate: Double
 
     init?(json: [String: Any]) {
         guard let statusJson = json["status"] as? [String: Any],
@@ -100,6 +112,7 @@ struct Snapshot {
         self.voices = json["voices"] as? [String] ?? []
         let settings = json["settings"] as? [String: Any]
         self.speed = settings?["speed"] as? Double ?? 1.0
+        self.playbackRate = 1.0
     }
 
     private static func items(_ value: Any?) -> [Utterance] {
