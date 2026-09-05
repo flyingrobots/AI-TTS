@@ -274,6 +274,15 @@ class Store:
         ).fetchall()
         return [_row_to_segment(row) for row in rows]
 
+    def get_segment(self, utt_id: str, index: int) -> UtteranceSegment | None:
+        """Return one child segment by parent and index, or None."""
+        row = self._db.execute(
+            f"SELECT {_SEGMENT_COLUMNS} FROM utterance_segments "  # noqa: S608
+            "WHERE utterance_id = ? AND segment_index = ?",
+            (utt_id, index),
+        ).fetchone()
+        return _row_to_segment(row) if row else None
+
     def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
         placeholders = ",".join("?" * len(states))
         rows = self._db.execute(
@@ -462,6 +471,100 @@ class Store:
             voice=row["voice"],
             speed=row["speed"],
         )
+
+    def synthesis_work_is_active(self, work: SynthesisWork) -> bool:
+        """Return whether a claimed engine job may still publish its result."""
+        parent = self.get(work.utterance_id)
+        if parent is None or parent.is_terminal:
+            return False
+        if work.segment_index is None:
+            return parent.state is State.SYNTHESIZING
+        segment = self.get_segment(work.utterance_id, work.segment_index)
+        return segment is not None and segment.state is State.SYNTHESIZING
+
+    def finish_synthesis(
+        self,
+        work: SynthesisWork,
+        *,
+        audio_path: str,
+        duration_ms: int | None,
+    ) -> None:
+        """Publish lifecycle metadata for one successfully rendered work item."""
+        if work.segment_index is None:
+            self.transition(
+                work.utterance_id,
+                State.READY,
+                audio_path=audio_path,
+                duration_ms=duration_ms,
+            )
+            return
+
+        cursor = self._db.execute(
+            "UPDATE utterance_segments SET state = ?, audio_path = ?, duration_ms = ? "
+            "WHERE utterance_id = ? AND segment_index = ? AND state = ?",
+            (
+                State.READY.value,
+                audio_path,
+                duration_ms,
+                work.utterance_id,
+                work.segment_index,
+                State.SYNTHESIZING.value,
+            ),
+        )
+        if cursor.rowcount != 1:
+            self._db.rollback()
+            msg = f"synthesis work {work.id!r} is no longer active"
+            raise TransitionError(msg)
+        self._commit_or_rollback()
+        if work.segment_index == 0:
+            parent = self.get(work.utterance_id)
+            if parent is not None and parent.state is State.SYNTHESIZING:
+                self.transition(parent.id, State.READY)
+        self._refresh_composite_duration(work.utterance_id)
+
+    def fail_synthesis(self, work: SynthesisWork, error: str) -> None:
+        """Fail one engine job and its owning parent without stalling the queue."""
+        if work.segment_index is None:
+            self.transition(work.utterance_id, State.FAILED, error=error)
+            return
+        self._db.execute(
+            "UPDATE utterance_segments SET state = ?, error = ? "
+            "WHERE utterance_id = ? AND segment_index = ? AND state = ?",
+            (
+                State.FAILED.value,
+                error,
+                work.utterance_id,
+                work.segment_index,
+                State.SYNTHESIZING.value,
+            ),
+        )
+        self._db.execute(
+            "UPDATE utterance_segments SET state = ? WHERE utterance_id = ? AND state IN (?, ?, ?)",
+            (
+                State.CANCELLED.value,
+                work.utterance_id,
+                State.QUEUED.value,
+                State.SYNTHESIZING.value,
+                State.READY.value,
+            ),
+        )
+        self._commit_or_rollback()
+        parent = self.get(work.utterance_id)
+        if parent is not None and not parent.is_terminal:
+            self.transition(parent.id, State.FAILED, error=f"segment failed: {error}")
+
+    def _refresh_composite_duration(self, utt_id: str) -> None:
+        row = self._db.execute(
+            "SELECT COUNT(*) AS total, COUNT(duration_ms) AS measured, "
+            "SUM(duration_ms) AS duration FROM utterance_segments WHERE utterance_id = ?",
+            (utt_id,),
+        ).fetchone()
+        if row is not None and row["total"] > 0 and row["total"] == row["measured"]:
+            self._db.execute(
+                "UPDATE utterances SET duration_ms = ? WHERE id = ?",
+                (row["duration"], utt_id),
+            )
+            self._commit_or_rollback()
 
     def move_to_head(self, utt_id: str) -> Utterance:
         """Reorder an utterance to the front of the plan."""

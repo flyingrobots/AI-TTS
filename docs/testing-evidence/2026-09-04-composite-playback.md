@@ -159,3 +159,12 @@ and store rather than mocking their collaboration.
 The focused test exited 1 at its one-second deterministic deadline: the pool
 looked up the child artifact id as though it were a parent id, synthesized
 nothing, and therefore never reached the second-child gate.
+
+## GREEN: first-segment readiness
+
+The pool now carries `SynthesisWork` through target allocation, engine calls,
+artifact publication, and completion. Publishing child zero marks the parent
+Ready immediately; later children continue through the same workers. The
+deterministic second-child gate observed the parent and first child Ready while
+the second child remained Synthesizing, with `bm_george` at 1.5 on both engine
+calls. The full synthesis and store suites are green.

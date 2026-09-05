@@ -16,13 +16,12 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING
 
-from aitts.model import State
-
 if TYPE_CHECKING:
     from pathlib import Path
 
     from aitts.application.artifacts import AudioArtifactPort
     from aitts.engine import Engine
+    from aitts.model import SynthesisWork
     from aitts.store import Store
 
 log = logging.getLogger(__name__)
@@ -65,39 +64,39 @@ class SynthesisPool:
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._wake.wait(), timeout=0.5)
                 continue
-            await self._synthesize_one(claimed.id)
+            await self._synthesize_one(claimed)
 
-    async def _synthesize_one(self, utt_id: str) -> None:
-        utt = self._store.get(utt_id)
-        if utt is None:  # pragma: no cover - claimed rows exist
-            return
+    async def _synthesize_one(self, work: SynthesisWork) -> None:
         try:
-            out_path = self._artifacts.target(utt.id)
+            out_path = self._artifacts.target(work.id)
         except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
-            self._record_failure(utt_id, f"artifact target failed: {exc}")
+            self._record_failure(work, f"artifact target failed: {exc}")
             return
         try:
             duration_ms = await asyncio.to_thread(
-                self._engine.synthesize, utt.text, utt.voice, utt.speed, out_path
+                self._engine.synthesize,
+                work.text,
+                work.voice,
+                work.speed,
+                out_path,
             )
         except Exception as exc:  # noqa: BLE001 - any engine failure is Failed, not fatal
-            self._finish(utt_id, error=str(exc), out_path=out_path)
+            self._finish(work, error=str(exc), out_path=out_path)
             return
-        self._finish(utt_id, duration_ms=duration_ms, out_path=out_path)
+        self._finish(work, duration_ms=duration_ms, out_path=out_path)
 
     def _finish(
         self,
-        utt_id: str,
+        work: SynthesisWork,
         *,
         duration_ms: int | None = None,
         error: str | None = None,
         out_path: Path,
     ) -> None:
-        current = self._store.get(utt_id)
-        if current is None or current.state is not State.SYNTHESIZING:
+        if not self._store.synthesis_work_is_active(work):
             # Cancelled underneath us: the engine could not abort, so the
             # result is discarded on completion (architecture §7).
-            self._discard(utt_id, out_path)
+            self._discard(work.id, out_path)
             return
         failure = error
         if failure is None:
@@ -111,19 +110,18 @@ class SynthesisPool:
         published_path: Path | None = None
         if failure is None:
             try:
-                published_path = self._artifacts.publish(utt_id, out_path)
+                published_path = self._artifacts.publish(work.id, out_path)
             except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
                 failure = f"artifact publication failed: {exc}"
         if failure is not None:
-            self._discard(utt_id, out_path)
-            self._record_failure(utt_id, failure)
+            self._discard(work.id, out_path)
+            self._record_failure(work, failure)
             return
         if published_path is None:  # pragma: no cover - guarded by failure handling
-            self._record_failure(utt_id, "artifact publication returned no path")
+            self._record_failure(work, "artifact publication returned no path")
             return
-        self._store.transition(
-            utt_id,
-            State.READY,
+        self._store.finish_synthesis(
+            work,
             audio_path=str(published_path),
             duration_ms=duration_ms,
         )
@@ -142,8 +140,7 @@ class SynthesisPool:
         if not discarded:
             log.warning("could not discard failed synthesis artifact for %s: %s", utt_id, out_path)
 
-    def _record_failure(self, utt_id: str, error: str) -> None:
-        current = self._store.get(utt_id)
-        if current is not None and current.state is State.SYNTHESIZING:
-            self._store.transition(utt_id, State.FAILED, error=error)
-        log.warning("synthesis failed for %s: %s", utt_id, error)
+    def _record_failure(self, work: SynthesisWork, error: str) -> None:
+        if self._store.synthesis_work_is_active(work):
+            self._store.fail_synthesis(work, error)
+        log.warning("synthesis failed for %s: %s", work.id, error)
