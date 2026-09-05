@@ -16,10 +16,11 @@ related:
 
 # Read anywhere on macOS
 
-**Decision:** accepted on 2026-09-05. **Implementation status:** planned after
-v0.1.0; none of the OS entry points in this document are present at
-`7c1e99e`. The document distinguishes implemented foundations from planned
-adapters so that design intent never masquerades as product behavior.
+**Decision:** accepted on 2026-09-05. **Implementation status:** the shared
+selected-text use case and native text/file Service adapters are implemented;
+installed-host acceptance is in progress. Accessibility and App Intents remain
+planned or deferred. The document distinguishes executable behavior from
+future adapters so that design intent never masquerades as product behavior.
 
 ## 1. The decision in one minute
 
@@ -187,7 +188,7 @@ user command, while macOS decides whether a Service is relevant from the types
 the provider advertises. AI-TTS therefore gains useful system reach without
 permission to inspect unrelated application state.
 
-The app bundle will advertise two entries under `NSServices` in its generated
+The app bundle advertises two entries under `NSServices` in its generated
 `Info.plist`:
 
 | Menu title | Accepted input | Application action |
@@ -381,18 +382,19 @@ verification boundary.
 
 ## 10. What exists, what is planned, and how it was checked
 
-The accepted design is intentionally ahead of the implementation, so the
+The design remains ahead of the implementation in its later slices, so the
 current-state ledger is part of the contract. A reader should be able to tell
-which claims come from live code, which come from the installed SDK, and which
-remain future work.
+which claims come from live code, which come from installed-system acceptance,
+and which remain future work.
 
-| Claim | Evidence at `7c1e99e` | State |
+| Claim | Current evidence | State |
 |---|---|---|
-| Native application logic is compile-separated from macOS adapters and presentation | `clients/menubar/Package.swift`; `AITTSApplication`, `AITTSMacAdapters`, and `AITTSMenuBar` targets | Implemented |
+| Native application logic is compile-separated from macOS adapters and presentation | `clients/menubar/Package.swift`; `AITTSApplication`, `AITTSMacAdapters`, `AITTSMacEntryPoints`, and `AITTSMenuBar` targets | Implemented |
 | Documents share one inbound application port | `SpeechApplication.swift` defines `DocumentEnqueueing` and `EnqueueDocument` | Implemented |
 | Text and documents carry explicit content format | `SpeechContentFormat`, `SpeechSubmission`, and `SpeechDocument` | Implemented |
-| Selected-text application policy exists | No `SelectionEnqueueing` or `EnqueueSelection` type | Planned |
-| The app advertises Services | Generated `Info.plist` contains no `NSServices` entry | Planned |
+| Selected-text application policy exists | `SpeechApplication.swift` defines `SelectionEnqueueing` and `EnqueueSelection`; focused application tests record falsification | Implemented |
+| The app advertises Services | The generated `Info.plist` contract contains exact text and file `NSServices` entries | Implemented; installed discovery pending |
+| Service requests delegate to shared use cases | `MacServiceProvider` consumes isolated request pasteboards and has focused delegation/refusal tests | Implemented; installed host matrix pending |
 | The app can read another app’s selection | No Accessibility adapter or trust UX | Planned |
 | The prior foreground application survives popover activation | `StatusController` calls `makeKey()` without retaining the previous process | Planned |
 | App Intents are discoverable from the installed bundle | No App Intent target or verified metadata packaging | Deferred |
@@ -404,9 +406,10 @@ and bundle-builder code. The installed macOS SDK was also checked for
 developer and support documentation supplies the external behavioral contract;
 the repository remains the authority for what AI-TTS actually implements.
 
-In summary, the architecture is ready for sibling inbound adapters, but none of
-those adapters should be described as shipped until its executable and
-installed-system evidence exists.
+In summary, the Services path is executable and contract-tested, but it should
+not be described as shipped until installed discovery and representative host
+acceptance are recorded. Accessibility and App Intents remain future sibling
+adapters.
 
 ## 11. Delivery order and the definition of done
 

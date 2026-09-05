@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "AITTSApplication", targets: ["AITTSApplication"]),
         .library(name: "AITTSMacAdapters", targets: ["AITTSMacAdapters"]),
+        .library(name: "AITTSMacEntryPoints", targets: ["AITTSMacEntryPoints"]),
         .executable(name: "AITTSMenuBar", targets: ["AITTSMenuBar"]),
     ],
     targets: [
@@ -22,14 +23,24 @@ let package = Package(
             dependencies: ["AITTSApplication"],
             path: "Sources/AITTSMacAdapters"
         ),
+        .target(
+            name: "AITTSMacEntryPoints",
+            dependencies: ["AITTSApplication"],
+            path: "Sources/AITTSMacEntryPoints"
+        ),
         .executableTarget(
             name: "AITTSMenuBar",
-            dependencies: ["AITTSApplication", "AITTSMacAdapters"],
+            dependencies: ["AITTSApplication", "AITTSMacAdapters", "AITTSMacEntryPoints"],
             path: "Sources/AITTSMenuBar"
         ),
         .testTarget(
             name: "AITTSMenuBarTests",
-            dependencies: ["AITTSApplication", "AITTSMacAdapters", "AITTSMenuBar"],
+            dependencies: [
+                "AITTSApplication",
+                "AITTSMacAdapters",
+                "AITTSMacEntryPoints",
+                "AITTSMenuBar",
+            ],
             path: "Tests/AITTSMenuBarTests"
         ),
     ]

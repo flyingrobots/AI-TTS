@@ -1,8 +1,10 @@
 # AI-TTS — Architecture
 
-**Status:** the core is implemented in v0.1.0 (`src/aitts/`); native OS
-entry-point nodes are accepted and explicitly marked planned. This document
-remains the spec; the test suite encodes implemented semantics.
+**Status:** the core is implemented in v0.1.0 (`src/aitts/`); the selected-text
+application use case and native text/file Service adapters are implemented.
+Installed-host acceptance, Accessibility, and App Intents remain explicitly
+pending. This document remains the spec; the test suite encodes implemented
+semantics.
 **Scope:** a local-first, single-user speech daemon that accepts text from many clients, synthesizes ahead of playback, and gives the user transport control over what is spoken.
 
 ---
@@ -100,7 +102,7 @@ than admitted as silent or empty speech.
 
 Selected text does not enter through `DocumentEnqueueing`, because it has no
 file URL or trustworthy document-format provenance. Every native text-selection
-adapter calls the planned `SelectionEnqueueing` application port instead.
+adapter calls the `SelectionEnqueueing` application port instead.
 `EnqueueSelection` preserves the exact input, rejects an empty or
 whitespace-only selection, and owns one policy: `plain_text`, confidential,
 Normal priority, with voice and generation speed resolved by the daemon at
@@ -179,9 +181,10 @@ graph TB
 
     subgraph native["Native macOS client hexagon"]
         TRAY["Menu-bar UI<br/>inbound adapter"]
-        TEXTOS["Text Service / Accessibility<br/>planned inbound adapters"]
-        FILEOS["Finder file Service<br/>planned inbound adapter"]
-        SELECTUSE["SelectionEnqueueing<br/>EnqueueSelection planned"]
+        TEXTOS["Text Service<br/>inbound adapter"]
+        AXOS["Accessibility selection<br/>planned inbound adapter"]
+        FILEOS["Finder file Service<br/>inbound adapter"]
+        SELECTUSE["SelectionEnqueueing<br/>EnqueueSelection use case"]
         DOCUSE["DocumentEnqueueing<br/>EnqueueDocument use case"]
         DOC_PORT["SpeechDocumentReaderPort"]
         SPEECH_PORT["Swift SpeechServicePort<br/>typed models"]
@@ -209,9 +212,10 @@ graph TB
     PYSOCKET -->|daemon NDJSON| IPC
     TRAY --> DOCUSE
     TRAY -->|query and transport| SPEECH_PORT
-    TEXTOS -.-> SELECTUSE
-    FILEOS -.-> DOCUSE
-    SELECTUSE -.-> SPEECH_PORT
+    TEXTOS --> SELECTUSE
+    AXOS -.-> SELECTUSE
+    FILEOS --> DOCUSE
+    SELECTUSE --> SPEECH_PORT
     DOCUSE --> DOC_PORT
     DOCUSE --> SPEECH_PORT
     FILES -->|implements| DOC_PORT
@@ -252,13 +256,15 @@ graph TB
   decoding. The application port imports neither MCP nor either wire format.
 - **The native-client boundary is also hexagonal.** The reusable
   `AITTSApplication` Swift library contains only models, ports, and the
-  `EnqueueDocument` use case. `AITTSMacAdapters` depends inward on that library
-  and owns PDFKit, security-scoped URLs, socket I/O, NDJSON fields, and daemon
-  response decoding. `AITTSMenuBar` is an inbound presentation adapter and the
-  composition root; it contains no daemon dictionaries, socket client, or
-  PDFKit dependency.
-- **OS integration adds inbound adapters, not a new pipeline.** The accepted
-  first goalpost adds a text Service that calls `EnqueueSelection` and a file
+  `EnqueueDocument` and `EnqueueSelection` use cases. `AITTSMacAdapters`
+  depends inward on that library and owns PDFKit, security-scoped URLs, socket
+  I/O, NDJSON fields, and daemon response decoding. `AITTSMacEntryPoints`
+  depends inward on the same library and owns the AppKit Services pasteboard
+  translation. `AITTSMenuBar` is an inbound presentation adapter and the
+  composition root; it contains no daemon dictionaries, socket client, PDFKit,
+  or Services parsing.
+- **OS integration adds inbound adapters, not a new pipeline.** The implemented
+  first slice adds a text Service that calls `EnqueueSelection` and a file
   Service that calls the existing `EnqueueDocument`. The optional
   Accessibility reader and later App Intents are sibling adapters to those
   same use cases. They must not import menu-bar views or duplicate content

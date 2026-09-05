@@ -5,28 +5,40 @@
 
 import AITTSApplication
 import AITTSMacAdapters
+import AITTSMacEntryPoints
 import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusController: StatusController?
     private let state: AppState
+    private let serviceProvider: MacServiceProvider
 
     override init() {
         let speech = UnixSocketSpeechService()
+        let documents = LocalSpeechDocumentReader()
         state = AppState(
             speech: speech,
             documentEnqueuer: EnqueueDocument(
-                documents: LocalSpeechDocumentReader(),
+                documents: documents,
                 speech: speech,
                 sourcePrefix: "menubar-file"
             ),
             defaults: .standard
         )
+        serviceProvider = MacServiceProvider(
+            selectionEnqueuer: EnqueueSelection(speech: speech),
+            documentEnqueuer: EnqueueDocument(
+                documents: documents,
+                speech: speech,
+                sourcePrefix: "macos-service:file"
+            )
+        )
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.servicesProvider = serviceProvider
         statusController = StatusController(state: state)
         state.startPolling(interval: 5.0)
         state.startEventStream()

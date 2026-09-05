@@ -57,3 +57,66 @@ python3 ../../scripts/run_with_deadline.py 60 swift test
 configured repository gate. It reports the existing four-space codebase as
 violating the tool's default two-space indentation throughout both untouched
 and changed files; no bulk reformat or baseline change was made.
+
+## Slice 2: native Services adapter and declaration
+
+The Services adapter enters through an isolated `NSPasteboard` and delegates
+to `SelectionEnqueueing` or `DocumentEnqueueing`, the narrowest boundary that
+owns the native-to-application transition. Its medium Swift tests observe the
+exact cross-boundary request or an exact typed refusal. The bundle contract
+test parses the generated `Info.plist` and observes the two service
+declarations macOS uses for discovery.
+
+### Falsification
+
+A deliberate inert adapter exported both Objective-C selectors but ignored
+the request pasteboard and never called either application port. The app-bundle
+builder deliberately omitted `NSServices`. These focused commands exercised
+those mutants:
+
+```console
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test --filter MacServiceProviderTests
+# Executed 6 tests, with 5 failures (0 unexpected)
+
+cd ../..
+.venv/bin/pytest -q tests/test_distribution.py::test_app_bundle_advertises_native_text_and_file_services
+# 1 failed: generated Info.plist had no NSServices key
+```
+
+The Swift failures specifically reported the absent exact selected-text
+request, absent single-file request, missing no-text error, and missing zero-
+and multiple-file refusals. Selector discovery still passed, proving the
+behavioral failures were not compilation or selector failures. The Python
+failure compared `None` with the exact two-entry Services declaration. The
+mutants were then removed.
+
+### Green
+
+The final provider reads one exact string or one file URL from the private
+request pasteboard, delegates through the matching application port, and maps
+local or downstream failures back to the Services error pointer. The
+composition root retains and registers that provider after launch. The bundle
+builder emits exact plain-text, Markdown-file, and PDF-file declarations.
+
+```console
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test --filter MacServiceProviderTests
+# Executed 6 tests, with 0 failures
+
+python3 ../../scripts/run_with_deadline.py 60 swift test
+# Executed 36 tests, with 0 failures
+
+cd ../..
+.venv/bin/pytest -q
+# complete Python suite passed
+
+uv run ruff check
+# All checks passed!
+
+uv run ruff format --check
+# 89 files already formatted
+
+uv run mypy
+# Success: no issues found in 57 source files
+```

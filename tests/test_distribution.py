@@ -57,6 +57,40 @@ def test_app_bundle_has_release_identity_without_checkout_paths(tmp_path: Path) 
     }
 
 
+def test_app_bundle_advertises_native_text_and_file_services(tmp_path: Path) -> None:
+    binary = tmp_path / "AITTSMenuBar"
+    binary.write_bytes(b"standalone menu executable")
+    binary.chmod(0o755)
+    bundle = tmp_path / "AI-TTS.app"
+
+    assemble_app_bundle(binary=binary, output=bundle, version="0.1.0")
+
+    with (bundle / "Contents" / "Info.plist").open("rb") as stream:
+        info = plistlib.load(stream)
+    assert info.get("NSServices") == [
+        {
+            "NSMenuItem": {"default": "Read Selection with AI-TTS"},
+            "NSMessage": "readSelection",
+            "NSPortName": "AI-TTS",
+            "NSRequiredContext": {},
+            "NSRestricted": False,
+            "NSSendTypes": ["public.utf8-plain-text"],
+        },
+        {
+            "NSMenuItem": {"default": "Read File with AI-TTS"},
+            "NSMessage": "readFile",
+            "NSPortName": "AI-TTS",
+            "NSRequiredContext": {},
+            "NSRestricted": False,
+            "NSSendFileTypes": [
+                "public.plain-text",
+                "net.daringfireball.markdown",
+                "com.adobe.pdf",
+            ],
+        },
+    ]
+
+
 def test_launch_agent_uses_installed_executable_without_shell_expansion(tmp_path: Path) -> None:
     executable = (tmp_path / "tool-bin" / "ai-tts").resolve()
     log_path = (tmp_path / "logs" / "daemon.log").resolve()

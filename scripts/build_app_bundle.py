@@ -17,6 +17,28 @@ from typing import Any
 
 BUNDLE_IDENTIFIER = "com.flyingrobots.ai-tts.menubar"
 EXECUTABLE_NAME = "AITTSMenuBar"
+NATIVE_SERVICES: list[dict[str, Any]] = [
+    {
+        "NSMenuItem": {"default": "Read Selection with AI-TTS"},
+        "NSMessage": "readSelection",
+        "NSPortName": "AI-TTS",
+        "NSRequiredContext": {},
+        "NSRestricted": False,
+        "NSSendTypes": ["public.utf8-plain-text"],
+    },
+    {
+        "NSMenuItem": {"default": "Read File with AI-TTS"},
+        "NSMessage": "readFile",
+        "NSPortName": "AI-TTS",
+        "NSRequiredContext": {},
+        "NSRestricted": False,
+        "NSSendFileTypes": [
+            "public.plain-text",
+            "net.daringfireball.markdown",
+            "com.adobe.pdf",
+        ],
+    },
+]
 
 
 def assemble_app_bundle(*, binary: Path, output: Path, version: str) -> Path:
@@ -58,6 +80,7 @@ def assemble_app_bundle(*, binary: Path, output: Path, version: str) -> Path:
         "LSUIElement": True,
         "NSHighResolutionCapable": True,
         "NSPrincipalClass": "NSApplication",
+        "NSServices": NATIVE_SERVICES,
     }
     with (contents / "Info.plist").open("wb") as stream:
         plistlib.dump(info, stream, sort_keys=True)
