@@ -36,6 +36,10 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
   paths stay in the app; only the selected document's text and interpretation
   are submitted.
+- **Reads native macOS selections through Services.** Use **Read Selection with
+  AI-TTS** on selected text or **Read File with AI-TTS** on one supported Finder
+  file; both enter the same confidential, Normal-priority queue as the app and
+  agent clients.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
@@ -103,6 +107,23 @@ The installed app bundle contains only the native menu executable and its
 metadata. It does not contain the Python environment, model, or voice assets.
 Its ad-hoc signature is suitable for this local source-install workflow; it is
 not a notarized package for third-party distribution.
+
+To read highlighted text, select it in a macOS application and choose
+**Application menu → Services → Read Selection with AI-TTS**. TextEdit is a
+verified host. Some applications also place applicable Services in their
+right-click menu; that placement belongs to the host application and is not
+guaranteed. To read a document, select one supported plain-text, Markdown, or
+text-bearing PDF file in Finder and choose **Finder → Services → Read File with
+AI-TTS**. macOS can assign a keyboard shortcut to either command in System
+Settings → Keyboard → Keyboard Shortcuts → Services.
+
+On-screen captions are off by default. Open the AI-TTS menu-bar popover, choose
+the gear icon, and enable **On-screen captions**. While a clip is actively
+playing, the Current card also shows a captions-bubble shortcut beside playback
+speed. The click-through panel appears at the bottom center of the active
+display and shows the exact active segment; multi-part documents also show
+`PART n OF m`. Captions are segment-level, not word-timed karaoke, and the
+panel is absent while no segment is active.
 
 Use the installed CLI from the uv tool bin directory (or run
 `uv tool update-shell` once to put that directory on `PATH`):
