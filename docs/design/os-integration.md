@@ -290,14 +290,15 @@ From there, existing behavior applies:
 
 | File | Interpretation | Failure boundary |
 |---|---|---|
-| `.txt` or other supported UTF-8 text | literal `plain_text` | Invalid UTF-8 or empty text is rejected locally |
-| `.md` or `.markdown` | exact source stored; Markdown AST projected for speech | Parse and projection failures remain document failures |
-| text-bearing `.pdf` | native text layer in page order as `plain_text` | Locked and image-only PDFs are rejected; no OCR or layout reconstruction |
+| `.txt` or other supported UTF-8 text | literal `plain_text` | Invalid UTF-8, empty text, or source above 512 KiB is rejected locally |
+| `.md` or `.markdown` | exact source stored; Markdown AST projected for speech | Invalid UTF-8, empty text, or source above 512 KiB is rejected locally |
+| text-bearing `.pdf` | native text layer in page order as `plain_text` | Reject above 32 MiB, 500 pages, or 512 KiB extracted text; locked and image-only PDFs also fail; no OCR or layout reconstruction |
 
-The daemon still receives no path. Security-scoped access, file type handling,
-PDFKit, and filename provenance remain in the native adapter. A large file
-still becomes one parent queue item whose child clips share one immutable voice
-and block later top-level items until the document is terminal.
+The daemon still receives no path. Security-scoped access, bounded file reads,
+file type handling, PDFKit, page/extracted-text ceilings, and filename
+provenance remain in the native adapter. An admitted large file still becomes
+one parent queue item whose child clips share one immutable voice and block
+later top-level items until the document is terminal.
 
 In summary, Finder integration is only a new trigger for the document boundary
 that already exists. It must not duplicate extraction, format classification,

@@ -57,7 +57,7 @@ need red-on-parent evidence or the written irreproducible-failure carve-out.
 | Store and recovery | queued text survives restart without accidental speech | SQLite-backed store; architecture §§3 and 6 | seeded commit-failure rollback and every post-commit recovery crash point | expand to torn-write, stacked-fault, and recovery-time campaigns |
 | Playback | exactly one owner; FIFO/priority plan; hold survives controls | `PlaybackController` plus schedule port; architecture §§2 and 7 | four named watcher/control schedules with safety and liveness assertions | extend the schedule matrix when a new await or transport transition appears |
 | Synthesis and cache | failures isolate; ready audio is usable; disk remains bounded | synthesis/artifact/cache ports; architecture §§2, 4, and 6 | generated LRU model; hidden-candidate/atomic-publish contracts; seeded write, rename, and cleanup faults | add power-loss/torn-write and real full-disk integration |
-| Native macOS clients | one truthful unified Queue/History, global hold, source-attributed bounded phrase captions, and identical text/file admission from interchangeable OS entry points | compile-separated Swift application ports, local-file/socket adapters, native Services/App Intents adapters, and menu presentation; UI and OS-integration designs | use-case fakes, isolated Services pasteboards, App Intent router tests, exact generated metadata, typed-to-wire projections, daemon-owned caption preference, generated caption-cue bounds, exact caption-source projection, generated PDF cases, and installed caption-panel acceptance | representative host Services menu, live Accessibility, and real Shortcuts journeys remain absent |
+| Native macOS clients | one truthful unified Queue/History, global hold, source-attributed bounded phrase captions, and identical bounded text/file admission from interchangeable OS entry points | compile-separated Swift application ports, local-file/socket adapters, native Services/App Intents adapters, and menu presentation; UI and OS-integration designs | use-case fakes, isolated Services pasteboards, App Intent router tests, exact generated metadata, typed-to-wire projections, daemon-owned caption preference, generated caption-cue bounds, exact caption-source projection, generated PDF cases, inclusive byte/page/extraction limits, and installed caption-panel acceptance | representative host Services menu, live Accessibility, and real Shortcuts journeys remain absent |
 | Kokoro lifecycle | production engine starts and stops without wedging | engine adapter/process lifecycle | bounded non-cooperative shutdown process test; manual live acceptance | add automated real-Kokoro synthesis and teardown acceptance |
 | Distribution | installed binaries and app do not depend on a checkout | wheel/app/launch artifacts | isolated wheel install, bundle/plist contracts, signed bundle CI build | add clean external-machine install and launch lifecycle acceptance |
 
@@ -89,6 +89,8 @@ Enforced now:
   App Shortcut records;
 - explicit plain-text/Markdown submission policy across CLI, MCP, raw daemon,
   and native file adapters, including legacy-wire compatibility;
+- bounded native document acquisition with inclusive 512 KiB text, 32 MiB PDF,
+  500-page, and 512 KiB extracted-text ceilings plus typed local refusals;
 - a configurable 1 GiB-default LRU cache cap, generated policy reference model,
   terminal-only filesystem contract, and seeded unlink-failure check.
 - owner-only private state under a permissive process umask, including startup

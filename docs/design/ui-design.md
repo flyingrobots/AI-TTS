@@ -179,9 +179,12 @@ retain their source exactly. `.md` and `.markdown` are marked for Markdown AST
 projection; other supported text and the extractable PDF text layer are marked
 literal plain text. A PDF contributes pages in order, separated by paragraph
 breaks; the picker does not claim layout reconstruction or OCR. The resulting
-text and format use the normal confidential submission boundary, so length
-chunking, immutable voice selection, queue ordering, history, and transport
-behavior do not fork into a file-specific path.
+text and format use the normal confidential submission boundary. Text and
+Markdown source is capped at 512 KiB; PDF source is capped at 32 MiB and 500
+pages, with at most 512 KiB of page-ordered extracted text. These local limits
+bound acquisition before the daemon's 1 MiB serialized-request limit, while
+length chunking, immutable voice selection, queue ordering, history, and
+transport behavior do not fork into a file-specific path.
 
 Clearing Queue never stops the current clip. “Stop talking” is Skip; “cancel
 the backlog” is Clear Queue.

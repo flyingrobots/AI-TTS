@@ -37,7 +37,9 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   without changing the clipboard, or choose a file. Its file picker accepts
   UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
   paths stay in the app; only the selected document's text and interpretation
-  are submitted.
+  are submitted. Text and Markdown are limited to 512 KiB. PDFs are limited to
+  32 MiB, 500 pages, and 512 KiB of extracted text, so file acquisition is
+  bounded before the daemon's 1 MiB request boundary.
 - **Reads native macOS selections through Services.** Use **Read Selection with
   AI-TTS** on selected text or **Read File with AI-TTS** on one supported Finder
   file; both enter the same confidential, Normal-priority queue as the app and

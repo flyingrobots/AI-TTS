@@ -249,6 +249,10 @@ Markdown retain exact source syntax; `.md` and `.markdown` select Markdown
 projection, while other text and extracted PDF pages select literal plain text.
 PDF support uses the native text layer only; locked and image-only documents
 fail locally with guidance instead of becoming empty queue entries.
+Text and Markdown source is bounded at 512 KiB. PDF source is bounded at 32 MiB
+and 500 pages, and page-ordered extraction stops once its UTF-8 text plus page
+separators would exceed 512 KiB. These limits admit document-scale speech while
+bounding work before the daemon's separate 1 MiB serialized-request limit.
 
 ## 7. Configuration
 

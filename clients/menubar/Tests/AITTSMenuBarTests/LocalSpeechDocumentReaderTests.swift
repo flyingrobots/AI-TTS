@@ -142,6 +142,115 @@ final class LocalSpeechDocumentReaderTests: XCTestCase {
         }
     }
 
+    func testStandardLimitsMatchTheDocumentedV010Contract() {
+        XCTAssertEqual(
+            SpeechDocumentReadLimits.standard,
+            SpeechDocumentReadLimits(
+                maximumTextBytes: 512 * 1024,
+                maximumPDFBytes: 32 * 1024 * 1024,
+                maximumPDFPages: 500,
+                maximumExtractedTextBytes: 512 * 1024
+            )
+        )
+    }
+
+    func testTextByteLimitIsInclusiveAndRejectsTheFirstExcessByte() throws {
+        let acceptedURL = directory.appendingPathComponent("accepted.txt")
+        try Data("12345678".utf8).write(to: acceptedURL)
+        let rejectedURL = directory.appendingPathComponent("rejected.txt")
+        try Data("123456789".utf8).write(to: rejectedURL)
+        let reader = LocalSpeechDocumentReader(
+            limits: SpeechDocumentReadLimits(
+                maximumTextBytes: 8,
+                maximumPDFBytes: 1024 * 1024,
+                maximumPDFPages: 10,
+                maximumExtractedTextBytes: 1024
+            ))
+
+        XCTAssertEqual(try reader.read(acceptedURL).text, "12345678")
+        XCTAssertThrowsError(try reader.read(rejectedURL)) { error in
+            XCTAssertEqual(
+                error as? SpeechDocumentReadError,
+                .fileTooLarge("rejected.txt", maximumBytes: 8)
+            )
+            XCTAssertEqual(
+                error.localizedDescription,
+                "rejected.txt is too large. Choose a file no larger than 8 bytes."
+            )
+        }
+    }
+
+    func testPDFSourceLimitWinsBeforeParsingAnOversizedMalformedFile() throws {
+        let url = directory.appendingPathComponent("oversized.pdf")
+        try Data(repeating: 0x41, count: 9).write(to: url)
+        let reader = LocalSpeechDocumentReader(
+            limits: SpeechDocumentReadLimits(
+                maximumTextBytes: 1024,
+                maximumPDFBytes: 8,
+                maximumPDFPages: 10,
+                maximumExtractedTextBytes: 1024
+            ))
+
+        XCTAssertThrowsError(try reader.read(url)) { error in
+            XCTAssertEqual(
+                error as? SpeechDocumentReadError,
+                .fileTooLarge("oversized.pdf", maximumBytes: 8)
+            )
+        }
+    }
+
+    func testPDFPageLimitIsInclusiveAndRejectsTheNextPage() throws {
+        let acceptedURL = directory.appendingPathComponent("accepted.pdf")
+        try writeTextPDF(["First page.", "Second page."], to: acceptedURL)
+        let rejectedURL = directory.appendingPathComponent("rejected.pdf")
+        try writeTextPDF(["First page.", "Second page.", "Third page."], to: rejectedURL)
+        let reader = LocalSpeechDocumentReader(
+            limits: SpeechDocumentReadLimits(
+                maximumTextBytes: 1024,
+                maximumPDFBytes: 1024 * 1024,
+                maximumPDFPages: 2,
+                maximumExtractedTextBytes: 1024
+            ))
+
+        XCTAssertEqual(try reader.read(acceptedURL).text, "First page.\n\nSecond page.")
+        XCTAssertThrowsError(try reader.read(rejectedURL)) { error in
+            XCTAssertEqual(
+                error as? SpeechDocumentReadError,
+                .tooManyPDFPages("rejected.pdf", maximumPages: 2)
+            )
+            XCTAssertEqual(
+                error.localizedDescription,
+                "rejected.pdf has too many pages. PDFs are limited to 2 pages."
+            )
+        }
+    }
+
+    func testExtractedTextLimitIsInclusiveAndRejectsTheFirstExcessByte() throws {
+        let acceptedURL = directory.appendingPathComponent("accepted-text.pdf")
+        try writeTextPDF(["12345678"], to: acceptedURL)
+        let rejectedURL = directory.appendingPathComponent("rejected-text.pdf")
+        try writeTextPDF(["123456789"], to: rejectedURL)
+        let reader = LocalSpeechDocumentReader(
+            limits: SpeechDocumentReadLimits(
+                maximumTextBytes: 1024,
+                maximumPDFBytes: 1024 * 1024,
+                maximumPDFPages: 10,
+                maximumExtractedTextBytes: 8
+            ))
+
+        XCTAssertEqual(try reader.read(acceptedURL).text, "12345678")
+        XCTAssertThrowsError(try reader.read(rejectedURL)) { error in
+            XCTAssertEqual(
+                error as? SpeechDocumentReadError,
+                .extractedTextTooLarge("rejected-text.pdf", maximumBytes: 8)
+            )
+            XCTAssertEqual(
+                error.localizedDescription,
+                "rejected-text.pdf contains too much text. Extracted text is limited to 8 bytes."
+            )
+        }
+    }
+
     private func writeTextPDF(_ pages: [String], to url: URL) throws {
         let data = NSMutableData()
         guard let consumer = CGDataConsumer(data: data as CFMutableData) else {
