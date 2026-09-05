@@ -37,6 +37,50 @@ jobs:
       - name: Build Python release artifacts
         run: uv build --offline
 
+  supply-chain:
+    name: audit and inventory dependencies
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.9.18"
+          enable-cache: true
+      - name: Install the minimum supported Python
+        run: uv python install 3.12
+      - name: Sync optional runtime and audit dependencies
+        run: uv sync --frozen --python 3.12 --all-extras --no-dev --group supply-chain
+      - name: Prepare evidence directory
+        run: mkdir -p dist/supply-chain
+      - name: Export the frozen all-extras graph
+        run: uv export --quiet --frozen --python 3.12 --all-extras --no-dev --no-emit-project --output-file dist/supply-chain/requirements.txt
+      - name: Export the CycloneDX SBOM
+        run: uv export --quiet --frozen --python 3.12 --all-extras --no-dev --format cyclonedx1.5 --preview-features sbom-export --output-file dist/supply-chain/sbom.cdx.json
+      - name: Audit every applicable locked dependency
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-audit --strict --progress-spinner off --vulnerability-service pypi --disable-pip --require-hashes --requirement dist/supply-chain/requirements.txt --format json --output dist/supply-chain/audit.json
+      - name: Inventory installed dependency licenses
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-licenses --python .venv/bin/python --from mixed --format json --with-system --with-urls --output-file dist/supply-chain/licenses.raw.json
+      - name: Record uv version
+        run: uv --version > dist/supply-chain/uv-version.txt
+      - name: Record audit-tool versions
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-audit --version > dist/supply-chain/pip-audit-version.txt
+      - name: Record license-tool version
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-licenses --version > dist/supply-chain/pip-licenses-version.txt
+      - name: Cross-check retained evidence
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain python scripts/verify_supply_chain_evidence.py --audit dist/supply-chain/audit.json --sbom dist/supply-chain/sbom.cdx.json --licenses dist/supply-chain/licenses.raw.json --lock uv.lock --output-dir dist/supply-chain
+      - name: Retain supply-chain evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: supply-chain-${{ github.sha }}
+          path: dist/supply-chain/
+          if-no-files-found: error
+          retention-days: 14
+
   swift:
     name: build and test (Swift menu-bar app)
     runs-on: macos-15

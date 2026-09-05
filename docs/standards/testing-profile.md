@@ -60,6 +60,7 @@ need red-on-parent evidence or the written irreproducible-failure carve-out.
 | Native macOS clients | one truthful unified Queue/History, global hold, source-attributed bounded phrase captions, and identical bounded text/file admission from interchangeable OS entry points | compile-separated Swift application ports, local-file/socket adapters, native Services/App Intents adapters, and menu presentation; UI and OS-integration designs | use-case fakes, isolated Services pasteboards, App Intent router tests, exact generated metadata, typed-to-wire projections, daemon-owned caption preference, generated caption-cue bounds, exact caption-source projection, generated PDF cases, inclusive byte/page/extraction limits, and installed caption-panel acceptance | representative host Services menu, live Accessibility, and real Shortcuts journeys remain absent |
 | Kokoro lifecycle | production engine starts and stops without wedging | engine adapter/process lifecycle | bounded non-cooperative shutdown process test; manual live acceptance | add automated real-Kokoro synthesis and teardown acceptance |
 | Distribution | installed binaries and app do not depend on a checkout | wheel/app/launch artifacts | isolated wheel install, bundle/plist contracts, signed bundle CI build | add clean external-machine install and launch lifecycle acceptance |
+| Dependency supply chain | the supported all-extras runtime graph is frozen, vulnerability-audited, inventoried, and non-vacuous | hashed `uv` export, PyPI advisory service, CycloneDX SBOM, installed metadata, and repository evidence verifier | exact tool pins; strict audit; cross-report package/version reconciliation; retained lock digest, SBOM, and licenses | hosted exact-head receipt and human distribution-license decision remain open |
 
 ## Adoption ledger
 
@@ -68,6 +69,9 @@ Enforced now:
 - a least-privilege GitHub Actions trust boundary with read-only token access,
   immutable action SHAs, non-persisted checkout credentials, a pinned `uv`, and
   frozen lockfile consumption;
+- an isolated Python 3.12 all-extras dependency audit with hashed pins,
+  non-vacuity and cross-report checks, a CycloneDX 1.5 SBOM, normalized license
+  inventory, exact tool versions, and bounded artifact retention;
 - named oracle and explicit size class on every collected Python test;
 - per-class time ceilings and a whole-suite latency budget;
 - deterministic generated round trips for new public schemas and encoding;
@@ -124,6 +128,9 @@ promise:
 - representative installed Services-menu and keyboard-shortcut host matrix;
 - real invocation of the installed App Intent through a saved user shortcut,
   Siri, or Spotlight;
+- a recorded distribution-license decision for the Kokoro voice stack,
+  including `phonemizer-fork`, `num2words`, `espeakng-loader`, model weights,
+  and voice assets;
 - final cross-language release matrix on the published commit.
 
 Review this profile whenever a new trust boundary or durability promise is

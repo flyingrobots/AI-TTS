@@ -40,6 +40,15 @@ The seam between them is already load-bearing in the architecture: **nothing the
 
 The one genuinely uncomfortable dependency is transitive, and it is worse than the Piper situation flagged in [engine-evaluation §2](engine-evaluation.md#2-local-models): `misaki`'s G2P fallback arrives via `espeakng-loader`, which **bundles `libespeak-ng.dylib` (GPL-3.0) and loads it into the Python process**. That is dynamic linking, not mere aggregation. Verified against the working install at `~/git/kokoro` (2026-09-01): the venv there holds `kokoro 0.9.4` and `misaki 0.9.4`, both Apache-2.0 by their own metadata, alongside `espeakng-loader 0.2.4` shipping the dylib inside the wheel. `torch` is 2.10.0, so that machine is already running the exact reference path this document proposes.
 
+The dependency gate is now executable rather than an occasional manual scan.
+CI exports the hashed `uv.lock` graph with the Kokoro extra, audits every
+applicable macOS/Python 3.12 package, emits a cross-platform CycloneDX SBOM,
+and reconciles the audit against installed license metadata. The isolated
+2026-09-05 receipt found 104 applicable packages, zero known vulnerabilities,
+and one unknown license (`espeakng-loader`); it also surfaced the GPLv3+ and
+LGPL metadata already called out here. This inventory does not decide whether
+redistribution is legally compatible.
+
 What keeps this survivable: this project distributes source that depends on `kokoro`, never a bundled environment containing the dylib. The hard rule that follows — **AI-TTS must never vendor, bundle, or redistribute its Python environment** — is recorded here so the packaging row above reads as the project boundary, not merely a convenience. The local app bundle therefore contains only the native menu executable and metadata. Worth confirming during review whether the espeak fallback can be disabled outright, because the identifiers this tool speaks are heading for the pronunciation lexicon anyway ([architecture §8](architecture.md#8-the-engine-interface)).
 
 ## Menu-bar app: Swift 5.10+, SwiftUI in an AppKit shell

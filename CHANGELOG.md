@@ -42,7 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text/Markdown and at 32 MiB, 500 pages, and 512 KiB of extracted text for PDF.
 - **Infrastructure**: pytest suite written before the implementation, ruff
   `--select ALL` and `mypy --strict` clean, git hooks in `scripts/hooks/`,
-  GitHub Actions CI (Python + Swift), launchd agent plist.
+  GitHub Actions CI (Python + Swift), launchd agent plist, and an all-extras
+  dependency job that audits hashed lock exports, emits a CycloneDX SBOM,
+  inventories licenses, cross-checks every retained report, and preserves the
+  evidence for 14 days.
 - **Agent-native MCP server** (`ai-tts-mcp`): a stdio-only, 100% JSONL tool
   surface for enqueue, truthful status, unified Queue/History reads, voices,
   playback controls, cancellation, priority-aware requeue, and queue clear.

@@ -35,6 +35,10 @@ dev = [
     "pytest-timeout>=2.3",
     "ruff>=0.9",
 ]
+supply-chain = [
+    "pip-audit==2.10.1",
+    "pip-licenses==5.5.5",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aitts"]

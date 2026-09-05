@@ -28,3 +28,24 @@ it. The security properties that matter most here are:
 
 Out of scope: the quality or behaviour of third-party TTS models themselves, and
 anything requiring an attacker who already has the user's local account.
+
+## Build and dependency evidence
+
+GitHub Actions runs with a read-only token, immutable action commit pins,
+non-persisted checkout credentials, and a fixed `uv` version. Project commands
+consume `uv.lock` with `--frozen`.
+
+The supply-chain job separately exports the hashed, all-extras runtime graph
+for the minimum supported Python, audits every applicable package against the
+PyPI advisory service, emits a CycloneDX 1.5 SBOM, and inventories installed
+license metadata. A repository verifier refuses empty reports,
+vulnerabilities, or dependencies missing from either the SBOM or license
+inventory. The reports, lock digest, and exact tool versions are retained as a
+short-lived CI artifact; they contain package metadata, not speech or user
+state.
+
+This automation is evidence, not a legal compatibility opinion. The current
+lock still reports `phonemizer-fork` as GPLv3+, `num2words` as LGPL, and
+`espeakng-loader` with unknown license metadata. AI-TTS therefore keeps its
+source-only boundary and must not bundle or redistribute the Kokoro Python
+environment until that distribution decision is reviewed and recorded.

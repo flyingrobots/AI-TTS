@@ -57,21 +57,60 @@ def test_no_job_or_scope_requests_write_permission() -> None:
 
 
 def test_checkout_never_persists_the_workflow_token() -> None:
-    bodies = _action_step_bodies(_workflow_text(), "actions/checkout")
+    text = _workflow_text()
+    references = [
+        reference
+        for reference in ACTION_REFERENCE.findall(text)
+        if reference.startswith("actions/checkout@")
+    ]
+    bodies = _action_step_bodies(text, "actions/checkout")
 
-    assert len(bodies) == 2
+    assert references
+    assert len(bodies) == len(references)
     assert all(re.search(r"(?m)^          persist-credentials: false$", body) for body in bodies)
 
 
 def test_setup_uv_installs_the_reviewed_tool_version() -> None:
-    bodies = _action_step_bodies(_workflow_text(), "astral-sh/setup-uv")
+    text = _workflow_text()
+    references = [
+        reference
+        for reference in ACTION_REFERENCE.findall(text)
+        if reference.startswith("astral-sh/setup-uv@")
+    ]
+    bodies = _action_step_bodies(text, "astral-sh/setup-uv")
 
-    assert len(bodies) == 1
-    assert re.search(r'(?m)^          version: "0\.9\.18"$', bodies[0])
+    assert references
+    assert len(bodies) == len(references)
+    assert all(re.search(r'(?m)^          version: "0\.9\.18"$', body) for body in bodies)
 
 
 def test_project_commands_cannot_re_resolve_the_lockfile() -> None:
-    commands = re.findall(r"(?m)^\s+run: (uv (?:sync|run)[^\n]+)$", _workflow_text())
+    commands = re.findall(r"(?m)^\s+run: (uv (?:export|sync|run)[^\n]+)$", _workflow_text())
 
     assert commands
     assert all("--frozen" in command for command in commands)
+
+
+def test_supply_chain_job_audits_and_retains_the_full_optional_graph() -> None:
+    match = re.search(
+        r"(?ms)^  supply-chain:\n(?P<body>.*?)(?=^  [a-z][a-z-]+:\n|\Z)",
+        _workflow_text(),
+    )
+
+    assert match
+    body = match.group("body")
+    required_fragments = {
+        "--all-extras",
+        "--no-dev",
+        "--require-hashes",
+        "--strict",
+        "--disable-pip",
+        "--vulnerability-service pypi",
+        "--format cyclonedx1.5",
+        "--with-system",
+        "verify_supply_chain_evidence.py",
+        "actions/upload-artifact@",
+        "retention-days: 14",
+        "if: always()",
+    }
+    assert {fragment for fragment in required_fragments if fragment not in body} == set()
