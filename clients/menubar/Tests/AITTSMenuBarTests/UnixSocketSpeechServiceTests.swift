@@ -22,6 +22,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         try service.submit(
             SpeechSubmission(
                 text: "Exact text",
+                contentFormat: .markdown,
                 voice: "bm_george",
                 speed: 1.25,
                 sensitivity: .internal,
@@ -53,7 +54,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
                 [
                     "op": "submit", "text": "Exact text", "voice": "bm_george",
                     "speed": 1.25, "sensitivity": "internal", "priority": "urgent",
-                    "source": "finder-service",
+                    "source": "finder-service", "content_format": "markdown",
                 ],
                 ["op": "pause"],
                 ["op": "resume"],
@@ -80,6 +81,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         try service.submit(
             SpeechSubmission(
                 text: "Use daemon defaults",
+                contentFormat: .plainText,
                 voice: nil,
                 speed: nil,
                 sensitivity: .confidential,
@@ -94,6 +96,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
                 [
                     "op": "submit", "text": "Use daemon defaults",
                     "sensitivity": "confidential", "priority": "normal",
+                    "content_format": "plain_text",
                 ]
             ])
         )

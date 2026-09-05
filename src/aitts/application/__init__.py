@@ -35,6 +35,7 @@ from aitts.application.schemas import (
     SubmissionDisposition,
     VoiceCatalog,
 )
+from aitts.model import ContentFormat
 
 __all__ = [
     "DEFAULT_CACHE_MAX_BYTES",
@@ -46,6 +47,7 @@ __all__ = [
     "CancelSpeech",
     "CancelSpeechReceipt",
     "ClearQueueReceipt",
+    "ContentFormat",
     "CurrentSpeech",
     "EnqueueSpeech",
     "EnqueueSpeechReceipt",

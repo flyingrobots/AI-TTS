@@ -36,6 +36,7 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
         var payload: [String: Any] = [
             "op": "submit",
             "text": submission.text,
+            "content_format": submission.contentFormat.rawValue,
             "sensitivity": submission.sensitivity.rawValue,
             "priority": submission.priority.rawValue,
         ]

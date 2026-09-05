@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
 
+from aitts.model import ContentFormat
+
 TARGET_SEGMENT_WORDS = 180
 MAX_SEGMENT_WORDS = 220
 _MIN_BOUNDARY_WORDS = 90
@@ -46,8 +48,16 @@ def segment_text(text: str) -> tuple[str, ...]:
     return segments or (text,)
 
 
-def prepare_speech_segments(text: str) -> tuple[str, ...]:
-    """Return the engine-neutral spoken projection of a submitted document."""
+def prepare_speech_segments(
+    text: str, *, content_format: ContentFormat | None = None
+) -> tuple[str, ...]:
+    """Return the engine-neutral spoken projection for one submission.
+
+    ``None`` preserves the legacy wire behavior that automatically interprets
+    Markdown. Maintained clients always send an explicit format.
+    """
+    if content_format is ContentFormat.PLAIN_TEXT:
+        return segment_text(text)
     body = _without_front_matter(text)
     tree = SyntaxTreeNode(MarkdownIt("gfm-like", {"html": False, "linkify": False}).parse(body))
     if _is_plain_text_tree(tree):

@@ -29,7 +29,7 @@ from aitts.application.schemas import (
     SubmissionDisposition,
     VoiceCatalog,
 )
-from aitts.model import Priority, Sensitivity, State
+from aitts.model import ContentFormat, Priority, Sensitivity, State
 
 pytestmark = [
     pytest.mark.medium,
@@ -152,6 +152,8 @@ async def test_mcp_publishes_typed_tool_schemas() -> None:
     assert all(tool.output_schema is not None for tool in tools.values())
     enqueue_schema = tools["enqueue_speech"].input_schema
     assert enqueue_schema["required"] == ["text"]
+    assert enqueue_schema["properties"]["content_format"]["default"] == "plain_text"
+    assert enqueue_schema["$defs"]["ContentFormat"]["enum"] == ["plain_text", "markdown"]
     assert enqueue_schema["properties"]["sensitivity"]["default"] == "confidential"
     assert enqueue_schema["$defs"]["Priority"]["enum"] == ["normal", "urgent"]
 
@@ -164,6 +166,7 @@ async def test_mcp_enqueue_maps_flat_arguments_to_the_public_command() -> None:
             "enqueue_speech",
             {
                 "text": "hello from an agent",
+                "content_format": "markdown",
                 "voice": "bm_daniel",
                 "speed": 1.25,
                 "sensitivity": "internal",
@@ -179,6 +182,7 @@ async def test_mcp_enqueue_maps_flat_arguments_to_the_public_command() -> None:
     assert port.enqueued == [
         EnqueueSpeech(
             text="hello from an agent",
+            content_format=ContentFormat.MARKDOWN,
             voice="bm_daniel",
             speed=1.25,
             sensitivity=Sensitivity.INTERNAL,

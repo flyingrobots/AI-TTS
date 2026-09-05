@@ -53,8 +53,10 @@ public struct LocalSpeechDocumentReader: SpeechDocumentReaderPort, Sendable {
         }
 
         switch fileKind(for: url) {
-        case .text:
-            return try readText(url, filename: filename)
+        case .plainText:
+            return try readText(url, filename: filename, contentFormat: .plainText)
+        case .markdown:
+            return try readText(url, filename: filename, contentFormat: .markdown)
         case .pdf:
             return try readPDF(url, filename: filename)
         case nil:
@@ -63,22 +65,27 @@ public struct LocalSpeechDocumentReader: SpeechDocumentReaderPort, Sendable {
     }
 
     private enum FileKind {
-        case text
+        case plainText
+        case markdown
         case pdf
     }
 
     private func fileKind(for url: URL) -> FileKind? {
         let pathExtension = url.pathExtension.lowercased()
         if pathExtension == "pdf" { return .pdf }
-        if ["md", "markdown"].contains(pathExtension) { return .text }
+        if ["md", "markdown"].contains(pathExtension) { return .markdown }
         guard !pathExtension.isEmpty,
             let type = UTType(filenameExtension: pathExtension),
             type.conforms(to: .plainText)
         else { return nil }
-        return .text
+        return .plainText
     }
 
-    private func readText(_ url: URL, filename: String) throws -> SpeechDocument {
+    private func readText(
+        _ url: URL,
+        filename: String,
+        contentFormat: SpeechContentFormat
+    ) throws -> SpeechDocument {
         let data: Data
         do {
             data = try Data(contentsOf: url, options: .mappedIfSafe)
@@ -91,7 +98,7 @@ public struct LocalSpeechDocumentReader: SpeechDocumentReaderPort, Sendable {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SpeechDocumentReadError.noSpeakableText(filename)
         }
-        return SpeechDocument(filename: filename, text: text)
+        return SpeechDocument(filename: filename, text: text, contentFormat: contentFormat)
     }
 
     private func readPDF(_ url: URL, filename: String) throws -> SpeechDocument {
@@ -109,6 +116,10 @@ public struct LocalSpeechDocumentReader: SpeechDocumentReaderPort, Sendable {
         guard !pages.isEmpty else {
             throw SpeechDocumentReadError.noExtractablePDFText(filename)
         }
-        return SpeechDocument(filename: filename, text: pages.joined(separator: "\n\n"))
+        return SpeechDocument(
+            filename: filename,
+            text: pages.joined(separator: "\n\n"),
+            contentFormat: .plainText
+        )
     }
 }

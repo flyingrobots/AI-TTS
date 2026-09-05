@@ -30,6 +30,7 @@ from aitts.ipc import (
 )
 from aitts.model import (
     TERMINAL,
+    ContentFormat,
     Priority,
     Sensitivity,
     State,
@@ -319,7 +320,16 @@ class Daemon:
             self._store.get_setting("speed", "1.0")
         )
         source = payload.get("source")
-        spoken_segments = prepare_speech_segments(text)
+        content_format: ContentFormat | None
+        if "content_format" not in payload:
+            content_format = None
+        else:
+            try:
+                content_format = ContentFormat(payload["content_format"])
+            except ValueError as exc:
+                msg = "content_format must be 'plain_text' or 'markdown'"
+                raise ApiError(BAD_REQUEST, msg) from exc
+        spoken_segments = prepare_speech_segments(text, content_format=content_format)
         if not spoken_segments:
             msg = "submit text contains no speakable content"
             raise ApiError(BAD_REQUEST, msg)

@@ -98,6 +98,7 @@ The internal input queue and the work of turning text into audio. It is not a se
 | 2.9 | Split one long document into a parent-owned internal clip queue so playback can begin before the whole document is synthesised while later top-level items remain blocked | **[STATED]** | **MUST** |
 | 2.10 | Parse Markdown structurally and speak its content without raw syntax | **[STATED]** | **MUST** |
 | 2.11 | Bind every internal document clip to the parent's single immutable voice and voice-generation speed | **[STATED]** | **MUST** |
+| 2.12 | Keep content interpretation separate from length segmentation: plain speech stays literal and only Markdown-marked input gets AST projection | **[STATED]** | **MUST** |
 
 **2.1–2.3** are close to verbatim: *"process THE queue by generating THE audio for it and having that audio cached and ready for playback"*, and *"Separately, there should be a playback queue"*.
 
@@ -107,13 +108,14 @@ The internal input queue and the work of turning text into audio. It is not a se
 
 **2.7** is ours, and the confidentiality point applies: cached audio of confidential text accumulating without bound on disk is a real consideration and not merely a housekeeping one. See §5 and [Open questions](#open-questions).
 
-**2.9–2.11 were later requested and implemented.** The exact submitted
-document remains the one queue/history record. Its private child queue prefers
-heading and paragraph boundaries, then sentences, with a bounded word fallback.
-The first child makes the parent playable; the parent still occupies one place
-in the serialized plan until every child is terminal. Markdown is projected
-through an AST rather than stripped with regular expressions, and children
-resolve voice and generation speed only through their parent.
+**2.9–2.12 were later requested and implemented.** The exact submitted input
+remains the one queue/history record. Its private child queue prefers structural
+and paragraph boundaries, then sentences, with a bounded word fallback. The
+first child makes the parent playable; the parent still occupies one place in
+the serialized plan until every child is terminal. Explicit Markdown is
+projected through an AST rather than stripped with regular expressions; plain
+text bypasses that projection. Children resolve voice and generation speed only
+through their parent.
 
 ## 3. Unified playback plan
 
@@ -232,9 +234,10 @@ karaoke highlighting.
 **6.14 was later requested and implemented.** Queue's file picker reads one
 explicitly selected file inside the menu app and submits its text through the
 same confidential admission path as every other client. UTF-8 text and
-Markdown retain exact source syntax for daemon-owned projection. PDF support
-uses the native text layer only; locked and image-only documents fail locally
-with guidance instead of becoming empty queue entries.
+Markdown retain exact source syntax; `.md` and `.markdown` select Markdown
+projection, while other text and extracted PDF pages select literal plain text.
+PDF support uses the native text layer only; locked and image-only documents
+fail locally with guidance instead of becoming empty queue entries.
 
 ## 7. Configuration
 
@@ -269,6 +272,7 @@ The surface an agent uses. He describes this only as *"you send THE application 
 | 8.6 | Transport control from the client, not only the UI | **[PROPOSED]** | **COULD** |
 | 8.7 | Stable utterance identifier returned on submission | **[PROPOSED]** | **SHOULD** |
 | 8.8 | Report admission separately from playback hold; paused speakers continue submitting and are spooled | **[STATED]** | **MUST** |
+| 8.9 | Default agent speech to literal plain text and require an explicit choice to interpret it as Markdown | **[STATED]** | **MUST** |
 
 **8.2 is the requirement that tonight's evidence most directly demands, and it is the one most likely to be skipped**, because it is not a feature anyone sees.
 
@@ -284,6 +288,12 @@ entire purpose of global Pause. Machine status therefore says the service is
 `accepting`, reports `playback_state` separately, and gives an explicit
 `spooled_until_resume` disposition. Enqueue tools must not use playback state
 as an admission precondition.
+
+**8.9 prevents the document pipeline from silently changing agent speech.**
+CLI and MCP submissions carry `plain_text` by default, so `#`, backticks, and
+asterisks remain literal. A caller that is intentionally submitting Markdown
+chooses `markdown`; length-based segmentation remains available in either
+format.
 
 ---
 

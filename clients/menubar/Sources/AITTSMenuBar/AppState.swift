@@ -208,6 +208,7 @@ final class AppState: ObservableObject {
         // A fixed, generated sentence: genuinely public text.
         let submission = SpeechSubmission(
             text: "Hello. This is the voice \(voice.replacingOccurrences(of: "_", with: " ")).",
+            contentFormat: .plainText,
             voice: voice,
             speed: nil,
             sensitivity: .public,

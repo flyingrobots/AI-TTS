@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from aitts.model import Priority, Sensitivity, State
+from aitts.model import ContentFormat, Priority, Sensitivity, State
 
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 UtteranceId = Annotated[str, StringConstraints(pattern=r"^utt_[0-9a-f]{32}$")]
@@ -46,6 +46,7 @@ class EnqueueSpeech(PublicSchema):
     """One request to synthesize and speak text."""
 
     text: NonEmptyText
+    content_format: ContentFormat = ContentFormat.PLAIN_TEXT
     voice: NonEmptyText | None = None
     speed: PlaybackSpeed | None = None
     sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL

@@ -81,7 +81,13 @@ async def test_submit_preserves_markdown_parent_and_creates_clean_internal_plan(
 
     response = await rpc(
         daemon.socket_path,
-        {"op": "submit", "text": markdown, "voice": "bm_daniel", "speed": 1.25},
+        {
+            "op": "submit",
+            "text": markdown,
+            "voice": "bm_daniel",
+            "speed": 1.25,
+            "content_format": "markdown",
+        },
     )
     parent = daemon.store.get(response["id"])
     segments = daemon.store.segments(response["id"])
@@ -107,6 +113,63 @@ async def test_submit_preserves_markdown_parent_and_creates_clean_internal_plan(
         "spoken_has_markdown_heading": False,
         "opening_heading": True,
         "details_heading": True,
+    }
+
+
+async def test_explicit_plain_text_does_not_interpret_markdown_syntax(daemon: Daemon) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    text = "# Not a heading\n\nSay **stars**, `ticks`, and --- literally."
+
+    response = await rpc(
+        daemon.socket_path,
+        {"op": "submit", "text": text, "content_format": "plain_text"},
+    )
+    parent = daemon.store.get(response["id"])
+
+    assert parent is not None
+    assert {
+        "composite": response.get("composite"),
+        "segment_count": response.get("segment_count"),
+        "parent_text": parent.text,
+        "child_segments": daemon.store.segments(response["id"]),
+    } == {
+        "composite": False,
+        "segment_count": 1,
+        "parent_text": text,
+        "child_segments": [],
+    }
+
+
+async def test_legacy_submit_without_format_retains_automatic_markdown_projection(
+    daemon: Daemon,
+) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    text = "# Legacy heading\n\nKeep **existing** wire behavior."
+
+    response = await rpc(daemon.socket_path, {"op": "submit", "text": text})
+    segments = daemon.store.segments(response["id"])
+
+    assert response["composite"] is True
+    assert [segment.text for segment in segments] == [
+        "Legacy heading.\n\nKeep existing wire behavior."
+    ]
+
+
+@pytest.mark.parametrize("content_format", ["ssml", None])
+async def test_submit_rejects_invalid_content_format(
+    daemon: Daemon, content_format: str | None
+) -> None:
+    response = await rpc(
+        daemon.socket_path,
+        {"op": "submit", "text": "hello", "content_format": content_format},
+    )
+
+    assert response == {
+        "ok": False,
+        "error": {
+            "type": "bad_request",
+            "message": "content_format must be 'plain_text' or 'markdown'",
+        },
     }
 
 

@@ -19,7 +19,8 @@ final class SpeechApplicationTests: XCTestCase {
         let documents = StubDocumentReader(
             document: SpeechDocument(
                 filename: "revenue.md",
-                text: "# Revenue\n\nThe exact source."
+                text: "# Revenue\n\nThe exact source.",
+                contentFormat: .markdown
             )
         )
         let speech = RecordingSpeechService()
@@ -37,6 +38,7 @@ final class SpeechApplicationTests: XCTestCase {
             [
                 SpeechSubmission(
                     text: "# Revenue\n\nThe exact source.",
+                    contentFormat: .markdown,
                     voice: nil,
                     speed: nil,
                     sensitivity: .confidential,

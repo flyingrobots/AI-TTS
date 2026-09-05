@@ -14,6 +14,11 @@ public enum SpeechSensitivity: String, Equatable, Sendable {
     case confidential
 }
 
+public enum SpeechContentFormat: String, Equatable, Sendable {
+    case plainText = "plain_text"
+    case markdown
+}
+
 public enum SpeechServiceError: Error, Equatable, Sendable {
     case rejected(type: String, message: String)
     case invalidResponse
@@ -22,6 +27,7 @@ public enum SpeechServiceError: Error, Equatable, Sendable {
 
 public struct SpeechSubmission: Equatable, Sendable {
     public let text: String
+    public let contentFormat: SpeechContentFormat
     public let voice: String?
     public let speed: Double?
     public let sensitivity: SpeechSensitivity
@@ -30,6 +36,7 @@ public struct SpeechSubmission: Equatable, Sendable {
 
     public init(
         text: String,
+        contentFormat: SpeechContentFormat,
         voice: String?,
         speed: Double?,
         sensitivity: SpeechSensitivity,
@@ -37,6 +44,7 @@ public struct SpeechSubmission: Equatable, Sendable {
         source: String?
     ) {
         self.text = text
+        self.contentFormat = contentFormat
         self.voice = voice
         self.speed = speed
         self.sensitivity = sensitivity
@@ -48,10 +56,12 @@ public struct SpeechSubmission: Equatable, Sendable {
 public struct SpeechDocument: Equatable, Sendable {
     public let filename: String
     public let text: String
+    public let contentFormat: SpeechContentFormat
 
-    public init(filename: String, text: String) {
+    public init(filename: String, text: String, contentFormat: SpeechContentFormat) {
         self.filename = filename
         self.text = text
+        self.contentFormat = contentFormat
     }
 }
 
@@ -109,6 +119,7 @@ public struct EnqueueDocument: DocumentEnqueueing, Sendable {
         try speech.submit(
             SpeechSubmission(
                 text: document.text,
+                contentFormat: document.contentFormat,
                 voice: nil,
                 speed: nil,
                 sensitivity: .confidential,

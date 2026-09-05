@@ -50,6 +50,13 @@ class Priority(enum.StrEnum):
     URGENT = "urgent"
 
 
+class ContentFormat(enum.StrEnum):
+    """How submitted source text should be projected before synthesis."""
+
+    PLAIN_TEXT = "plain_text"
+    MARKDOWN = "markdown"
+
+
 TERMINAL: frozenset[State] = frozenset({State.PLAYED, State.SKIPPED, State.CANCELLED, State.FAILED})
 
 TRANSITIONS: Mapping[State, frozenset[State]] = MappingProxyType(

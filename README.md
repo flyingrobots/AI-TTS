@@ -24,15 +24,18 @@ The last one is the clearest statement of the problem: **speech is a serial reso
 ## What it does
 
 - **Accepts text from any client** — an agent, a script, or you.
-- **Treats a long document as one queue item with an internal clip queue**, so
-  its first section can play while later sections are still being synthesized
+- **Treats any long input as one queue item with an internal clip queue**, so
+  its first segment can play while later segments are still being synthesized
   and nothing submitted afterward can cut through it.
-- **Reads Markdown as authored prose.** A Markdown syntax tree removes markup,
+- **Distinguishes literal speech from Markdown.** Maintained agent and CLI
+  speech defaults to `plain_text`; those clients parse Markdown only when the
+  caller or file type marks it as `markdown`. Its syntax tree removes markup,
   preserves human labels and code content, and turns headings into spoken
-  section cues without changing the stored source document.
+  section cues without changing the stored source.
 - **Enqueues documents from the menu bar.** Queue's **Add file…** picker accepts
   UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
-  paths stay in the app; only the selected document's text is submitted.
+  paths stay in the app; only the selected document's text and interpretation
+  are submitted.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
@@ -108,6 +111,9 @@ Use the installed CLI from the uv tool bin directory (or run
 # exit 0 means "accepted onto the queue", nothing more
 ai-tts say "Hello from an agent."
 
+# agent speech is literal by default; opt into Markdown projection explicitly
+ai-tts say $'# Release notes\n\nEverything is **ready**.' --format markdown
+
 # exit 0 only after the clip reaches Played
 ai-tts say "Deploy finished." --wait
 
@@ -140,11 +146,12 @@ cd clients/menubar
 swift run
 ```
 
-In the menu-bar app, open **Queue** and choose **Add file…**. Text and Markdown
-are submitted byte-for-byte so the daemon can apply its normal Markdown AST and
-document chunking policy. PDF pages are submitted in the order returned by the
-native macOS text extractor. Password-locked PDFs are refused; image-only PDFs
-need OCR first because AI-TTS does not perform OCR or promise PDF layout
+In the menu-bar app, open **Queue** and choose **Add file…**. Source text is
+submitted byte-for-byte together with an explicit interpretation: `.md` and
+`.markdown` use Markdown projection, while other UTF-8 text files and PDF text
+layers remain literal plain text. PDF pages are submitted in the order returned
+by the native macOS text extractor. Password-locked PDFs are refused; image-only
+PDFs need OCR first because AI-TTS does not perform OCR or promise PDF layout
 reconstruction.
 
 **Pause is a playback hold, never backpressure.** Speakers should continue to
@@ -159,8 +166,10 @@ MCP hosts should launch `ai-tts-mcp` as a local stdio server. The process emits
 only newline-delimited MCP JSON-RPC on stdout; there is no HTTP or SSE mode.
 Its typed tools cover enqueue, status, the unified Queue and History, voices,
 global pause/resume, skip/restart, cancel, priority-aware requeue, and queue
-clear. `enqueue_speech` remains available while globally paused: new clips are
-accepted, synthesized, and spooled until Resume.
+clear. `enqueue_speech` defaults to literal `plain_text` and accepts
+`content_format: "markdown"` when an agent intentionally sends Markdown. It
+remains available while globally paused: new clips are accepted, synthesized,
+and spooled until Resume.
 
 Both external client boundaries use a hexagonal port-and-adapter design. The
 Python agent boundary keeps MCP schemas separate from daemon NDJSON. The native

@@ -9,6 +9,7 @@ import re
 
 import pytest
 
+from aitts.model import ContentFormat
 from aitts.segmentation import prepare_speech_segments, segment_text
 
 pytestmark = [
@@ -59,7 +60,31 @@ def test_markdown_document_becomes_lossless_bounded_segment_plan() -> None:
 def test_plain_text_speech_plan_retains_exact_clip_identity() -> None:
     text = "  Ordinary prose stays exactly as submitted.\n"
 
-    assert prepare_speech_segments(text) == (text,)
+    assert prepare_speech_segments(text, content_format=ContentFormat.PLAIN_TEXT) == (text,)
+
+
+def test_long_plain_text_is_chunked_without_markdown_projection() -> None:
+    text = "# Not a heading\n\nSay **stars** literally. " + " ".join(
+        f"word{index}." for index in range(300)
+    )
+
+    segments = prepare_speech_segments(text, content_format=ContentFormat.PLAIN_TEXT)
+
+    assert {
+        "segment_count": len(segments),
+        "literal_prefix_preserved": segments[0].startswith(
+            "# Not a heading\n\nSay **stars** literally. word0."
+        ),
+        "source_words": words(text),
+        "segment_words": [word for segment in segments for word in words(segment)],
+        "largest_segment_words": max(len(words(segment)) for segment in segments),
+    } == {
+        "segment_count": 2,
+        "literal_prefix_preserved": True,
+        "source_words": words(text),
+        "segment_words": words(text),
+        "largest_segment_words": 180,
+    }
 
 
 def test_markdown_speech_plan_removes_syntax_and_adds_prosody_hints() -> None:
@@ -81,7 +106,7 @@ print("ready")
 ```
 """
 
-    assert prepare_speech_segments(text) == (
+    assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (
         """Revenue Review.
 
 Read SalesOS and OpportunityPort. Pipeline diagram
@@ -110,4 +135,6 @@ visibility: private
 This body should be heard.
 """
 
-    assert prepare_speech_segments(text) == ("Spoken title.\n\nThis body should be heard.",)
+    assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (
+        "Spoken title.\n\nThis body should be heard.",
+    )

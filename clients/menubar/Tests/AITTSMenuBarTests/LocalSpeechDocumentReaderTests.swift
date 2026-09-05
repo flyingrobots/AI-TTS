@@ -34,7 +34,14 @@ final class LocalSpeechDocumentReaderTests: XCTestCase {
 
         let document = try LocalSpeechDocumentReader().read(url)
 
-        XCTAssertEqual(document, SpeechDocument(filename: "notes.txt", text: source))
+        XCTAssertEqual(
+            document,
+            SpeechDocument(
+                filename: "notes.txt",
+                text: source,
+                contentFormat: .plainText
+            )
+        )
     }
 
     func testMarkdownFileKeepsSyntaxForDaemonProjection() throws {
@@ -46,6 +53,7 @@ final class LocalSpeechDocumentReaderTests: XCTestCase {
 
         XCTAssertEqual(imported.filename, "history.md")
         XCTAssertEqual(imported.text, source)
+        XCTAssertEqual(imported.contentFormat, .markdown)
     }
 
     func testTextBearingPDFBecomesPageOrderedTextSubmission() throws {
@@ -56,6 +64,7 @@ final class LocalSpeechDocumentReaderTests: XCTestCase {
 
         XCTAssertEqual(imported.filename, "brief.pdf")
         XCTAssertEqual(imported.text, "First page.\n\nSecond page.")
+        XCTAssertEqual(imported.contentFormat, .plainText)
     }
 
     func testEmptyTextFileFailsWithActionableMessage() throws {

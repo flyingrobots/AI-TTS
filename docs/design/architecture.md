@@ -38,26 +38,30 @@ The single most important structural decision. **Synthesis and playback have opp
 
 **The cost is that they can diverge**, and the design must say what happens when they do (§7). This boundary is internal. The menu-bar app merges all non-current, non-terminal states into one ordered Queue so an item cannot disappear merely because it crossed from synthesis to playback readiness.
 
-### A document is one queue entry with a nested queue
+### A long submission is one queue entry with a nested queue
 
-A long document must not become either one enormous engine call or dozens of
+A long input must not become either one enormous engine call or dozens of
 independent top-level utterances. The durable parent keeps the exact submitted
 text, queue position, sensitivity, voice, and voice-generation speed. Its
 ordered child rows contain only the clean text and lifecycle data needed to
 synthesize and play independently.
 
-Markdown input is parsed with a GitHub-flavored Markdown AST. Headings create
-strong section boundaries and receive terminal punctuation; inline syntax is
-silent; link labels, image alt text, list content, table cells, and fenced-code
-content remain speakable. HTML interpretation and automatic URL linking are
-disabled. A leading YAML front-matter fence is treated as document metadata and
-excluded before parsing. The source Markdown is never replaced by this spoken
-projection.
+Content interpretation and length segmentation are independent. Every
+maintained client submits a `content_format`: `plain_text` preserves the input
+literally, while `markdown` first projects a GitHub-flavored Markdown AST into
+spoken prose. In Markdown, headings create strong section boundaries and
+receive terminal punctuation; inline syntax is silent; link labels, image alt
+text, list content, table cells, and fenced-code content remain speakable. HTML
+interpretation and automatic URL linking are disabled. A leading YAML
+front-matter fence is treated as document metadata and excluded before parsing.
+The exact source is never replaced by its spoken projection.
 
-Chunking targets 180 spoken words and never intentionally exceeds 220. It
-prefers whole heading sections, then nearby paragraph and sentence boundaries,
-and falls back to a word boundary only when necessary. Short plain prose keeps
-its exact legacy single-clip identity.
+After that choice, both formats use the same length policy. Chunking targets 180
+spoken words and never intentionally exceeds 220. It prefers whole heading
+sections where present, then nearby paragraph and sentence boundaries, and
+falls back to a word boundary only when necessary. Short plain speech keeps its
+exact single-clip identity; it is not routed through Markdown merely because all
+long inputs can become composite queue entries.
 
 Child synthesis may run ahead, but child zero alone is sufficient to move the
 parent to `Ready`. Playback then descends into that child queue in index order.
@@ -75,12 +79,15 @@ a selected document is submitted at Normal priority as confidential content.
 The caller supplies only its provenance prefix.
 
 The local-document outbound adapter acquires access to one URL the user
-selected, reads UTF-8 text or Markdown exactly, or projects a PDF's native text
-layer in page order. The separate speech-service outbound adapter sends the
-resulting text—not the path—through the existing `submit` operation. This keeps
-arbitrary filesystem access outside the daemon protocol and gives imported
-documents the same segmentation, one-parent queue position, immutable voice
-profile, and history semantics as pasted or agent-submitted text.
+selected and reads its source exactly. It marks `.md` and `.markdown` as
+`markdown`, marks other supported UTF-8 text as `plain_text`, and projects a
+PDF's native text layer in page order as `plain_text`. The separate
+speech-service outbound adapter sends the resulting text and format—not the
+path—through the existing `submit` operation. This keeps arbitrary filesystem
+access outside the daemon protocol and gives imported documents the same
+length segmentation, one-parent queue position, immutable voice profile, and
+history semantics as pasted or agent-submitted text without pretending those
+inputs share the same syntax.
 
 PDF extraction is deliberately narrower than document conversion. It does not
 reconstruct layout and does not perform OCR. A password-locked PDF or a PDF
@@ -259,8 +266,8 @@ limit does not poison the connection, so a corrected next request can proceed.
 
 ```jsonc
 // submit — returns immediately with an id. THIS IS NOT "IT WAS SPOKEN".
-→ {"op":"submit", "text":"...", "voice":"bm_daniel", "priority":"normal",
-   "sensitivity":"confidential"}          // REQUIRED. omitted ⇒ treated as confidential
+→ {"op":"submit", "text":"...", "content_format":"plain_text",
+   "voice":"bm_daniel", "priority":"normal", "sensitivity":"confidential"}
 ← {"ok":true, "accepted":true, "id":"utt_01J...", "state":"Queued",
    "sensitivity":"confidential", "eligible_engines":["local"],
    "playback_held":true, "submission_disposition":"spooled_until_resume"}
@@ -302,6 +309,12 @@ limit does not poison the connection, so a corrected next request can proceed.
 ← {"event":"state_changed", "id":"utt_...", "from":"Playing", "to":"Played"}
 ```
 
+`content_format` is `plain_text` or `markdown`. Maintained CLI, MCP, and native
+clients always send it; CLI and MCP speech default to `plain_text`. For wire
+compatibility only, an older raw-socket client that omits the field retains the
+pre-field automatic Markdown projection. New raw clients should choose
+explicitly. `sensitivity` still fails closed to `confidential` when omitted.
+
 `paused` is a playback state, not a daemon availability state. A speaker must
 never suppress submission because `playback_state` is `paused`; it submits
 normally and receives `accepted: true` plus `spooled_until_resume`. The MCP
@@ -322,7 +335,9 @@ The adapter publishes typed tools for enqueue, truthful status, the unified
 queue, history, voices, global pause/resume, skip/restart, targeted cancel,
 priority-aware requeue, and queue clear. MCP argument and result schemas are
 derived from type annotations and the public models in
-`src/aitts/application/schemas.py`.
+`src/aitts/application/schemas.py`. Agent speech defaults to literal
+`plain_text`; callers opt into Markdown AST projection with
+`content_format: "markdown"`.
 
 The dependency direction is one-way:
 
@@ -425,10 +440,12 @@ warmup() -> None                                 # optional; called once at daem
 
 **A user-editable pronunciation lexicon, applied by the daemon before text reaches any engine**, corrects more perceived quality than swapping models. It belongs in the daemon rather than the adapter for the same reason chunking does: it must work identically across engines, and it must survive an engine change.
 
-**Chunking is the daemon's job.** Long text is projected through its Markdown
-tree and split at heading, paragraph, sentence, then bounded word boundaries
-into separately cacheable children. That gives skip/restart durable places to
-land and lets playback start without waiting for one document-sized generation.
+**Chunking is the daemon's job.** Long text is split at structural, paragraph,
+sentence, then bounded word boundaries into separately cacheable children.
+Markdown projection happens first only when the submission explicitly selects
+it; literal plain text is segmented without removing syntax. That gives
+skip/restart durable places to land and lets playback start without waiting for
+one input-sized generation.
 
 ---
 

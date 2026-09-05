@@ -15,7 +15,7 @@ from hypothesis import strategies as st
 from aitts.adapters.unix_socket import UnixSocketSpeechAdapter
 from aitts.application.schemas import EnqueueSpeech, EnqueueSpeechReceipt, SpeechServiceError
 from aitts.client import DaemonError, DaemonUnreachableError
-from aitts.model import Priority, Sensitivity, State
+from aitts.model import ContentFormat, Priority, Sensitivity, State
 
 pytestmark = [
     pytest.mark.small,
@@ -58,12 +58,14 @@ def enqueue_response(sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL) -> dic
 @settings(max_examples=50, derandomize=True, database=None)
 @given(
     text=st.text(min_size=1, max_size=100).filter(lambda value: bool(value.strip())),
+    content_format=st.sampled_from(list(ContentFormat)),
     speed=st.none() | st.floats(min_value=0.5, max_value=2.0, allow_nan=False),
     sensitivity=st.sampled_from(list(Sensitivity)),
     priority=st.sampled_from(list(Priority)),
 )
 def test_enqueue_encodes_generated_commands_as_json_safe_daemon_requests(
     text: str,
+    content_format: ContentFormat,
     speed: float | None,
     sensitivity: Sensitivity,
     priority: Priority,
@@ -73,6 +75,7 @@ def test_enqueue_encodes_generated_commands_as_json_safe_daemon_requests(
     adapter = UnixSocketSpeechAdapter(client)
     request = EnqueueSpeech(
         text=text,
+        content_format=content_format,
         speed=speed,
         sensitivity=sensitivity,
         priority=priority,

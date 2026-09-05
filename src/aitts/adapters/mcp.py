@@ -31,7 +31,7 @@ from aitts.application.schemas import (
     UtteranceId,
     VoiceCatalog,
 )
-from aitts.model import Priority, Sensitivity
+from aitts.model import ContentFormat, Priority, Sensitivity
 from aitts.paths import default_socket
 
 if TYPE_CHECKING:
@@ -92,6 +92,10 @@ def _register_submission_tools(server: MCPServer, speech: SpeechServicePort) -> 
             StringConstraints(strip_whitespace=True, min_length=1),
             Field(description="Text to synthesize and speak."),
         ],
+        content_format: Annotated[
+            ContentFormat,
+            Field(description="Interpret text literally or project Markdown syntax for speech."),
+        ] = ContentFormat.PLAIN_TEXT,
         voice: Annotated[
             str | None,
             Field(description="Voice id; omit for the user's default."),
@@ -110,6 +114,7 @@ def _register_submission_tools(server: MCPServer, speech: SpeechServicePort) -> 
         """Queue speech even when playback is globally paused; held speech is safely spooled."""
         request = EnqueueSpeech(
             text=text,
+            content_format=content_format,
             voice=voice,
             speed=speed,
             sensitivity=sensitivity,

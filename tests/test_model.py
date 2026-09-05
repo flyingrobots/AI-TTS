@@ -10,6 +10,7 @@ import pytest
 from aitts.model import (
     TERMINAL,
     TRANSITIONS,
+    ContentFormat,
     Priority,
     Sensitivity,
     State,
@@ -81,6 +82,13 @@ def test_sensitivity_values() -> None:
 
 def test_priority_values() -> None:
     assert {p.value for p in Priority} == {"normal", "urgent"}
+
+
+def test_content_format_values() -> None:
+    assert {content_format.value for content_format in ContentFormat} == {
+        "plain_text",
+        "markdown",
+    }
 
 
 def test_utterance_ids_are_prefixed_and_unique() -> None:

@@ -54,6 +54,45 @@ async def test_say_exits_zero_when_accepted(
     assert out["sensitivity"] == "confidential"  # fail closed by default
 
 
+async def test_say_defaults_to_literal_plain_text(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "pause") == EXIT_OK
+    capsys.readouterr()
+    text = "# Not a heading\n\nSay **stars** literally."
+
+    assert await run_cli(daemon, "say", text) == EXIT_OK
+    response = json.loads(capsys.readouterr().out)
+    utterance = daemon.store.get(response["id"])
+
+    assert utterance is not None
+    assert utterance.text == text
+    assert daemon.store.segments(response["id"]) == []
+
+
+async def test_say_can_explicitly_project_markdown(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "pause") == EXIT_OK
+    capsys.readouterr()
+
+    assert (
+        await run_cli(
+            daemon,
+            "say",
+            "# Actual **heading**\n\nRead `this`.",
+            "--format",
+            "markdown",
+        )
+        == EXIT_OK
+    )
+    response = json.loads(capsys.readouterr().out)
+
+    assert [segment.text for segment in daemon.store.segments(response["id"])] == [
+        "Actual heading.\n\nRead this."
+    ]
+
+
 async def test_say_wait_exits_zero_only_for_played(
     daemon: Daemon, capsys: pytest.CaptureFixture[str]
 ) -> None:

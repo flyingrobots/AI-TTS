@@ -26,7 +26,7 @@ from typing import Any
 
 from aitts import __version__
 from aitts.client import Client, DaemonError, DaemonUnreachableError
-from aitts.model import State
+from aitts.model import ContentFormat, State
 from aitts.paths import default_home, default_socket
 
 EXIT_OK = 0
@@ -57,6 +57,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     say = sub.add_parser("say", help="queue text to be spoken, even while playback is paused")
     say.add_argument("text")
+    say.add_argument(
+        "--format",
+        dest="content_format",
+        choices=[content_format.value for content_format in ContentFormat],
+        default=ContentFormat.PLAIN_TEXT.value,
+        help="interpret input as literal plain text or Markdown (default: plain_text)",
+    )
     say.add_argument("--voice")
     say.add_argument("--speed", type=float)
     say.add_argument(
@@ -108,7 +115,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _say_payload(args: argparse.Namespace) -> dict[str, Any]:
-    payload: dict[str, Any] = {"op": "submit", "text": args.text}
+    payload: dict[str, Any] = {
+        "op": "submit",
+        "text": args.text,
+        "content_format": args.content_format,
+    }
     for key in ("voice", "speed", "sensitivity", "priority", "source"):
         value = getattr(args, key)
         if value is not None:
