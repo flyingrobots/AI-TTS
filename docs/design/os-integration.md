@@ -389,7 +389,10 @@ processor. It validates the exact six actions, six App Shortcuts, and six
 playback-rate values in `Contents/Resources/Metadata.appintents` before signing
 the bundle. SwiftPM compilation, bundle assembly, signing, installation, and
 system indexing are verified locally. A real Shortcuts invocation remains a
-separate acceptance boundary.
+separate acceptance boundary. The stock `shortcuts` CLI lists and runs saved
+user shortcuts; it does not address a generated App Shortcut by its Swift type
+name. Acceptance therefore needs one user-created shortcut containing the
+installed action, or an equivalent invocation through Siri or Spotlight.
 
 In summary, App Intents extend a finished capability into automation. They do
 not replace the direct Service interaction or justify weakening the bundle

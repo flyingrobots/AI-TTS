@@ -130,6 +130,13 @@ grant. Choose **Read Clipboard** only after copying text yourself; AI-TTS reads
 the current string without issuing ⌘C or changing the clipboard. **Read File…**
 opens the existing text/Markdown/PDF picker.
 
+For automation, create a shortcut in Apple Shortcuts and search its action
+library for **AI-TTS**. The installed app contributes **Read Text**, **Read
+File**, **Pause**, **Resume**, **Skip**, and **Set Playback Speed**. Saving a
+user shortcut around one of those actions also gives `/usr/bin/shortcuts run`
+a shortcut name or identifier it can address; that command does not run a raw
+App Intent type name directly.
+
 On-screen captions are off by default. Open the AI-TTS menu-bar popover, choose
 the gear icon, and enable **On-screen captions**. While a clip is actively
 playing, the Current card also shows a captions-bubble shortcut beside playback

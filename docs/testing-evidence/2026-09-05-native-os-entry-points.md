@@ -445,3 +445,12 @@ The exact installed process appeared as PID 93872, while `lsappinfo front`
 reported the same frontmost application record before and after launch. No
 window was opened and no synthetic input was sent. A real Shortcuts invocation
 remains the only open App Intent acceptance gate.
+
+The supported `/usr/bin/shortcuts` interface exposed only `run`, `list`,
+`view`, and `sign`. A filtered `shortcuts list --show-identifiers` found no
+AI-TTS user shortcut, and `shortcuts run PauseSpeechIntent` returned `Couldn't
+find shortcut`. Playback remained unheld and the frontmost application record
+remained unchanged. This negative receipt establishes that the CLI cannot turn
+the generated type identifier into a real invocation by itself; acceptance
+requires a user shortcut containing the indexed action, or an invocation from
+another system surface.

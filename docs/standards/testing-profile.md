@@ -108,7 +108,8 @@ promise:
 
 - real-Kokoro synthesis/teardown and clean external-machine launch acceptance;
 - representative installed Services-menu and keyboard-shortcut host matrix;
-- real Shortcuts invocation against the installed App Intent;
+- real invocation of the installed App Intent through a saved user shortcut,
+  Siri, or Spotlight;
 - final cross-language release matrix on the published commit.
 
 Review this profile whenever a new trust boundary or durability promise is
