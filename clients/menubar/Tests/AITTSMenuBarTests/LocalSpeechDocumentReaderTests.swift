@@ -1,16 +1,17 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
 // Test-Size: medium (owned filesystem and macOS PDF text extraction)
-// Test-Oracle: exact selected-file submission and actionable local refusal contract
+// Test-Oracle: exact selected-file extraction and actionable local refusal contract
 
+import AITTSApplication
 import AppKit
 import CoreText
 import PDFKit
 import XCTest
 
-@testable import AITTSMenuBar
+@testable import AITTSMacAdapters
 
-final class SpeechFileImportTests: XCTestCase {
+final class LocalSpeechDocumentReaderTests: XCTestCase {
     private var directory: URL!
 
     override func setUpWithError() throws {
@@ -26,18 +27,14 @@ final class SpeechFileImportTests: XCTestCase {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    func testTextFileBecomesConfidentialNormalSubmissionWithoutChangingContent() throws {
+    func testTextFileBecomesSpeechDocumentWithoutChangingContent() throws {
         let source = "  Exact plain text.\nSecond line.\n"
         let url = directory.appendingPathComponent("notes.txt")
         try Data(source.utf8).write(to: url)
 
-        let payload = try SpeechFileImport.read(url).submissionPayload
+        let document = try LocalSpeechDocumentReader().read(url)
 
-        XCTAssertEqual(payload["op"] as? String, "submit")
-        XCTAssertEqual(payload["text"] as? String, source)
-        XCTAssertEqual(payload["sensitivity"] as? String, "confidential")
-        XCTAssertEqual(payload["priority"] as? String, "normal")
-        XCTAssertEqual(payload["source"] as? String, "menubar-file:notes.txt")
+        XCTAssertEqual(document, SpeechDocument(filename: "notes.txt", text: source))
     }
 
     func testMarkdownFileKeepsSyntaxForDaemonProjection() throws {
@@ -45,7 +42,7 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("history.md")
         try Data(source.utf8).write(to: url)
 
-        let imported = try SpeechFileImport.read(url)
+        let imported = try LocalSpeechDocumentReader().read(url)
 
         XCTAssertEqual(imported.filename, "history.md")
         XCTAssertEqual(imported.text, source)
@@ -55,7 +52,7 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("brief.pdf")
         try writeTextPDF(["First page.", "Second page."], to: url)
 
-        let imported = try SpeechFileImport.read(url)
+        let imported = try LocalSpeechDocumentReader().read(url)
 
         XCTAssertEqual(imported.filename, "brief.pdf")
         XCTAssertEqual(imported.text, "First page.\n\nSecond page.")
@@ -65,9 +62,9 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("empty.txt")
         try Data(" \n\t".utf8).write(to: url)
 
-        XCTAssertThrowsError(try SpeechFileImport.read(url)) { error in
+        XCTAssertThrowsError(try LocalSpeechDocumentReader().read(url)) { error in
             XCTAssertEqual(
-                error as? SpeechFileImportError, .noSpeakableText("empty.txt"))
+                error as? SpeechDocumentReadError, .noSpeakableText("empty.txt"))
             XCTAssertEqual(
                 error.localizedDescription,
                 "empty.txt contains no speakable text."
@@ -79,9 +76,9 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("legacy.txt")
         try Data([0xFF, 0xFE, 0x41]).write(to: url)
 
-        XCTAssertThrowsError(try SpeechFileImport.read(url)) { error in
+        XCTAssertThrowsError(try LocalSpeechDocumentReader().read(url)) { error in
             XCTAssertEqual(
-                error as? SpeechFileImportError, .unreadableText("legacy.txt"))
+                error as? SpeechDocumentReadError, .unreadableText("legacy.txt"))
             XCTAssertEqual(
                 error.localizedDescription,
                 "legacy.txt could not be read as UTF-8 text."
@@ -93,9 +90,9 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("scan.pdf")
         try writeImageOnlyPDF(to: url)
 
-        XCTAssertThrowsError(try SpeechFileImport.read(url)) { error in
+        XCTAssertThrowsError(try LocalSpeechDocumentReader().read(url)) { error in
             XCTAssertEqual(
-                error as? SpeechFileImportError,
+                error as? SpeechDocumentReadError,
                 .noExtractablePDFText("scan.pdf")
             )
             XCTAssertEqual(
@@ -110,8 +107,8 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("locked.pdf")
         try writeLockedPDF(to: url)
 
-        XCTAssertThrowsError(try SpeechFileImport.read(url)) { error in
-            XCTAssertEqual(error as? SpeechFileImportError, .lockedPDF("locked.pdf"))
+        XCTAssertThrowsError(try LocalSpeechDocumentReader().read(url)) { error in
+            XCTAssertEqual(error as? SpeechDocumentReadError, .lockedPDF("locked.pdf"))
             XCTAssertEqual(
                 error.localizedDescription,
                 "locked.pdf is password-protected. Unlock it before enqueueing."
@@ -123,9 +120,9 @@ final class SpeechFileImportTests: XCTestCase {
         let url = directory.appendingPathComponent("notes.rtf")
         try Data(#"{\rtf1 raw}"#.utf8).write(to: url)
 
-        XCTAssertThrowsError(try SpeechFileImport.read(url)) { error in
+        XCTAssertThrowsError(try LocalSpeechDocumentReader().read(url)) { error in
             XCTAssertEqual(
-                error as? SpeechFileImportError,
+                error as? SpeechDocumentReadError,
                 .unsupportedFileType("notes.rtf")
             )
             XCTAssertEqual(

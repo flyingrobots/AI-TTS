@@ -162,10 +162,15 @@ global pause/resume, skip/restart, cancel, priority-aware requeue, and queue
 clear. `enqueue_speech` remains available while globally paused: new clips are
 accepted, synthesized, and spooled until Resume.
 
-The MCP boundary uses a hexagonal port-and-adapter design. Public immutable
-schemas and `SpeechServicePort` are transport-neutral; the MCP adapter owns MCP
-tool encoding, and the Unix-socket adapter owns daemon NDJSON encoding. See
-[`docs/design/architecture.md`](docs/design/architecture.md) §5.
+Both external client boundaries use a hexagonal port-and-adapter design. The
+Python agent boundary keeps MCP schemas separate from daemon NDJSON. The native
+Swift boundary is compile-time separated into `AITTSApplication` (public
+models, ports, and use cases), `AITTSMacAdapters` (PDFKit, selected-file access,
+and Unix-socket translation), and `AITTSMenuBar` (AppKit/SwiftUI presentation
+and composition). A future Finder, Services, or Shortcuts target can call the
+same `DocumentEnqueueing` use case without importing the menu UI or rebuilding
+file and socket policy. See
+[`docs/design/architecture.md`](docs/design/architecture.md) §4.
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
 

@@ -5,6 +5,7 @@
 // an event subscription so queue changes land instantly, and a light poll only
 // while the popover is open (it carries the live playback position).
 
+import AITTSApplication
 import Foundation
 
 /// A lock-guarded bool shared between the main actor and the event thread.
@@ -42,15 +43,21 @@ final class AppState: ObservableObject {
         plan.filter { ["Queued", "Synthesizing", "Ready"].contains($0.state) }
     }
 
-    private let client: DaemonClient
+    private let speech: any SpeechServicePort
+    private let documentEnqueuer: any DocumentEnqueueing
     private let defaults: UserDefaults
     private let queue = DispatchQueue(label: "aitts.client", qos: .userInitiated)
     private var timer: Timer?
     private var eventThread: Thread?
     private let eventsFlag = AtomicFlag()
 
-    init(client: DaemonClient = DaemonClient(), defaults: UserDefaults = .standard) {
-        self.client = client
+    init(
+        speech: any SpeechServicePort,
+        documentEnqueuer: any DocumentEnqueueing,
+        defaults: UserDefaults
+    ) {
+        self.speech = speech
+        self.documentEnqueuer = documentEnqueuer
         self.defaults = defaults
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
     }
@@ -73,9 +80,8 @@ final class AppState: ObservableObject {
     }
 
     func refresh() {
-        queue.async { [client] in
-            let snapshot = (try? client.request(["op": "snapshot"]))
-                .flatMap(Snapshot.init(json:))
+        queue.async { [speech] in
+            let snapshot = try? speech.snapshot()
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.reachable = snapshot != nil
@@ -98,13 +104,13 @@ final class AppState: ObservableObject {
     func startEventStream() {
         guard !eventsFlag.get() else { return }
         eventsFlag.set(true)
-        let client = self.client
+        let speech = self.speech
         let flag = eventsFlag
         let thread = Thread { [weak self] in
             while flag.get() {
-                try? client.subscribe(
+                try? speech.subscribe(
                     shouldContinue: { flag.get() },
-                    onEvent: { _ in
+                    onChange: {
                         Task { @MainActor [weak self] in self?.refresh() }
                     }
                 )
@@ -120,12 +126,12 @@ final class AppState: ObservableObject {
 
     // MARK: - Actions (fire, then refresh)
 
-    func send(_ payload: [String: Any]) {
-        queue.async { [client] in
+    private func send(_ command: SpeechCommand) {
+        queue.async { [speech] in
             var failure: String?
             do {
-                _ = try client.request(payload)
-            } catch let WireError.daemon(_, message) {
+                try speech.perform(command)
+            } catch let SpeechServiceError.rejected(_, message) {
                 failure = message
             } catch {
                 failure = "daemon unreachable"
@@ -137,23 +143,22 @@ final class AppState: ObservableObject {
         }
     }
 
-    func pause() { send(["op": "pause"]) }
-    func resume() { send(["op": "resume"]) }
-    func skip() { send(["op": "skip"]) }
-    func rewind() { send(["op": "rewind"]) }
-    func playNow(_ id: String) { send(["op": "rewind", "to": id]) }
-    func cancel(_ id: String) { send(["op": "cancel", "id": id]) }
-    func clearQueue() { send(["op": "clear", "queue": "queue"]) }
-    func clearHistory() { send(["op": "clear", "queue": "history"]) }
-    func removeHistory(_ id: String) { send(["op": "remove_history", "id": id]) }
+    func pause() { send(.pause) }
+    func resume() { send(.resume) }
+    func skip() { send(.skip) }
+    func rewind() { send(.rewind(to: nil)) }
+    func playNow(_ id: String) { send(.rewind(to: id)) }
+    func cancel(_ id: String) { send(.cancel(id: id)) }
+    func clearQueue() { send(.clearQueue) }
+    func clearHistory() { send(.clearHistory) }
+    func removeHistory(_ id: String) { send(.removeHistory(id: id)) }
 
     func enqueueFile(_ url: URL) {
-        queue.async { [client] in
+        queue.async { [documentEnqueuer] in
             var failure: String?
             do {
-                let imported = try SpeechFileImport.read(url)
-                _ = try client.request(imported.submissionPayload)
-            } catch let WireError.daemon(_, message) {
+                try documentEnqueuer.enqueueDocument(at: url)
+            } catch let SpeechServiceError.rejected(_, message) {
                 failure = message
             } catch {
                 failure = error.localizedDescription
@@ -175,7 +180,7 @@ final class AppState: ObservableObject {
     }
 
     func requeue(_ id: String, priority: RequeuePriority = .normal) {
-        send(["op": "requeue", "id": id, "priority": priority.rawValue])
+        send(.requeue(id: id, priority: priority))
     }
 
     func reorderQueue(_ ids: [String]) {
@@ -183,13 +188,13 @@ final class AppState: ObservableObject {
         guard ids.count == byID.count, ids.allSatisfy({ byID[$0] != nil }) else { return }
         let upcomingIDs = Set(byID.keys)
         plan = plan.filter { !upcomingIDs.contains($0.id) } + ids.compactMap { byID[$0] }
-        send(["op": "reorder", "ids": ids])
+        send(.reorder(ids: ids))
     }
-    func setVoice(_ voice: String) { send(["op": "settings", "set": ["voice": voice]]) }
-    func setSpeed(_ speed: Double) { send(["op": "settings", "set": ["speed": speed]]) }
+    func setVoice(_ voice: String) { send(.setVoice(voice)) }
+    func setSpeed(_ speed: Double) { send(.setSynthesisSpeed(speed)) }
     func setPlaybackRate(_ rate: Double) {
         playbackRate = rate
-        send(["op": "settings", "set": ["playback_rate": rate]])
+        send(.setPlaybackRate(rate))
     }
     func setCaptionsEnabled(_ enabled: Bool) {
         captionsEnabled = enabled
@@ -201,13 +206,27 @@ final class AppState: ObservableObject {
 
     func preview(_ voice: String) {
         // A fixed, generated sentence: genuinely public text.
-        send([
-            "op": "submit",
-            "text": "Hello. This is the voice \(voice.replacingOccurrences(of: "_", with: " ")).",
-            "voice": voice,
-            "sensitivity": "public",
-            "priority": "urgent",
-            "source": "menubar-preview",
-        ])
+        let submission = SpeechSubmission(
+            text: "Hello. This is the voice \(voice.replacingOccurrences(of: "_", with: " ")).",
+            voice: voice,
+            speed: nil,
+            sensitivity: .public,
+            priority: .urgent,
+            source: "menubar-preview"
+        )
+        queue.async { [speech] in
+            var failure: String?
+            do {
+                try speech.submit(submission)
+            } catch let SpeechServiceError.rejected(_, message) {
+                failure = message
+            } catch {
+                failure = "daemon unreachable"
+            }
+            Task { @MainActor [weak self] in
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
     }
 }

@@ -5,6 +5,8 @@
 // switcher. Queue is the exact upcoming playback plan, regardless of synthesis
 // state. History is newest-first and keeps original priority as provenance.
 
+import AITTSApplication
+import AITTSMacAdapters
 import SwiftUI
 
 enum PlaybackTab: String, CaseIterable {
@@ -323,7 +325,7 @@ struct QueueView: View {
         }
         .fileImporter(
             isPresented: $showingFileImporter,
-            allowedContentTypes: SpeechFileImport.allowedContentTypes,
+            allowedContentTypes: LocalSpeechDocumentReader.allowedContentTypes,
             allowsMultipleSelection: false
         ) { result in
             switch result {

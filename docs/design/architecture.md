@@ -67,13 +67,20 @@ resolves the same immutable voice and generation speed from the parent.
 
 ### File selection is a client-side admission adapter
 
-The menu-bar file picker never sends a path to the daemon. It acquires access
-to one URL the user selected, reads UTF-8 text or Markdown exactly, or projects
-a PDF's native text layer in page order, then sends the resulting text through
-the existing `submit` operation as confidential content. This keeps arbitrary
-filesystem access outside the daemon protocol and gives imported documents the
-same segmentation, one-parent queue position, immutable voice profile, and
-history semantics as pasted or agent-submitted text.
+All native file entry points call the `DocumentEnqueueing` application port.
+The menu-bar picker is the first inbound adapter; a Finder, Services, or
+Shortcuts integration is another inbound adapter to the same use case, not
+another file-import implementation. `EnqueueDocument` owns the invariant that
+a selected document is submitted at Normal priority as confidential content.
+The caller supplies only its provenance prefix.
+
+The local-document outbound adapter acquires access to one URL the user
+selected, reads UTF-8 text or Markdown exactly, or projects a PDF's native text
+layer in page order. The separate speech-service outbound adapter sends the
+resulting text—not the path—through the existing `submit` operation. This keeps
+arbitrary filesystem access outside the daemon protocol and gives imported
+documents the same segmentation, one-parent queue position, immutable voice
+profile, and history semantics as pasted or agent-submitted text.
 
 PDF extraction is deliberately narrower than document conversion. It does not
 reconstruct layout and does not perform OCR. A password-locked PDF or a PDF
@@ -131,13 +138,22 @@ stateDiagram-v2
 
 ```mermaid
 graph TB
-    subgraph clients["Clients"]
+    subgraph agents["Agent and script clients"]
         CLI["CLI client<br/>(agents, scripts)"]
-        TRAY["Menu-bar app<br/>(macOS tray)"]
         MCPHOST["MCP host<br/>(AI agents)"]
         MCP["MCP adapter<br/>JSONL over stdio"]
-        PORT["SpeechServicePort<br/>public schemas"]
-        SOCKET["Unix-socket adapter<br/>NDJSON codec"]
+        PYPORT["Python SpeechServicePort<br/>public schemas"]
+        PYSOCKET["Python Unix-socket adapter<br/>NDJSON codec"]
+    end
+
+    subgraph native["Native macOS client hexagon"]
+        TRAY["Menu-bar UI<br/>inbound adapter"]
+        OS["Finder / Services / Shortcuts<br/>planned inbound adapter"]
+        DOCUSE["DocumentEnqueueing<br/>EnqueueDocument use case"]
+        DOC_PORT["SpeechDocumentReaderPort"]
+        SPEECH_PORT["Swift SpeechServicePort<br/>typed models"]
+        FILES["Local-document adapter<br/>UTF-8 · PDFKit"]
+        SW_SOCKET["Swift Unix-socket adapter<br/>NDJSON codec"]
     end
 
     subgraph daemon["Daemon — long-lived, model resident"]
@@ -154,13 +170,19 @@ graph TB
     end
 
     CLI -->|submit, query, transport| IPC
-    TRAY -->|submit, query, transport| IPC
     MCPHOST <-->|MCP JSONL| MCP
-    MCP --> PORT
-    PORT --> SOCKET
-    SOCKET -->|daemon NDJSON| IPC
+    MCP --> PYPORT
+    PYSOCKET -->|implements| PYPORT
+    PYSOCKET -->|daemon NDJSON| IPC
+    TRAY --> DOCUSE
+    TRAY -->|query and transport| SPEECH_PORT
+    OS -.-> DOCUSE
+    DOCUSE --> DOC_PORT
+    DOCUSE --> SPEECH_PORT
+    FILES -->|implements| DOC_PORT
+    SW_SOCKET -->|implements| SPEECH_PORT
+    SW_SOCKET -->|daemon NDJSON| IPC
     IPC -->|events| CLI
-    IPC -->|events| TRAY
     IPC <--> STORE
     STORE --> SYNTH
     SYNTH --> ENGINE
@@ -188,11 +210,23 @@ graph TB
   An unpublished `.part` candidate is cache-invisible and swept on the next
   start.
 - **Store** — the single source of truth for both queues, history and settings. **Components communicate through it rather than with each other**, so state is inspectable at one place rather than reconstructed from several.
-- **Clients are thin and interchangeable.** The tray app and the CLI have the same rights and use the same protocol. **Nothing the tray can do is unavailable to an agent.**
+- **Clients are thin and interchangeable.** The tray app and the CLI have the same rights and use the same daemon protocol. **Nothing the tray can do is unavailable to an agent.**
 - **The agent-facing boundary is hexagonal.** `SpeechServicePort` accepts and
   returns immutable public schemas. The MCP adapter owns MCP tool-schema
   translation; the Unix-socket adapter owns daemon NDJSON encoding and
   decoding. The application port imports neither MCP nor either wire format.
+- **The native-client boundary is also hexagonal.** The reusable
+  `AITTSApplication` Swift library contains only models, ports, and the
+  `EnqueueDocument` use case. `AITTSMacAdapters` depends inward on that library
+  and owns PDFKit, security-scoped URLs, socket I/O, NDJSON fields, and daemon
+  response decoding. `AITTSMenuBar` is an inbound presentation adapter and the
+  composition root; it contains no daemon dictionaries, socket client, or
+  PDFKit dependency.
+- **OS integration is an additional inbound adapter, not a new pipeline.** A
+  future Finder, Services, or Shortcuts target depends on `AITTSApplication`
+  and `AITTSMacAdapters`, constructs `EnqueueDocument` with its own provenance
+  prefix, and calls `enqueueDocument(at:)`. It must not import menu-bar UI or
+  duplicate extraction, confidentiality, queue-priority, or wire policy.
 
 ---
 

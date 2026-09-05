@@ -3,6 +3,7 @@
 //
 // Opt-in, non-activating on-screen captions for the exact segment being heard.
 
+import AITTSApplication
 import AppKit
 import SwiftUI
 

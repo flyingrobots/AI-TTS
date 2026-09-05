@@ -5,6 +5,8 @@
 
 import XCTest
 
+import AITTSApplication
+@testable import AITTSMacAdapters
 @testable import AITTSMenuBar
 
 final class WireProtocolTests: XCTestCase {
@@ -56,7 +58,7 @@ final class WireProtocolTests: XCTestCase {
     }
 
     func testUtteranceParsesWireShape() {
-        let utterance = Utterance(json: [
+        let utterance = Utterance(daemonJSON: [
             "id": "utt_1", "text": "hello", "voice": "bm_daniel", "state": "Ready",
             "duration_ms": 1200, "position_ms": 300, "finished_at": 1_756_700_000.5,
             "source": "menubar", "priority": "urgent", "segment_count": 3,
@@ -79,11 +81,11 @@ final class WireProtocolTests: XCTestCase {
             ActiveSegment(
                 index: 1, number: 2, count: 3, text: "Clean spoken text.",
                 state: "Playing", durationMs: 500, positionMs: 125))
-        XCTAssertNil(Utterance(json: ["id": "utt_2"]))
+        XCTAssertNil(Utterance(daemonJSON: ["id": "utt_2"]))
     }
 
     func testSnapshotParsesWireShape() {
-        let snapshot = Snapshot(json: [
+        let snapshot = Snapshot(daemonJSON: [
             "status": [
                 "state": "accepting",
                 "playback_state": "playing",
@@ -120,7 +122,7 @@ final class WireProtocolTests: XCTestCase {
     }
 
     func testCaptionPresentationIsOptInAndRequiresAnActiveSegment() throws {
-        let active = try XCTUnwrap(DaemonStatus(json: [
+        let active = try XCTUnwrap(DaemonStatus(daemonJSON: [
             "playback_state": "playing",
             "current": [
                 "id": "utt_1", "text": "source", "voice": "v", "state": "Playing",
@@ -130,7 +132,7 @@ final class WireProtocolTests: XCTestCase {
                 ],
             ],
         ]))
-        let idle = try XCTUnwrap(DaemonStatus(json: ["playback_state": "idle"]))
+        let idle = try XCTUnwrap(DaemonStatus(daemonJSON: ["playback_state": "idle"]))
 
         XCTAssertTrue(
             CaptionPresentation.shouldShow(enabled: true, reachable: true, status: active))
@@ -143,17 +145,17 @@ final class WireProtocolTests: XCTestCase {
     }
 
     func testDaemonStatusFallsBackToLegacyState() {
-        let status = DaemonStatus(json: ["state": "paused"])
+        let status = DaemonStatus(daemonJSON: ["state": "paused"])
         XCTAssertEqual(status?.playbackState, "paused")
     }
 
     @MainActor
     func testUnifiedQueueContainsEveryUpcomingStateExactlyOnce() throws {
-        let current = try XCTUnwrap(Utterance(json: [
+        let current = try XCTUnwrap(Utterance(daemonJSON: [
             "id": "utt_current", "text": "Speaking", "voice": "bm_daniel",
             "state": "Playing", "priority": "normal",
         ]))
-        let preview = try XCTUnwrap(Utterance(json: [
+        let preview = try XCTUnwrap(Utterance(daemonJSON: [
             "id": "utt_preview",
             "text": "Hello. This is the voice bm daniel.",
             "voice": "bm_daniel",
@@ -161,15 +163,20 @@ final class WireProtocolTests: XCTestCase {
             "source": "menubar-preview",
             "priority": "urgent",
         ]))
-        let synthesizing = try XCTUnwrap(Utterance(json: [
+        let synthesizing = try XCTUnwrap(Utterance(daemonJSON: [
             "id": "utt_synth", "text": "Generating", "voice": "bm_daniel",
             "state": "Synthesizing", "priority": "normal",
         ]))
-        let queued = try XCTUnwrap(Utterance(json: [
+        let queued = try XCTUnwrap(Utterance(daemonJSON: [
             "id": "utt_queued", "text": "Waiting", "voice": "bm_daniel",
             "state": "Queued", "priority": "normal",
         ]))
-        let state = AppState()
+        let ports = InertApplicationPorts()
+        let state = AppState(
+            speech: ports,
+            documentEnqueuer: ports,
+            defaults: .standard
+        )
         state.plan = [current, preview, synthesizing, queued]
 
         XCTAssertEqual(state.upcoming, [preview, synthesizing, queued])
@@ -207,4 +214,20 @@ final class WireProtocolTests: XCTestCase {
         let frame1 = try XCTUnwrap(TrayIcon.frame(state: .playing, phase: 1).tiffRepresentation)
         XCTAssertNotEqual(frame0, frame1)
     }
+}
+
+private struct InertApplicationPorts: SpeechServicePort, DocumentEnqueueing, Sendable {
+    func snapshot() throws -> Snapshot { throw InertError.unexpectedCall }
+    func submit(_ submission: SpeechSubmission) throws { throw InertError.unexpectedCall }
+    func perform(_ command: SpeechCommand) throws { throw InertError.unexpectedCall }
+
+    func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
+        throw InertError.unexpectedCall
+    }
+
+    func enqueueDocument(at url: URL) throws { throw InertError.unexpectedCall }
+}
+
+private enum InertError: Error {
+    case unexpectedCall
 }

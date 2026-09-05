@@ -41,7 +41,19 @@ What keeps this survivable: this project distributes source that depends on `kok
 
 `NSStatusItem` + `NSPopover` as the shell, SwiftUI for the views inside it. The popover content in the mockups — lists, segmented modes, transport controls — is exactly what SwiftUI does cheaply, and the parts SwiftUI still fumbles on macOS (status items, popover behaviors, launch-at-login) stay in AppKit where they are one class each.
 
-The app holds a single persistent socket connection: it subscribes to state events for live updates ([features 6.9](features.md#6-menu-bar-ui)) and issues the same ops any CLI client would. No daemon logic leaks into it. If the daemon is not running, the app says so and offers to start it — that is the whole extent of its privileged knowledge.
+The Swift package has three dependency-directed targets. `AITTSApplication` is
+a reusable library of public models, ports, and use cases with no AppKit,
+SwiftUI, PDFKit, socket, or wire-format dependency. `AITTSMacAdapters` implements
+its selected-document and speech-service ports using native file APIs and the
+daemon's Unix socket. `AITTSMenuBar` owns presentation and composes those
+libraries. A future OS integration is a sibling inbound-adapter target, not
+code embedded in the presentation target.
+
+The app subscribes to state events for live updates
+([features 6.9](features.md#6-menu-bar-ui)) and issues the same ops any CLI
+client would. No daemon logic leaks into it. If the daemon is not running, the
+app says so and offers to start it — that is the whole extent of its privileged
+knowledge.
 
 Tooling: Swift Package Manager, no Xcode project file if avoidable; `swiftlint` and `swift-format` at maximal strictness; XCTest.
 

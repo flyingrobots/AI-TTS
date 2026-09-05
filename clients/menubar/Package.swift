@@ -7,14 +7,29 @@ import PackageDescription
 let package = Package(
     name: "AITTSMenuBar",
     platforms: [.macOS(.v14)],
+    products: [
+        .library(name: "AITTSApplication", targets: ["AITTSApplication"]),
+        .library(name: "AITTSMacAdapters", targets: ["AITTSMacAdapters"]),
+        .executable(name: "AITTSMenuBar", targets: ["AITTSMenuBar"]),
+    ],
     targets: [
+        .target(
+            name: "AITTSApplication",
+            path: "Sources/AITTSApplication"
+        ),
+        .target(
+            name: "AITTSMacAdapters",
+            dependencies: ["AITTSApplication"],
+            path: "Sources/AITTSMacAdapters"
+        ),
         .executableTarget(
             name: "AITTSMenuBar",
+            dependencies: ["AITTSApplication", "AITTSMacAdapters"],
             path: "Sources/AITTSMenuBar"
         ),
         .testTarget(
             name: "AITTSMenuBarTests",
-            dependencies: ["AITTSMenuBar"],
+            dependencies: ["AITTSApplication", "AITTSMacAdapters", "AITTSMenuBar"],
             path: "Tests/AITTSMenuBarTests"
         ),
     ]

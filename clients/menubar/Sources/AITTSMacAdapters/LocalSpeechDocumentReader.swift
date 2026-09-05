@@ -1,26 +1,12 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
 
+import AITTSApplication
 import Foundation
 import PDFKit
 import UniformTypeIdentifiers
 
-struct ImportedSpeechFile {
-    let filename: String
-    let text: String
-
-    var submissionPayload: [String: Any] {
-        [
-            "op": "submit",
-            "text": text,
-            "sensitivity": "confidential",
-            "priority": "normal",
-            "source": "menubar-file:\(filename)",
-        ]
-    }
-}
-
-enum SpeechFileImportError: LocalizedError, Equatable {
+public enum SpeechDocumentReadError: LocalizedError, Equatable {
     case unsupportedFileType(String)
     case unreadableText(String)
     case unreadablePDF(String)
@@ -28,7 +14,7 @@ enum SpeechFileImportError: LocalizedError, Equatable {
     case noSpeakableText(String)
     case noExtractablePDFText(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .unsupportedFileType(let filename):
             return "Choose a plain-text, Markdown, or PDF file. "
@@ -48,15 +34,18 @@ enum SpeechFileImportError: LocalizedError, Equatable {
     }
 }
 
-enum SpeechFileImport {
-    static let allowedContentTypes: [UTType] = [
+/// Outbound adapter from the document-reader port to user-selected local files.
+public struct LocalSpeechDocumentReader: SpeechDocumentReaderPort, Sendable {
+    public static let allowedContentTypes: [UTType] = [
         .plainText,
         UTType(filenameExtension: "md") ?? .plainText,
         UTType(filenameExtension: "markdown") ?? .plainText,
         .pdf,
     ]
 
-    static func read(_ url: URL) throws -> ImportedSpeechFile {
+    public init() {}
+
+    public func read(_ url: URL) throws -> SpeechDocument {
         let filename = url.lastPathComponent
         let accessed = url.startAccessingSecurityScopedResource()
         defer {
@@ -69,7 +58,7 @@ enum SpeechFileImport {
         case .pdf:
             return try readPDF(url, filename: filename)
         case nil:
-            throw SpeechFileImportError.unsupportedFileType(filename)
+            throw SpeechDocumentReadError.unsupportedFileType(filename)
         }
     }
 
@@ -78,7 +67,7 @@ enum SpeechFileImport {
         case pdf
     }
 
-    private static func fileKind(for url: URL) -> FileKind? {
+    private func fileKind(for url: URL) -> FileKind? {
         let pathExtension = url.pathExtension.lowercased()
         if pathExtension == "pdf" { return .pdf }
         if ["md", "markdown"].contains(pathExtension) { return .text }
@@ -89,28 +78,28 @@ enum SpeechFileImport {
         return .text
     }
 
-    private static func readText(_ url: URL, filename: String) throws -> ImportedSpeechFile {
+    private func readText(_ url: URL, filename: String) throws -> SpeechDocument {
         let data: Data
         do {
             data = try Data(contentsOf: url, options: .mappedIfSafe)
         } catch {
-            throw SpeechFileImportError.unreadableText(filename)
+            throw SpeechDocumentReadError.unreadableText(filename)
         }
         guard let text = String(data: data, encoding: .utf8) else {
-            throw SpeechFileImportError.unreadableText(filename)
+            throw SpeechDocumentReadError.unreadableText(filename)
         }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw SpeechFileImportError.noSpeakableText(filename)
+            throw SpeechDocumentReadError.noSpeakableText(filename)
         }
-        return ImportedSpeechFile(filename: filename, text: text)
+        return SpeechDocument(filename: filename, text: text)
     }
 
-    private static func readPDF(_ url: URL, filename: String) throws -> ImportedSpeechFile {
+    private func readPDF(_ url: URL, filename: String) throws -> SpeechDocument {
         guard let document = PDFDocument(url: url) else {
-            throw SpeechFileImportError.unreadablePDF(filename)
+            throw SpeechDocumentReadError.unreadablePDF(filename)
         }
         guard !document.isLocked else {
-            throw SpeechFileImportError.lockedPDF(filename)
+            throw SpeechDocumentReadError.lockedPDF(filename)
         }
         let pages = (0..<document.pageCount).compactMap { index -> String? in
             let text = document.page(at: index)?.string?
@@ -118,8 +107,8 @@ enum SpeechFileImport {
             return text?.isEmpty == false ? text : nil
         }
         guard !pages.isEmpty else {
-            throw SpeechFileImportError.noExtractablePDFText(filename)
+            throw SpeechDocumentReadError.noExtractablePDFText(filename)
         }
-        return ImportedSpeechFile(filename: filename, text: pages.joined(separator: "\n\n"))
+        return SpeechDocument(filename: filename, text: pages.joined(separator: "\n\n"))
     }
 }
