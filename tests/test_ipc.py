@@ -683,6 +683,48 @@ async def test_requeue_uses_fresh_priority_and_preserves_original_history(daemon
     assert ids.index(urgent["id"]) < ids.index(backlog["id"]) < ids.index(normal["id"])
 
 
+async def test_requeue_preserves_composite_plan_and_reuses_child_cache(daemon: Daemon) -> None:
+    markdown = "# First\n\nAlpha body.\n\n## Second\n\nBeta body."
+    submitted = await rpc(
+        daemon.socket_path,
+        {"op": "submit", "text": markdown, "voice": "bm_daniel", "speed": 1.25},
+    )
+
+    async def original_played() -> bool:
+        item = daemon.store.get(submitted["id"])
+        return item is not None and item.state is State.PLAYED
+
+    await wait_for_async(original_played)
+    original_segments = daemon.store.segments(submitted["id"])
+    original_shape = [
+        (segment.text, segment.audio_path, segment.duration_ms) for segment in original_segments
+    ]
+
+    response = await rpc(daemon.socket_path, {"op": "requeue", "id": submitted["id"]})
+    replay = daemon.store.get(response["id"])
+    replay_shape = [
+        (segment.text, segment.audio_path, segment.duration_ms)
+        for segment in daemon.store.segments(response["id"])
+    ]
+
+    assert {
+        "response": {
+            "composite": response.get("composite"),
+            "segment_count": response.get("segment_count"),
+        },
+        "original_segment_count": len(original_segments),
+        "replay_parent": (
+            None if replay is None else (replay.text, replay.voice, replay.speed, replay.replay_of)
+        ),
+        "reused_shape": replay_shape,
+    } == {
+        "response": {"composite": True, "segment_count": 2},
+        "original_segment_count": 2,
+        "replay_parent": (markdown, "bm_daniel", 1.25, submitted["id"]),
+        "reused_shape": original_shape,
+    }
+
+
 async def test_requeue_rejects_bad_priority_and_nonterminal_target(daemon: Daemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     queued = await rpc(daemon.socket_path, {"op": "submit", "text": "still active"})

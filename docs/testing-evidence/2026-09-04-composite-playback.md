@@ -384,3 +384,16 @@ Ready parents may now enter Failed, matching the existing synthesis and
 playback failure paths. The regression observes a Failed parent with the
 segment error, Cancelled and Failed children, a Ready following clip, and a
 still-running synthesis pool. The complete synthesis suite is green.
+
+## RED: composite history replay
+
+The public requeue boundary must create a fresh parent hearing while preserving
+the original Markdown, profile, and exact spoken child plan. When every source
+child artifact is still cached, the replay must point at those same artifacts
+and report its composite shape instead of re-synthesizing the raw Markdown as
+one legacy clip.
+
+The focused end-to-end socket test exited 1 against the legacy parent-only
+replay path. The fresh parent correctly preserved the original text, profile,
+and `replay_of`, but its child list was empty and both `composite` and
+`segment_count` were absent from the response.
