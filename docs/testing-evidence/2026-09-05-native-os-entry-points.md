@@ -164,3 +164,26 @@ application. It does not prove where TextEdit, Safari, Chromium, VS Code,
 Preview, or Finder chooses to place an applicable Service in its menus, nor an
 assigned keyboard shortcut. That representative host matrix remains open and
 must not be inferred from the successful programmatic invocations.
+
+### Host-menu observation
+
+One controlled TextEdit document was opened with the canonical sentence
+selected. TextEdit's live application menu exposed an enabled
+**TextEdit → Services → Read Selection with AI-TTS** item. The command was not
+invoked again because installed dispatch had already been proven separately.
+
+| Host | Surface | Result |
+|---|---|---|
+| TextEdit | selected text in application Services menu | Pass: command present and enabled |
+| Safari | selected text | Not run |
+| Chromium | selected text | Not run |
+| VS Code | selected text | Not run |
+| Preview | selected PDF text | Not run |
+| Finder | selected supported file | Not run |
+| Assigned keyboard shortcut | selected text | Not run |
+
+The foreground TextEdit launch changed focus and captured unrelated keystrokes
+before the fixture's purpose was understood. The controlled document was
+closed without saving, and foreground host automation stopped. The remaining
+matrix requires an explicitly coordinated interactive session or an isolated
+GUI test session; it will not be run by taking focus from active work.
