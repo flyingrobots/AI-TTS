@@ -486,10 +486,17 @@ class PlaybackController:
         """
         current = self._current()
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
-            position = self._sink.position_ms() if self._sink_active else current.played_ms or 0
+            document_position = self.current_position_ms() or 0
+            segment_position = (
+                self._sink.position_ms() if self._sink_active else current.played_ms or 0
+            )
+            segment_index = self._current_segment_index
             await self._release_sink()
-            self._store.transition(current.id, State.SKIPPED, played_ms=position)
+            if self._store.segments(current.id):
+                self._store.skip_segments(current.id, segment_index, segment_position)
+            self._store.transition(current.id, State.SKIPPED, played_ms=document_position)
             self._current_id = None
+            self._current_segment_index = None
         self.notify()
 
     async def restart_current(self) -> None:
@@ -497,9 +504,21 @@ class PlaybackController:
         if self.held:
             return
         current = self._current()
-        if current is None or current.audio_path is None:
+        if current is None:
             return
         if current.state not in (State.PLAYING, State.PAUSED):  # pragma: no cover
+            return
+        if self._store.segments(current.id):
+            await self._release_sink()
+            self._store.restart_segments(current.id)
+            self._current_segment_index = None
+            first = self._store.next_unfinished_segment(current.id)
+            refreshed = self._store.get(current.id)
+            if first is not None and refreshed is not None and first.state is State.READY:
+                self._begin_segment(refreshed, first, position_ms=0)
+            self.notify()
+            return
+        if current.audio_path is None:
             return
         await self._release_sink()
         if current.state is State.PAUSED:

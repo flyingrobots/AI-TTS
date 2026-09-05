@@ -248,10 +248,16 @@ async def test_skip_composite_settles_children_and_advances_top_level_plan(
     sink: FakeSink,
 ) -> None:
     controller, schedule = playback_controller(store, sink)
-    document = make_composite_ready(store, "document", ("part one", "part two"))
+    document = make_composite_ready(
+        store,
+        "document",
+        ("part one", "part two", "part three"),
+    )
     following = make_ready(store, "following")
     task = await start(controller, schedule)
     try:
+        sink.finish_current()
+        await wait_for(lambda: len(sink.started) == 2)
         sink.advance_to(350)
         await controller.skip()
         await wait_for(lambda: state_of(store, following.id) is State.PLAYING)
@@ -262,9 +268,13 @@ async def test_skip_composite_settles_children_and_advances_top_level_plan(
             "segment_states": [segment.state for segment in store.segments(document.id)],
             "started": [path.name for path in sink.started],
         } == {
-            "parent": (State.SKIPPED, 350),
-            "segment_states": [State.SKIPPED, State.CANCELLED],
-            "started": [f"{document.id}_segment_0000.wav", f"{following.id}.wav"],
+            "parent": (State.SKIPPED, 1350),
+            "segment_states": [State.PLAYED, State.SKIPPED, State.CANCELLED],
+            "started": [
+                f"{document.id}_segment_0000.wav",
+                f"{document.id}_segment_0001.wav",
+                f"{following.id}.wav",
+            ],
         }
     finally:
         task.cancel()

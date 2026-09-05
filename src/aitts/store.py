@@ -627,6 +627,41 @@ class Store:
             )
             self._commit_or_rollback()
 
+    def restart_segments(self, utt_id: str) -> bool:
+        """Reset every cached child of an active document for replay from zero."""
+        segments = self.segments(utt_id)
+        if not segments:
+            return False
+        resettable = (State.READY, State.PLAYING, State.PAUSED, State.PLAYED)
+        placeholders = ",".join("?" * len(resettable))
+        self._db.execute(
+            f"UPDATE utterance_segments SET state = ?, played_ms = 0 "  # noqa: S608
+            f"WHERE utterance_id = ? AND audio_path IS NOT NULL AND state IN ({placeholders})",
+            (State.READY.value, utt_id, *(state.value for state in resettable)),
+        )
+        self._db.execute("UPDATE utterances SET played_ms = 0 WHERE id = ?", (utt_id,))
+        self._commit_or_rollback()
+        return True
+
+    def skip_segments(self, utt_id: str, active_index: int | None, played_ms: int) -> None:
+        """Settle one document's child queue after a parent-level Skip."""
+        if active_index is not None:
+            active = self.get_segment(utt_id, active_index)
+            if active is not None and active.state in (State.PLAYING, State.PAUSED):
+                self.transition_segment(
+                    utt_id,
+                    active_index,
+                    State.SKIPPED,
+                    played_ms=played_ms,
+                )
+        placeholders = ",".join("?" * len(TERMINAL))
+        self._db.execute(
+            f"UPDATE utterance_segments SET state = ? "  # noqa: S608
+            f"WHERE utterance_id = ? AND state NOT IN ({placeholders})",
+            (State.CANCELLED.value, utt_id, *(state.value for state in TERMINAL)),
+        )
+        self._commit_or_rollback()
+
     def move_to_head(self, utt_id: str) -> Utterance:
         """Reorder an utterance to the front of the plan."""
         current = self.get(utt_id)

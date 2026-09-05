@@ -238,3 +238,13 @@ Both focused tests exited 1. Restart timed out waiting for a third sink start
 because the legacy implementation requires a parent audio path. Skip advanced
 the top-level queue and recorded 350 ms, but left its children incorrectly
 Playing and Ready.
+
+## GREEN: composite restart and skip
+
+Restart now releases the sink, resets every cached completed/active child to
+Ready at 0 ms, and starts child zero without re-synthesis. Skip records local
+position on the active child, sums prior child durations for parent-relative
+position, cancels every remaining child (including synthesis work), and
+unblocks the next parent. The strengthened skip case completed child zero,
+skipped child one at 350 ms, cancelled child two, and recorded 1,350 ms on the
+parent. The complete playback and store suites are green.
