@@ -50,7 +50,9 @@ Markdown input is parsed with a GitHub-flavored Markdown AST. Headings create
 strong section boundaries and receive terminal punctuation; inline syntax is
 silent; link labels, image alt text, list content, table cells, and fenced-code
 content remain speakable. HTML interpretation and automatic URL linking are
-disabled. The source Markdown is never replaced by this spoken projection.
+disabled. A leading YAML front-matter fence is treated as document metadata and
+excluded before parsing. The source Markdown is never replaced by this spoken
+projection.
 
 Chunking targets 180 spoken words and never intentionally exceeds 220. It
 prefers whole heading sections, then nearby paragraph and sentence boundaries,

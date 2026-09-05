@@ -48,9 +48,10 @@ def segment_text(text: str) -> tuple[str, ...]:
 
 def prepare_speech_segments(text: str) -> tuple[str, ...]:
     """Return the engine-neutral spoken projection of a submitted document."""
-    tree = SyntaxTreeNode(MarkdownIt("gfm-like", {"html": False, "linkify": False}).parse(text))
+    body = _without_front_matter(text)
+    tree = SyntaxTreeNode(MarkdownIt("gfm-like", {"html": False, "linkify": False}).parse(body))
     if _is_plain_text_tree(tree):
-        return segment_text(text)
+        return segment_text(body)
 
     sections: list[list[str]] = []
     current: list[str] = []
@@ -69,6 +70,17 @@ def prepare_speech_segments(text: str) -> tuple[str, ...]:
         for segment in segment_text("\n\n".join(section))
         if segment.strip()
     )
+
+
+def _without_front_matter(text: str) -> str:
+    """Remove one leading YAML metadata fence before Markdown parsing."""
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].lstrip("\ufeff").strip() != "---":
+        return text
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() in {"---", "..."}:
+            return "".join(lines[index + 1 :]).lstrip("\r\n")
+    return text
 
 
 def _is_plain_text_tree(node: SyntaxTreeNode) -> bool:

@@ -418,3 +418,11 @@ The focused regression exited 1 against the AST-only Markdown path after the
 real document plan exposed its opening as `title: ... date: ...`. It returned
 the metadata as an extra first segment before the otherwise-correct body
 segment.
+
+## GREEN: YAML front matter is not narration
+
+Admission now recognizes one leading `---` YAML fence (including the standard
+`...` closing form), removes it as metadata, and sends only the remaining body
+through the Markdown AST. An unterminated or non-leading thematic break remains
+ordinary Markdown. The focused regression and complete segmentation suite are
+green.
