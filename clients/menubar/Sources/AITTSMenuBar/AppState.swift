@@ -246,10 +246,16 @@ final class AppState: ObservableObject {
     func setCaptionsEnabled(_ enabled: Bool) {
         captionsEnabled = enabled
         defaults.set(enabled, forKey: "captionsEnabled")
-        startPolling(interval: enabled ? 0.5 : 5.0)
+        if enabled {
+            // The event stream drives subsequent caption changes. This one-shot
+            // refresh covers enabling captions in the middle of an active clip.
+            refresh()
+        }
     }
 
-    var backgroundPollingInterval: TimeInterval { captionsEnabled ? 0.5 : 5.0 }
+    /// A liveness watchdog only. Caption preference never controls its cadence;
+    /// daemon transition events drive the active-segment presentation.
+    var backgroundPollingInterval: TimeInterval { 5.0 }
 
     func preview(_ voice: String) {
         // A fixed, generated sentence: genuinely public text.

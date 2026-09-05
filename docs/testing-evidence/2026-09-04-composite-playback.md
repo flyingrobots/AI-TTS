@@ -502,8 +502,9 @@ A deliberate daemon mutant removed the virtual one-part `active_segment` for a
 literal, non-composite agent submission; the focused Python test failed with
 `active_segment: None`. A deliberate menu-state mutant made the caption setter
 a no-op; the focused Swift test failed three assertions covering observable
-state, persisted preference, and the 0.5-second caption refresh cadence. After
-both mutants were removed, these commands passed:
+state, persisted preference, and the then-current 0.5-second caption refresh
+cadence. That cadence was later superseded by the event-driven behavior below.
+After both mutants were removed, these commands passed:
 
 ```console
 .venv/bin/pytest -q \
@@ -512,6 +513,29 @@ both mutants were removed, these commands passed:
 
 python3 scripts/run_with_deadline.py 60 swift test \
   --package-path clients/menubar \
-  --filter WireProtocolTests.testCaptionPreferenceIsOffByDefaultAndPersistsEachToggle
+  --filter WireProtocolTests.testCaptionPreferencePersistsWithoutControllingWatchdogCadence
 # Executed 1 test, with 0 failures
 ```
+
+## RED/GREEN: caption toggle does not control polling
+
+A live user check exposed no visible caption despite the setting appearing
+enabled. The installed daemon and menu app were healthy, the long-lived event
+socket was connected, and the daemon had played the one-segment test clip. The
+caption preference was false by the time it was inspected, so that observation
+does not establish its value during playback and is not claimed as the root
+cause.
+
+The architecture issue discovered alongside it was reproducible: enabling
+captions changed the background snapshot cadence from the five-second liveness
+watchdog to a 0.5-second poll. The existing medium Swift preference contract
+was changed to require the watchdog cadence to remain five seconds. Against the
+unfixed implementation, the focused run reached the assertion and failed with
+`0.5` not equal to `5.0`.
+
+The toggle now updates memory and `UserDefaults` immediately, performs one
+snapshot refresh only when being enabled, and relies on the existing daemon
+event subscription for subsequent active-segment changes. The fixed cadence
+keeps the five-second refresh solely as a liveness watchdog. This is a
+deliberate behavior change at the native presentation boundary; live visual
+acceptance of the originally reported symptom remains pending.

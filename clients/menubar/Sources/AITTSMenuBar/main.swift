@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.servicesProvider = serviceProvider
         statusController = StatusController(state: state)
-        state.startPolling(interval: 5.0)
+        state.startPolling(interval: state.backgroundPollingInterval)
         state.startEventStream()
     }
 }

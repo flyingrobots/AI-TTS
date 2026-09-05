@@ -128,9 +128,12 @@ unreachable, or no clip is active.
 
 The overlay contains the daemon's exact active spoken segment and, for a
 document, `PART n OF m`. It is segment-level transcription: it deliberately
-does not fabricate word timing or karaoke highlighting. The menu app refreshes
-position while captions are enabled and advances the overlay immediately when
-the daemon reports a child-state transition.
+does not fabricate word timing or karaoke highlighting. The toggle updates the
+local presentation and persistent preference immediately, then performs one
+snapshot refresh so enabling it during speech can show the current segment.
+Subsequent caption changes are driven by the daemon event stream. Enabling
+captions does not start or accelerate background polling; the existing
+five-second refresh remains only a liveness watchdog.
 
 ## Queue
 

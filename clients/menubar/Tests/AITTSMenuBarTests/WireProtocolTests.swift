@@ -145,7 +145,7 @@ final class WireProtocolTests: XCTestCase {
     }
 
     @MainActor
-    func testCaptionPreferenceIsOffByDefaultAndPersistsEachToggle() throws {
+    func testCaptionPreferencePersistsWithoutControllingWatchdogCadence() throws {
         let suite = "ai-tts-caption-preference-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -166,7 +166,7 @@ final class WireProtocolTests: XCTestCase {
         state.setCaptionsEnabled(true)
         XCTAssertTrue(state.captionsEnabled)
         XCTAssertTrue(defaults.bool(forKey: "captionsEnabled"))
-        XCTAssertEqual(state.backgroundPollingInterval, 0.5)
+        XCTAssertEqual(state.backgroundPollingInterval, 5.0)
 
         state.setCaptionsEnabled(false)
         XCTAssertFalse(state.captionsEnabled)
