@@ -54,3 +54,22 @@ dismissing the final segment; its focused test exited 1 on both the expected
 segment count and the flattened source-word sequence. That mutation was also
 reverted before the green run. The original pass-through RED remains the
 calibration for bounded long-document planning and heading attachment.
+
+## RED: Markdown spoken projection
+
+The spoken-projection contract enters through `prepare_speech_segments`, before
+engine selection or synthesis. Plain prose must keep exact clip identity.
+Markdown headings become isolated, punctuated phrases; inline emphasis and code
+markers disappear; links retain their human label but not their destination;
+blockquote and bullet markers disappear; table separators are silent while
+cell contents remain; and fenced code retains its content without the fence.
+
+With the projection implemented as a plain pass-through, this command exited 1:
+
+```console
+uv run pytest tests/test_segmentation.py -q
+```
+
+The Markdown example returned every raw marker and the link destination instead
+of the expected spoken text. The adjacent plain-text identity control passed,
+isolating the missing normalization behavior.

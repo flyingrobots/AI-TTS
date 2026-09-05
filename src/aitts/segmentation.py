@@ -30,6 +30,11 @@ def segment_text(text: str) -> tuple[str, ...]:
     return segments or (text,)
 
 
+def prepare_speech_segments(text: str) -> tuple[str, ...]:
+    """Return the engine-neutral spoken projection of a submitted document."""
+    return segment_text(text)
+
+
 def _structural_sections(text: str) -> tuple[str, ...]:
     headings = list(_MARKDOWN_HEADING.finditer(text))
     if not headings:

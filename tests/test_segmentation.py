@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from aitts.segmentation import segment_text
+from aitts.segmentation import prepare_speech_segments, segment_text
 
 pytestmark = [
     pytest.mark.small,
@@ -54,3 +54,45 @@ def test_markdown_document_becomes_lossless_bounded_segment_plan() -> None:
         "empty_segments": 0,
         "details_heading_attached": True,
     }
+
+
+def test_plain_text_speech_plan_retains_exact_clip_identity() -> None:
+    text = "  Ordinary prose stays exactly as submitted.\n"
+
+    assert prepare_speech_segments(text) == (text,)
+
+
+def test_markdown_speech_plan_removes_syntax_and_adds_prosody_hints() -> None:
+    text = """# Revenue **Review**
+
+Read [SalesOS](https://example.test) and `OpportunityPort`.
+
+> **Important:** no raw markup.
+
+- First item
+- Second item
+
+| Metric | Value |
+| --- | ---: |
+| Win rate | 42% |
+
+```python
+print("ready")
+```
+"""
+
+    assert prepare_speech_segments(text) == (
+        """Revenue Review.
+
+Read SalesOS and OpportunityPort.
+
+Important: no raw markup.
+
+First item.
+Second item.
+
+Metric. Value.
+Win rate. 42%.
+
+print("ready")""",
+    )
