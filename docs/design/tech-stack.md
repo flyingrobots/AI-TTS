@@ -74,7 +74,7 @@ in [`os-integration.md`](os-integration.md).
 | Service shortcut | User-assigned macOS Services shortcut | Avoids a global event tap and its monitoring permission |
 | Menu fallback | `ApplicationServices` Accessibility APIs behind `SelectedTextReaderPort` | Best-effort access for nonparticipating hosts, queried once after explicit invocation |
 | Clipboard fallback | Read-only AppKit pasteboard adapter | Works after an explicit copy and never saves, replaces, or restores clipboard state |
-| Automation | `AppIntents`, deferred | Correct surface for Shortcuts, Siri, and Spotlight after metadata packaging is proved |
+| Automation | `AppIntents` in the menu executable | Typed Shortcuts, Siri, and Spotlight actions reuse existing application ports; compiler metadata is generated and validated before signing |
 
 The Swift package should add a sibling `AITTSMacEntryPoints` target for the
 Services provider and optional Accessibility and clipboard adapters. It depends
@@ -85,11 +85,12 @@ ApplicationServices types, and `AITTSMacAdapters` continues to own outbound
 file/PDF and Unix-socket translation.
 
 The hand-built app bundle is a load-bearing part of this choice. The builder
-must generate both Service dictionaries under `NSServices`, preserve them in
-the installed signed bundle, and prove system discovery. App Intents remain
-deferred because the compiler generates discovery metadata that must also be
-shown to survive SwiftPM compilation, manual bundle assembly, signing, and
-installation; merely compiling an `AppIntent` type is not distribution proof.
+generates both Service dictionaries under `NSServices`, performs Swift constant
+extraction for the App Intents, validates the exact semantic inventory under
+`Metadata.appintents`, and signs only afterward. This proves SwiftPM
+compilation, manual bundle assembly, and signing. Installed Services discovery,
+App Intents indexing, and real invocations remain separate acceptance gates;
+merely compiling an `AppIntent` type is not distribution proof.
 
 ## CLI client: part of the daemon's Python package
 

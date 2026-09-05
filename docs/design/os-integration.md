@@ -17,11 +17,11 @@ related:
 # Read anywhere on macOS
 
 **Decision:** accepted on 2026-09-05. **Implementation status:** the shared
-selected-text use case, native text/file Services, and explicit Accessibility
-and clipboard menu actions are implemented; installed-host and live
-Accessibility acceptance remain in progress. App Intents remain deferred. The
-document distinguishes executable behavior from future adapters so that design
-intent never masquerades as product behavior.
+selected-text use case, native text/file Services, explicit Accessibility and
+clipboard menu actions, and six App Intents are implemented. Installed-host,
+live Accessibility, and installed App Intent acceptance remain in progress.
+The document distinguishes executable behavior from future acceptance claims
+so that design intent never masquerades as product behavior.
 
 ## 1. The decision in one minute
 
@@ -31,8 +31,8 @@ The primary entry point is a macOS Service for selected text. A second Service
 accepts one selected text, Markdown, or text-bearing PDF file. The menu-bar app
 also offers **Read Current Selection…** through the Accessibility API for
 applications that do not participate correctly in Services, and **Read
-Clipboard** as an explicit low-permission fallback. App Intents come later for
-Shortcuts, Siri, and Spotlight.
+Clipboard** as an explicit low-permission fallback. Six App Intents extend the
+same application boundaries into Shortcuts, Siri, and Spotlight.
 
 A **Service** is an action AI-TTS exports so another application can hand it a
 current selection through macOS. **Accessibility** is the separate permissioned
@@ -47,9 +47,9 @@ can reach some otherwise inaccessible selections, but it grants AI-TTS broader
 visibility into other applications and does not work uniformly across custom
 text renderers. Clipboard input is universal only after the user copies the
 text. App Intents broaden automation but do not improve direct selection
-handling. Therefore the default is **Service first, Accessibility only on
-demand, clipboard only by explicit action, App Intents after the native bundle
-can package them correctly**.
+handling. Therefore the direct-selection default is **Service first,
+Accessibility only on demand, and clipboard only by explicit action**. App
+Intents are the automation layer, not another way to inspect a highlight.
 
 In summary, “integrated everywhere” means a predictable ladder of explicit
 entry points. It does not mean continuously watching what the user highlights.
@@ -124,6 +124,7 @@ flowchart TD
     CLIPBOARD["Read Clipboard action"]
     CLIPBOARDADAPTER["Clipboard adapter"]
     FILE["One selected file"] --> FILESERVICE["File Service adapter"]
+    AUTOMATION["Shortcuts, Siri, or Spotlight"] --> INTENTS["App Intents adapter"]
 
     TEXTSERVICE --> SELECTION["EnqueueSelection"]
     MENU --> CURRENTUSE["EnqueueCurrentSelection"]
@@ -135,6 +136,9 @@ flowchart TD
     CLIPUSE --> SELECTION
     FILESERVICE --> DOCUMENT["EnqueueDocument"]
     DOCUMENT --> READER["SpeechDocumentReaderPort"]
+    INTENTS --> SELECTION
+    INTENTS --> DOCUMENT
+    INTENTS --> SPEECH
 
     SELECTION --> SPEECH["SpeechServicePort"]
     DOCUMENT --> SPEECH
@@ -154,6 +158,7 @@ flowchart TD
     style SELECTEDPORT fill:#d4edda,stroke:#2e7d32
     style CURRENTUSE fill:#d4edda,stroke:#2e7d32
     style CLIPUSE fill:#d4edda,stroke:#2e7d32
+    style INTENTS fill:#d4edda,stroke:#2e7d32
 ```
 
 <details>
@@ -171,7 +176,7 @@ uses the same typed speech port and local daemon socket.
 | Menu-bar selection action | Accessibility reader | `SelectedTextReaderPort`, then `SelectionEnqueueing` | Always literal `plain_text` |
 | Explicit clipboard action | Pasteboard reader | `SelectionEnqueueing` | Always literal `plain_text` |
 | Selected Finder file | Services provider | Existing `DocumentEnqueueing` | Extension or extractor chooses Markdown versus plain text |
-| Shortcut, Siri, or Spotlight | Future App Intent | The same selection or document boundary | Explicit intent parameter type chooses the path |
+| Shortcut, Siri, or Spotlight | App Intent | The same selection, document, or speech-command boundary | Explicit intent parameter type chooses the path |
 
 The core must not import `AppKit`, `ApplicationServices`, `UniformTypeIdentifiers`,
 or `AppIntents`. Those frameworks stay in macOS adapters and composition. The
@@ -361,9 +366,9 @@ In summary, the design does not trade privacy or state integrity for the
 appearance of universality. Where macOS exposes no selection, AI-TTS asks for a
 clearer user action.
 
-## 9. App Intents come after direct selection
+## 9. App Intents extend the application into automation
 
-App Intents are the right later adapter for automation, not the first answer to
+App Intents are the right adapter for automation, not the first answer to
 selection. They can expose AI-TTS actions to Shortcuts, Siri, Spotlight, and
 other system experiences, with typed parameters for text or files. Apple’s
 [App Intents](https://developer.apple.com/documentation/AppIntents/app-intents)
@@ -371,18 +376,19 @@ and
 [parameter](https://developer.apple.com/documentation/appintents/adding-parameters-to-an-app-intent)
 documentation establish that discovery and input model.
 
-The first useful intents would be **Read Text**, **Read File**, **Pause**,
+The implemented intents are **Read Text**, **Read File**, **Pause**,
 **Resume**, **Skip**, and **Set Playback Speed**. Read Text delegates to
 `SelectionEnqueueing`; Read File delegates to `DocumentEnqueueing`; transport
 intents delegate to existing speech commands. No intent gets a private policy
 fork.
 
-The current release builder manually copies one Swift executable and writes a
-small `Info.plist`. App Intent metadata is compiler-generated and must be shown
-to survive SwiftPM compilation, app-bundle assembly, signing, installation, and
-system discovery before the product claims these actions. That distribution
-proof belongs in a later slice after Services establish the application
-boundaries.
+The release builder compiles the Swift executable, performs a focused constant
+extraction, and runs the active Xcode toolchain's App Intents metadata
+processor. It validates the exact six actions, six App Shortcuts, and six
+playback-rate values in `Contents/Resources/Metadata.appintents` before signing
+the bundle. This proves SwiftPM compilation, bundle assembly, and signing;
+installation, system indexing, and real Shortcuts invocation remain separate
+acceptance boundaries.
 
 In summary, App Intents extend a finished capability into automation. They do
 not replace the direct Service interaction or justify weakening the bundle
@@ -406,7 +412,7 @@ and which remain future work.
 | Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing`; Queue's **Read…** menu calls those ports | Implemented and contract-tested |
 | The app can read another app’s selection | `AccessibilitySelectionReader` queries one explicit PID and distinguishes trust, focus, support, empty, and AX failures | Implemented; live permission/host acceptance pending |
 | The prior foreground application survives popover activation | `PopoverOpenSequence` stores an external PID before its activation closure; focused tests falsify the event order | Implemented and contract-tested |
-| App Intents are discoverable from the installed bundle | No App Intent target or verified metadata packaging | Deferred |
+| App Intents are packaged for system discovery | Six typed intents and six App Shortcuts delegate through injected application ports; the release builder validates generated `Metadata.appintents` before signing | Implemented and package-verified; installed discovery/invocation pending |
 
 The repository audit read the live Swift port, composition, status-controller,
 and bundle-builder code. The installed macOS SDK was also checked for
@@ -418,8 +424,8 @@ the repository remains the authority for what AI-TTS actually implements.
 In summary, the Services path has installed dispatch evidence, while its
 representative host matrix remains incomplete. Accessibility and the explicit
 clipboard fallback are executable and contract-tested, but live
-permission/focus acceptance remains. App Intents remain a future sibling
-adapter.
+permission/focus acceptance remains. App Intents are package-verified, with
+installed system discovery and invocation still unclaimed.
 
 ## 11. Delivery order and the definition of done
 
@@ -456,5 +462,5 @@ The first goalpost is complete when all of the following are true:
   checkout independence are all verified at the exact commit being shipped.
 
 In summary, “done” is an installed, observable OS contract—not merely Swift
-types that compile. Services earn the first release; Accessibility and App
-Intents earn later releases only with evidence that they expand real coverage.
+types that compile. Each entry point earns its compatibility claims only with
+evidence from the system surface that actually invokes it.

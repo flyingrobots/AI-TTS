@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import plistlib
 import shutil
@@ -15,7 +16,11 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from scripts.build_app_bundle import assemble_app_bundle
+from scripts.build_app_bundle import (
+    APP_INTENT_PLAYBACK_RATES,
+    assemble_app_bundle,
+    validate_app_intents_metadata,
+)
 from scripts.render_launch_agent import render_launch_agent
 
 pytestmark = [
@@ -24,6 +29,94 @@ pytestmark = [
 ]
 
 REPOSITORY = Path(__file__).parents[1]
+EXPECTED_APP_INTENT_RATES = [
+    "0.5\u00d7",
+    "0.75\u00d7",
+    "1\u00d7",
+    "1.5\u00d7",
+    "2\u00d7",
+    "3\u00d7",
+]
+
+
+def _write_app_intents_metadata(
+    root: Path,
+    *,
+    action_titles: list[str] | None = None,
+    shortcut_identifiers: list[str] | None = None,
+    playback_rates: list[str] | None = None,
+    open_app_when_run: bool = False,
+) -> Path:
+    metadata = root / "Metadata.appintents"
+    metadata.mkdir()
+    payload = {
+        "actions": [
+            {"title": {"key": title}, "openAppWhenRun": open_app_when_run}
+            for title in (
+                action_titles
+                or ["Pause", "Read File", "Read Text", "Resume", "Set Playback Speed", "Skip"]
+            )
+        ],
+        "autoShortcuts": [
+            {"actionIdentifier": identifier}
+            for identifier in (
+                shortcut_identifiers
+                or [
+                    "PauseSpeechIntent",
+                    "ReadFileIntent",
+                    "ReadTextIntent",
+                    "ResumeSpeechIntent",
+                    "SetPlaybackSpeedIntent",
+                    "SkipSpeechIntent",
+                ]
+            )
+        ],
+        "enums": [
+            {
+                "cases": [
+                    {"displayRepresentation": {"title": {"key": rate}}}
+                    for rate in (playback_rates or EXPECTED_APP_INTENT_RATES)
+                ]
+            }
+        ],
+    }
+    (metadata / "extract.actionsdata").write_text(json.dumps(payload), encoding="utf-8")
+    (metadata / "version.json").write_text('{"version": "3.0"}', encoding="utf-8")
+    return metadata
+
+
+def test_app_intents_metadata_validator_accepts_exact_contract(tmp_path: Path) -> None:
+    assert APP_INTENT_PLAYBACK_RATES == EXPECTED_APP_INTENT_RATES
+    validate_app_intents_metadata(_write_app_intents_metadata(tmp_path))
+
+
+@pytest.mark.parametrize(
+    ("field", "values", "message"),
+    [
+        ("actions", ["Read Text"], "actions"),
+        ("shortcuts", ["ReadTextIntent"], "shortcuts"),
+        ("rates", [EXPECTED_APP_INTENT_RATES[2]], "playback rates"),
+    ],
+)
+def test_app_intents_metadata_validator_rejects_incomplete_contract(
+    tmp_path: Path, field: str, values: list[str], message: str
+) -> None:
+    if field == "actions":
+        metadata = _write_app_intents_metadata(tmp_path, action_titles=values)
+    elif field == "shortcuts":
+        metadata = _write_app_intents_metadata(tmp_path, shortcut_identifiers=values)
+    else:
+        metadata = _write_app_intents_metadata(tmp_path, playback_rates=values)
+
+    with pytest.raises(ValueError, match=message):
+        validate_app_intents_metadata(metadata)
+
+
+def test_app_intents_metadata_validator_rejects_foreground_activation(tmp_path: Path) -> None:
+    metadata = _write_app_intents_metadata(tmp_path, open_app_when_run=True)
+
+    with pytest.raises(ValueError, match="background"):
+        validate_app_intents_metadata(metadata)
 
 
 def test_app_bundle_has_release_identity_without_checkout_paths(tmp_path: Path) -> None:

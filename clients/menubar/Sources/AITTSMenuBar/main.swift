@@ -18,6 +18,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let speech = UnixSocketSpeechService()
         let documents = LocalSpeechDocumentReader()
         let selectionEnqueuer = EnqueueSelection(speech: speech)
+        AITTSAppIntentRuntime.register(
+            AITTSAppIntentDependencies(
+                selectionEnqueuer: selectionEnqueuer,
+                documentEnqueuer: EnqueueDocument(
+                    documents: documents,
+                    speech: speech,
+                    sourcePrefix: "macos-intent:file"
+                ),
+                speech: speech
+            )
+        )
         state = AppState(
             speech: speech,
             documentEnqueuer: EnqueueDocument(

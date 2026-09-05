@@ -42,6 +42,9 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   AI-TTS** on selected text or **Read File with AI-TTS** on one supported Finder
   file; both enter the same confidential, Normal-priority queue as the app and
   agent clients.
+- **Exports six App Intents** for Read Text, Read File, Pause, Resume, Skip, and
+  Set Playback Speed. They reuse the same application boundaries and are
+  packaged as App Shortcuts for system automation.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
@@ -211,8 +214,8 @@ Accessibility, and clipboard translation), and `AITTSMenuBar` (AppKit/SwiftUI
 presentation and composition).
 The installed text and file Services call `SelectionEnqueueing` and
 `DocumentEnqueueing` without importing the menu UI or rebuilding speech, file,
-or socket policy. The Accessibility and clipboard actions use the same
-selection boundary; future Shortcuts adapters must do likewise. See
+or socket policy. The Accessibility, clipboard, and App Intents adapters use
+those same application boundaries. See
 [`docs/design/architecture.md`](docs/design/architecture.md) §4.
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
@@ -221,9 +224,10 @@ Text is **confidential by default**: an utterance submitted without an explicit 
 
 The v0.1.0 implementation is a release candidate, not a published release. The
 Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
-native Swift menu-bar app, native selected-text/selected-file Services, and
-explicit Accessibility/clipboard fallbacks are implemented. The suite encodes
-the state machine, serialized playback plan,
+native Swift menu-bar app, native selected-text/selected-file Services,
+explicit Accessibility/clipboard fallbacks, and six package-verified App
+Intents are implemented. The suite encodes the state machine and serialized
+playback plan,
 global hold, fail-closed sensitivity, restart recovery, bounded cache and
 shutdown, single-instance menu process, public schemas, and
 checkout-independent release artifacts. Representative Services-menu host

@@ -76,8 +76,9 @@ Every unresolved question across the set, in one list. The detail and the reason
 primary selected-text and selected-file entry points; text is literal,
 confidential, and Normal; one file reuses `DocumentEnqueueing`; Accessibility
 is an explicit implemented fallback and never a background detector; clipboard
-input is explicit and non-mutating; App Intents follow only after bundle metadata is
-proved. Multi-file Service admission is deferred rather than left ambiguous.
+input is explicit and non-mutating. Six App Intents now have validated bundle
+metadata; installed discovery and invocation remain separate acceptance gates.
+Multi-file Service admission is deferred rather than left ambiguous.
 See [`os-integration.md`](os-integration.md).
 
 ## How v0.1.0 answered these
@@ -114,7 +115,8 @@ Positions taken at implementation time, each reversible and open to challenge:
   Service uses the existing `EnqueueDocument`; both have installed-system
   dispatch evidence. Representative host-menu acceptance remains open.
   Accessibility is implemented with live permission/host acceptance still
-  open. App Intents remain a later, evidence-gated adapter.
+  open. App Intents are implemented and package-verified, while installed
+  discovery and real Shortcuts invocation remain open.
 
 ## What approval means
 

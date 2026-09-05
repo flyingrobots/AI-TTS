@@ -1,10 +1,11 @@
 # AI-TTS — Architecture
 
 **Status:** the core is implemented in v0.1.0 (`src/aitts/`); the selected-text
-application use case, native text/file Services, and explicit Accessibility
-and clipboard menu actions are implemented. Representative installed-host and
-live Accessibility acceptance, plus App Intents, remain explicitly pending.
-This document remains the spec; the test suite encodes implemented semantics.
+application use case, native text/file Services, explicit Accessibility and
+clipboard menu actions, and packaged App Intents are implemented.
+Representative installed-host, live Accessibility, and installed Shortcuts
+acceptance remain explicitly pending. This document remains the spec; the test
+suite encodes implemented semantics.
 **Scope:** a local-first, single-user speech daemon that accepts text from many clients, synthesizes ahead of playback, and gives the user transport control over what is spoken.
 
 ---
@@ -186,6 +187,7 @@ graph TB
         AXOS["Accessibility selection<br/>outbound acquisition adapter"]
         CLIPOS["Clipboard reader<br/>outbound acquisition adapter"]
         FILEOS["Finder file Service<br/>inbound adapter"]
+        INTENTOS["App Intents<br/>inbound automation adapter"]
         CURRENTUSE["EnqueueCurrentSelection<br/>application use case"]
         CLIPUSE["EnqueueClipboard<br/>application use case"]
         SELECTUSE["SelectionEnqueueing<br/>EnqueueSelection use case"]
@@ -224,6 +226,9 @@ graph TB
     CLIPUSE --> CLIPOS
     CLIPUSE --> SELECTUSE
     FILEOS --> DOCUSE
+    INTENTOS --> SELECTUSE
+    INTENTOS --> DOCUSE
+    INTENTOS --> SPEECH_PORT
     SELECTUSE --> SPEECH_PORT
     DOCUSE --> DOC_PORT
     DOCUSE --> SPEECH_PORT
@@ -277,9 +282,9 @@ graph TB
 - **OS integration adds adapters, not a new pipeline.** The implemented text
   Service calls `EnqueueSelection`, and the file Service calls the existing
   `EnqueueDocument`. The explicit Accessibility and clipboard readers feed
-  selection admission through their application use cases; later App Intents
-  are sibling inbound adapters. They must not import menu-bar views or
-  duplicate content
+  selection admission through their application use cases. The six App Intents
+  are sibling inbound adapters over selection, document, and speech-command
+  ports. None may import menu-bar views or duplicate content
   interpretation, extraction, confidentiality, queue-priority, voice, or wire
   policy. See [`os-integration.md`](os-integration.md).
 

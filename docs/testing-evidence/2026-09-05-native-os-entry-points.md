@@ -333,3 +333,87 @@ The release bundle builder completed from the working tree, after which
 generated app. No candidate was installed or launched in this slice, so real
 Accessibility trust, selection acquisition, and visible error presentation
 remain unclaimed.
+
+## Slice 5a: typed App Intents and bundle metadata
+
+Six `AppIntent` types implement **Read Text**, **Read File**, **Pause**,
+**Resume**, **Skip**, and **Set Playback Speed**. Their injected dependency
+value contains only the existing selection, document, and speech ports. Read
+Text supplies exact literal text with source `macos-intent:text`; Read File
+passes an available `IntentFile.fileURL` to document admission; transport maps
+to existing commands; playback speed maps the same six UI rates to
+`setPlaybackRate`. All intents set `openAppWhenRun` to false.
+
+`AITTSAppShortcuts` supplies six corresponding system shortcuts and phrases.
+The release builder uses the active Xcode toolchain to emit constant values and
+generate `Contents/Resources/Metadata.appintents`, then validates its semantic
+inventory before applying the bundle signature.
+
+### Falsification
+
+A deliberate intent-router mutant discarded Read Text content/provenance,
+ignored Read File, admitted a missing file, mapped every transport command to
+Pause, and mapped live playback rates to synthesis speed. The catalog test
+still passed, while all five behavioral tests failed:
+
+```console
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar --filter AppIntentsTests
+# Executed 6 tests, with 5 failures (0 unexpected)
+```
+
+The failures printed the exact bad selection, absent URL, missing typed error,
+three Pause commands instead of Pause/Resume/Skip, and six Pause commands
+instead of the six expected live playback-rate commands. The mutant was then
+removed.
+
+A second deliberate mutant made the package metadata validator accept every
+payload. Its exact fixture remained green, while incomplete action, shortcut,
+and rate payloads plus a foreground-activating intent all escaped rejection and
+failed their tests:
+
+```console
+.venv/bin/pytest -q tests/test_distribution.py \
+  -k app_intents_metadata_validator
+# 1 passed, 4 failed
+```
+
+The final validator replaced that mutant.
+
+### Green
+
+The six focused intent tests and all 57 Swift tests pass. The five metadata
+validator cases pass, as do the full Python suite and its lint/type gates:
+
+```console
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar --filter AppIntentsTests
+# Executed 6 tests, with 0 failures
+
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar
+# Executed 57 tests, with 0 failures
+
+uv run ruff check
+# All checks passed!
+
+uv run ruff format --check
+# 89 files already formatted
+
+uv run mypy
+# Success: no issues found in 57 source files
+
+.venv/bin/pytest -q
+# complete Python suite passed
+```
+
+A clean temporary release bundle then passed the builder's own validator and
+`codesign --verify --deep --strict`. Its generated metadata contained exactly:
+
+- action titles: Pause, Read File, Read Text, Resume, Set Playback Speed, Skip;
+- shortcut identifiers: the six corresponding Swift intent types;
+- playback rates: 0.5×, 0.75×, 1×, 1.5×, 2×, and 3×.
+
+This proves compiler extraction, bundle placement, semantic validation, and
+post-metadata signing. The candidate was not installed in this slice, so system
+indexing and a real Shortcuts invocation remain unclaimed.
