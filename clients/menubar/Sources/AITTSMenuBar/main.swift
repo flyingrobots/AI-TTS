@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     override init() {
         let speech = UnixSocketSpeechService()
         let documents = LocalSpeechDocumentReader()
+        let selectionEnqueuer = EnqueueSelection(speech: speech)
         state = AppState(
             speech: speech,
             documentEnqueuer: EnqueueDocument(
@@ -24,10 +25,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 speech: speech,
                 sourcePrefix: "menubar-file"
             ),
+            currentSelectionEnqueuer: EnqueueCurrentSelection(
+                reader: AccessibilitySelectionReader(),
+                selectionEnqueuer: selectionEnqueuer,
+                source: "macos-accessibility:text"
+            ),
+            clipboardEnqueuer: EnqueueClipboard(
+                reader: MacClipboardTextReader(),
+                selectionEnqueuer: selectionEnqueuer,
+                source: "macos-clipboard:text"
+            ),
             defaults: .standard
         )
         serviceProvider = MacServiceProvider(
-            selectionEnqueuer: EnqueueSelection(speech: speech),
+            selectionEnqueuer: selectionEnqueuer,
             documentEnqueuer: EnqueueDocument(
                 documents: documents,
                 speech: speech,

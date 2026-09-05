@@ -9,6 +9,21 @@ import AppKit
 import Combine
 import SwiftUI
 
+enum PopoverOpenSequence {
+    static func capturePriorApplicationThenActivate(
+        frontmostProcessIdentifier: () -> Int32?,
+        ownProcessIdentifier: Int32,
+        store: (Int32?) -> Void,
+        activate: () -> Void
+    ) {
+        let frontmost = frontmostProcessIdentifier()
+        let prior = frontmost == ownProcessIdentifier ? nil : frontmost
+
+        store(prior)
+        activate()
+    }
+}
+
 @MainActor
 final class StatusController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
@@ -86,9 +101,18 @@ final class StatusController: NSObject, NSPopoverDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else if let button = statusItem.button {
-            state.startPolling(interval: 0.5)
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
+            PopoverOpenSequence.capturePriorApplicationThenActivate(
+                frontmostProcessIdentifier: {
+                    NSWorkspace.shared.frontmostApplication?.processIdentifier
+                },
+                ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
+                store: { state.capturePriorApplication(processIdentifier: $0) },
+                activate: {
+                    state.startPolling(interval: 0.5)
+                    popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                    popover.contentViewController?.view.window?.makeKey()
+                }
+            )
         }
     }
 

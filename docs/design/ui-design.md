@@ -69,11 +69,11 @@ that menu.
 The selected-text Service has no confirmation step. It enqueues the exact
 nonempty selection as confidential, Normal, literal text, returns after daemon
 acknowledgement, and lets the existing Queue provide visible feedback. The file
-Service likewise delegates to the same document admission used by **Add
-file…**. Errors are local and actionable; unsupported or multiple files are
+Service likewise delegates to the same document admission used by **Read
+File…**. Errors are local and actionable; unsupported or multiple files are
 rejected before anything is enqueued.
 
-An optional later Queue action is named **Read Current Selection…**. The
+Queue's **Read…** menu includes **Read Current Selection…**. The
 ellipsis is intentional: its first use may need the macOS Accessibility prompt,
 and any use may report that the previous application does not expose selected
 text. Opening the popover must preserve the previously frontmost application
@@ -82,14 +82,14 @@ that application; it never enables selection polling.
 
 If Accessibility cannot obtain the selection, the error identifies the
 boundary and offers two next actions: use the macOS Service, or copy explicitly
-and choose **Read Clipboard** when that optional action exists. **Read
+and choose **Read Clipboard**. **Read
 Clipboard** reads but never replaces the pasteboard. Neither fallback silently
 synthesizes Command-C.
 
 These entry points are specified in
-[`os-integration.md`](os-integration.md). Until their installed-system
-acceptance passes, the popover and product copy must not present them as
-available behavior.
+[`os-integration.md`](os-integration.md). The menu actions are implemented;
+product copy must keep live Accessibility/host compatibility distinct from the
+contract-tested behavior until installed-system acceptance passes.
 
 ## Current playback
 
@@ -134,7 +134,8 @@ the daemon reports a child-state transition.
 
 Queue is the complete pending plan:
 
-- **Add file…** opens a single-selection picker for UTF-8 plain text,
+- **Read…** contains current-selection, clipboard, and file entry points;
+- **Read File…** opens a single-selection picker for UTF-8 plain text,
   Markdown, or PDF;
 - rows stay in the order they will be heard;
 - a visible word pill carries Ready, Synthesizing…, or Queued;

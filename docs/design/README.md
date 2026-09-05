@@ -75,8 +75,8 @@ Every unresolved question across the set, in one list. The detail and the reason
 **OS integration** — none open for the first goalpost. macOS Services are the
 primary selected-text and selected-file entry points; text is literal,
 confidential, and Normal; one file reuses `DocumentEnqueueing`; Accessibility
-is an explicit later fallback and never a background detector; clipboard input
-is explicit and non-mutating; App Intents follow only after bundle metadata is
+is an explicit implemented fallback and never a background detector; clipboard
+input is explicit and non-mutating; App Intents follow only after bundle metadata is
 proved. Multi-file Service admission is deferred rather than left ambiguous.
 See [`os-integration.md`](os-integration.md).
 
@@ -113,7 +113,8 @@ Positions taken at implementation time, each reversible and open to challenge:
   progress. The selected-text Service uses `EnqueueSelection`; the selected-file
   Service uses the existing `EnqueueDocument`; both have installed-system
   dispatch evidence. Representative host-menu acceptance remains open.
-  Accessibility and App Intents remain later, evidence-gated adapters.
+  Accessibility is implemented with live permission/host acceptance still
+  open. App Intents remain a later, evidence-gated adapter.
 
 ## What approval means
 

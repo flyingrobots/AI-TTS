@@ -45,19 +45,26 @@ final class AppState: ObservableObject {
 
     private let speech: any SpeechServicePort
     private let documentEnqueuer: any DocumentEnqueueing
+    private let currentSelectionEnqueuer: any CurrentSelectionEnqueueing
+    private let clipboardEnqueuer: any ClipboardEnqueueing
     private let defaults: UserDefaults
     private let queue = DispatchQueue(label: "aitts.client", qos: .userInitiated)
     private var timer: Timer?
     private var eventThread: Thread?
     private let eventsFlag = AtomicFlag()
+    private var priorApplicationProcessIdentifier: Int32?
 
     init(
         speech: any SpeechServicePort,
         documentEnqueuer: any DocumentEnqueueing,
+        currentSelectionEnqueuer: any CurrentSelectionEnqueueing,
+        clipboardEnqueuer: any ClipboardEnqueueing,
         defaults: UserDefaults
     ) {
         self.speech = speech
         self.documentEnqueuer = documentEnqueuer
+        self.currentSelectionEnqueuer = currentSelectionEnqueuer
+        self.clipboardEnqueuer = clipboardEnqueuer
         self.defaults = defaults
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
     }
@@ -158,6 +165,46 @@ final class AppState: ObservableObject {
             var failure: String?
             do {
                 try documentEnqueuer.enqueueDocument(at: url)
+            } catch let SpeechServiceError.rejected(_, message) {
+                failure = message
+            } catch {
+                failure = error.localizedDescription
+            }
+            Task { @MainActor [weak self] in
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func capturePriorApplication(processIdentifier: Int32?) {
+        priorApplicationProcessIdentifier = processIdentifier
+    }
+
+    func enqueueCurrentSelection() {
+        let processIdentifier = priorApplicationProcessIdentifier
+        queue.async { [currentSelectionEnqueuer] in
+            var failure: String?
+            do {
+                try currentSelectionEnqueuer.enqueueCurrentSelection(
+                    from: processIdentifier)
+            } catch let SpeechServiceError.rejected(_, message) {
+                failure = message
+            } catch {
+                failure = error.localizedDescription
+            }
+            Task { @MainActor [weak self] in
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func enqueueClipboard() {
+        queue.async { [clipboardEnqueuer] in
+            var failure: String?
+            do {
+                try clipboardEnqueuer.enqueueClipboard()
             } catch let SpeechServiceError.rejected(_, message) {
                 failure = message
             } catch {

@@ -149,6 +149,81 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(status?.playbackState, "paused")
     }
 
+    func testPopoverStoresExternalApplicationBeforeActivation() {
+        var events: [String] = []
+        var storedProcessIdentifier: Int32?
+
+        PopoverOpenSequence.capturePriorApplicationThenActivate(
+            frontmostProcessIdentifier: {
+                events.append("observed")
+                return 4_242
+            },
+            ownProcessIdentifier: 7_777,
+            store: {
+                storedProcessIdentifier = $0
+                events.append("stored")
+            },
+            activate: { events.append("activated") }
+        )
+
+        XCTAssertEqual(storedProcessIdentifier, 4_242)
+        XCTAssertEqual(events, ["observed", "stored", "activated"])
+    }
+
+    func testPopoverDoesNotTreatItselfAsPriorApplication() {
+        var storedProcessIdentifier: Int32? = 1
+
+        PopoverOpenSequence.capturePriorApplicationThenActivate(
+            frontmostProcessIdentifier: { 7_777 },
+            ownProcessIdentifier: 7_777,
+            store: { storedProcessIdentifier = $0 },
+            activate: {}
+        )
+
+        XCTAssertNil(storedProcessIdentifier)
+    }
+
+    @MainActor
+    func testMenuBarSelectionActionUsesCapturedApplication() async {
+        let selection = RecordingCurrentSelectionEnqueuer()
+        let clipboard = RecordingClipboardEnqueuer()
+        let ports = InertApplicationPorts()
+        let state = AppState(
+            speech: ports,
+            documentEnqueuer: ports,
+            currentSelectionEnqueuer: selection,
+            clipboardEnqueuer: clipboard,
+            defaults: .standard
+        )
+
+        state.capturePriorApplication(processIdentifier: 4_242)
+        state.enqueueCurrentSelection()
+
+        await fulfillment(of: [selection.called], timeout: 1)
+        XCTAssertEqual(selection.processIdentifier, 4_242)
+        XCTAssertEqual(clipboard.callCount, 0)
+    }
+
+    @MainActor
+    func testMenuBarClipboardActionCallsOnlyClipboardPort() async {
+        let selection = RecordingCurrentSelectionEnqueuer()
+        let clipboard = RecordingClipboardEnqueuer()
+        let ports = InertApplicationPorts()
+        let state = AppState(
+            speech: ports,
+            documentEnqueuer: ports,
+            currentSelectionEnqueuer: selection,
+            clipboardEnqueuer: clipboard,
+            defaults: .standard
+        )
+
+        state.enqueueClipboard()
+
+        await fulfillment(of: [clipboard.called], timeout: 1)
+        XCTAssertEqual(clipboard.callCount, 1)
+        XCTAssertNil(selection.processIdentifier)
+    }
+
     @MainActor
     func testUnifiedQueueContainsEveryUpcomingStateExactlyOnce() throws {
         let current = try XCTUnwrap(Utterance(daemonJSON: [
@@ -175,6 +250,8 @@ final class WireProtocolTests: XCTestCase {
         let state = AppState(
             speech: ports,
             documentEnqueuer: ports,
+            currentSelectionEnqueuer: ports,
+            clipboardEnqueuer: ports,
             defaults: .standard
         )
         state.plan = [current, preview, synthesizing, queued]
@@ -216,7 +293,9 @@ final class WireProtocolTests: XCTestCase {
     }
 }
 
-private struct InertApplicationPorts: SpeechServicePort, DocumentEnqueueing, Sendable {
+private struct InertApplicationPorts: SpeechServicePort, DocumentEnqueueing,
+    CurrentSelectionEnqueueing, ClipboardEnqueueing, Sendable
+{
     func snapshot() throws -> Snapshot { throw InertError.unexpectedCall }
     func submit(_ submission: SpeechSubmission) throws { throw InertError.unexpectedCall }
     func perform(_ command: SpeechCommand) throws { throw InertError.unexpectedCall }
@@ -226,6 +305,50 @@ private struct InertApplicationPorts: SpeechServicePort, DocumentEnqueueing, Sen
     }
 
     func enqueueDocument(at url: URL) throws { throw InertError.unexpectedCall }
+    func enqueueCurrentSelection(from processIdentifier: Int32?) throws {
+        throw InertError.unexpectedCall
+    }
+    func enqueueClipboard() throws { throw InertError.unexpectedCall }
+}
+
+private final class RecordingCurrentSelectionEnqueuer: CurrentSelectionEnqueueing,
+    @unchecked Sendable
+{
+    let called = XCTestExpectation(description: "current selection enqueue called")
+    private let lock = NSLock()
+    private var recordedProcessIdentifier: Int32?
+
+    var processIdentifier: Int32? {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedProcessIdentifier
+    }
+
+    func enqueueCurrentSelection(from processIdentifier: Int32?) throws {
+        lock.lock()
+        recordedProcessIdentifier = processIdentifier
+        lock.unlock()
+        called.fulfill()
+    }
+}
+
+private final class RecordingClipboardEnqueuer: ClipboardEnqueueing, @unchecked Sendable {
+    let called = XCTestExpectation(description: "clipboard enqueue called")
+    private let lock = NSLock()
+    private var recordedCallCount = 0
+
+    var callCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedCallCount
+    }
+
+    func enqueueClipboard() throws {
+        lock.lock()
+        recordedCallCount += 1
+        lock.unlock()
+        called.fulfill()
+    }
 }
 
 private enum InertError: Error {

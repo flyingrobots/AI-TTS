@@ -275,3 +275,61 @@ python3 ../../scripts/run_with_deadline.py 60 swift test --filter MacTextReaders
 python3 ../../scripts/run_with_deadline.py 60 swift test
 # Executed 47 tests, with 0 failures
 ```
+
+## Slice 4c: menu-bar acquisition wiring
+
+The menu-bar presentation now exposes one **Read…** menu containing **Read
+Current Selection…**, **Read Clipboard**, and **Read File…**. The selection
+action captures the external frontmost process identifier before the popover
+becomes key, stores it in `AppState`, and later passes that exact identifier to
+`CurrentSelectionEnqueueing`. The clipboard action calls only
+`ClipboardEnqueueing`; it neither synthesizes Command-C nor has a pasteboard
+write capability.
+
+The medium tests enter through the popover-open sequence and `AppState` action
+methods. Their oracle observes event order, the exact captured PID, self-process
+rejection, and which application port was called. AppKit host compatibility and
+the real Accessibility permission sheet remain large, explicitly coordinated
+acceptance checks; these tests do not pretend to prove either.
+
+### Falsification
+
+A deliberate wiring mutant activated the popover before storing the process,
+discarded the captured PID when the selection action ran, and made the
+clipboard action inert. The focused contract produced four named failures:
+
+```console
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar --filter WireProtocolTests
+# Executed 17 tests, with 4 failures (0 unexpected)
+```
+
+The failures reported the exact reversed event order (`observed`, `activated`,
+`stored`), `nil` instead of PID `4242`, an unfulfilled clipboard-call
+expectation, and a clipboard call count of zero. The self-process refusal and
+all pre-existing wire/presentation tests remained green. The mutant was then
+removed.
+
+### Green
+
+The final sequence observes, normalizes, and stores the prior process before
+running the activation closure. `AppState` snapshots that identifier on the
+main actor before dispatching selection acquisition, and each explicit action
+delegates to exactly one injected port before refreshing daemon state.
+
+```console
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar --filter WireProtocolTests
+# Executed 17 tests, with 0 failures
+
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar
+# Executed 51 tests, with 0 failures
+```
+
+Both modified design documents also rendered successfully through `mmdc`.
+The release bundle builder completed from the working tree, after which
+`codesign --verify --deep --strict` and `plutil -lint` both accepted the
+generated app. No candidate was installed or launched in this slice, so real
+Accessibility trust, selection acquisition, and visible error presentation
+remain unclaimed.

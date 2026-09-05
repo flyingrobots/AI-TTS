@@ -281,13 +281,22 @@ struct QueueView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button {
-                    showingFileImporter = true
+                Menu {
+                    Button("Read Current Selection…") {
+                        state.enqueueCurrentSelection()
+                    }
+                    Button("Read Clipboard") {
+                        state.enqueueClipboard()
+                    }
+                    Divider()
+                    Button("Read File…") {
+                        showingFileImporter = true
+                    }
                 } label: {
-                    Label("Add file…", systemImage: "doc.badge.plus")
+                    Label("Read…", systemImage: "text.badge.plus")
                 }
-                .buttonStyle(.borderless)
-                .help("Add a text, Markdown, or PDF file to Queue")
+                .menuStyle(.borderlessButton)
+                .help("Read selected text, clipboard text, or a document")
                 Button("Clear queue…") { confirmingClear = true }
                     .buttonStyle(.borderless)
                     .disabled(state.upcoming.isEmpty)

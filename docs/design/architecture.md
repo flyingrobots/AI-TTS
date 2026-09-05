@@ -1,10 +1,10 @@
 # AI-TTS — Architecture
 
 **Status:** the core is implemented in v0.1.0 (`src/aitts/`); the selected-text
-application use case and native text/file Service adapters are implemented.
-Installed-host acceptance, Accessibility, and App Intents remain explicitly
-pending. This document remains the spec; the test suite encodes implemented
-semantics.
+application use case, native text/file Services, and explicit Accessibility
+and clipboard menu actions are implemented. Representative installed-host and
+live Accessibility acceptance, plus App Intents, remain explicitly pending.
+This document remains the spec; the test suite encodes implemented semantics.
 **Scope:** a local-first, single-user speech daemon that accepts text from many clients, synthesizes ahead of playback, and gives the user transport control over what is spoken.
 
 ---
@@ -110,12 +110,13 @@ parent admission.
 
 The primary adapter is a macOS text Service. macOS hands it the selected string
 only after the user invokes **Read Selection with AI-TTS**, so it needs neither
-Accessibility trust nor clipboard mutation. A later **Read Current
-Selection…** menu action may implement `SelectedTextReaderPort` through the
-Accessibility API. It queries only after explicit invocation, captures the
-previous frontmost process before the menu popover becomes key, and fails
-honestly when the focused element does not expose selected text. It never polls
-selection state or synthesizes Command-C.
+Accessibility trust nor clipboard mutation. The **Read Current Selection…**
+menu action implements `SelectedTextReaderPort` through the Accessibility API.
+It queries only after explicit invocation, captures the previous frontmost
+process before the menu popover becomes key, and fails honestly when the
+focused element does not expose selected text. **Read Clipboard** is a separate
+explicit, non-mutating fallback. Neither action polls selection state or
+synthesizes Command-C.
 
 The full decision, permission boundary, fallbacks, and acceptance matrix are in
 [`os-integration.md`](os-integration.md).
@@ -182,8 +183,11 @@ graph TB
     subgraph native["Native macOS client hexagon"]
         TRAY["Menu-bar UI<br/>inbound adapter"]
         TEXTOS["Text Service<br/>inbound adapter"]
-        AXOS["Accessibility selection<br/>planned inbound adapter"]
+        AXOS["Accessibility selection<br/>outbound acquisition adapter"]
+        CLIPOS["Clipboard reader<br/>outbound acquisition adapter"]
         FILEOS["Finder file Service<br/>inbound adapter"]
+        CURRENTUSE["EnqueueCurrentSelection<br/>application use case"]
+        CLIPUSE["EnqueueClipboard<br/>application use case"]
         SELECTUSE["SelectionEnqueueing<br/>EnqueueSelection use case"]
         DOCUSE["DocumentEnqueueing<br/>EnqueueDocument use case"]
         DOC_PORT["SpeechDocumentReaderPort"]
@@ -213,7 +217,12 @@ graph TB
     TRAY --> DOCUSE
     TRAY -->|query and transport| SPEECH_PORT
     TEXTOS --> SELECTUSE
-    AXOS -.-> SELECTUSE
+    TRAY --> CURRENTUSE
+    TRAY --> CLIPUSE
+    CURRENTUSE --> AXOS
+    CURRENTUSE --> SELECTUSE
+    CLIPUSE --> CLIPOS
+    CLIPUSE --> SELECTUSE
     FILEOS --> DOCUSE
     SELECTUSE --> SPEECH_PORT
     DOCUSE --> DOC_PORT
@@ -256,18 +265,21 @@ graph TB
   decoding. The application port imports neither MCP nor either wire format.
 - **The native-client boundary is also hexagonal.** The reusable
   `AITTSApplication` Swift library contains only models, ports, and the
-  `EnqueueDocument` and `EnqueueSelection` use cases. `AITTSMacAdapters`
+  `EnqueueDocument`, `EnqueueSelection`, `EnqueueCurrentSelection`, and
+  `EnqueueClipboard` use cases. `AITTSMacAdapters`
   depends inward on that library and owns PDFKit, security-scoped URLs, socket
   I/O, NDJSON fields, and daemon response decoding. `AITTSMacEntryPoints`
-  depends inward on the same library and owns the AppKit Services pasteboard
-  translation. `AITTSMenuBar` is an inbound presentation adapter and the
-  composition root; it contains no daemon dictionaries, socket client, PDFKit,
+  depends inward on the same library and owns AppKit Services translation plus
+  one-shot Accessibility and clipboard readers. `AITTSMenuBar` is an inbound
+  presentation adapter and the composition root; it contains no daemon
+  dictionaries, socket client, PDFKit, Accessibility query, clipboard query,
   or Services parsing.
-- **OS integration adds inbound adapters, not a new pipeline.** The implemented
-  first slice adds a text Service that calls `EnqueueSelection` and a file
-  Service that calls the existing `EnqueueDocument`. The optional
-  Accessibility reader and later App Intents are sibling adapters to those
-  same use cases. They must not import menu-bar views or duplicate content
+- **OS integration adds adapters, not a new pipeline.** The implemented text
+  Service calls `EnqueueSelection`, and the file Service calls the existing
+  `EnqueueDocument`. The explicit Accessibility and clipboard readers feed
+  selection admission through their application use cases; later App Intents
+  are sibling inbound adapters. They must not import menu-bar views or
+  duplicate content
   interpretation, extraction, confidentiality, queue-priority, voice, or wire
   policy. See [`os-integration.md`](os-integration.md).
 

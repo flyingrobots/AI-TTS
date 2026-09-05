@@ -17,10 +17,11 @@ related:
 # Read anywhere on macOS
 
 **Decision:** accepted on 2026-09-05. **Implementation status:** the shared
-selected-text use case and native text/file Service adapters are implemented;
-installed-host acceptance is in progress. Accessibility and App Intents remain
-planned or deferred. The document distinguishes executable behavior from
-future adapters so that design intent never masquerades as product behavior.
+selected-text use case, native text/file Services, and explicit Accessibility
+and clipboard menu actions are implemented; installed-host and live
+Accessibility acceptance remain in progress. App Intents remain deferred. The
+document distinguishes executable behavior from future adapters so that design
+intent never masquerades as product behavior.
 
 ## 1. The decision in one minute
 
@@ -28,7 +29,7 @@ AI-TTS will integrate with macOS through several narrow, user-invoked entry
 points rather than one privileged mechanism that tries to observe every app.
 The primary entry point is a macOS Service for selected text. A second Service
 accepts one selected text, Markdown, or text-bearing PDF file. The menu-bar app
-may later offer **Read Current Selection…** through the Accessibility API for
+also offers **Read Current Selection…** through the Accessibility API for
 applications that do not participate correctly in Services, and **Read
 Clipboard** as an explicit low-permission fallback. App Intents come later for
 Shortcuts, Siri, and Spotlight.
@@ -71,7 +72,7 @@ relevance filtering, and user-assigned shortcuts in
 [Use services in apps on Mac](https://support.apple.com/en-ca/guide/mac-help/mchlp1012/mac).
 
 The host application places that exact string on the Service pasteboard. The
-AI-TTS Service adapter reads it once and hands it to the planned
+AI-TTS Service adapter reads it once and hands it to the implemented
 `EnqueueSelection` application use case. The use case constructs this semantic
 submission:
 
@@ -111,22 +112,27 @@ port. macOS Services, Accessibility, the clipboard, Finder, and App Intents are
 therefore sibling inbound adapters; none of them owns speech policy, document
 parsing, socket JSON, synthesis, or playback.
 
-The complete intended flow is shown below. Solid green nodes already exist;
-blue nodes are accepted but planned. The two paths converge only at
-`SpeechServicePort`, because selected text and selected files have different
-interpretation rules before that point.
+The complete intended flow is shown below. Solid green nodes exist. The paths
+converge only at `SpeechServicePort`, because selected text and selected files
+have different interpretation rules before that point.
 
 ```mermaid
 flowchart TD
     TEXT["Selected text"] --> TEXTSERVICE["Text Service adapter"]
-    MENU["Read Current Selection action"] --> AX["Accessibility selection adapter"]
-    CLIPBOARD["Read Clipboard action"] --> CLIPBOARDADAPTER["Clipboard adapter"]
+    MENU["Read Current Selection action"]
+    AX["Accessibility selection adapter"]
+    CLIPBOARD["Read Clipboard action"]
+    CLIPBOARDADAPTER["Clipboard adapter"]
     FILE["One selected file"] --> FILESERVICE["File Service adapter"]
 
     TEXTSERVICE --> SELECTION["EnqueueSelection"]
-    AX --> SELECTEDPORT["SelectedTextReaderPort"]
-    SELECTEDPORT --> SELECTION
-    CLIPBOARDADAPTER --> SELECTION
+    MENU --> CURRENTUSE["EnqueueCurrentSelection"]
+    CURRENTUSE --> SELECTEDPORT["SelectedTextReaderPort"]
+    SELECTEDPORT --> AX
+    CURRENTUSE --> SELECTION
+    CLIPBOARD --> CLIPUSE["EnqueueClipboard"]
+    CLIPUSE --> CLIPBOARDADAPTER
+    CLIPUSE --> SELECTION
     FILESERVICE --> DOCUMENT["EnqueueDocument"]
     DOCUMENT --> READER["SpeechDocumentReaderPort"]
 
@@ -140,12 +146,14 @@ flowchart TD
     style SPEECH fill:#d4edda,stroke:#2e7d32
     style SOCKET fill:#d4edda,stroke:#2e7d32
     style DAEMON fill:#d4edda,stroke:#2e7d32
-    style TEXTSERVICE fill:#d1ecf1,stroke:#31708f
-    style AX fill:#d1ecf1,stroke:#31708f
-    style CLIPBOARDADAPTER fill:#d1ecf1,stroke:#31708f
-    style FILESERVICE fill:#d1ecf1,stroke:#31708f
-    style SELECTION fill:#d1ecf1,stroke:#31708f
-    style SELECTEDPORT fill:#d1ecf1,stroke:#31708f
+    style TEXTSERVICE fill:#d4edda,stroke:#2e7d32
+    style AX fill:#d4edda,stroke:#2e7d32
+    style CLIPBOARDADAPTER fill:#d4edda,stroke:#2e7d32
+    style FILESERVICE fill:#d4edda,stroke:#2e7d32
+    style SELECTION fill:#d4edda,stroke:#2e7d32
+    style SELECTEDPORT fill:#d4edda,stroke:#2e7d32
+    style CURRENTUSE fill:#d4edda,stroke:#2e7d32
+    style CLIPUSE fill:#d4edda,stroke:#2e7d32
 ```
 
 <details>
@@ -233,7 +241,7 @@ Selected text needs its own application use case because an OS adapter must not
 reconstruct submission policy. The use case is small, but it is load-bearing:
 it is the only place that decides how an arbitrary selection becomes speech.
 
-The planned interface is deliberately narrower than `SpeechServicePort`:
+The interface is deliberately narrower than `SpeechServicePort`:
 
 ```swift
 public protocol SelectionEnqueueing: Sendable {
@@ -296,12 +304,12 @@ not reach Services, but it must be treated as a privileged, best-effort
 fallback. The user invokes **Read Current Selection…** first; only then may
 AI-TTS request Accessibility trust and inspect one application once.
 
-Focus timing is the subtle part. The current status controller shows the
-popover and then makes its window key. The implementation must capture the
-previous frontmost application’s process identifier before that activation.
-The action then creates an accessibility element for that process, asks for its
-focused UI element, and reads `kAXSelectedTextAttribute`. Querying the current
-frontmost process after the popover activates would target AI-TTS itself.
+Focus timing is the subtle part. The status controller captures the previous
+frontmost application’s process identifier before it shows the popover or
+makes its window key. The action later creates an accessibility element for
+that stored process, asks for its focused UI element, and reads
+`kAXSelectedTextAttribute`. Querying the current frontmost process after the
+popover activates would target AI-TTS itself.
 
 If TextEdit did not surface the canonical sentence through Services, the user
 could invoke this fallback. The same sentence would still reach
@@ -395,9 +403,9 @@ and which remain future work.
 | Selected-text application policy exists | `SpeechApplication.swift` defines `SelectionEnqueueing` and `EnqueueSelection`; focused application tests record falsification | Implemented |
 | The app advertises Services | Generated metadata and installed `pbs` discovery contain exact text and file `NSServices` entries | Implemented; installed discovery verified |
 | Service requests delegate to shared use cases | Focused adapter tests plus installed `NSPerformService` text/file invocations reached exact daemon submissions without changing the general pasteboard | Implemented; TextEdit menu verified, remaining host matrix pending |
-| Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing` | Application use cases and macOS readers implemented; UX pending |
-| The app can read another app’s selection | `AccessibilitySelectionReader` queries one explicit PID and distinguishes trust, focus, support, empty, and AX failures | Adapter implemented; prior-app capture and menu UX pending |
-| The prior foreground application survives popover activation | `StatusController` calls `makeKey()` without retaining the previous process | Planned |
+| Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing`; Queue's **Read…** menu calls those ports | Implemented and contract-tested |
+| The app can read another app’s selection | `AccessibilitySelectionReader` queries one explicit PID and distinguishes trust, focus, support, empty, and AX failures | Implemented; live permission/host acceptance pending |
+| The prior foreground application survives popover activation | `PopoverOpenSequence` stores an external PID before its activation closure; focused tests falsify the event order | Implemented and contract-tested |
 | App Intents are discoverable from the installed bundle | No App Intent target or verified metadata packaging | Deferred |
 
 The repository audit read the live Swift port, composition, status-controller,
@@ -407,10 +415,11 @@ and bundle-builder code. The installed macOS SDK was also checked for
 developer and support documentation supplies the external behavioral contract;
 the repository remains the authority for what AI-TTS actually implements.
 
-In summary, the Services path is executable and contract-tested, but it should
-not be described as shipped until installed discovery and representative host
-acceptance are recorded. Accessibility and App Intents remain future sibling
-adapters.
+In summary, the Services path has installed dispatch evidence, while its
+representative host matrix remains incomplete. Accessibility and the explicit
+clipboard fallback are executable and contract-tested, but live
+permission/focus acceptance remains. App Intents remain a future sibling
+adapter.
 
 ## 11. Delivery order and the definition of done
 

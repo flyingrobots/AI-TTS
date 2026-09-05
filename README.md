@@ -32,7 +32,9 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   caller or file type marks it as `markdown`. Its syntax tree removes markup,
   preserves human labels and code content, and turns headings into spoken
   section cues without changing the stored source.
-- **Enqueues documents from the menu bar.** Queue's **Add file…** picker accepts
+- **Enqueues text and documents from the menu bar.** Queue's **Read…** menu can
+  acquire one current Accessibility selection, read explicitly copied text
+  without changing the clipboard, or choose a file. Its file picker accepts
   UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
   paths stay in the app; only the selected document's text and interpretation
   are submitted.
@@ -117,6 +119,14 @@ text-bearing PDF file in Finder and choose **Finder → Services → Read File w
 AI-TTS**. macOS can assign a keyboard shortcut to either command in System
 Settings → Keyboard → Keyboard Shortcuts → Services.
 
+For a host whose selection does not reach Services, open the AI-TTS popover
+while that host is still frontmost, then choose **Queue → Read… → Read
+Current Selection…**. This is an explicit Accessibility fallback: macOS may ask
+for permission, and custom renderers may not expose selected text even after a
+grant. Choose **Read Clipboard** only after copying text yourself; AI-TTS reads
+the current string without issuing ⌘C or changing the clipboard. **Read File…**
+opens the existing text/Markdown/PDF picker.
+
 On-screen captions are off by default. Open the AI-TTS menu-bar popover, choose
 the gear icon, and enable **On-screen captions**. While a clip is actively
 playing, the Current card also shows a captions-bubble shortcut beside playback
@@ -167,8 +177,8 @@ cd clients/menubar
 swift run
 ```
 
-In the menu-bar app, open **Queue** and choose **Add file…**. Source text is
-submitted byte-for-byte together with an explicit interpretation: `.md` and
+In the menu-bar app, open **Queue → Read…** and choose **Read File…**. Source
+text is submitted byte-for-byte together with an explicit interpretation: `.md` and
 `.markdown` use Markdown projection, while other UTF-8 text files and PDF text
 layers remain literal plain text. PDF pages are submitted in the order returned
 by the native macOS text extractor. Password-locked PDFs are refused; image-only
@@ -196,12 +206,13 @@ Both external client boundaries use a hexagonal port-and-adapter design. The
 Python agent boundary keeps MCP schemas separate from daemon NDJSON. The native
 Swift boundary is compile-time separated into `AITTSApplication` (public
 models, ports, and use cases), `AITTSMacAdapters` (PDFKit, selected-file access,
-and Unix-socket translation), `AITTSMacEntryPoints` (native Services request
-translation), and `AITTSMenuBar` (AppKit/SwiftUI presentation and composition).
+and Unix-socket translation), `AITTSMacEntryPoints` (native Services,
+Accessibility, and clipboard translation), and `AITTSMenuBar` (AppKit/SwiftUI
+presentation and composition).
 The installed text and file Services call `SelectionEnqueueing` and
 `DocumentEnqueueing` without importing the menu UI or rebuilding speech, file,
-or socket policy. Future Accessibility and Shortcuts adapters must use those
-same application boundaries. See
+or socket policy. The Accessibility and clipboard actions use the same
+selection boundary; future Shortcuts adapters must do likewise. See
 [`docs/design/architecture.md`](docs/design/architecture.md) §4.
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
@@ -210,8 +221,9 @@ Text is **confidential by default**: an utterance submitted without an explicit 
 
 The v0.1.0 implementation is a release candidate, not a published release. The
 Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
-native Swift menu-bar app, and native selected-text/selected-file Services are
-implemented. The suite encodes the state machine, serialized playback plan,
+native Swift menu-bar app, native selected-text/selected-file Services, and
+explicit Accessibility/clipboard fallbacks are implemented. The suite encodes
+the state machine, serialized playback plan,
 global hold, fail-closed sensitivity, restart recovery, bounded cache and
 shutdown, single-instance menu process, public schemas, and
 checkout-independent release artifacts. Representative Services-menu host
