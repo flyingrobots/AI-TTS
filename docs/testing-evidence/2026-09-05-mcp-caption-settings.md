@@ -68,7 +68,52 @@ contracts passed 10 tests. The complete Python suite passed 214 tests; the
 complete Swift suite passed 59 tests behind its 60-second process-group
 deadline. Ruff, Ruff formatting, strict MyPy, and diff hygiene also passed.
 
-## Installed live acceptance
+## Installed shared-setting acceptance
 
-Pending exact-commit rebuild, daemon restart, MCP read/set exercise, and a
-user-visible spoken caption check.
+Commit `9d06d90` was rebuilt and installed with executable SHA-256
+`c7bc0607164f04e7ec7991f6f38c6f532c61331a2abb706f0101116624742db6`.
+The prior app remains recoverable at
+`/private/tmp/ai-tts-install-9d06d90.JT0QmS/AI-TTS.previous.app`. The daemon
+and menu app restarted as PIDs 87750 and 87759 without changing the frontmost
+application.
+
+An official in-memory MCP client discovered both caption tools, observed the
+setting as false, set it true, and then observed true. The running menu app's
+legacy `UserDefaults` mirror also became true. That proves MCP and the native
+client converge on the shared daemon preference.
+
+## RED: hidden LaunchServices state suppressed the panel
+
+A spoken acceptance clip reached active playback with captions enabled, but the
+user reported no visible caption. The current segment included duration and
+position, and the menu event path reached `updateVisibility()`. LLDB inspection
+of the installed process found the retained 760 by 132 point caption panel had
+already been positioned but remained invisible. The application itself was
+hidden even though its activation policy was accessory; the status item and
+popover were still usable because they are hosted by the system menu bar.
+
+The decisive live intervention was only:
+
+```swift
+NSApplication.shared.unhideWithoutActivation()
+```
+
+The application's hidden state changed from true to false while the frontmost
+application ASN remained identical. No binary, setting, segment, or caption
+rendering logic changed. The user then reported `CAPTIONS WORKING`, establishing
+the visible human oracle for the remedy without a focus change.
+
+The permanent regression was first compiled against the unfixed source. The
+focused command exited 1 because the caption application-visibility port and
+preparation behavior did not exist:
+
+```console
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar \
+  --filter CaptionWindowVisibilityTests.testCaptionPanelHostUnhidesOnlyWhenLaunchServicesLeftItHidden
+```
+
+After the fix, the same command passed one test. The production caption panel
+now invokes that behavior only after every show precondition succeeds and
+before ordering the panel. A normally visible app is left untouched; a hidden
+app receives the non-activating unhide operation exactly once.

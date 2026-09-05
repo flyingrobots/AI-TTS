@@ -14,6 +14,22 @@ enum CaptionPresentation {
 }
 
 @MainActor
+protocol CaptionApplicationVisibilityPort: AnyObject {
+    var isHidden: Bool { get }
+    func unhideWithoutActivation()
+}
+
+extension NSApplication: CaptionApplicationVisibilityPort {}
+
+@MainActor
+enum CaptionApplicationVisibility {
+    static func prepareForPanel(_ application: any CaptionApplicationVisibilityPort) {
+        guard application.isHidden else { return }
+        application.unhideWithoutActivation()
+    }
+}
+
+@MainActor
 final class CaptionPanelController {
     private let state: AppState
     private let panel: NSPanel
@@ -48,6 +64,7 @@ final class CaptionPanelController {
             panel.orderOut(nil)
             return
         }
+        CaptionApplicationVisibility.prepareForPanel(NSApplication.shared)
         positionPanel()
         if !panel.isVisible {
             panel.orderFrontRegardless()

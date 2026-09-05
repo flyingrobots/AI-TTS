@@ -127,7 +127,10 @@ and a daemon settings event causes the menu app to refresh immediately. The
 bubble toggles a borderless, non-activating panel near the bottom center of the
 active display. The panel floats across Spaces, ignores mouse events, and
 disappears whenever captions are disabled, the daemon is unreachable, or no
-clip is active.
+clip is active. If LaunchServices started the accessory app hidden, the native
+adapter unhides it without activation immediately before ordering the caption
+panel. This makes the panel eligible for display without taking focus from the
+application where the user is working.
 
 The overlay contains the daemon's exact active spoken segment and, for a
 document, `PART n OF m`. It is segment-level transcription: it deliberately
