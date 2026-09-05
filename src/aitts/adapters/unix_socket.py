@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from aitts.application.schemas import (
     CancelSpeech,
     CancelSpeechReceipt,
+    CaptionSettings,
     ClearQueueReceipt,
     EnqueueSpeech,
     EnqueueSpeechReceipt,
@@ -22,6 +23,7 @@ from aitts.application.schemas import (
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
+    SetCaptionsEnabled,
     SpeechServiceError,
     SpeechStatus,
     VoiceCatalog,
@@ -78,6 +80,16 @@ class UnixSocketSpeechAdapter:
         """Decode the daemon's current voice catalog."""
         return self._exchange({"op": "voices"}, VoiceCatalog)
 
+    def get_caption_settings(self) -> CaptionSettings:
+        """Decode the shared on-screen caption preference."""
+        response = self._request({"op": "settings"})
+        return self._decode_caption_settings(response)
+
+    def set_captions_enabled(self, request: SetCaptionsEnabled) -> CaptionSettings:
+        """Persist and decode the shared on-screen caption preference."""
+        response = self._request({"op": "settings", "set": {"captions_enabled": request.enabled}})
+        return self._decode_caption_settings(response)
+
     def pause_playback(self) -> PlaybackControlReceipt:
         """Send a global playback hold."""
         return self._exchange({"op": "pause"}, PlaybackControlReceipt)
@@ -120,6 +132,12 @@ class UnixSocketSpeechAdapter:
         except DaemonUnreachableError as exc:
             code = "unreachable"
             raise SpeechServiceError(code, str(exc)) from exc
+
+    @classmethod
+    def _decode_caption_settings(cls, response: dict[str, Any]) -> CaptionSettings:
+        settings = response.get("settings")
+        enabled = settings.get("captions_enabled") if isinstance(settings, dict) else None
+        return cls._decode(CaptionSettings, {"enabled": enabled})
 
     @staticmethod
     def _decode(schema: type[SchemaT], payload: object) -> SchemaT:

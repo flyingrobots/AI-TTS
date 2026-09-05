@@ -795,6 +795,11 @@ class Store:
         row = self._db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
         return str(row["value"]) if row else default
 
+    def has_setting(self, key: str) -> bool:
+        """Return whether a setting has been explicitly persisted."""
+        row = self._db.execute("SELECT 1 FROM settings WHERE key = ?", (key,)).fetchone()
+        return row is not None
+
     def set_setting(self, key: str, value: str) -> None:
         """Write a setting."""
         self._db.execute(

@@ -101,6 +101,7 @@ public enum SpeechCommand: Equatable, Sendable {
     case setVoice(String)
     case setSynthesisSpeed(Double)
     case setPlaybackRate(Double)
+    case setCaptionsEnabled(Bool)
 }
 
 /// Outbound port for every speech capability used by a native macOS client.

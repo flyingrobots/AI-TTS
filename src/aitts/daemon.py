@@ -44,6 +44,8 @@ from aitts.store import Store, TransitionError
 from aitts.synthesis import SynthesisPool
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from aitts.engine import Engine
     from aitts.playback import AudioSink
 
@@ -671,46 +673,78 @@ class Daemon:
                 msg = "'set' must be an object of settings"
                 raise ApiError(BAD_REQUEST, msg)
             self._apply_settings(updates)
+        settings = self._settings_values()
+        if updates:
+            self._server.broadcast(
+                {
+                    "event": "settings_changed",
+                    "settings": {key: settings[key] for key in updates},
+                }
+            )
+        return {"ok": True, "settings": settings}
+
+    def _settings_values(self) -> dict[str, object]:
         return {
-            "ok": True,
-            "settings": {
-                "voice": self._store.get_setting("voice", self._default_voice()),
-                "speed": float(self._store.get_setting("speed", "1.0")),
-                "playback_rate": self._require_controller().playback_rate,
-                "cache_max_bytes": self._cache_limit(),
-            },
+            "voice": self._store.get_setting("voice", self._default_voice()),
+            "speed": float(self._store.get_setting("speed", "1.0")),
+            "playback_rate": self._require_controller().playback_rate,
+            "cache_max_bytes": self._cache_limit(),
+            "captions_enabled": self._captions_enabled(),
+            "captions_enabled_configured": self._store.has_setting("captions_enabled"),
         }
 
+    def _captions_enabled(self) -> bool:
+        return self._store.get_setting("captions_enabled", "false") == "true"
+
     def _apply_settings(self, updates: dict[str, Any]) -> None:
+        handlers: dict[str, Callable[[object], None]] = {
+            "voice": self._apply_voice_setting,
+            "speed": self._apply_speed_setting,
+            "cache_max_bytes": self._apply_cache_limit_setting,
+            "playback_rate": self._apply_playback_rate_setting,
+            "captions_enabled": self._apply_captions_enabled_setting,
+        }
         for key, value in updates.items():
-            if key == "voice":
-                if value not in self._engine.list_voices():
-                    msg = f"unknown voice {value!r}"
-                    raise ApiError(BAD_REQUEST, msg)
-                self._store.set_setting("voice", str(value))
-            elif key == "speed":
-                speed = self._parse_speed(value)
-                if speed is None:
-                    msg = "'speed' must be a number"
-                    raise ApiError(BAD_REQUEST, msg)
-                self._store.set_setting("speed", str(speed))
-            elif key == "cache_max_bytes":
-                limit = self._parse_cache_limit(value)
-                if limit is None:
-                    msg = "'cache_max_bytes' must be a non-negative integer"
-                    raise ApiError(BAD_REQUEST, msg)
-                self._store.set_setting("cache_max_bytes", str(limit))
-                self._enforce_cache_limit()
-            elif key == "playback_rate":
-                rate = self._parse_playback_rate(value)
-                if rate is None:
-                    choices = ", ".join(f"{choice:g}" for choice in PLAYBACK_RATES)
-                    msg = f"'playback_rate' must be one of: {choices}"
-                    raise ApiError(BAD_REQUEST, msg)
-                self._require_controller().set_playback_rate(rate)
-            else:
+            handler = handlers.get(key)
+            if handler is None:
                 msg = f"unknown setting {key!r}"
                 raise ApiError(BAD_REQUEST, msg)
+            handler(value)
+
+    def _apply_voice_setting(self, value: object) -> None:
+        if value not in self._engine.list_voices():
+            msg = f"unknown voice {value!r}"
+            raise ApiError(BAD_REQUEST, msg)
+        self._store.set_setting("voice", str(value))
+
+    def _apply_speed_setting(self, value: object) -> None:
+        speed = self._parse_speed(value)
+        if speed is None:
+            msg = "'speed' must be a number"
+            raise ApiError(BAD_REQUEST, msg)
+        self._store.set_setting("speed", str(speed))
+
+    def _apply_cache_limit_setting(self, value: object) -> None:
+        limit = self._parse_cache_limit(value)
+        if limit is None:
+            msg = "'cache_max_bytes' must be a non-negative integer"
+            raise ApiError(BAD_REQUEST, msg)
+        self._store.set_setting("cache_max_bytes", str(limit))
+        self._enforce_cache_limit()
+
+    def _apply_playback_rate_setting(self, value: object) -> None:
+        rate = self._parse_playback_rate(value)
+        if rate is None:
+            choices = ", ".join(f"{choice:g}" for choice in PLAYBACK_RATES)
+            msg = f"'playback_rate' must be one of: {choices}"
+            raise ApiError(BAD_REQUEST, msg)
+        self._require_controller().set_playback_rate(rate)
+
+    def _apply_captions_enabled_setting(self, value: object) -> None:
+        if type(value) is not bool:
+            msg = "'captions_enabled' must be a boolean"
+            raise ApiError(BAD_REQUEST, msg)
+        self._store.set_setting("captions_enabled", "true" if value else "false")
 
     @staticmethod
     def _parse_playback_rate(raw: object) -> float | None:

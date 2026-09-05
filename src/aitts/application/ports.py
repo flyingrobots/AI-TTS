@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from aitts.application.schemas import (
         CancelSpeech,
         CancelSpeechReceipt,
+        CaptionSettings,
         ClearQueueReceipt,
         EnqueueSpeech,
         EnqueueSpeechReceipt,
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
         QueueView,
         RequeueSpeech,
         RequeueSpeechReceipt,
+        SetCaptionsEnabled,
         SpeechStatus,
         VoiceCatalog,
     )
@@ -46,6 +48,14 @@ class SpeechServicePort(Protocol):
 
     def list_voices(self) -> VoiceCatalog:
         """Return voices accepted by new speech submissions."""
+        ...
+
+    def get_caption_settings(self) -> CaptionSettings:
+        """Return the shared on-screen caption preference."""
+        ...
+
+    def set_captions_enabled(self, request: SetCaptionsEnabled) -> CaptionSettings:
+        """Persist the shared on-screen caption preference."""
         ...
 
     def pause_playback(self) -> PlaybackControlReceipt:

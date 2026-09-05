@@ -17,6 +17,7 @@ from aitts.adapters.unix_socket import UnixSocketSpeechAdapter
 from aitts.application.schemas import (
     CancelSpeech,
     CancelSpeechReceipt,
+    CaptionSettings,
     ClearQueueReceipt,
     EnqueueSpeech,
     EnqueueSpeechReceipt,
@@ -26,6 +27,7 @@ from aitts.application.schemas import (
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
+    SetCaptionsEnabled,
     SpeechServiceError,
     SpeechStatus,
     UtteranceId,
@@ -79,6 +81,7 @@ def create_server(speech: SpeechServicePort) -> MCPServer:
 
     _register_submission_tools(server, speech)
     _register_query_tools(server, speech)
+    _register_caption_tools(server, speech)
     _register_playback_tools(server, speech)
     _register_queue_tools(server, speech)
     return server
@@ -164,6 +167,20 @@ def _register_query_tools(server: MCPServer, speech: SpeechServicePort) -> None:
     def list_speech_voices() -> VoiceCatalog:
         """List voice ids accepted by enqueue_speech."""
         return _invoke(speech.list_voices)
+
+
+def _register_caption_tools(server: MCPServer, speech: SpeechServicePort) -> None:
+    @server.tool(annotations=_READ_ONLY)
+    def get_caption_settings() -> CaptionSettings:
+        """Report whether the user's on-screen captions are enabled."""
+        return _invoke(speech.get_caption_settings)
+
+    @server.tool(annotations=_IDEMPOTENT_WRITE)
+    def set_captions_enabled(
+        enabled: bool,  # noqa: FBT001 - boolean is the public toggle schema
+    ) -> CaptionSettings:
+        """Enable or disable the user's on-screen captions without changing playback."""
+        return _invoke(lambda: speech.set_captions_enabled(SetCaptionsEnabled(enabled=enabled)))
 
 
 def _register_playback_tools(server: MCPServer, speech: SpeechServicePort) -> None:

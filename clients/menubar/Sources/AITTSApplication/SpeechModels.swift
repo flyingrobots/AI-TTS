@@ -117,6 +117,8 @@ public struct Snapshot: Equatable, Sendable {
     public let voices: [String]
     public let speed: Double
     public let playbackRate: Double
+    public let captionsEnabled: Bool
+    public let captionsEnabledConfigured: Bool
 
     public init(
         status: DaemonStatus,
@@ -125,7 +127,9 @@ public struct Snapshot: Equatable, Sendable {
         history: [Utterance],
         voices: [String],
         speed: Double,
-        playbackRate: Double
+        playbackRate: Double,
+        captionsEnabled: Bool = false,
+        captionsEnabledConfigured: Bool = false
     ) {
         self.status = status
         self.plan = plan
@@ -134,5 +138,7 @@ public struct Snapshot: Equatable, Sendable {
         self.voices = voices
         self.speed = speed
         self.playbackRate = playbackRate
+        self.captionsEnabled = captionsEnabled
+        self.captionsEnabledConfigured = captionsEnabledConfigured
     }
 }

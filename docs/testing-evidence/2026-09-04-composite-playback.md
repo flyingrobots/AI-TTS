@@ -533,9 +533,11 @@ was changed to require the watchdog cadence to remain five seconds. Against the
 unfixed implementation, the focused run reached the assertion and failed with
 `0.5` not equal to `5.0`.
 
-The toggle now updates memory and `UserDefaults` immediately, performs one
-snapshot refresh only when being enabled, and relies on the existing daemon
-event subscription for subsequent active-segment changes. The fixed cadence
-keeps the five-second refresh solely as a liveness watchdog. This is a
-deliberate behavior change at the native presentation boundary; live visual
-acceptance of the originally reported symptom remains pending.
+The toggle at this historical checkpoint updated memory and `UserDefaults`
+immediately, performed one snapshot refresh only when being enabled, and
+relied on the existing daemon event subscription for subsequent active-segment
+changes. The fixed cadence kept the five-second refresh solely as a liveness
+watchdog. The later shared-preference feature in
+[`2026-09-05-mcp-caption-settings.md`](2026-09-05-mcp-caption-settings.md)
+makes the daemon authoritative and gives MCP typed read/write access. Live
+visual acceptance of the originally reported symptom remains pending there.

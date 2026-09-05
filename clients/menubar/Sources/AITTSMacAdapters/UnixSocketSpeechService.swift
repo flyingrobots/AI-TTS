@@ -79,6 +79,8 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
             payload = ["op": "settings", "set": ["speed": speed]]
         case .setPlaybackRate(let rate):
             payload = ["op": "settings", "set": ["playback_rate": rate]]
+        case .setCaptionsEnabled(let enabled):
+            payload = ["op": "settings", "set": ["captions_enabled": enabled]]
         }
         _ = try request(payload)
     }
@@ -191,7 +193,12 @@ extension Snapshot {
             voices: json["voices"] as? [String] ?? [],
             speed: (json["settings"] as? [String: Any])?["speed"] as? Double ?? 1.0,
             playbackRate: (json["settings"] as? [String: Any])?["playback_rate"] as? Double
-                ?? 1.0
+                ?? 1.0,
+            captionsEnabled: (json["settings"] as? [String: Any])?["captions_enabled"]
+                as? Bool ?? false,
+            captionsEnabledConfigured: (json["settings"] as? [String: Any])?[
+                "captions_enabled_configured"
+            ] as? Bool ?? false
         )
     }
 

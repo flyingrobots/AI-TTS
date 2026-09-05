@@ -13,7 +13,13 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from aitts.adapters.unix_socket import UnixSocketSpeechAdapter
-from aitts.application.schemas import EnqueueSpeech, EnqueueSpeechReceipt, SpeechServiceError
+from aitts.application.schemas import (
+    CaptionSettings,
+    EnqueueSpeech,
+    EnqueueSpeechReceipt,
+    SetCaptionsEnabled,
+    SpeechServiceError,
+)
 from aitts.client import DaemonError, DaemonUnreachableError
 from aitts.model import ContentFormat, Priority, Sensitivity, State
 
@@ -121,6 +127,22 @@ def test_queue_uses_the_daemon_unified_playback_plan() -> None:
     view = UnixSocketSpeechAdapter(client).list_queue()
 
     assert [entry.id for entry in view.items] == [UTTERANCE_ID]
+
+
+def test_caption_settings_map_to_the_daemon_settings_operation() -> None:
+    """Oracle: caption preference uses one typed port over the existing settings wire."""
+    read_client = ScriptedClient({"ok": True, "settings": {"captions_enabled": False}})
+    write_client = ScriptedClient({"ok": True, "settings": {"captions_enabled": True}})
+
+    before = UnixSocketSpeechAdapter(read_client).get_caption_settings()
+    after = UnixSocketSpeechAdapter(write_client).set_captions_enabled(
+        SetCaptionsEnabled(enabled=True)
+    )
+
+    assert before == CaptionSettings(enabled=False)
+    assert after == CaptionSettings(enabled=True)
+    assert read_client.requests == [{"op": "settings"}]
+    assert write_client.requests == [{"op": "settings", "set": {"captions_enabled": True}}]
 
 
 @pytest.mark.parametrize(

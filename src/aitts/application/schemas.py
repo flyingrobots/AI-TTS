@@ -159,6 +159,18 @@ class VoiceCatalog(PublicSchema):
     voices: tuple[str, ...]
 
 
+class CaptionSettings(PublicSchema):
+    """The shared on-screen caption preference."""
+
+    enabled: bool
+
+
+class SetCaptionsEnabled(PublicSchema):
+    """Set the shared on-screen caption preference."""
+
+    enabled: bool
+
+
 class PlaybackControlReceipt(PublicSchema):
     """Playback state immediately after a transport control."""
 

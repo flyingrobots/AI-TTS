@@ -14,6 +14,7 @@ from aitts.adapters.mcp import create_server
 from aitts.application.schemas import (
     CancelSpeech,
     CancelSpeechReceipt,
+    CaptionSettings,
     ClearQueueReceipt,
     EnqueueSpeech,
     EnqueueSpeechReceipt,
@@ -24,6 +25,7 @@ from aitts.application.schemas import (
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
+    SetCaptionsEnabled,
     SpeechServiceError,
     SpeechStatus,
     SubmissionDisposition,
@@ -41,6 +43,8 @@ REPLAY_ID = "utt_fedcba9876543210fedcba9876543210"
 
 TOOL_NAMES = {
     "enqueue_speech",
+    "get_caption_settings",
+    "set_captions_enabled",
     "speech_status",
     "list_speech_queue",
     "list_speech_history",
@@ -79,6 +83,7 @@ class FakeSpeechPort:
     def __init__(self, *, held: bool = False, fail_status: bool = False) -> None:
         self.held = held
         self.fail_status = fail_status
+        self.captions_enabled = False
         self.enqueued: list[EnqueueSpeech] = []
 
     def enqueue_speech(self, request: EnqueueSpeech) -> EnqueueSpeechReceipt:
@@ -117,6 +122,13 @@ class FakeSpeechPort:
     def list_voices(self) -> VoiceCatalog:
         return VoiceCatalog(voices=("bm_daniel",))
 
+    def get_caption_settings(self) -> CaptionSettings:
+        return CaptionSettings(enabled=self.captions_enabled)
+
+    def set_captions_enabled(self, request: SetCaptionsEnabled) -> CaptionSettings:
+        self.captions_enabled = request.enabled
+        return CaptionSettings(enabled=self.captions_enabled)
+
     def pause_playback(self) -> PlaybackControlReceipt:
         self.held = True
         return PlaybackControlReceipt(state=None, current=None, held=True)
@@ -148,7 +160,7 @@ async def test_mcp_publishes_typed_tool_schemas() -> None:
 
     tools = {tool.name: tool for tool in result.tools}
     assert set(tools) == TOOL_NAMES
-    assert len(tools) == 12
+    assert len(tools) == 14
     assert all(tool.output_schema is not None for tool in tools.values())
     enqueue_schema = tools["enqueue_speech"].input_schema
     assert enqueue_schema["required"] == ["text"]
@@ -190,6 +202,20 @@ async def test_mcp_enqueue_maps_flat_arguments_to_the_public_command() -> None:
             source="codex",
         )
     ]
+
+
+async def test_mcp_caption_tools_read_and_persist_the_shared_preference() -> None:
+    """Oracle: caption reads and writes cross the typed application port exactly once."""
+    port = FakeSpeechPort()
+    async with MCPClient(create_server(port), raise_exceptions=True) as client:
+        before = await client.call_tool("get_caption_settings", {})
+        changed = await client.call_tool("set_captions_enabled", {"enabled": True})
+        after = await client.call_tool("get_caption_settings", {})
+
+    assert before.structured_content == {"enabled": False}
+    assert changed.structured_content == {"enabled": True}
+    assert after.structured_content == {"enabled": True}
+    assert port.captions_enabled is True
 
 
 async def test_mcp_status_error_is_visible_to_the_model() -> None:

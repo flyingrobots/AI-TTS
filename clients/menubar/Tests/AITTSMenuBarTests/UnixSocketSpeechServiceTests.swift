@@ -45,6 +45,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
             .setVoice("bf_emma"),
             .setSynthesisSpeed(0.9),
             .setPlaybackRate(2.0),
+            .setCaptionsEnabled(true),
         ]
         for command in commands { try service.perform(command) }
 
@@ -70,6 +71,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
                 ["op": "settings", "set": ["voice": "bf_emma"]],
                 ["op": "settings", "set": ["speed": 0.9]],
                 ["op": "settings", "set": ["playback_rate": 2.0]],
+                ["op": "settings", "set": ["captions_enabled": true]],
             ])
         )
     }
@@ -116,6 +118,7 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.voices, ["bm_george", "bf_emma"])
         XCTAssertEqual(snapshot.speed, 1.25)
         XCTAssertEqual(snapshot.playbackRate, 1.5)
+        XCTAssertTrue(snapshot.captionsEnabled)
     }
 
     func testMalformedSnapshotBecomesTypedApplicationError() {
@@ -182,7 +185,9 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
             "input": [],
             "history": [],
             "voices": ["bm_george", "bf_emma"],
-            "settings": ["speed": 1.25, "playback_rate": 1.5],
+            "settings": [
+                "speed": 1.25, "playback_rate": 1.5, "captions_enabled": true,
+            ],
         ]
     }
 

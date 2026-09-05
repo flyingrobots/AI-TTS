@@ -53,6 +53,7 @@ final class AppState: ObservableObject {
     private var eventThread: Thread?
     private let eventsFlag = AtomicFlag()
     private var priorApplicationProcessIdentifier: Int32?
+    private var captionMigrationAttempted = false
 
     init(
         speech: any SpeechServicePort,
@@ -101,9 +102,27 @@ final class AppState: ObservableObject {
                 self.history = snapshot.history
                 self.speed = snapshot.speed
                 self.playbackRate = snapshot.playbackRate
+                self.applyCaptionSettings(snapshot)
                 if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
             }
         }
+    }
+
+    private func applyCaptionSettings(_ snapshot: Snapshot) {
+        if snapshot.captionsEnabledConfigured {
+            captionsEnabled = snapshot.captionsEnabled
+            defaults.set(snapshot.captionsEnabled, forKey: "captionsEnabled")
+            return
+        }
+        guard !captionMigrationAttempted,
+            let legacy = defaults.object(forKey: "captionsEnabled") as? Bool
+        else {
+            if !captionMigrationAttempted { captionsEnabled = snapshot.captionsEnabled }
+            return
+        }
+        captionMigrationAttempted = true
+        captionsEnabled = legacy
+        send(.setCaptionsEnabled(legacy))
     }
 
     // MARK: - Event stream (instant refresh on any state change)
@@ -244,13 +263,10 @@ final class AppState: ObservableObject {
         send(.setPlaybackRate(rate))
     }
     func setCaptionsEnabled(_ enabled: Bool) {
+        captionMigrationAttempted = true
         captionsEnabled = enabled
         defaults.set(enabled, forKey: "captionsEnabled")
-        if enabled {
-            // The event stream drives subsequent caption changes. This one-shot
-            // refresh covers enabling captions in the middle of an active clip.
-            refresh()
-        }
+        send(.setCaptionsEnabled(enabled))
     }
 
     /// A liveness watchdog only. Caption preference never controls its cadence;

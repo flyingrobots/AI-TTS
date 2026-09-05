@@ -3,6 +3,7 @@
 // Test-Size: medium (AppKit rendering and main-actor state)
 // Test-Oracle: daemon wire contract and approved menu-bar interaction design
 
+import Combine
 import XCTest
 
 import AITTSApplication
@@ -105,7 +106,10 @@ final class WireProtocolTests: XCTestCase {
             "input": [["id": "utt_2", "text": "next", "voice": "v", "state": "Queued"]],
             "history": [],
             "voices": ["bm_daniel"],
-            "settings": ["voice": "bm_daniel", "speed": 1.25, "playback_rate": 1.5],
+            "settings": [
+                "voice": "bm_daniel", "speed": 1.25, "playback_rate": 1.5,
+                "captions_enabled": true,
+            ],
         ])
         XCTAssertEqual(snapshot?.status.playbackState, "playing")
         XCTAssertEqual(snapshot?.status.current?.positionMs, 42)
@@ -113,6 +117,7 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(snapshot?.plan.last?.state, "Queued")
         XCTAssertEqual(snapshot?.speed, 1.25)
         XCTAssertEqual(snapshot?.playbackRate, 1.5)
+        XCTAssertEqual(snapshot?.captionsEnabled, true)
         XCTAssertEqual(snapshot?.status.engine, "kokoro")
     }
 
@@ -145,14 +150,19 @@ final class WireProtocolTests: XCTestCase {
     }
 
     @MainActor
-    func testCaptionPreferencePersistsWithoutControllingWatchdogCadence() throws {
+    func testCaptionPreferenceFollowsDaemonAndPushesChangesWithoutChangingWatchdog() async throws {
         let suite = "ai-tts-caption-preference-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: "captionsEnabled")
+        let speech = RecordingCaptionSpeechPort(
+            captionsEnabled: true,
+            captionsEnabledConfigured: true
+        )
         let ports = InertApplicationPorts()
         let state = AppState(
-            speech: ports,
+            speech: speech,
             documentEnqueuer: ports,
             currentSelectionEnqueuer: ports,
             clipboardEnqueuer: ports,
@@ -162,16 +172,51 @@ final class WireProtocolTests: XCTestCase {
 
         XCTAssertFalse(state.captionsEnabled)
         XCTAssertEqual(state.backgroundPollingInterval, 5.0)
+        let daemonPreferenceApplied = expectation(description: "daemon preference applied")
+        let observation = state.$captionsEnabled.dropFirst().sink { enabled in
+            if enabled { daemonPreferenceApplied.fulfill() }
+        }
 
-        state.setCaptionsEnabled(true)
+        state.refresh()
+        await fulfillment(of: [daemonPreferenceApplied], timeout: 1)
         XCTAssertTrue(state.captionsEnabled)
         XCTAssertTrue(defaults.bool(forKey: "captionsEnabled"))
         XCTAssertEqual(state.backgroundPollingInterval, 5.0)
 
         state.setCaptionsEnabled(false)
+        await fulfillment(of: [speech.commandPerformed], timeout: 1)
         XCTAssertFalse(state.captionsEnabled)
         XCTAssertFalse(defaults.bool(forKey: "captionsEnabled"))
+        XCTAssertEqual(speech.commands, [.setCaptionsEnabled(false)])
         XCTAssertEqual(state.backgroundPollingInterval, 5.0)
+        withExtendedLifetime(observation) {}
+    }
+
+    @MainActor
+    func testLegacyCaptionPreferenceMigratesWhenDaemonHasNoValue() async throws {
+        let suite = "ai-tts-caption-migration-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: "captionsEnabled")
+        let speech = RecordingCaptionSpeechPort(
+            captionsEnabled: false,
+            captionsEnabledConfigured: false
+        )
+        let ports = InertApplicationPorts()
+        let state = AppState(
+            speech: speech,
+            documentEnqueuer: ports,
+            currentSelectionEnqueuer: ports,
+            clipboardEnqueuer: ports,
+            defaults: defaults
+        )
+
+        state.refresh()
+        await fulfillment(of: [speech.commandPerformed], timeout: 1)
+
+        XCTAssertTrue(state.captionsEnabled)
+        XCTAssertEqual(speech.commands, [.setCaptionsEnabled(true)])
     }
 
     func testDaemonStatusFallsBackToLegacyState() {
@@ -339,6 +384,49 @@ private struct InertApplicationPorts: SpeechServicePort, DocumentEnqueueing,
         throw InertError.unexpectedCall
     }
     func enqueueClipboard() throws { throw InertError.unexpectedCall }
+}
+
+private final class RecordingCaptionSpeechPort: SpeechServicePort, @unchecked Sendable {
+    let commandPerformed = XCTestExpectation(description: "caption command performed")
+    private let snapshotValue: Snapshot
+    private let lock = NSLock()
+    private var recordedCommands: [SpeechCommand] = []
+
+    init(captionsEnabled: Bool, captionsEnabledConfigured: Bool) {
+        snapshotValue = Snapshot(
+            status: DaemonStatus(
+                playbackState: "idle", current: nil, counts: [:], voice: "bm_george",
+                engine: "fake"),
+            plan: [],
+            input: [],
+            history: [],
+            voices: ["bm_george"],
+            speed: 1,
+            playbackRate: 1,
+            captionsEnabled: captionsEnabled,
+            captionsEnabledConfigured: captionsEnabledConfigured
+        )
+    }
+
+    var commands: [SpeechCommand] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedCommands
+    }
+
+    func snapshot() throws -> Snapshot { snapshotValue }
+    func submit(_ submission: SpeechSubmission) throws { throw InertError.unexpectedCall }
+
+    func perform(_ command: SpeechCommand) throws {
+        lock.lock()
+        recordedCommands.append(command)
+        lock.unlock()
+        commandPerformed.fulfill()
+    }
+
+    func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
+        throw InertError.unexpectedCall
+    }
 }
 
 private final class RecordingCurrentSelectionEnqueuer: CurrentSelectionEnqueueing,

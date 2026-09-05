@@ -137,6 +137,17 @@ async def test_settings_set_roundtrip(daemon: Daemon, capsys: pytest.CaptureFixt
     assert out["settings"]["speed"] == 1.25
 
 
+async def test_caption_setting_is_boolean_end_to_end(
+    daemon: Daemon,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = await run_cli(daemon, "settings", "--set", "captions_enabled=true")
+    out = json.loads(capsys.readouterr().out)
+
+    assert code == EXIT_OK
+    assert out["settings"]["captions_enabled"] is True
+
+
 async def test_playback_rate_setting_is_numeric_end_to_end(
     daemon: Daemon,
     capsys: pytest.CaptureFixture[str],

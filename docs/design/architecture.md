@@ -356,10 +356,17 @@ limit does not poison the connection, so a corrected next request can proceed.
 → {"op":"remove_history", "id":"utt_..."}
 → {"op":"clear", "queue":"history"}
 
-// subscribe — the fix for F1 and F2
-→ {"op":"subscribe", "events":["state"]}
+// shared settings: menu and agent clients read and write the same preference
+→ {"op":"settings"}
+← {"ok":true, "settings":{"captions_enabled":false, ...}}
+→ {"op":"settings", "set":{"captions_enabled":true}}
+← {"ok":true, "settings":{"captions_enabled":true, ...}}
+
+// subscribe — the fix for F1 and F2, plus settings invalidation
+→ {"op":"subscribe"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Synthesizing", "to":"Ready"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Playing", "to":"Played"}
+← {"event":"settings_changed", "settings":{"captions_enabled":true}}
 ```
 
 `content_format` is `plain_text` or `markdown`. Maintained CLI, MCP, and native
@@ -385,9 +392,9 @@ newlines, and stdout contains no banners or logs. Diagnostics belong on
 stderr. There is deliberately no HTTP, SSE, or listening network socket.
 
 The adapter publishes typed tools for enqueue, truthful status, the unified
-queue, history, voices, global pause/resume, skip/restart, targeted cancel,
-priority-aware requeue, and queue clear. MCP argument and result schemas are
-derived from type annotations and the public models in
+queue, history, voices, caption-preference read/write, global pause/resume,
+skip/restart, targeted cancel, priority-aware requeue, and queue clear. MCP
+argument and result schemas are derived from type annotations and the public models in
 `src/aitts/application/schemas.py`. Agent speech defaults to literal
 `plain_text`; callers opt into Markdown AST projection with
 `content_format: "markdown"`.
@@ -431,6 +438,7 @@ than inferred from happy-path reopen tests.
 | Input queue | **Yes** | Unsynthesized text is not recoverable from anywhere else |
 | Playback queue | **Yes, paused** | See below |
 | Global playback hold | **Yes** | Restarting during a meeting must not unexpectedly speak |
+| On-screen captions | **Yes** | Menu and MCP clients share one daemon-owned preference |
 | Current position within an utterance | Yes, best-effort | Resume mid-sentence if the offset is known |
 | Audio cache | Yes, subject to eviction | |
 

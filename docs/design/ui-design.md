@@ -120,20 +120,25 @@ separate from voice-generation speed, which affects future synthesis.
 
 ## On-screen captions
 
-Captions are off by default and persist as a local UI preference. The caption
-bubble beside playback rate toggles a borderless, non-activating panel near the
-bottom center of the active display. The panel floats across Spaces, ignores
-mouse events, and disappears whenever captions are disabled, the daemon is
-unreachable, or no clip is active.
+Captions are off by default and persist as a shared daemon setting. The caption
+bubble beside playback rate pushes that setting through the same application
+port used by other native controls. MCP can read or update the identical value,
+and a daemon settings event causes the menu app to refresh immediately. The
+bubble toggles a borderless, non-activating panel near the bottom center of the
+active display. The panel floats across Spaces, ignores mouse events, and
+disappears whenever captions are disabled, the daemon is unreachable, or no
+clip is active.
 
 The overlay contains the daemon's exact active spoken segment and, for a
 document, `PART n OF m`. It is segment-level transcription: it deliberately
 does not fabricate word timing or karaoke highlighting. The toggle updates the
-local presentation and persistent preference immediately, then performs one
-snapshot refresh so enabling it during speech can show the current segment.
-Subsequent caption changes are driven by the daemon event stream. Enabling
-captions does not start or accelerate background polling; the existing
-five-second refresh remains only a liveness watchdog.
+local presentation optimistically and submits the persisted change to the
+daemon. The daemon broadcasts `settings_changed`; its event-driven snapshot
+then confirms the shared value and can also apply an MCP-originated change.
+The first shared-setting build migrates an existing local `UserDefaults` value
+only when the daemon has no explicit caption preference. Enabling captions does
+not start or accelerate background polling; the existing five-second refresh
+remains only a liveness watchdog.
 
 ## Queue
 
@@ -198,7 +203,8 @@ audible description. Preview creates an Urgent public clip, so it becomes next
 after the current clip and is visible in Queue like every other submission.
 
 Voice-generation speed is continuous from 0.5× to 2.0× and applies to future submissions.
-On-screen captions can also be enabled or disabled here.
+On-screen captions can also be enabled or disabled here, against the same
+daemon setting exposed to MCP.
 Settings take effect immediately; Done only dismisses the sheet.
 
 ## Tray state

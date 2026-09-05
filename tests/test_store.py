@@ -315,8 +315,10 @@ def test_history_rows_can_be_removed_or_cleared_without_touching_active_work(sto
 
 
 def test_settings_roundtrip_and_default(store: Store) -> None:
+    assert store.has_setting("voice") is False
     assert store.get_setting("voice", "bm_daniel") == "bm_daniel"
     store.set_setting("voice", "af_bella")
+    assert store.has_setting("voice") is True
     assert store.get_setting("voice", "bm_daniel") == "af_bella"
 
 

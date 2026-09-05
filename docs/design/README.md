@@ -117,7 +117,8 @@ Positions taken at implementation time, each reversible and open to challenge:
   of scope.
 - **Playback rate and captions** are live menu-bar controls. Rate is one of six
   discrete values; captions are an opt-in, focus-free active-segment overlay
-  and do not claim word-level synchronization.
+  and do not claim word-level synchronization. Caption enablement is one
+  daemon-owned setting shared by the menu UI and MCP tools.
 - **OS integration** was not part of the original v0.1.0 scope and is now in
   progress. The selected-text Service uses `EnqueueSelection`; the selected-file
   Service uses the existing `EnqueueDocument`; both have installed-system

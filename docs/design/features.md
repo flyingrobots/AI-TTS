@@ -284,6 +284,7 @@ The surface an agent uses. He describes this only as *"you send THE application 
 | 8.7 | Stable utterance identifier returned on submission | **[PROPOSED]** | **SHOULD** |
 | 8.8 | Report admission separately from playback hold; paused speakers continue submitting and are spooled | **[STATED]** | **MUST** |
 | 8.9 | Default agent speech to literal plain text and require an explicit choice to interpret it as Markdown | **[STATED]** | **MUST** |
+| 8.10 | Let agents read and change the same persisted caption preference as the menu UI | **[STATED]** | **MUST** |
 
 **8.2 is the requirement that tonight's evidence most directly demands, and it is the one most likely to be skipped**, because it is not a feature anyone sees.
 
@@ -305,6 +306,11 @@ CLI and MCP submissions carry `plain_text` by default, so `#`, backticks, and
 asterisks remain literal. A caller that is intentionally submitting Markdown
 chooses `markdown`; length-based segmentation remains available in either
 format.
+
+**8.10 makes caption control observable instead of hopeful.** The daemon owns
+one boolean preference. The menu pushes its toggle through the settings wire;
+MCP exposes typed read and idempotent set tools; and `settings_changed` wakes
+the menu app without increasing its liveness-poll cadence.
 
 ## 9. Native OS entry points
 

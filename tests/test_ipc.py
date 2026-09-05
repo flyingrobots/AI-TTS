@@ -621,11 +621,45 @@ async def test_settings_get_and_set(daemon: Daemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "settings"})
     assert res["ok"] is True
     assert "voice" in res["settings"]
+    assert res["settings"]["captions_enabled"] is False
     res2 = await rpc(daemon.socket_path, {"op": "settings", "set": {"voice": "af_bella"}})
     assert res2["settings"]["voice"] == "af_bella"
+    captions = await rpc(
+        daemon.socket_path,
+        {"op": "settings", "set": {"captions_enabled": True}},
+    )
+    assert captions["settings"]["captions_enabled"] is True
+    assert daemon.store.get_setting("captions_enabled", "missing") == "true"
+    invalid_captions = await rpc(
+        daemon.socket_path,
+        {"op": "settings", "set": {"captions_enabled": "true"}},
+    )
+    assert invalid_captions["ok"] is False
+    assert invalid_captions["error"]["type"] == "bad_request"
     res3 = await rpc(daemon.socket_path, {"op": "settings", "set": {"voice": "nope"}})
     assert res3["ok"] is False
     assert res3["error"]["type"] == "bad_request"
+
+
+async def test_caption_setting_change_is_pushed_to_subscribers(daemon: Daemon) -> None:
+    reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
+    writer.write(b'{"op": "subscribe"}\n')
+    await writer.drain()
+    assert json.loads(await reader.readline()) == {"ok": True, "subscribed": True}
+
+    response = await rpc(
+        daemon.socket_path,
+        {"op": "settings", "set": {"captions_enabled": True}},
+    )
+    event = json.loads(await asyncio.wait_for(reader.readline(), timeout=1))
+    writer.close()
+    await writer.wait_closed()
+
+    assert response["settings"]["captions_enabled"] is True
+    assert event == {
+        "event": "settings_changed",
+        "settings": {"captions_enabled": True},
+    }
 
 
 async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
@@ -667,6 +701,8 @@ async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
                 "speed": 1.0,
                 "playback_rate": 1.0,
                 "cache_max_bytes": 4,
+                "captions_enabled": False,
+                "captions_enabled_configured": False,
             },
         },
         "terminal_exists": False,
@@ -742,6 +778,7 @@ async def test_snapshot_returns_everything_in_one_request(daemon: Daemon) -> Non
         assert key in res
     assert res["voices"] == ["bm_daniel", "af_bella"]
     assert "voice" in res["settings"]
+    assert res["settings"]["captions_enabled"] is False
 
 
 async def test_history_items_carry_finished_at(daemon: Daemon) -> None:

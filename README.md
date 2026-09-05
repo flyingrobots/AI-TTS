@@ -232,6 +232,7 @@ The server exposes these tools:
 - `list_speech_queue`
 - `list_speech_history`
 - `list_speech_voices`
+- `get_caption_settings` and `set_captions_enabled`
 - `pause_speech_playback` and `resume_speech_playback`
 - `skip_current_speech` and `restart_current_speech`
 - `cancel_queued_speech`, `requeue_speech`, and `clear_speech_queue`
@@ -282,7 +283,10 @@ playing, the Current card also shows a captions-bubble shortcut beside playback
 speed. The click-through panel appears at the bottom center of the active
 display and shows the exact active segment; multi-part documents also show
 `PART n OF m`. Captions are segment-level, not word-timed karaoke, and the
-panel is absent while no segment is active.
+panel is absent while no segment is active. The preference is shared through
+the daemon: the menu toggle and MCP `set_captions_enabled` tool update the same
+persisted value, while `get_caption_settings` reports it without opening the
+menu.
 
 Use the installed CLI from the uv tool bin directory (or run
 `uv tool update-shell` once to put that directory on `PATH`):
@@ -305,6 +309,7 @@ ai-tts rewind
 ai-tts list playback
 ai-tts history
 ai-tts settings --set voice=bm_daniel
+ai-tts settings --set captions_enabled=true
 
 # agent-native MCP server: 100% JSONL, one JSON object per stdio line
 ai-tts-mcp
@@ -345,8 +350,9 @@ Every response is JSON. Agents that want more than the CLI speak newline-delimit
 MCP hosts should launch `ai-tts-mcp` as a local stdio server. The process emits
 only newline-delimited MCP JSON-RPC on stdout; there is no HTTP or SSE mode.
 Its typed tools cover enqueue, status, the unified Queue and History, voices,
-global pause/resume, skip/restart, cancel, priority-aware requeue, and queue
-clear. `enqueue_speech` defaults to literal `plain_text` and accepts
+shared caption read/write, global pause/resume, skip/restart, cancel,
+priority-aware requeue, and queue clear. `enqueue_speech` defaults to literal
+`plain_text` and accepts
 `content_format: "markdown"` when an agent intentionally sends Markdown. It
 remains available while globally paused: new clips are accepted, synthesized,
 and spooled until Resume.

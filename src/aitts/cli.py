@@ -141,7 +141,15 @@ def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
         if not sep:
             msg = f"--set expects KEY=VALUE, got {pair!r}"
             raise SystemExit(msg)
-        updates[key] = float(value) if key in {"speed", "playback_rate"} else value
+        if key in {"speed", "playback_rate"}:
+            updates[key] = float(value)
+        elif key == "captions_enabled":
+            if value not in {"true", "false"}:
+                msg = "captions_enabled must be true or false"
+                raise SystemExit(msg)
+            updates[key] = value == "true"
+        else:
+            updates[key] = value
     return {"op": "settings", "set": updates} if updates else {"op": "settings"}
 
 
