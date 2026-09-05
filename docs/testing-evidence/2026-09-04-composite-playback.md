@@ -356,3 +356,11 @@ The non-terminal child path was absent from protection; terminal eviction
 forgot zero references and left the child path intact. The cancelled parent
 left its three children Ready, Synthesizing, and Queued instead of settling all
 three as Cancelled.
+
+## GREEN: composite cache ownership and cancellation
+
+Protection now unions legacy parent artifacts with child artifacts whose owner
+is non-terminal. Eviction clears either kind of terminal reference and reports
+the combined row count. A parent terminal transition atomically cancels every
+non-terminal child while preserving already terminal child outcomes. Both
+focused contracts and the complete store suite are green.

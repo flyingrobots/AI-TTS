@@ -373,9 +373,16 @@ class Store:
         """Return cache paths referenced by work that is not yet terminal."""
         placeholders = ",".join("?" * len(TERMINAL))
         rows = self._db.execute(
-            f"SELECT DISTINCT audio_path FROM utterances "  # noqa: S608
-            f"WHERE audio_path IS NOT NULL AND state NOT IN ({placeholders})",
-            tuple(state.value for state in TERMINAL),
+            f"SELECT audio_path FROM utterances "  # noqa: S608
+            f"WHERE audio_path IS NOT NULL AND state NOT IN ({placeholders}) "
+            "UNION "
+            "SELECT segment.audio_path FROM utterance_segments AS segment "
+            "JOIN utterances AS parent ON parent.id = segment.utterance_id "
+            f"WHERE segment.audio_path IS NOT NULL AND parent.state NOT IN ({placeholders})",
+            (
+                *(state.value for state in TERMINAL),
+                *(state.value for state in TERMINAL),
+            ),
         ).fetchall()
         return frozenset(str(row["audio_path"]) for row in rows)
 
@@ -418,6 +425,17 @@ class Store:
             f"UPDATE utterances SET {', '.join(sets)} WHERE id = ?",  # noqa: S608
             params,
         )
+        if to in TERMINAL:
+            placeholders = ",".join("?" * len(TERMINAL))
+            self._db.execute(
+                f"UPDATE utterance_segments SET state = ? "  # noqa: S608
+                f"WHERE utterance_id = ? AND state NOT IN ({placeholders})",
+                (
+                    State.CANCELLED.value,
+                    utt_id,
+                    *(state.value for state in TERMINAL),
+                ),
+            )
         self._commit_or_rollback()
         after = self.get(utt_id)
         if after is None:  # pragma: no cover - row cannot vanish mid-update
@@ -472,13 +490,20 @@ class Store:
     def forget_terminal_audio(self, path: Path) -> int:
         """Clear history references to one evicted artifact while retaining its rows."""
         placeholders = ",".join("?" * len(TERMINAL))
-        cursor = self._db.execute(
+        parent_cursor = self._db.execute(
             f"UPDATE utterances SET audio_path = NULL "  # noqa: S608
             f"WHERE audio_path = ? AND state IN ({placeholders})",
             (str(path), *(state.value for state in TERMINAL)),
         )
+        segment_cursor = self._db.execute(
+            "UPDATE utterance_segments SET audio_path = NULL WHERE audio_path = ? "  # noqa: S608
+            "AND utterance_id IN ("
+            f"SELECT id FROM utterances WHERE state IN ({placeholders})"
+            ")",
+            (str(path), *(state.value for state in TERMINAL)),
+        )
         self._commit_or_rollback()
-        return cursor.rowcount
+        return parent_cursor.rowcount + segment_cursor.rowcount
 
     def claim_for_synthesis(self) -> SynthesisWork | None:
         """Atomically claim the earliest parent-owned unit of synthesis work."""
