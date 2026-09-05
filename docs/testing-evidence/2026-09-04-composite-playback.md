@@ -226,3 +226,15 @@ Recovery now repairs child lifecycle before aggregating parent state:
 Synthesizing becomes Queued, Playing becomes Paused with its stored position,
 and Ready/Played children are untouched. The focused crash-state test and full
 store suite are green.
+
+## RED: composite restart and skip
+
+Restart while child one is playing must reset the document and begin child zero
+from 0 ms using cached artifacts. Skip during child zero must record the
+document-relative position, mark that active child Skipped, cancel the remaining
+child queue, and immediately unblock the next top-level clip.
+
+Both focused tests exited 1. Restart timed out waiting for a third sink start
+because the legacy implementation requires a parent audio path. Skip advanced
+the top-level queue and recorded 350 ms, but left its children incorrectly
+Playing and Ready.

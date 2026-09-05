@@ -211,6 +211,65 @@ async def test_composite_blocks_following_clip_while_children_play_in_order(
         task.cancel()
 
 
+async def test_restart_composite_replays_from_its_first_child(
+    store: Store,
+    sink: FakeSink,
+) -> None:
+    controller, schedule = playback_controller(store, sink)
+    document = make_composite_ready(store, "document", ("part one", "part two"))
+    task = await start(controller, schedule)
+    try:
+        sink.finish_current()
+        await wait_for(lambda: len(sink.started) == 2)
+        await controller.restart_current()
+        await wait_for(lambda: len(sink.started) == 3)
+
+        assert {
+            "parent_state": state_of(store, document.id),
+            "segment_states": [segment.state for segment in store.segments(document.id)],
+            "started": [path.name for path in sink.started],
+            "restart_position": sink.start_positions[-1],
+        } == {
+            "parent_state": State.PLAYING,
+            "segment_states": [State.PLAYING, State.READY],
+            "started": [
+                f"{document.id}_segment_0000.wav",
+                f"{document.id}_segment_0001.wav",
+                f"{document.id}_segment_0000.wav",
+            ],
+            "restart_position": 0,
+        }
+    finally:
+        task.cancel()
+
+
+async def test_skip_composite_settles_children_and_advances_top_level_plan(
+    store: Store,
+    sink: FakeSink,
+) -> None:
+    controller, schedule = playback_controller(store, sink)
+    document = make_composite_ready(store, "document", ("part one", "part two"))
+    following = make_ready(store, "following")
+    task = await start(controller, schedule)
+    try:
+        sink.advance_to(350)
+        await controller.skip()
+        await wait_for(lambda: state_of(store, following.id) is State.PLAYING)
+        parent = store.get(document.id)
+
+        assert {
+            "parent": None if parent is None else (parent.state, parent.played_ms),
+            "segment_states": [segment.state for segment in store.segments(document.id)],
+            "started": [path.name for path in sink.started],
+        } == {
+            "parent": (State.SKIPPED, 350),
+            "segment_states": [State.SKIPPED, State.CANCELLED],
+            "started": [f"{document.id}_segment_0000.wav", f"{following.id}.wav"],
+        }
+    finally:
+        task.cancel()
+
+
 async def test_holds_order_when_head_is_not_ready(store: Store, sink: FakeSink) -> None:
     a = store.submit("a", voice="v", speed=1.0)  # still queued
     make_ready(store, "b")
