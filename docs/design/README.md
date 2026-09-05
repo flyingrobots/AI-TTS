@@ -118,8 +118,10 @@ Positions taken at implementation time, each reversible and open to challenge:
 - **Playback rate and captions** are live menu-bar controls. Rate is one of six
   discrete values; captions are an opt-in, focus-free overlay of bounded phrase
   cues derived from the active segment. Cue changes use clip-level position and
-  duration rather than claiming word-level synchronization. Caption enablement
-  is one daemon-owned setting shared by the menu UI and MCP tools.
+  duration rather than claiming word-level synchronization. Each cue also
+  carries the exact source provenance shown in History when one was recorded.
+  Caption enablement is one daemon-owned setting shared by the menu UI and MCP
+  tools.
 - **OS integration** was not part of the original v0.1.0 scope and is now in
   progress. The selected-text Service uses `EnqueueSelection`; the selected-file
   Service uses the existing `EnqueueDocument`; both have installed-system

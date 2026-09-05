@@ -226,7 +226,7 @@ audio source without restarting it.
 | 6.10 | Icon indicates state at a glance — idle, speaking, paused | **[PROPOSED]** | **SHOULD** |
 | 6.11 | Item count or badge on the icon | **[PROPOSED]** | **COULD** |
 | 6.12 | Transport controls in the icon's right-click menu, without opening the panel | **[PROPOSED]** | **COULD** |
-| 6.13 | Opt-in phrase-sized on-screen subtitles for the segment currently being spoken, never the whole section at once | **[STATED]** | **SHOULD** |
+| 6.13 | Opt-in phrase-sized on-screen subtitles with source provenance for the segment currently being spoken, never the whole section at once | **[STATED]** | **SHOULD** |
 | 6.14 | Enqueue a local plain-text, Markdown, or text-bearing PDF file from the UI | **[STATED]** | **MUST** |
 
 **6.3–6.5 were clarified after use.** Separate Up Next and Queue tabs exposed two internal stages as nearly identical user concepts, and ready voice previews could appear in one while the other looked empty. The approved surface therefore has two tabs, Queue and History, with current playback pinned above both.
@@ -317,7 +317,9 @@ section remains one active synthesized segment when that is best for the queue,
 but the overlay projects it into punctuation-aware cues capped at 12 words and
 84 characters. Clip position, duration, and the current playback rate advance
 the cues locally. This avoids both whole-section walls of text and a false claim
-of word-level alignment.
+of word-level alignment. The metadata row preserves the same exact source value
+shown in History, adding only a trailing colon; a legacy item without source
+provenance omits the label.
 
 ## 9. Native OS entry points
 

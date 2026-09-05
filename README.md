@@ -288,9 +288,12 @@ render in at most two lines. They advance from the reported clip position and
 duration using the observed playback rate. That is smooth phrase-level timing,
 not word-timed karaoke, so boundaries are intentionally approximate. Multi-part
 documents also show `PART n OF m`, and the panel is absent while no segment is
-active. The preference is shared through the daemon: the menu toggle and MCP
-`set_captions_enabled` tool update the same persisted value, while
-`get_caption_settings` reports it without opening the menu.
+active. A subdued label above the phrase shows the same exact source recorded in
+History—for example, `codex:` or `menubar-file:notes.md:`—and is omitted only
+for legacy items without source provenance. The preference is shared through
+the daemon: the menu toggle and MCP `set_captions_enabled` tool update the same
+persisted value, while `get_caption_settings` reports it without opening the
+menu.
 
 Use the installed CLI from the uv tool bin directory (or run
 `uv tool update-shell` once to put that directory on `PATH`):

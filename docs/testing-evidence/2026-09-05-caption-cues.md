@@ -89,3 +89,26 @@ The underlying active-segment field still contained the full paragraph, which
 directly distinguishes cue presentation from document or synthesis
 segmentation. After watching the installed panel, the user reported `PERFECT`.
 The daemon then returned to idle with the clip retained in Played history.
+
+## RED/GREEN: source provenance above the cue
+
+The subsequent product requirement was to include above each phrase the source
+already visible in History. This is a presentation-only projection from the
+parent current utterance; the daemon wire already carried the value.
+
+The focused test was first compiled against the caption implementation without
+a metadata model. It exited 1 because `CaptionMetadata` was absent:
+
+```console
+python3 scripts/run_with_deadline.py 60 swift test \
+  --package-path clients/menubar \
+  --filter CaptionCueTests.testCaptionMetadataPreservesTheExactHistorySourceAboveTheCue
+```
+
+The same test passes after adding the presentation model. Its named oracle
+proves that `menubar-file:long-notes.md` becomes the visible
+`menubar-file:long-notes.md:` label without rewriting its provenance, that a
+multi-part item retains `PART 3 OF 8`, and that a legacy item with no source
+produces neither label nor single-part marker. The SwiftUI overlay consumes that
+model with source on the left and the optional part marker on the right while
+the phrase remains centered and limited to two lines.

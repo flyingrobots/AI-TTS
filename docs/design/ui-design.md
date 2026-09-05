@@ -137,7 +137,12 @@ presentation-only cues; a long Markdown section is never displayed all at
 once. Each cue prefers sentence or clause punctuation, contains at most 12
 words and 84 characters, and renders in at most two lines. An unbroken token is
 split rather than allowed to expand the presentation. For a document, the
-overlay also shows `PART n OF m`.
+overlay also shows `PART n OF m`. A compact metadata row above the cue displays
+the exact source value already recorded on the parent queue item and shown in
+History, adding only a trailing colon. Source is left-aligned; `PART n OF m`
+shares the right side of that row. A long source stays on one line and truncates
+through its middle if necessary. Legacy items with no source omit the label and
+retain a centered part marker when applicable.
 
 The daemon reports clip-level position and duration, not word timestamps. The
 menu therefore advances cues proportionally by an estimated spoken-text weight,

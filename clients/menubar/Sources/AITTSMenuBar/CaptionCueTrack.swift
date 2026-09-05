@@ -111,6 +111,17 @@ struct CaptionCueTrack {
     }
 }
 
+struct CaptionMetadata: Equatable {
+    let sourceLabel: String?
+    let partLabel: String?
+
+    init(source: String?, segmentNumber: Int, segmentCount: Int) {
+        self.sourceLabel = source.flatMap { $0.isEmpty ? nil : "\($0):" }
+        self.partLabel =
+            segmentCount > 1 ? "PART \(segmentNumber) OF \(segmentCount)" : nil
+    }
+}
+
 enum CaptionPlaybackTimeline {
     static func positionMs(
         reportedPositionMs: Int?,

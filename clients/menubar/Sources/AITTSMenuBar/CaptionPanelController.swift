@@ -91,6 +91,7 @@ struct CaptionOverlayView: View {
             if let segment = state.status?.current?.activeSegment {
                 CaptionCueView(
                     segment: segment,
+                    source: state.status?.current?.source,
                     playbackState: state.status?.playbackState ?? "idle",
                     observedAt: state.statusObservedAt,
                     playbackRate: state.observedPlaybackRate
@@ -108,9 +109,11 @@ private struct CaptionCueView: View {
     let observedAt: Date
     let playbackRate: Double
     private let track: CaptionCueTrack
+    private let metadata: CaptionMetadata
 
     init(
         segment: ActiveSegment,
+        source: String?,
         playbackState: String,
         observedAt: Date,
         playbackRate: Double
@@ -120,6 +123,11 @@ private struct CaptionCueView: View {
         self.observedAt = observedAt
         self.playbackRate = playbackRate
         self.track = CaptionCueTrack(text: segment.text)
+        self.metadata = CaptionMetadata(
+            source: source,
+            segmentNumber: segment.number,
+            segmentCount: segment.count
+        )
     }
 
     var body: some View {
@@ -133,11 +141,7 @@ private struct CaptionCueView: View {
                 durationMs: segment.durationMs
             )
             VStack(spacing: 7) {
-                if segment.count > 1 {
-                    Text("PART \(segment.number) OF \(segment.count)")
-                        .font(.caption2.smallCaps().weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.72))
-                }
+                metadataRow
                 Text(track.cue(positionMs: position, durationMs: segment.durationMs))
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
@@ -154,5 +158,32 @@ private struct CaptionCueView: View {
                     .stroke(.white.opacity(0.16), lineWidth: 1)
             }
         }
+    }
+
+    @ViewBuilder
+    private var metadataRow: some View {
+        if let sourceLabel = metadata.sourceLabel {
+            HStack(spacing: 12) {
+                Text(sourceLabel)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.68))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
+                if let partLabel = metadata.partLabel {
+                    partText(partLabel)
+                }
+            }
+        } else if let partLabel = metadata.partLabel {
+            partText(partLabel)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private func partText(_ label: String) -> some View {
+        Text(label)
+            .font(.caption2.smallCaps().weight(.semibold))
+            .foregroundStyle(.white.opacity(0.72))
+            .fixedSize()
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
 // Test-Size: medium (menu presentation model under XCTest)
-// Test-Oracle: approved bounded phrase captions advance with observed playback
+// Test-Oracle: approved bounded phrase captions preserve provenance and playback progress
 
 import Foundation
 import XCTest
@@ -102,5 +102,19 @@ final class CaptionCueTests: XCTestCase {
             ),
             5_000
         )
+    }
+
+    func testCaptionMetadataPreservesTheExactHistorySourceAboveTheCue() {
+        let sourced = CaptionMetadata(
+            source: "menubar-file:long-notes.md",
+            segmentNumber: 3,
+            segmentCount: 8
+        )
+        let legacy = CaptionMetadata(source: nil, segmentNumber: 1, segmentCount: 1)
+
+        XCTAssertEqual(sourced.sourceLabel, "menubar-file:long-notes.md:")
+        XCTAssertEqual(sourced.partLabel, "PART 3 OF 8")
+        XCTAssertNil(legacy.sourceLabel)
+        XCTAssertNil(legacy.partLabel)
     }
 }
