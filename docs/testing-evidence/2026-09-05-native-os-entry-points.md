@@ -231,3 +231,47 @@ python3 ../../scripts/run_with_deadline.py 60 swift test --filter SpeechApplicat
 python3 ../../scripts/run_with_deadline.py 60 swift test
 # Executed 39 tests, with 0 failures
 ```
+
+## Slice 4b: Accessibility and clipboard readers
+
+`AccessibilitySelectionReader` is an outbound adapter over public macOS
+Accessibility APIs. It requests trust only when its explicit read method is
+called, queries one known process, and maps permission denial, missing focus,
+unsupported selection, empty selection, and other AX failures separately.
+`MacClipboardTextReader` asks one pasteboard for its current string and exposes
+no write operation.
+
+### Falsification
+
+A deliberate Accessibility mutant suppressed the system prompt option,
+discarded successful text, and collapsed all AX outcomes into an empty success.
+A deliberate clipboard mutant cleared the owned pasteboard after reading and
+treated absent text as an empty success. The focused adapter contract produced
+ten behavior-specific failures across all eight executed tests:
+
+```console
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test --filter MacTextReadersTests
+# Executed 8 tests, with 10 failures (0 unexpected)
+```
+
+The output named the `false` versus `true` prompt option, discarded exact text,
+four missing typed errors, changed pasteboard counts, and missing no-text
+refusal. The mutants were then removed.
+
+### Green
+
+The final Accessibility reader passes `prompt: true` only when explicitly
+called, never queries the target after a denied trust check, preserves exact
+successful text, rejects whitespace-only selections, and maps every declared
+failure separately. The final clipboard reader returns the exact string or a
+typed no-text error without changing its pasteboard.
+
+```console
+cd clients/menubar
+python3 ../../scripts/run_with_deadline.py 60 swift test --filter MacTextReadersTests
+# Executed 8 tests, with 0 failures
+
+python3 ../../scripts/run_with_deadline.py 60 swift test
+# Executed 47 tests, with 0 failures
+```
