@@ -1,6 +1,9 @@
 # AI-TTS — Tech stack
 
-Status: **accepted for v0.1.0**. Where a choice could reasonably go the other way, the alternative is written down with the reason it lost, so a later review can overturn the choice rather than re-derive it.
+Status: **accepted for v0.1.0, with the post-v0.1.0 native OS integration
+stack accepted and planned**. Where a choice could reasonably go the other way,
+the alternative is written down with the reason it lost, so a later review can
+overturn the choice rather than re-derive it.
 
 The constraints doing the work here come from the other documents:
 
@@ -46,8 +49,8 @@ a reusable library of public models, ports, and use cases with no AppKit,
 SwiftUI, PDFKit, socket, or wire-format dependency. `AITTSMacAdapters` implements
 its selected-document and speech-service ports using native file APIs and the
 daemon's Unix socket. `AITTSMenuBar` owns presentation and composes those
-libraries. A future OS integration is a sibling inbound-adapter target, not
-code embedded in the presentation target.
+libraries. The accepted OS integration is a sibling inbound-adapter target,
+not code embedded in the presentation target.
 
 The app subscribes to state events for live updates
 ([features 6.9](features.md#6-menu-bar-ui)) and issues the same ops any CLI
@@ -56,6 +59,37 @@ app says so and offers to start it — that is the whole extent of its privilege
 knowledge.
 
 Tooling: Swift Package Manager, no Xcode project file if avoidable; `swiftlint` and `swift-format` at maximal strictness; XCTest.
+
+## Native OS integration: AppKit Services first
+
+The accepted system-entry design uses APIs already native to the Swift/AppKit
+client. It does not introduce an extension host, browser runtime, event-tap
+helper, or second IPC protocol. The complete behavior and privacy decision is
+in [`os-integration.md`](os-integration.md).
+
+| Concern | Choice | Why |
+|---|---|---|
+| Selected text | AppKit Services provider plus generated `NSServices` metadata | The source app hands over only the invoked selection; no Accessibility trust or clipboard mutation |
+| Selected file | A second AppKit Service receiving one file URL | Reuses `DocumentEnqueueing`; a Finder Sync extension would add privilege and duplicate a system capability |
+| Service shortcut | User-assigned macOS Services shortcut | Avoids a global event tap and its monitoring permission |
+| Menu fallback | `ApplicationServices` Accessibility APIs behind `SelectedTextReaderPort` | Best-effort access for nonparticipating hosts, queried once after explicit invocation |
+| Clipboard fallback | Read-only AppKit pasteboard adapter | Works after an explicit copy and never saves, replaces, or restores clipboard state |
+| Automation | `AppIntents`, deferred | Correct surface for Shortcuts, Siri, and Spotlight after metadata packaging is proved |
+
+The Swift package should add a sibling `AITTSMacEntryPoints` target for the
+Services provider and optional Accessibility and clipboard adapters. It depends
+inward on `AITTSApplication`; the `AITTSMenuBar` executable remains the
+composition root that registers the provider and injects `EnqueueSelection`
+and `EnqueueDocument`. `AITTSApplication` imports no AppKit or
+ApplicationServices types, and `AITTSMacAdapters` continues to own outbound
+file/PDF and Unix-socket translation.
+
+The hand-built app bundle is a load-bearing part of this choice. The builder
+must generate both Service dictionaries under `NSServices`, preserve them in
+the installed signed bundle, and prove system discovery. App Intents remain
+deferred because the compiler generates discovery metadata that must also be
+shown to survive SwiftPM compilation, manual bundle assembly, signing, and
+installation; merely compiling an `AppIntent` type is not distribution proof.
 
 ## CLI client: part of the daemon's Python package
 
@@ -72,6 +106,9 @@ Tooling: Swift Package Manager, no Xcode project file if avoidable; `swiftlint` 
 | **Node/TypeScript daemon** (`kokoro-js` on ONNX Runtime) | One repo-wide JS toolchain | Community ONNX port rather than the reference implementation, and a second runtime to supervise. Nothing else in the design wants Node |
 | **Rust daemon, Python engine subprocess** | Robust daemon core | The daemon *is* the model host — that is what keeps generation warm. Splitting them reintroduces a process boundary inside the hot path and doubles the supervision problem for a robustness the asyncio daemon does not demonstrably lack |
 | **gRPC / protobuf IPC** | Typed schema, codegen | [Architecture §5](architecture.md#5-ipc) chose NDJSON over UDS deliberately: inspectable with `nc`, no codegen step for agent authors, and the message set is small. A schema can be reintroduced as JSON Schema validation without changing the wire |
+| **Finder Sync extension for “Read File”** | Direct Finder integration and custom contextual UI | A file Service already receives an explicit Finder selection without an extension process or a second document pipeline |
+| **Synthetic Command-C selection capture** | Apparent compatibility with any copyable view | Mutates another app and the global clipboard, races focus and other clipboard clients, and violates the explicit-input boundary |
+| **Accessibility as the default** | One menu-bar command independent of Services participation | Requires broad trust, exposes selected text unevenly, and invites background observation; retained only as an explicit fallback |
 
 ## What would change these answers
 

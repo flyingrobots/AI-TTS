@@ -1,6 +1,9 @@
 # Feature breakdown
 
-Status: **implemented in v0.1.0**. This document preserves the provenance of the original requirements. Later product decisions supersede the initial proposal labels where noted below.
+Status: **the v0.1.0 feature set is implemented; native OS entry points are
+accepted and planned next**. This document preserves the provenance of the
+original requirements. Later product decisions supersede the initial proposal
+labels where noted below.
 
 The post-implementation queue review closed the largest UI question: the daemon keeps distinct synthesis and playback machinery, but the menu-bar app presents one Queue in actual playback order. The current clip is pinned above Queue and History; Queue rows expose processing state, urgency, removal, clearing, and drag reordering. History is newest-first and supports removal, clearing, and re-queueing with a fresh Normal or Urgent choice.
 
@@ -37,6 +40,12 @@ queue, structure-aware chunking, one voice for the whole document, Markdown
 syntax-tree projection, live playback rates of 0.5×, 0.75×, 1×, 1.5×, 2×, and
 3×, and on-screen subtitles. Those requirements supersede the initial
 proposal labels on 2.9 and 4.7 and add 2.10, 2.11, and 6.13 below.
+
+A later request asked for deep macOS integration: read highlighted text from a
+right-click action or the menu-bar item, and read selected files from Finder.
+The accepted design adds the native entry points in §9. It chooses macOS
+Services as the primary, permission-free path and treats Accessibility as an
+explicit later fallback rather than a continuous selection detector.
 
 ### The incident, which is also a requirement
 
@@ -294,6 +303,55 @@ CLI and MCP submissions carry `plain_text` by default, so `#`, backticks, and
 asterisks remain literal. A caller that is intentionally submitting Markdown
 chooses `markdown`; length-based segmentation remains available in either
 format.
+
+## 9. Native OS entry points
+
+How selected text and files enter AI-TTS from other macOS applications. The
+complete decision, current-state ledger, and delivery proof are in
+[`os-integration.md`](os-integration.md).
+
+| # | Feature | Label | Priority |
+|---|---|---|---|
+| 9.1 | Expose **Read Selection with AI-TTS** as a macOS Service for a nonempty text selection | **[STATED]** | **MUST** |
+| 9.2 | Expose **Read File with AI-TTS** as a macOS Service for one selected supported file | **[STATED]** | **MUST** |
+| 9.3 | Let the user assign the selected-text Service a keyboard shortcut through macOS | **[INFERRED]** | **SHOULD** |
+| 9.4 | Admit selected text exactly once as confidential, Normal, literal `plain_text` | **[INFERRED]** | **MUST** |
+| 9.5 | Route a selected file through the existing `DocumentEnqueueing` application port | **[INFERRED]** | **MUST** |
+| 9.6 | Offer **Read Current Selection…** through Accessibility only after explicit invocation and only when compatibility evidence justifies it | **[STATED]** | **SHOULD** |
+| 9.7 | Never poll another application's selection in the background or synthesize Command-C | **[INFERRED]** | **MUST** |
+| 9.8 | Offer an explicit, non-mutating **Read Clipboard** fallback | **[PROPOSED]** | **COULD** |
+| 9.9 | Expose speech and transport actions through App Intents after installed-bundle metadata is proved | **[PROPOSED]** | **COULD** |
+
+**9.1 is the primary selection contract.** macOS supplies the selected string
+to the Service when the user invokes it. The app acknowledges admission and
+returns without waiting for synthesis or playback. The command is guaranteed
+in the Services menu for a compatible host and may also appear in that host's
+context menu; AI-TTS does not promise a top-level right-click row in every app.
+
+**9.2 and 9.5 extend the file picker without forking it.** The Service accepts
+exactly one UTF-8 text, Markdown, or text-bearing PDF file for its first
+implementation. It calls the same `EnqueueDocument` use case as Queue's **Add
+file…**, so extension-based Markdown selection, PDF limits, confidentiality,
+Normal priority, nested segmentation, and voice consistency stay identical.
+Multiple selected files fail before any are admitted; a later batch contract
+can choose and test ordering explicitly.
+
+**9.4 keeps selection interpretation explicit.** Highlighted characters do
+not carry reliable Markdown provenance, so `#`, backticks, and asterisks remain
+literal. A separately named future command may opt into Markdown; this command
+never sniffs syntax.
+
+**9.6 is deliberately second.** Accessibility can recover selections from
+some hosts that do not cooperate with Services, but it requires broad user
+trust and does not expose selected text uniformly. The menu action queries the
+previously frontmost process once, after the user asks; it never watches focus
+or selection changes. If no selection is available, it reports that boundary
+and points to the Service or explicit clipboard action.
+
+**9.7 is a privacy and state-integrity requirement.** Synthetic copy depends on
+fragile focus timing and mutates another application's behavior and the global
+pasteboard. “Integrated” does not authorize invisible observation or state
+changes.
 
 ---
 

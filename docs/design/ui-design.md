@@ -1,6 +1,7 @@
 # AI-TTS — menu-bar UI design
 
-Status: **approved and implemented in v0.1.0**.
+Status: **the menu-bar surface is approved and implemented in v0.1.0; native
+OS entry points are accepted and planned next**.
 
 The current design was approved after exercising the original five-tab app.
 That use exposed a conceptual leak: **Up Next** and **Queue** were two views of
@@ -54,6 +55,41 @@ The popover is 368 × 500 points. Its stable vertical structure is:
 Settings is a sheet reached from the gear. It is not a third playback tab.
 This keeps navigation about playback while retaining immediate voice previews
 and speed changes.
+
+## Native OS entry points
+
+The primary selection interaction happens in the source application, not in
+the AI-TTS popover. For a compatible text selection, the user invokes
+**Services → Read Selection with AI-TTS** or an assigned Service keyboard
+shortcut. For one supported Finder selection, they invoke **Services → Read
+File with AI-TTS**. A host may surface either command in its contextual menu,
+but the UI does not promise a top-level right-click item because the host owns
+that menu.
+
+The selected-text Service has no confirmation step. It enqueues the exact
+nonempty selection as confidential, Normal, literal text, returns after daemon
+acknowledgement, and lets the existing Queue provide visible feedback. The file
+Service likewise delegates to the same document admission used by **Add
+file…**. Errors are local and actionable; unsupported or multiple files are
+rejected before anything is enqueued.
+
+An optional later Queue action is named **Read Current Selection…**. The
+ellipsis is intentional: its first use may need the macOS Accessibility prompt,
+and any use may report that the previous application does not expose selected
+text. Opening the popover must preserve the previously frontmost application
+before the popover makes itself key. Invoking the action performs one read of
+that application; it never enables selection polling.
+
+If Accessibility cannot obtain the selection, the error identifies the
+boundary and offers two next actions: use the macOS Service, or copy explicitly
+and choose **Read Clipboard** when that optional action exists. **Read
+Clipboard** reads but never replaces the pasteboard. Neither fallback silently
+synthesizes Command-C.
+
+These entry points are specified in
+[`os-integration.md`](os-integration.md). Until their installed-system
+acceptance passes, the popover and product copy must not present them as
+available behavior.
 
 ## Current playback
 
@@ -184,6 +220,8 @@ flight; paused and error remain visually stable.
 
 The current implementation does not claim waveform scrubbing, word-synchronized
 karaoke highlighting, mute-without-pause, output-device selection, cache
-retention controls, history export, or a detachable History window. Those were
-ideas in the earlier mockups, not prerequisites of the approved unified
-surface.
+retention controls, history export, a detachable History window, selected-text
+or selected-file Services, Accessibility-based selection reading, clipboard
+admission, or App Intents. The playback ideas came from the earlier mockups;
+the native entry points are an accepted post-v0.1.0 goalpost. None is part of
+the shipped surface until its installed-system proof exists.

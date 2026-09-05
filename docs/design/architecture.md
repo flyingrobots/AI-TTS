@@ -1,6 +1,8 @@
 # AI-TTS — Architecture
 
-**Status:** implemented in v0.1.0 (`src/aitts/`). This document remains the spec; the test suite encodes its semantics.
+**Status:** the core is implemented in v0.1.0 (`src/aitts/`); native OS
+entry-point nodes are accepted and explicitly marked planned. This document
+remains the spec; the test suite encodes implemented semantics.
 **Scope:** a local-first, single-user speech daemon that accepts text from many clients, synthesizes ahead of playback, and gives the user transport control over what is spoken.
 
 ---
@@ -94,6 +96,28 @@ reconstruct layout and does not perform OCR. A password-locked PDF or a PDF
 without extractable text is rejected locally with an actionable error rather
 than admitted as silent or empty speech.
 
+### Selected text is a separate application use case
+
+Selected text does not enter through `DocumentEnqueueing`, because it has no
+file URL or trustworthy document-format provenance. Every native text-selection
+adapter calls the planned `SelectionEnqueueing` application port instead.
+`EnqueueSelection` preserves the exact input, rejects an empty or
+whitespace-only selection, and owns one policy: `plain_text`, confidential,
+Normal priority, with voice and generation speed resolved by the daemon at
+parent admission.
+
+The primary adapter is a macOS text Service. macOS hands it the selected string
+only after the user invokes **Read Selection with AI-TTS**, so it needs neither
+Accessibility trust nor clipboard mutation. A later **Read Current
+Selection…** menu action may implement `SelectedTextReaderPort` through the
+Accessibility API. It queries only after explicit invocation, captures the
+previous frontmost process before the menu popover becomes key, and fails
+honestly when the focused element does not expose selected text. It never polls
+selection state or synthesizes Command-C.
+
+The full decision, permission boundary, fallbacks, and acceptance matrix are in
+[`os-integration.md`](os-integration.md).
+
 ---
 
 ## 3. Utterance lifecycle
@@ -155,7 +179,9 @@ graph TB
 
     subgraph native["Native macOS client hexagon"]
         TRAY["Menu-bar UI<br/>inbound adapter"]
-        OS["Finder / Services / Shortcuts<br/>planned inbound adapter"]
+        TEXTOS["Text Service / Accessibility<br/>planned inbound adapters"]
+        FILEOS["Finder file Service<br/>planned inbound adapter"]
+        SELECTUSE["SelectionEnqueueing<br/>EnqueueSelection planned"]
         DOCUSE["DocumentEnqueueing<br/>EnqueueDocument use case"]
         DOC_PORT["SpeechDocumentReaderPort"]
         SPEECH_PORT["Swift SpeechServicePort<br/>typed models"]
@@ -183,7 +209,9 @@ graph TB
     PYSOCKET -->|daemon NDJSON| IPC
     TRAY --> DOCUSE
     TRAY -->|query and transport| SPEECH_PORT
-    OS -.-> DOCUSE
+    TEXTOS -.-> SELECTUSE
+    FILEOS -.-> DOCUSE
+    SELECTUSE -.-> SPEECH_PORT
     DOCUSE --> DOC_PORT
     DOCUSE --> SPEECH_PORT
     FILES -->|implements| DOC_PORT
@@ -229,11 +257,13 @@ graph TB
   response decoding. `AITTSMenuBar` is an inbound presentation adapter and the
   composition root; it contains no daemon dictionaries, socket client, or
   PDFKit dependency.
-- **OS integration is an additional inbound adapter, not a new pipeline.** A
-  future Finder, Services, or Shortcuts target depends on `AITTSApplication`
-  and `AITTSMacAdapters`, constructs `EnqueueDocument` with its own provenance
-  prefix, and calls `enqueueDocument(at:)`. It must not import menu-bar UI or
-  duplicate extraction, confidentiality, queue-priority, or wire policy.
+- **OS integration adds inbound adapters, not a new pipeline.** The accepted
+  first goalpost adds a text Service that calls `EnqueueSelection` and a file
+  Service that calls the existing `EnqueueDocument`. The optional
+  Accessibility reader and later App Intents are sibling adapters to those
+  same use cases. They must not import menu-bar views or duplicate content
+  interpretation, extraction, confidentiality, queue-priority, voice, or wire
+  policy. See [`os-integration.md`](os-integration.md).
 
 ---
 

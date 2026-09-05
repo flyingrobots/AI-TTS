@@ -1,10 +1,20 @@
 # Design documents
 
-Status: **implemented in v0.1.0**. These documents were the pre-implementation spec and remain the reference; open questions below are still open where unanswered. This file is the index: what each document covers, the order to read them in, and every question that is still open.
+Status: **the core design is implemented in v0.1.0; native OS entry points are
+accepted and planned next**. These documents remain the reference, and proposed
+behavior is labelled separately from shipped behavior. This file is the index:
+what each document covers, the order to read them in, and every question that
+is still open.
 
 ## Scope
 
-AI-TTS is a local-first, single-user speech daemon for macOS. Agents and scripts submit text; the daemon synthesizes audio ahead of playback with the model held warm, plays exactly one utterance at a time, and gives the user transport control from a menu-bar app. The design exists because the shell-script setup it replaces failed four ways in one evening, three of them silently at exit 0. Those failures are catalogued at the top of [`architecture.md`](architecture.md) and drive everything else.
+AI-TTS is a local-first, single-user speech daemon for macOS. Agents, scripts,
+and explicit native OS actions submit text; the daemon synthesizes audio ahead
+of playback with the model held warm, plays exactly one utterance at a time,
+and gives the user transport control from a menu-bar app. The design exists
+because the shell-script setup it replaces failed four ways in one evening,
+three of them silently at exit 0. Those failures are catalogued at the top of
+[`architecture.md`](architecture.md) and drive everything else.
 
 Out of scope for v1: multiple users, multiple machines, any network transport, and any cloud engine. The last is a confidentiality decision, not a deferral (see [`engine-evaluation.md`](engine-evaluation.md) §1).
 
@@ -14,11 +24,16 @@ Out of scope for v1: multiple users, multiple machines, any network transport, a
 |---|---|---|
 | [`features.md`](features.md) | What the thing does. Every feature labelled STATED / INFERRED / PROPOSED with priority, so proposals can be cut in one pass | — |
 | [`architecture.md`](architecture.md) | The two queues, the utterance lifecycle, components, IPC, persistence, transport semantics, sensitivity routing | features |
+| [`os-integration.md`](os-integration.md) | Accepted design for selected-text and selected-file Services, the explicit Accessibility fallback, privacy boundaries, and later App Intents | features, architecture |
 | [`engine-evaluation.md`](engine-evaluation.md) | Whether Kokoro-82M is still the right engine. Answer: yes, and why the cloud field is disqualified | — |
-| [`tech-stack.md`](tech-stack.md) | Language and framework choices, with the rejected options and why | architecture, engine-evaluation |
-| [`ui-design.md`](ui-design.md) | Interaction design for the menu-bar app, with mockups in [`mockups/`](mockups/) | features, architecture |
+| [`tech-stack.md`](tech-stack.md) | Language and framework choices, with the rejected options and why | architecture, engine-evaluation, OS integration |
+| [`ui-design.md`](ui-design.md) | Interaction design for the menu-bar app and native entry points, with mockups in [`mockups/`](mockups/) | features, architecture, OS integration |
 
-`features.md` separates *what* from *how* and is the document to argue with first. If a feature falls out of it, the sections built on that feature fall with it.
+`features.md` separates *what* from *how* and is the document to argue with
+first. If a feature falls out of it, the sections built on that feature fall
+with it. `os-integration.md` is the implementation-ready decision record for
+the next native goalpost; it explicitly marks the ports that exist and the
+adapters that do not.
 
 ## Open questions
 
@@ -57,6 +72,14 @@ Every unresolved question across the set, in one list. The detail and the reason
 
 **Engine** — none open. The evaluation closed with a recommendation (keep Kokoro-82M, local only) and a list of conditions that would reopen it ([engine-evaluation §5](engine-evaluation.md#5-what-would-change-this-answer)).
 
+**OS integration** — none open for the first goalpost. macOS Services are the
+primary selected-text and selected-file entry points; text is literal,
+confidential, and Normal; one file reuses `DocumentEnqueueing`; Accessibility
+is an explicit later fallback and never a background detector; clipboard input
+is explicit and non-mutating; App Intents follow only after bundle metadata is
+proved. Multi-file Service admission is deferred rather than left ambiguous.
+See [`os-integration.md`](os-integration.md).
+
 ## How v0.1.0 answered these
 
 Positions taken at implementation time, each reversible and open to challenge:
@@ -86,7 +109,17 @@ Positions taken at implementation time, each reversible and open to challenge:
 - **Playback rate and captions** are live menu-bar controls. Rate is one of six
   discrete values; captions are an opt-in, focus-free active-segment overlay
   and do not claim word-level synchronization.
+- **OS integration** was not part of v0.1.0. Its accepted next design adds a
+  selected-text Service through a new `EnqueueSelection` use case and a
+  selected-file Service through the existing `EnqueueDocument` use case.
+  Accessibility and App Intents remain later, evidence-gated adapters.
 
 ## What approval means
 
-Approving these documents authorizes implementation of the MUST set in [`features.md`](features.md) against the architecture as written. It does not settle the open questions above — any that remain unanswered at approval time get resolved as they are hit, and the resolution recorded back into the relevant document. The documents stay the spec until tests exist to take over that job.
+The v0.1.0 documents now describe implemented behavior unless they explicitly
+say otherwise. Approval of [`os-integration.md`](os-integration.md) locks its
+MUST behavior and sequencing as the next implementation target; it does not
+permit documentation to claim those adapters are shipped before their tests,
+installed-system acceptance, and exact-bundle evidence exist. Any later change
+to the accepted selection, permission, or privacy policy must be recorded back
+into these documents with the implementation change.
