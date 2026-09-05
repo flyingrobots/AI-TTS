@@ -29,7 +29,7 @@ from aitts.ipc import (
     IPCServer,
 )
 from aitts.model import TERMINAL, Priority, Sensitivity, State, Utterance
-from aitts.playback import PlaybackController
+from aitts.playback import PLAYBACK_RATES, PlaybackController
 from aitts.segmentation import prepare_speech_segments
 from aitts.store import Store, TransitionError
 from aitts.synthesis import SynthesisPool
@@ -551,6 +551,7 @@ class Daemon:
             "settings": {
                 "voice": self._store.get_setting("voice", self._default_voice()),
                 "speed": float(self._store.get_setting("speed", "1.0")),
+                "playback_rate": self._require_controller().playback_rate,
                 "cache_max_bytes": self._cache_limit(),
             },
         }
@@ -575,9 +576,23 @@ class Daemon:
                     raise ApiError(BAD_REQUEST, msg)
                 self._store.set_setting("cache_max_bytes", str(limit))
                 self._enforce_cache_limit()
+            elif key == "playback_rate":
+                rate = self._parse_playback_rate(value)
+                if rate is None:
+                    choices = ", ".join(f"{choice:g}" for choice in PLAYBACK_RATES)
+                    msg = f"'playback_rate' must be one of: {choices}"
+                    raise ApiError(BAD_REQUEST, msg)
+                self._require_controller().set_playback_rate(rate)
             else:
                 msg = f"unknown setting {key!r}"
                 raise ApiError(BAD_REQUEST, msg)
+
+    @staticmethod
+    def _parse_playback_rate(raw: object) -> float | None:
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            return None
+        rate = float(raw)
+        return rate if rate in PLAYBACK_RATES else None
 
     @staticmethod
     def _parse_cache_limit(raw: object) -> int | None:

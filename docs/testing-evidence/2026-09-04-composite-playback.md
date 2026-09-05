@@ -258,3 +258,15 @@ synthesis speed, and reject an unsupported 1.25 value as a bad request.
 The focused IPC test exited 1: every supported value was rejected as an
 unknown setting and nothing was persisted. The unsupported value already
 failed closed as the control.
+
+## GREEN: discrete live playback rate
+
+The controller restores a persisted rate, applies changes directly to the
+active sink without restarting its source, and keeps playhead position in
+source-audio time. The real sink reads each output block at the current source
+step, so a rate change takes effect on the next block. The focused active-sink
+oracle was calibrated by temporarily omitting `sink.set_rate`: it exited 1 with
+the source, position, state, and persistence controls unchanged while the sink
+remained at 1.0. The IPC test accepts exactly the six requested choices and
+rejects 1.25. The existing exact settings-response test also RED-confirmed the
+new field before its expected wire shape was updated.

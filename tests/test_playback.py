@@ -616,3 +616,33 @@ async def test_current_position_uses_stored_ms_when_paused_after_restart(
 async def test_current_position_none_when_idle(store: Store, sink: FakeSink) -> None:
     controller, _ = playback_controller(store, sink)
     assert controller.current_position_ms() is None
+
+
+async def test_playback_rate_changes_active_sink_without_restarting_source(
+    store: Store,
+    sink: FakeSink,
+) -> None:
+    controller, schedule = playback_controller(store, sink)
+    current = make_ready(store, "rate control")
+    task = await start(controller, schedule)
+    try:
+        sink.advance_to(250)
+        controller.set_playback_rate(2.0)
+
+        assert {
+            "rate": sink.playback_rate,
+            "rate_changes": sink.rate_changes,
+            "source_starts": [path.name for path in sink.started],
+            "position": controller.current_position_ms(),
+            "state": state_of(store, current.id),
+            "persisted": store.get_setting("playback_rate", "missing"),
+        } == {
+            "rate": 2.0,
+            "rate_changes": [1.0, 2.0],
+            "source_starts": [f"{current.id}.wav"],
+            "position": 250,
+            "state": State.PLAYING,
+            "persisted": "2.0",
+        }
+    finally:
+        task.cancel()

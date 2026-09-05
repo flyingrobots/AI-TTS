@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from aitts.store import Store
 
 log = logging.getLogger(__name__)
+PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
 
 
 @runtime_checkable
@@ -34,6 +36,10 @@ class AudioSink(Protocol):
 
     paused: bool
     error: str | None
+
+    def set_rate(self, rate: float) -> None:
+        """Change playback rate without replacing the active source."""
+        ...
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Begin playing the file at ``path`` from ``position_ms``."""
@@ -75,6 +81,13 @@ class FakeSink:
         self._position = 0
         self._ended: asyncio.Event = asyncio.Event()
         self._auto_finish_ms = auto_finish_ms
+        self.playback_rate = 1.0
+        self.rate_changes: list[float] = []
+
+    def set_rate(self, rate: float) -> None:
+        """Record an immediate playback-rate change."""
+        self.playback_rate = rate
+        self.rate_changes.append(rate)
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Record the start; count an overlap if something was already active."""
@@ -149,12 +162,30 @@ class SoundDeviceSink:
         self.error: str | None = None
         self._pause_flag = threading.Event()
         self._stop_flag = threading.Event()
-        self._frames_played = 0
         self._samplerate = 24000
         self._natural = False
         self._ended: asyncio.Event = asyncio.Event()
         self._thread: threading.Thread | None = None
-        self._start_ms = 0
+        self._rate = 1.0
+        self._rate_lock = threading.Lock()
+        self._position = 0.0
+        self._position_lock = threading.Lock()
+
+    def set_rate(self, rate: float) -> None:
+        """Apply ``rate`` to the active stream at its next audio block."""
+        if rate <= 0:
+            msg = "playback rate must be positive"
+            raise ValueError(msg)
+        with self._rate_lock:
+            self._rate = rate
+
+    def _current_rate(self) -> float:
+        with self._rate_lock:
+            return self._rate
+
+    def _set_position_ms(self, position_ms: float) -> None:
+        with self._position_lock:
+            self._position = position_ms
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Play ``path`` on the default output device from ``position_ms``."""
@@ -167,8 +198,7 @@ class SoundDeviceSink:
         self.paused = False
         self.error = None
         self._natural = False
-        self._frames_played = 0
-        self._start_ms = position_ms
+        self._set_position_ms(position_ms)
         self._ended = asyncio.Event()
         ended = self._ended
 
@@ -181,6 +211,7 @@ class SoundDeviceSink:
         self._thread.start()
 
     def _play_blocking(self, path: Path, position_ms: int, signal_end: object) -> None:
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
         import sounddevice as sd  # noqa: PLC0415 - keep audio deps out of test imports
         import soundfile as sf  # noqa: PLC0415
 
@@ -188,20 +219,43 @@ class SoundDeviceSink:
         try:
             with sf.SoundFile(str(path)) as audio:
                 self._samplerate = int(audio.samplerate)
-                audio.seek(int(position_ms / 1000 * audio.samplerate))
+                source_frame = float(int(position_ms / 1000 * audio.samplerate))
+                self._set_position_ms(source_frame / self._samplerate * 1000)
                 with sd.OutputStream(
                     samplerate=audio.samplerate, channels=audio.channels, dtype="float32"
                 ) as stream:
-                    while not self._stop_flag.is_set():
+                    while not self._stop_flag.is_set() and source_frame < len(audio):
                         if self._pause_flag.is_set():
                             self._stop_flag.wait(0.05)
                             continue
-                        block = audio.read(self._BLOCK_FRAMES, dtype="float32")
-                        if len(block) == 0:
-                            self._natural = True
-                            break
+                        rate = self._current_rate()
+                        remaining = len(audio) - source_frame
+                        output_frames = min(
+                            self._BLOCK_FRAMES,
+                            max(1, math.ceil(remaining / rate)),
+                        )
+                        source_positions = source_frame + np.arange(output_frames) * rate
+                        first_source = int(source_frame)
+                        final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
+                        audio.seek(first_source)
+                        source = audio.read(
+                            final_source - first_source + 1,
+                            dtype="float32",
+                            always_2d=True,
+                        )
+                        relative_positions = source_positions - first_source
+                        source_axis = np.arange(len(source))
+                        block = np.column_stack(
+                            [
+                                np.interp(relative_positions, source_axis, source[:, channel])
+                                for channel in range(audio.channels)
+                            ]
+                        ).astype("float32")
                         stream.write(block)
-                        self._frames_played += len(block)
+                        source_frame = min(float(len(audio)), source_frame + output_frames * rate)
+                        self._set_position_ms(source_frame / self._samplerate * 1000)
+                    if not self._stop_flag.is_set() and source_frame >= len(audio):
+                        self._natural = True
         except Exception as exc:  # pragma: no cover - requires a real device failure
             self.error = str(exc) or type(exc).__name__
             log.exception("audio output failed")
@@ -225,7 +279,8 @@ class SoundDeviceSink:
 
     def position_ms(self) -> int:
         """Best-effort playhead position within the current file."""
-        return self._start_ms + int(self._frames_played / self._samplerate * 1000)
+        with self._position_lock:
+            return int(self._position)
 
     async def wait(self) -> bool:
         """Wait for the current playback to finish or be stopped."""
@@ -248,6 +303,13 @@ class PlaybackController:
         self._store = store
         self._sink = sink
         self._schedule = schedule
+        raw_rate = store.get_setting("playback_rate", "1.0")
+        try:
+            restored_rate = float(raw_rate)
+        except ValueError:
+            restored_rate = 1.0
+        self.playback_rate = restored_rate if restored_rate in PLAYBACK_RATES else 1.0
+        self._sink.set_rate(self.playback_rate)
         self.held = held or store.get_setting("playback_held", "false") == "true"
         if self.held:
             self._store.set_setting("playback_held", "true")
@@ -288,6 +350,15 @@ class PlaybackController:
     def notify(self) -> None:
         """Tell the controller the plan may have changed."""
         self._wake.set()
+
+    def set_playback_rate(self, rate: float) -> None:
+        """Persist and immediately apply one supported transport rate."""
+        if rate not in PLAYBACK_RATES:
+            msg = f"unsupported playback rate {rate}"
+            raise ValueError(msg)
+        self._sink.set_rate(rate)
+        self._store.set_setting("playback_rate", str(rate))
+        self.playback_rate = rate
 
     async def run(self) -> None:
         """Start the next in-order utterance whenever the device is free."""
