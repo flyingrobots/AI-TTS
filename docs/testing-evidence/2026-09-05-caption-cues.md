@@ -112,3 +112,24 @@ multi-part item retains `PART 3 OF 8`, and that a legacy item with no source
 produces neither label nor single-part marker. The SwiftUI overlay consumes that
 model with source on the left and the optional part marker on the right while
 the phrase remains centered and limited to two lines.
+
+## Installed source-label acceptance
+
+Commit `604e462` produced a signed candidate whose menu executable SHA-256 was
+`102987c6c9be3d89b434d25c4ee56865bf5353fc8db7baf158b663e149b6e44b`.
+The candidate replaced only `/Users/james/Applications/AI-TTS.app`; the
+installed executable was byte-identical and passed strict deep signature
+verification. The prior installed app remains recoverable at
+`/private/tmp/ai-tts-install-604e462.julFKJ/AI-TTS.previous.app`.
+
+The menu app changed from PID 16910 to PID 41684 while the daemon remained in
+place. The hidden/background relaunch preserved the exact frontmost application
+ASN, `ASN:0x0-0x12d12d:`.
+
+The required AI-TTS CLI then enqueued
+`utt_4d9bae6f384e44b6b21640b0390313f8` with exact source `codex`, voice
+`bm_george`, and a 10,400 ms two-sentence segment. During its playback, the
+daemon status returned `source: "codex"` on the parent current utterance and
+WindowServer reported the installed app's 760 by 132 point caption panel on
+screen. The user directly confirmed, `I saw it`, establishing that the source
+label reached the real overlay rather than only the presentation-model test.
