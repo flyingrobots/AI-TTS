@@ -461,3 +461,11 @@ final admission code without synthesizing it again. Its exact 44,267-character
 source became 49 child clips and 5,605 spoken words; the largest clip was 192
 words. The first clip begins `SalesOS recent development history.` rather than
 the YAML metadata that preceded the body.
+
+## RED: CLI playback-rate parity
+
+The menu and agent-facing CLI must exercise the same numeric settings contract.
+The CLI regression sends `settings --set playback_rate=1.5` through the real
+socket adapter and expects the persisted 1.5 response. It exited 1 against the
+generic string-valued settings parser: the command returned daemon-error exit
+code 1 with no settings payload instead of success and 1.5.

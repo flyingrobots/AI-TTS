@@ -96,3 +96,19 @@ async def test_settings_set_roundtrip(daemon: Daemon, capsys: pytest.CaptureFixt
     assert code == EXIT_OK
     out = json.loads(capsys.readouterr().out)
     assert out["settings"]["speed"] == 1.25
+
+
+async def test_playback_rate_setting_is_numeric_end_to_end(
+    daemon: Daemon,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = await run_cli(daemon, "settings", "--set", "playback_rate=1.5")
+    out = json.loads(capsys.readouterr().out)
+
+    assert {
+        "exit_code": code,
+        "playback_rate": out.get("settings", {}).get("playback_rate"),
+    } == {
+        "exit_code": EXIT_OK,
+        "playback_rate": 1.5,
+    }
