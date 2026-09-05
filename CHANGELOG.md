@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   synthesis state and drag reordering; removable and clearable queues/history;
   priority-aware history re-queue; voice previews; Settings; and transport
   controls.
+- **Local document picker**: Queue can enqueue UTF-8 plain text, Markdown, and
+  text-bearing PDF files. The app extracts only a user-selected file, submits
+  its text through the existing confidential queue boundary, and gives explicit
+  guidance for locked or image-only PDFs.
 - **Infrastructure**: pytest suite written before the implementation, ruff
   `--select ALL` and `mypy --strict` clean, git hooks in `scripts/hooks/`,
   GitHub Actions CI (Python + Swift), launchd agent plist.

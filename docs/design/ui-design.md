@@ -98,6 +98,8 @@ the daemon reports a child-state transition.
 
 Queue is the complete pending plan:
 
+- **Add file…** opens a single-selection picker for UTF-8 plain text,
+  Markdown, or PDF;
 - rows stay in the order they will be heard;
 - a visible word pill carries Ready, Synthesizing…, or Queued;
 - Urgent is a separate blue badge because scheduling intent and processing
@@ -106,6 +108,14 @@ Queue is the complete pending plan:
 - the visible remove control cancels one row;
 - **Clear queue…** asks for confirmation, then cancels every upcoming row,
   including work currently synthesizing.
+
+The menu app—not the daemon—opens and reads the selected URL. Text and Markdown
+retain their source exactly. A PDF contributes its extractable text layer in
+page order, separated by paragraph breaks; the picker does not claim layout
+reconstruction or OCR. The resulting text uses the normal confidential
+submission boundary, so document chunking, immutable voice selection, queue
+ordering, history, and transport behavior do not fork into a file-specific
+path.
 
 Clearing Queue never stops the current clip. “Stop talking” is Skip; “cancel
 the backlog” is Clear Queue.

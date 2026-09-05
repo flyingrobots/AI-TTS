@@ -147,6 +147,33 @@ final class AppState: ObservableObject {
     func clearHistory() { send(["op": "clear", "queue": "history"]) }
     func removeHistory(_ id: String) { send(["op": "remove_history", "id": id]) }
 
+    func enqueueFile(_ url: URL) {
+        queue.async { [client] in
+            var failure: String?
+            do {
+                let imported = try SpeechFileImport.read(url)
+                _ = try client.request(imported.submissionPayload)
+            } catch let WireError.daemon(_, message) {
+                failure = message
+            } catch {
+                failure = error.localizedDescription
+            }
+            Task { @MainActor [weak self] in
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func reportFilePickerFailure(_ error: Error) {
+        let cocoaError = error as NSError
+        guard
+            !(cocoaError.domain == NSCocoaErrorDomain
+                && cocoaError.code == NSUserCancelledError)
+        else { return }
+        lastError = error.localizedDescription
+    }
+
     func requeue(_ id: String, priority: RequeuePriority = .normal) {
         send(["op": "requeue", "id": id, "priority": priority.rawValue])
     }

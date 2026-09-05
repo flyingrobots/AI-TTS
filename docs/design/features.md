@@ -214,6 +214,7 @@ audio source without restarting it.
 | 6.11 | Item count or badge on the icon | **[PROPOSED]** | **COULD** |
 | 6.12 | Transport controls in the icon's right-click menu, without opening the panel | **[PROPOSED]** | **COULD** |
 | 6.13 | Opt-in on-screen subtitles for the segment currently being spoken | **[STATED]** | **SHOULD** |
+| 6.14 | Enqueue a local plain-text, Markdown, or text-bearing PDF file from the UI | **[STATED]** | **MUST** |
 
 **6.3–6.5 were clarified after use.** Separate Up Next and Queue tabs exposed two internal stages as nearly identical user concepts, and ready voice previews could appear in one while the other looked empty. The approved surface therefore has two tabs, Queue and History, with current playback pinned above both.
 
@@ -227,6 +228,13 @@ audio source without restarting it.
 non-activating, click-through, and available across Spaces. It shows exact
 segment text and document-part progress. It does not claim word timestamps or
 karaoke highlighting.
+
+**6.14 was later requested and implemented.** Queue's file picker reads one
+explicitly selected file inside the menu app and submits its text through the
+same confidential admission path as every other client. UTF-8 text and
+Markdown retain exact source syntax for daemon-owned projection. PDF support
+uses the native text layer only; locked and image-only documents fail locally
+with guidance instead of becoming empty queue entries.
 
 ## 7. Configuration
 

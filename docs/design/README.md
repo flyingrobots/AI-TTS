@@ -75,6 +75,10 @@ Positions taken at implementation time, each reversible and open to challenge:
 - **Documents** are one top-level history/queue item with a durable internal
   clip queue. Markdown is projected through an AST, structural boundaries drive
   chunks, and every child inherits one immutable parent voice/profile.
+- **Local files** enter through Queue's picker. The menu app reads only the
+  selected UTF-8 text, Markdown, or text-bearing PDF and submits text—not a
+  filesystem path—through the existing confidential document boundary. PDF
+  layout reconstruction and OCR remain out of scope.
 - **Playback rate and captions** are live menu-bar controls. Rate is one of six
   discrete values; captions are an opt-in, focus-free active-segment overlay
   and do not claim word-level synchronization.

@@ -65,6 +65,21 @@ The parent continues to occupy its one top-level plan position—and therefore
 blocks every later top-level item—until its final child finishes. Every child
 resolves the same immutable voice and generation speed from the parent.
 
+### File selection is a client-side admission adapter
+
+The menu-bar file picker never sends a path to the daemon. It acquires access
+to one URL the user selected, reads UTF-8 text or Markdown exactly, or projects
+a PDF's native text layer in page order, then sends the resulting text through
+the existing `submit` operation as confidential content. This keeps arbitrary
+filesystem access outside the daemon protocol and gives imported documents the
+same segmentation, one-parent queue position, immutable voice profile, and
+history semantics as pasted or agent-submitted text.
+
+PDF extraction is deliberately narrower than document conversion. It does not
+reconstruct layout and does not perform OCR. A password-locked PDF or a PDF
+without extractable text is rejected locally with an actionable error rather
+than admitted as silent or empty speech.
+
 ---
 
 ## 3. Utterance lifecycle

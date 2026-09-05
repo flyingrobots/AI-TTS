@@ -30,6 +30,9 @@ The last one is the clearest statement of the problem: **speech is a serial reso
 - **Reads Markdown as authored prose.** A Markdown syntax tree removes markup,
   preserves human labels and code content, and turns headings into spoken
   section cues without changing the stored source document.
+- **Enqueues documents from the menu bar.** Queue's **Add file…** picker accepts
+  UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
+  paths stay in the app; only the selected document's text is submitted.
 - **Synthesizes ahead of playback.** Generation is slow and parallelizable; playback is sequential and real-time. They are separate queues on purpose.
 - **Caches generated audio**, so replaying costs nothing and a backed-up queue drains at playback speed rather than synthesis speed.
 - **Plays one thing at a time**, in order, with an always-available global pause that lets incoming speech queue silently until you resume.
@@ -136,6 +139,13 @@ uv run ai-tts-mcp
 cd clients/menubar
 swift run
 ```
+
+In the menu-bar app, open **Queue** and choose **Add file…**. Text and Markdown
+are submitted byte-for-byte so the daemon can apply its normal Markdown AST and
+document chunking policy. PDF pages are submitted in the order returned by the
+native macOS text extractor. Password-locked PDFs are refused; image-only PDFs
+need OCR first because AI-TTS does not perform OCR or promise PDF layout
+reconstruction.
 
 **Pause is a playback hold, never backpressure.** Speakers should continue to
 submit normally while playback is paused; accepted speech is synthesized and

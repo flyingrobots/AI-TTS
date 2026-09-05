@@ -270,6 +270,7 @@ struct CurrentPlaybackCard: View {
 struct QueueView: View {
     @EnvironmentObject var state: AppState
     @State private var confirmingClear = false
+    @State private var showingFileImporter = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -278,6 +279,13 @@ struct QueueView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button {
+                    showingFileImporter = true
+                } label: {
+                    Label("Add file…", systemImage: "doc.badge.plus")
+                }
+                .buttonStyle(.borderless)
+                .help("Add a text, Markdown, or PDF file to Queue")
                 Button("Clear queue…") { confirmingClear = true }
                     .buttonStyle(.borderless)
                     .disabled(state.upcoming.isEmpty)
@@ -312,6 +320,18 @@ struct QueueView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Every upcoming clip, including clips being synthesized, will be cancelled. The current clip will keep playing.")
+        }
+        .fileImporter(
+            isPresented: $showingFileImporter,
+            allowedContentTypes: SpeechFileImport.allowedContentTypes,
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first { state.enqueueFile(url) }
+            case .failure(let error):
+                state.reportFilePickerFailure(error)
+            }
         }
     }
 
