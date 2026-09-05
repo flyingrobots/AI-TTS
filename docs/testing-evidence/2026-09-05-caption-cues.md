@@ -61,3 +61,31 @@ watchdog rather than a caption-setting transport.
 The complete Swift suite passed 65 tests behind its 60-second process-group
 deadline. The unchanged Python boundary suite passed 214 tests. Ruff, Ruff
 formatting, strict MyPy, and diff hygiene also passed.
+
+## Installed visual acceptance
+
+Commit `650a0fd` produced a signed candidate whose menu executable SHA-256 was
+`2de42c76e4736e935e03efbcd39cb8ed805b82ff32f5566fbb69cafa74875005`.
+The candidate replaced only `/Users/james/Applications/AI-TTS.app`; the
+installed executable was byte-identical and passed strict deep signature
+verification. The prior bundle remains recoverable at
+`/private/tmp/ai-tts-install-650a0fd.Dpzz7O/AI-TTS.previous.app`.
+
+The menu app changed from PID 87759 to PID 16910 while the daemon remained PID
+87750. It was launched through the hidden, background LaunchServices path to
+exercise the visibility regression. `lsappinfo front` returned the same
+`ASN:0x0-0x12d12d:` before and after replacement, so the install and launch did
+not take focus.
+
+With the shared caption setting still enabled, the required AI-TTS CLI enqueued
+`utt_bfd59860b4a949d3a694afaefd13b3a2`, a 42-word, three-sentence segment with a
+reported duration of 18,575 ms. During active playback, WindowServer reported
+the installed app's on-screen caption panel at 760 by 132 points. A captured
+late cue contained 11 words across two lines:
+
+> so it stays smooth without pretending we have exact word timestamps.
+
+The underlying active-segment field still contained the full paragraph, which
+directly distinguishes cue presentation from document or synthesis
+segmentation. After watching the installed panel, the user reported `PERFECT`.
+The daemon then returned to idle with the clip retained in Played history.

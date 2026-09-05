@@ -117,3 +117,9 @@ After the fix, the same command passed one test. The production caption panel
 now invokes that behavior only after every show precondition succeeds and
 before ordering the panel. A normally visible app is left untouched; a hidden
 app receives the non-activating unhide operation exactly once.
+
+The permanent path was subsequently installed in commit `650a0fd`, launched
+through the hidden/background LaunchServices path, and observed on screen during
+real speech without changing the frontmost application. The exact binary,
+window, utterance, and human-acceptance receipts are recorded in
+[Bounded caption-cue evidence](2026-09-05-caption-cues.md#installed-visual-acceptance).
