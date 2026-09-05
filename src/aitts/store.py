@@ -20,6 +20,7 @@ from aitts.model import (
     Priority,
     Sensitivity,
     State,
+    SynthesisWork,
     Utterance,
     UtteranceSegment,
     can_transition,
@@ -399,15 +400,68 @@ class Store:
         self._commit_or_rollback()
         return cursor.rowcount
 
-    def claim_for_synthesis(self) -> Utterance | None:
-        """Atomically take the earliest Queued utterance into Synthesizing."""
+    def claim_for_synthesis(self) -> SynthesisWork | None:
+        """Atomically claim the earliest parent-owned unit of synthesis work."""
+        terminal_placeholders = ",".join("?" * len(TERMINAL))
         row = self._db.execute(
-            "SELECT id FROM utterances WHERE state = ? ORDER BY order_key LIMIT 1",
-            (State.QUEUED.value,),
+            "SELECT u.id, u.text AS parent_text, u.voice, u.speed, u.state, "  # noqa: S608
+            "s.segment_index, s.text AS segment_text "
+            "FROM utterances AS u "
+            "LEFT JOIN utterance_segments AS s "
+            "ON s.utterance_id = u.id AND s.state = ? "
+            f"WHERE (s.segment_index IS NOT NULL AND u.state NOT IN ({terminal_placeholders})) "
+            "OR (u.state = ? AND NOT EXISTS ("
+            "SELECT 1 FROM utterance_segments AS owned WHERE owned.utterance_id = u.id"
+            ")) "
+            "ORDER BY u.order_key, COALESCE(s.segment_index, -1) LIMIT 1",
+            (
+                State.QUEUED.value,
+                *(state.value for state in TERMINAL),
+                State.QUEUED.value,
+            ),
         ).fetchone()
         if row is None:
             return None
-        return self.transition(row["id"], State.SYNTHESIZING)
+        segment_index = row["segment_index"]
+        if segment_index is None:
+            parent = self.transition(row["id"], State.SYNTHESIZING)
+            return SynthesisWork(
+                id=parent.id,
+                utterance_id=parent.id,
+                segment_index=None,
+                text=parent.text,
+                voice=parent.voice,
+                speed=parent.speed,
+            )
+
+        self._db.execute(
+            "UPDATE utterance_segments SET state = ? "
+            "WHERE utterance_id = ? AND segment_index = ? AND state = ?",
+            (
+                State.SYNTHESIZING.value,
+                row["id"],
+                segment_index,
+                State.QUEUED.value,
+            ),
+        )
+        if State(row["state"]) is State.QUEUED:
+            self.transition(row["id"], State.SYNTHESIZING)
+        else:
+            self._commit_or_rollback()
+        segment = UtteranceSegment(
+            utterance_id=row["id"],
+            index=segment_index,
+            text=row["segment_text"],
+            state=State.SYNTHESIZING,
+        )
+        return SynthesisWork(
+            id=segment.artifact_id,
+            utterance_id=row["id"],
+            segment_index=segment.index,
+            text=segment.text,
+            voice=row["voice"],
+            speed=row["speed"],
+        )
 
     def move_to_head(self, utt_id: str) -> Utterance:
         """Reorder an utterance to the front of the plan."""

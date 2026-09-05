@@ -137,3 +137,13 @@ The focused claim test exited 1. The legacy claimer returned the raw parent as
 the first work item, skipped both persisted children, then claimed the later
 top-level utterance. That is precisely the queue-flattening behavior this slice
 replaces.
+
+## GREEN: synthesis claims inside the parent queue
+
+The store now returns an explicit `SynthesisWork`. Its cache-safe artifact id
+identifies either the legacy parent clip or one child index, while text comes
+from that child and voice/speed come from the parent. SQL orders candidates by
+top-level plan position and then child index, so a document remains one
+blocking queue entry without becoming one giant engine request.
+
+The legacy FIFO claim test and the focused composite claim test are green.

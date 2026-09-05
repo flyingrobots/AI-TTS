@@ -124,3 +124,21 @@ class UtteranceSegment:
     def artifact_id(self) -> str:
         """Return the cache-safe identity of this segment's audio artifact."""
         return f"{self.utterance_id}_segment_{self.index:04d}"
+
+
+@dataclass(frozen=True, slots=True)
+class SynthesisWork:
+    """One atomically claimed engine job, resolved through its parent profile."""
+
+    id: str
+    utterance_id: str
+    segment_index: int | None
+    text: str
+    voice: str
+    speed: float
+    state: State = State.SYNTHESIZING
+
+    @property
+    def is_segment(self) -> bool:
+        """Return whether this work renders one child of a composite utterance."""
+        return self.segment_index is not None
