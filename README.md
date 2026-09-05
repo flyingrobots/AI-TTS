@@ -238,6 +238,7 @@ The server exposes these tools:
 - `pause_speech_playback` and `resume_speech_playback`
 - `skip_current_speech` and `restart_current_speech`
 - `cancel_queued_speech`, `requeue_speech`, and `clear_speech_queue`
+- `purge_cached_audio`
 
 Ask Codex to “use the AI-TTS `enqueue_speech` tool” if tool choice is
 ambiguous. The MCP server's own instructions tell the agent that a global hold
@@ -317,6 +318,7 @@ ai-tts skip
 ai-tts rewind
 ai-tts list playback
 ai-tts history
+ai-tts purge-cache
 ai-tts settings --set voice=bm_daniel
 ai-tts settings --set captions_enabled=true
 
@@ -348,6 +350,13 @@ by the native macOS text extractor. Password-locked PDFs are refused; image-only
 PDFs need OCR first because AI-TTS does not perform OCR or promise PDF layout
 reconstruction.
 
+**Purge Cached Audio…** is also available in Settings, and `ai-tts
+purge-cache` exposes the same operation to scripts. It removes reusable and
+orphaned WAV files while retaining audio still owned by current or queued
+speech, so it never interrupts playback. History text remains; rows whose
+audio was removed are replayed by synthesizing again. The JSON receipt reports
+removed, protected, and failed file counts and bytes.
+
 **Pause is a playback hold, never backpressure.** Speakers should continue to
 submit normally while playback is paused; accepted speech is synthesized and
 spooled in Queue until the user resumes. `status` reports the daemon itself as
@@ -360,7 +369,8 @@ MCP hosts should launch `ai-tts-mcp` as a local stdio server. The process emits
 only newline-delimited MCP JSON-RPC on stdout; there is no HTTP or SSE mode.
 Its typed tools cover enqueue, status, the unified Queue and History, voices,
 shared caption read/write, global pause/resume, skip/restart, cancel,
-priority-aware requeue, and queue clear. `enqueue_speech` defaults to literal
+priority-aware requeue, queue clear, and safe cached-audio purge.
+`enqueue_speech` defaults to literal
 `plain_text` and accepts
 `content_format: "markdown"` when an agent intentionally sends Markdown. It
 remains available while globally paused: new clips are accepted, synthesized,

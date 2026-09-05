@@ -170,6 +170,10 @@ private final class RecordingSpeechService: SpeechServicePort, @unchecked Sendab
         throw TestFailure.unexpectedCall
     }
 
+    func purgeCachedAudio() throws -> CachePurgeReceipt {
+        throw TestFailure.unexpectedCall
+    }
+
     func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
         throw TestFailure.unexpectedCall
     }

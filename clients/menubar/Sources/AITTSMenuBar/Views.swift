@@ -655,6 +655,7 @@ struct SettingsSheet: View {
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
     @State private var draftSpeed: Double?
+    @State private var confirmingCachePurge = false
 
     var body: some View {
         ScrollView {
@@ -700,11 +701,69 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Text("Storage").font(.caption.smallCaps()).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 7) {
+                    Button("Purge Cached Audio…", role: .destructive) {
+                        confirmingCachePurge = true
+                    }
+                    .disabled(state.purgingCachedAudio)
+
+                    Text(
+                        "Removes reusable speech audio. History text remains, and audio needed "
+                            + "by current or queued speech is kept."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if state.purgingCachedAudio {
+                        ProgressView("Purging cached audio…")
+                            .controlSize(.small)
+                    } else if let receipt = state.cachePurgeReceipt {
+                        Text(cachePurgeSummary(receipt))
+                            .font(.caption)
+                            .foregroundStyle(
+                                receipt.failedFiles == 0 ? Color.secondary : Color.red)
+                    }
+                }
+
                 Divider()
                 Button("Quit AI-TTS Menu Bar") { NSApp.terminate(nil) }
             }
             .padding(12)
         }
+        .confirmationDialog(
+            "Purge cached audio?",
+            isPresented: $confirmingCachePurge,
+            titleVisibility: .visible
+        ) {
+            Button("Purge Cached Audio", role: .destructive) { state.purgeCachedAudio() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Reusable and orphaned audio will be deleted. Files needed by current or "
+                    + "queued speech are kept so playback is not interrupted. History text remains."
+            )
+        }
+    }
+
+    private func cachePurgeSummary(_ receipt: CachePurgeReceipt) -> String {
+        let removed = ByteCountFormatter.string(
+            fromByteCount: Int64(receipt.removedBytes), countStyle: .file)
+        let protected = ByteCountFormatter.string(
+            fromByteCount: Int64(receipt.protectedBytes), countStyle: .file)
+        let failed = ByteCountFormatter.string(
+            fromByteCount: Int64(receipt.failedBytes), countStyle: .file)
+        return "Last purge: removed \(fileCount(receipt.removedFiles)), \(removed); "
+            + "kept \(fileCount(receipt.protectedFiles)) needed for playback, \(protected); "
+            + "\(failureCount(receipt.failedFiles)), \(failed)."
+    }
+
+    private func fileCount(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "file" : "files")"
+    }
+
+    private func failureCount(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "failure" : "failures")"
     }
 }
 

@@ -20,6 +20,7 @@ from aitts.application.schemas import (
     HistoryView,
     PlaybackControlReceipt,
     PublicSchema,
+    PurgeCachedAudioReceipt,
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
@@ -118,6 +119,10 @@ class UnixSocketSpeechAdapter:
     def clear_queue(self) -> ClearQueueReceipt:
         """Cancel every pending clip without touching the current clip."""
         return self._exchange({"op": "clear", "queue": "queue"}, ClearQueueReceipt)
+
+    def purge_cached_audio(self) -> PurgeCachedAudioReceipt:
+        """Remove cached audio not owned by current or pending speech."""
+        return self._exchange({"op": "purge_cache"}, PurgeCachedAudioReceipt)
 
     def _exchange(self, payload: dict[str, Any], schema: type[SchemaT]) -> SchemaT:
         response = self._request(payload)

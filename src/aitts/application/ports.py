@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         HistoryQuery,
         HistoryView,
         PlaybackControlReceipt,
+        PurgeCachedAudioReceipt,
         QueueView,
         RequeueSpeech,
         RequeueSpeechReceipt,
@@ -84,4 +85,8 @@ class SpeechServicePort(Protocol):
 
     def clear_queue(self) -> ClearQueueReceipt:
         """Cancel every pending clip without interrupting the current clip."""
+        ...
+
+    def purge_cached_audio(self) -> PurgeCachedAudioReceipt:
+        """Remove reusable audio while retaining artifacts still owed to the listener."""
         ...

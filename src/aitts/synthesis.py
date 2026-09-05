@@ -120,6 +120,10 @@ class SynthesisPool:
         if published_path is None:  # pragma: no cover - guarded by failure handling
             self._record_failure(work, "artifact publication returned no path")
             return
+        # Keep final publication and its durable owner record in one event-loop
+        # turn. Cache purge also runs synchronously on that loop, so it can see
+        # either an invisible candidate or a protected published artifact,
+        # never an unowned final WAV between these two calls.
         self._store.finish_synthesis(
             work,
             audio_path=str(published_path),

@@ -42,6 +42,30 @@ class CacheEnforcementReport:
         return self.after_bytes <= self.max_bytes
 
 
+@dataclass(frozen=True, slots=True)
+class CachePurgeReport:
+    """Point-in-time result of explicitly purging reusable cached audio."""
+
+    removed_entries: tuple[CacheEntry, ...]
+    protected_entries: tuple[CacheEntry, ...]
+    failed_entries: tuple[CacheEntry, ...]
+
+    @property
+    def removed_bytes(self) -> int:
+        """Bytes represented by entries successfully released from the cache."""
+        return sum(entry.size_bytes for entry in self.removed_entries)
+
+    @property
+    def protected_bytes(self) -> int:
+        """Bytes retained because nonterminal speech still owns them."""
+        return sum(entry.size_bytes for entry in self.protected_entries)
+
+    @property
+    def failed_bytes(self) -> int:
+        """Bytes represented by entries whose removal failed."""
+        return sum(entry.size_bytes for entry in self.failed_entries)
+
+
 class AudioCachePort(Protocol):
     """Filesystem-independent audio-cache operations used by the application."""
 
@@ -115,6 +139,32 @@ class CacheController:
             max_bytes=max_bytes,
             evicted_paths=tuple(evicted),
             failed_paths=tuple(failed),
+        )
+
+    def purge(self) -> CachePurgeReport:
+        """Remove all cached audio not owned by current or pending speech."""
+        entries = self._cache.inventory()
+        protected_paths = self._metadata.protected_audio_paths()
+        protected = tuple(entry for entry in entries if str(entry.path) in protected_paths)
+        removed: list[CacheEntry] = []
+        failed: list[CacheEntry] = []
+        for entry in entries:
+            if str(entry.path) in protected_paths:
+                continue
+            try:
+                existed = self._cache.delete(entry.path)
+            except OSError:
+                log.warning("could not purge cached audio %s", entry.path, exc_info=True)
+                failed.append(entry)
+                continue
+            self._metadata.forget_terminal_audio(entry.path)
+            if existed:
+                removed.append(entry)
+
+        return CachePurgeReport(
+            removed_entries=tuple(removed),
+            protected_entries=protected,
+            failed_entries=tuple(failed),
         )
 
     def note_access(self, path: Path) -> bool:

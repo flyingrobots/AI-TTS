@@ -162,3 +162,27 @@ async def test_playback_rate_setting_is_numeric_end_to_end(
         "exit_code": EXIT_OK,
         "playback_rate": 1.5,
     }
+
+
+async def test_purge_cache_reports_and_removes_orphaned_audio(
+    daemon: Daemon,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    artifact = tmp_path / "cache" / "orphan.wav"
+    artifact.write_bytes(b"private audio")
+
+    code = await run_cli(daemon, "purge-cache")
+    response = json.loads(capsys.readouterr().out)
+
+    assert code == EXIT_OK
+    assert response == {
+        "ok": True,
+        "removed_files": 1,
+        "removed_bytes": 13,
+        "protected_files": 0,
+        "protected_bytes": 0,
+        "failed_files": 0,
+        "failed_bytes": 0,
+    }
+    assert artifact.exists() is False

@@ -91,6 +91,11 @@ def _build_parser() -> argparse.ArgumentParser:
     history.add_argument("--limit", type=int, default=20)
     history.add_argument("--before", help="paginate: only items before this id")
 
+    sub.add_parser(
+        "purge-cache",
+        help="remove cached audio not needed by current or queued speech",
+    )
+
     for name in _TRANSPORT_OPS:
         sub.add_parser(name, help=f"send '{name}' to the daemon")
 
@@ -161,6 +166,7 @@ _PAYLOAD_BUILDERS: dict[str, Any] = {
     "rewind": lambda args: {"op": "rewind", "to": args.to} if args.to else {"op": "rewind"},
     "cancel": lambda args: {"op": "cancel", "id": args.id},
     "clear": lambda args: {"op": "clear", "queue": args.queue},
+    "purge-cache": lambda _args: {"op": "purge_cache"},
 }
 
 

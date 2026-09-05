@@ -22,6 +22,7 @@ from aitts.application.schemas import (
     HistoryView,
     PlaybackControlReceipt,
     PlaybackState,
+    PurgeCachedAudioReceipt,
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
@@ -56,6 +57,7 @@ TOOL_NAMES = {
     "cancel_queued_speech",
     "requeue_speech",
     "clear_speech_queue",
+    "purge_cached_audio",
 }
 
 
@@ -85,6 +87,7 @@ class FakeSpeechPort:
         self.fail_status = fail_status
         self.captions_enabled = False
         self.enqueued: list[EnqueueSpeech] = []
+        self.purge_calls = 0
 
     def enqueue_speech(self, request: EnqueueSpeech) -> EnqueueSpeechReceipt:
         self.enqueued.append(request)
@@ -152,6 +155,17 @@ class FakeSpeechPort:
     def clear_queue(self) -> ClearQueueReceipt:
         return ClearQueueReceipt(cleared=0)
 
+    def purge_cached_audio(self) -> PurgeCachedAudioReceipt:
+        self.purge_calls += 1
+        return PurgeCachedAudioReceipt(
+            removed_files=2,
+            removed_bytes=13,
+            protected_files=1,
+            protected_bytes=6,
+            failed_files=0,
+            failed_bytes=0,
+        )
+
 
 async def test_mcp_publishes_typed_tool_schemas() -> None:
     """Oracle: explicit MCP tool inventory and JSON Schema constraints approved for agents."""
@@ -160,7 +174,7 @@ async def test_mcp_publishes_typed_tool_schemas() -> None:
 
     tools = {tool.name: tool for tool in result.tools}
     assert set(tools) == TOOL_NAMES
-    assert len(tools) == 14
+    assert len(tools) == 15
     assert all(tool.output_schema is not None for tool in tools.values())
     enqueue_schema = tools["enqueue_speech"].input_schema
     assert enqueue_schema["required"] == ["text"]
@@ -168,6 +182,10 @@ async def test_mcp_publishes_typed_tool_schemas() -> None:
     assert enqueue_schema["$defs"]["ContentFormat"]["enum"] == ["plain_text", "markdown"]
     assert enqueue_schema["properties"]["sensitivity"]["default"] == "confidential"
     assert enqueue_schema["$defs"]["Priority"]["enum"] == ["normal", "urgent"]
+    purge_annotations = tools["purge_cached_audio"].annotations
+    assert purge_annotations is not None
+    assert purge_annotations.destructive_hint is True
+    assert purge_annotations.idempotent_hint is True
 
 
 async def test_mcp_enqueue_maps_flat_arguments_to_the_public_command() -> None:
@@ -216,6 +234,23 @@ async def test_mcp_caption_tools_read_and_persist_the_shared_preference() -> Non
     assert changed.structured_content == {"enabled": True}
     assert after.structured_content == {"enabled": True}
     assert port.captions_enabled is True
+
+
+async def test_mcp_cache_purge_returns_the_typed_storage_receipt() -> None:
+    port = FakeSpeechPort()
+    async with MCPClient(create_server(port), raise_exceptions=True) as client:
+        result = await client.call_tool("purge_cached_audio", {})
+
+    assert result.is_error is False
+    assert result.structured_content == {
+        "removed_files": 2,
+        "removed_bytes": 13,
+        "protected_files": 1,
+        "protected_bytes": 6,
+        "failed_files": 0,
+        "failed_bytes": 0,
+    }
+    assert port.purge_calls == 1
 
 
 async def test_mcp_status_error_is_visible_to_the_model() -> None:

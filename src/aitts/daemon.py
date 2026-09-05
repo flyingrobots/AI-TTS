@@ -252,6 +252,7 @@ class Daemon:
             "cancel": self._op_cancel,
             "remove_history": self._op_remove_history,
             "clear": self._op_clear,
+            "purge_cache": self._op_purge_cache,
             "status": self._op_status,
             "snapshot": self._op_snapshot,
             "voices": self._op_voices,
@@ -590,6 +591,25 @@ class Daemon:
         removed = int(self._store.remove_history(target.id))
         self._server.broadcast({"event": "history_changed", "removed": target.id})
         return {"ok": True, "removed": removed, "id": target.id}
+
+    async def _op_purge_cache(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        try:
+            report = self._cache.purge()
+        except OSError as exc:
+            log.warning("could not inspect audio cache for explicit purge", exc_info=True)
+            msg = "could not inspect audio cache"
+            raise ApiError(INTERNAL, msg) from exc
+        receipt = {
+            "removed_files": len(report.removed_entries),
+            "removed_bytes": report.removed_bytes,
+            "protected_files": len(report.protected_entries),
+            "protected_bytes": report.protected_bytes,
+            "failed_files": len(report.failed_entries),
+            "failed_bytes": report.failed_bytes,
+        }
+        self._server.broadcast({"event": "cache_changed", **receipt})
+        return {"ok": True, **receipt}
 
     async def _op_status(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload

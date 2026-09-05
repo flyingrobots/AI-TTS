@@ -130,6 +130,54 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         }
     }
 
+    func testCachePurgeMapsAndDecodesTypedReceipt() throws {
+        let transport = RecordingDaemonTransport(responses: [[
+            "ok": true,
+            "removed_files": 2,
+            "removed_bytes": 13,
+            "protected_files": 1,
+            "protected_bytes": 6,
+            "failed_files": 0,
+            "failed_bytes": 0,
+        ]])
+        let service = UnixSocketSpeechService(transport: transport)
+
+        let receipt = try service.purgeCachedAudio()
+
+        XCTAssertEqual(
+            receipt,
+            CachePurgeReceipt(
+                removedFiles: 2,
+                removedBytes: 13,
+                protectedFiles: 1,
+                protectedBytes: 6,
+                failedFiles: 0,
+                failedBytes: 0
+            )
+        )
+        XCTAssertEqual(
+            try transport.canonicalRequests(),
+            try canonicalize([["op": "purge_cache"]])
+        )
+    }
+
+    func testCachePurgeRejectsNegativeDaemonReceipt() {
+        let transport = RecordingDaemonTransport(responses: [[
+            "ok": true,
+            "removed_files": -1,
+            "removed_bytes": 0,
+            "protected_files": 0,
+            "protected_bytes": 0,
+            "failed_files": 0,
+            "failed_bytes": 0,
+        ]])
+        let service = UnixSocketSpeechService(transport: transport)
+
+        XCTAssertThrowsError(try service.purgeCachedAudio()) { error in
+            XCTAssertEqual(error as? SpeechServiceError, .invalidResponse)
+        }
+    }
+
     func testDaemonRejectionBecomesTypedApplicationError() {
         let transport = RecordingDaemonTransport(
             requestError: WireError.daemon(type: "bad_request", message: "No such item")

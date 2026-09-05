@@ -973,3 +973,81 @@ async def test_remove_and_clear_history_keep_cached_audio_and_active_work(
     assert cleared == {"ok": True, "cleared": 1}
     assert daemon.store.history() == []
     assert daemon.store.get(active.id) is not None
+
+
+async def test_purge_cache_removes_reusable_audio_without_interrupting_active_work(
+    daemon: Daemon, tmp_path: Path
+) -> None:
+    await rpc(daemon.socket_path, {"op": "pause"})
+    cache_dir = tmp_path / "cache"
+    terminal_path = cache_dir / "terminal.wav"
+    active_path = cache_dir / "active.wav"
+    orphan_path = cache_dir / "orphan.wav"
+    terminal_path.write_bytes(b"history")
+    active_path.write_bytes(b"active")
+    orphan_path.write_bytes(b"orphan")
+
+    terminal = daemon.store.submit("historical text", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(terminal.id, State.SYNTHESIZING)
+    daemon.store.transition(
+        terminal.id,
+        State.READY,
+        audio_path=str(terminal_path),
+        duration_ms=10,
+    )
+    daemon.store.transition(terminal.id, State.PLAYING)
+    daemon.store.transition(terminal.id, State.PLAYED, played_ms=10)
+
+    active = daemon.store.submit("still owed", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(active.id, State.SYNTHESIZING)
+    daemon.store.transition(
+        active.id,
+        State.READY,
+        audio_path=str(active_path),
+        duration_ms=10,
+    )
+
+    reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
+    writer.write(b'{"op":"subscribe"}\n')
+    await writer.drain()
+    assert json.loads(await reader.readline()) == {"ok": True, "subscribed": True}
+
+    expected_receipt = {
+        "removed_files": 2,
+        "removed_bytes": 13,
+        "protected_files": 1,
+        "protected_bytes": 6,
+        "failed_files": 0,
+        "failed_bytes": 0,
+    }
+    response = await rpc(daemon.socket_path, {"op": "purge_cache"})
+    assert response == {"ok": True, **expected_receipt}
+
+    event = json.loads(await reader.readline())
+    repeated = await rpc(daemon.socket_path, {"op": "purge_cache"})
+    history = await rpc(daemon.socket_path, {"op": "history"})
+    writer.close()
+    await writer.wait_closed()
+
+    assert event == {"event": "cache_changed", **expected_receipt}
+    assert repeated == {
+        "ok": True,
+        "removed_files": 0,
+        "removed_bytes": 0,
+        "protected_files": 1,
+        "protected_bytes": 6,
+        "failed_files": 0,
+        "failed_bytes": 0,
+    }
+    assert terminal_path.exists() is False
+    assert orphan_path.exists() is False
+    assert active_path.read_bytes() == b"active"
+    active_after = daemon.store.get(active.id)
+    terminal_after = daemon.store.get(terminal.id)
+    assert active_after is not None
+    assert active_after.state is State.READY
+    assert terminal_after is not None
+    assert terminal_after.audio_path is None
+    history_item = next(item for item in history["items"] if item["id"] == terminal.id)
+    assert history_item["text"] == "historical text"
+    assert history_item["audio_cached"] is False

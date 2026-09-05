@@ -208,7 +208,7 @@ audio source without restarting it.
 
 **5.11 and 5.12 are later direct requirements.** Re-queue creates a new hearing while retaining the original record and its priority as provenance. Normal appends; Urgent becomes next after the current clip. Deleting history records is intentionally separate from cache eviction.
 
-**5.10 is where the confidentiality point bites.** A complete permanent history of this text is a plaintext record of confidential material sitting in a file on disk. That may be entirely fine — it is his machine — but it should be a decision he makes rather than a consequence of the word "all". The adopted storage, permission, and retention decisions are linked from [Questions resolved for v0.1.0](#questions-resolved-for-v010).
+**5.10 is where the confidentiality point bites.** A complete permanent history of this text is a plaintext record of confidential material sitting in a file on disk. That may be entirely fine — it is his machine — but it should be a decision he makes rather than a consequence of the word "all". The adopted storage, permission, and retention decisions are linked from [Questions resolved for v0.1.0](#questions-resolved-for-v010). The bounded LRU policy is now paired with an explicit one-shot purge in Settings, CLI, and MCP. Purge removes reusable and orphaned audio, retains anything still owned by nonterminal work, and leaves history text intact.
 
 ## 6. Menu-bar UI
 

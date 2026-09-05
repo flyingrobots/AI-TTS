@@ -10,6 +10,7 @@ from aitts.application.cache import (
     CacheEnforcementReport,
     CacheEntry,
     CacheMetadataPort,
+    CachePurgeReport,
 )
 from aitts.application.lifecycle import ProcessTerminationPort
 from aitts.application.ports import SpeechServicePort
@@ -26,6 +27,7 @@ from aitts.application.schemas import (
     HistoryView,
     PlaybackControlReceipt,
     PlaybackState,
+    PurgeCachedAudioReceipt,
     QueueItem,
     QueueView,
     RequeueSpeech,
@@ -46,6 +48,7 @@ __all__ = [
     "CacheEnforcementReport",
     "CacheEntry",
     "CacheMetadataPort",
+    "CachePurgeReport",
     "CancelSpeech",
     "CancelSpeechReceipt",
     "CaptionSettings",
@@ -60,6 +63,7 @@ __all__ = [
     "PlaybackControlReceipt",
     "PlaybackState",
     "ProcessTerminationPort",
+    "PurgeCachedAudioReceipt",
     "QueueItem",
     "QueueView",
     "RequeueSpeech",

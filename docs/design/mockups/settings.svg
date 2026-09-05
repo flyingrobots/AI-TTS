@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="368" height="500" viewBox="0 0 368 500" role="img" aria-labelledby="ttl desc">
-  <title id="ttl">AI-TTS menu bar popover — Settings</title>
-  <desc id="desc">A pushed settings subview reached from the gear in the header. Grouped cards for voice selection with four voices and per-voice preview, speech rate, output device and autoplay, and cached audio with a retention popup and a clear action.</desc>
+  <title id="ttl">Early AI-TTS Settings exploration — superseded</title>
+  <desc id="desc">Historical, non-authoritative exploration. Output-device, autoplay, age-retention, and storage-meter controls shown here are not implemented; docs/design/ui-design.md specifies the current Settings contract.</desc>
   <style>
     svg{
       --panel:#FFFFFF;--sunken:#F4F4F7;--chip:#ECECF0;--seg:#E9E9ED;--segsel:#FFFFFF;

@@ -136,3 +136,55 @@ def test_seeded_unlink_failure_preserves_history_reference_and_reports_debt() ->
         "within_limit": False,
         "forgotten": (),
     }
+
+
+def test_explicit_purge_removes_unprotected_audio_and_reports_protected_audio() -> None:
+    terminal = CacheEntry(Path("/cache/terminal.wav"), size_bytes=4, last_access_ns=30)
+    active = CacheEntry(Path("/cache/active.wav"), size_bytes=5, last_access_ns=10)
+    orphan = CacheEntry(Path("/cache/orphan.wav"), size_bytes=6, last_access_ns=20)
+    cache = MemoryAudioCache([terminal, active, orphan])
+    metadata = MemoryMetadata(frozenset({str(active.path)}))
+
+    report = CacheController(metadata, cache).purge()
+
+    assert {
+        "removed": report.removed_entries,
+        "removed_bytes": report.removed_bytes,
+        "protected": report.protected_entries,
+        "protected_bytes": report.protected_bytes,
+        "failed": report.failed_entries,
+        "failed_bytes": report.failed_bytes,
+        "adapter_deleted": tuple(cache.deleted),
+        "metadata_forgotten": tuple(metadata.forgotten),
+    } == {
+        "removed": (terminal, orphan),
+        "removed_bytes": 10,
+        "protected": (active,),
+        "protected_bytes": 5,
+        "failed": (),
+        "failed_bytes": 0,
+        "adapter_deleted": (terminal.path, orphan.path),
+        "metadata_forgotten": (terminal.path, orphan.path),
+    }
+
+
+def test_explicit_purge_reports_unlink_failure_without_forgetting_history() -> None:
+    entry = CacheEntry(Path("/cache/terminal.wav"), size_bytes=4, last_access_ns=1)
+    cache = FailingDeleteCache([entry])
+    metadata = MemoryMetadata(frozenset())
+
+    report = CacheController(metadata, cache).purge()
+
+    assert {
+        "removed": report.removed_entries,
+        "protected": report.protected_entries,
+        "failed": report.failed_entries,
+        "failed_bytes": report.failed_bytes,
+        "forgotten": tuple(metadata.forgotten),
+    } == {
+        "removed": (),
+        "protected": (),
+        "failed": (entry,),
+        "failed_bytes": 4,
+        "forgotten": (),
+    }

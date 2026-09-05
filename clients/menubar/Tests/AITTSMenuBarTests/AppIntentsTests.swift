@@ -154,6 +154,10 @@ private final class RecordingAppIntentPorts: SelectionEnqueueing, DocumentEnqueu
         withLock { recordedCommands.append(command) }
     }
 
+    func purgeCachedAudio() throws -> CachePurgeReceipt {
+        throw RecordingError.unexpectedCall
+    }
+
     func snapshot() throws -> Snapshot { throw RecordingError.unexpectedCall }
     func submit(_ submission: SpeechSubmission) throws { throw RecordingError.unexpectedCall }
 

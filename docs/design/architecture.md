@@ -158,6 +158,11 @@ stateDiagram-v2
   artifact boundary must observe a regular, non-empty output file. Engines
   write to cache-invisible `.part` candidates; only a verified candidate is
   renamed atomically, within the same directory, to the canonical `.wav` path.
+  Final rename and the SQLite ownership transition execute synchronously in
+  one daemon event-loop turn; explicit purge executes on that same serialized
+  loop. Purge can therefore observe either an invisible in-flight candidate or
+  a published artifact already protected by its nonterminal owner, never the
+  final WAV in an interleavable ownership gap.
   Startup sweeps abandoned candidates. A missing or unusable result becomes
   `Failed`, and a partial artifact is discarded on a best-effort basis.
   Artifact target, validation, publication, and cleanup faults stay attached
@@ -356,6 +361,12 @@ limit does not poison the connection, so a corrected next request can proceed.
 → {"op":"remove_history", "id":"utt_..."}
 → {"op":"clear", "queue":"history"}
 
+// storage: one-shot purge, never current or queued audio
+→ {"op":"purge_cache"}
+← {"ok":true,"removed_files":12,"removed_bytes":4200000,
+   "protected_files":2,"protected_bytes":700000,
+   "failed_files":0,"failed_bytes":0}
+
 // shared settings: menu and agent clients read and write the same preference
 → {"op":"settings"}
 ← {"ok":true, "settings":{"captions_enabled":false, ...}}
@@ -367,6 +378,7 @@ limit does not poison the connection, so a corrected next request can proceed.
 ← {"event":"state_changed", "id":"utt_...", "from":"Synthesizing", "to":"Ready"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Playing", "to":"Played"}
 ← {"event":"settings_changed", "settings":{"captions_enabled":true}}
+← {"event":"cache_changed", "removed_files":12, ...}
 ```
 
 `content_format` is `plain_text` or `markdown`. Maintained CLI, MCP, and native
@@ -394,7 +406,9 @@ stderr. There is deliberately no HTTP, SSE, or listening network socket.
 The adapter publishes typed tools for enqueue, truthful status, the unified
 queue, history, voices, caption-preference read/write, global pause/resume,
 skip/restart, targeted cancel, priority-aware requeue, and queue clear. MCP
-argument and result schemas are derived from type annotations and the public models in
+also exposes an explicitly destructive, idempotent cached-audio purge whose
+typed receipt distinguishes removed, protected, and failed bytes. Argument and
+result schemas are derived from type annotations and the public models in
 `src/aitts/application/schemas.py`. Agent speech defaults to literal
 `plain_text`; callers opt into Markdown AST projection with
 `content_format: "markdown"`.
@@ -450,6 +464,13 @@ partially heard document. Default policy LRU under a size cap (setting, default
 ~1 GB), **with parent and child history rows retained after their audio is
 evicted**: the text is the durable record, the audio is a cache. A history entry
 whose audio has been evicted is marked so, rather than failing on replay.
+An explicit purge applies that same protection rule at a point in time: every
+inventoried terminal or orphaned WAV is removed, while current and pending
+parent/child artifacts remain. It does not change the configured size cap,
+cancel work, or delete history text. A later purge can remove protected audio
+after its owner becomes terminal. Partial unlink failures are reported rather
+than presented as success, and all clients receive a `cache_changed`
+invalidation event.
 
 ---
 
@@ -549,7 +570,7 @@ Every utterance carries a classification, assigned at submit and immutable there
   `0700`, and normalizes the SQLite database, its sidecars, and cached audio to
   `0600`. New synthesis candidates exist as `0600` files before an engine writes
   speech into them, so a permissive inherited umask cannot widen access.
-- **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs explicit single-entry and clear-all deletion. Those operations remove history records; cached audio remains governed by the separate bounded-cache policy.
+- **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs explicit single-entry and clear-all deletion. Those operations remove history records; cached audio remains governed by the separate bounded-cache policy and explicit purge action.
 
 ## 10. Decisions taken at implementation
 

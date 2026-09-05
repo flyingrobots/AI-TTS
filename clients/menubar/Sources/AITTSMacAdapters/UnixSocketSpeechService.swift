@@ -85,6 +85,35 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
         _ = try request(payload)
     }
 
+    public func purgeCachedAudio() throws -> CachePurgeReceipt {
+        let response = try request(["op": "purge_cache"])
+        guard let removedFiles = response["removed_files"] as? Int,
+            let removedBytes = response["removed_bytes"] as? Int,
+            let protectedFiles = response["protected_files"] as? Int,
+            let protectedBytes = response["protected_bytes"] as? Int,
+            let failedFiles = response["failed_files"] as? Int,
+            let failedBytes = response["failed_bytes"] as? Int,
+            [
+                removedFiles,
+                removedBytes,
+                protectedFiles,
+                protectedBytes,
+                failedFiles,
+                failedBytes,
+            ].allSatisfy({ $0 >= 0 })
+        else {
+            throw SpeechServiceError.invalidResponse
+        }
+        return CachePurgeReceipt(
+            removedFiles: removedFiles,
+            removedBytes: removedBytes,
+            protectedFiles: protectedFiles,
+            protectedBytes: protectedBytes,
+            failedFiles: failedFiles,
+            failedBytes: failedBytes
+        )
+    }
+
     public func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
         do {
             try transport.subscribe(

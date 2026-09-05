@@ -35,6 +35,8 @@ final class AppState: ObservableObject {
     @Published var speed: Double = 1.0
     @Published var playbackRate: Double = 1.0
     @Published var captionsEnabled: Bool
+    @Published var cachePurgeReceipt: CachePurgeReceipt? = nil
+    @Published var purgingCachedAudio = false
     @Published var reachable = false
     @Published var lastError: String?
 
@@ -184,6 +186,31 @@ final class AppState: ObservableObject {
     func clearQueue() { send(.clearQueue) }
     func clearHistory() { send(.clearHistory) }
     func removeHistory(_ id: String) { send(.removeHistory(id: id)) }
+
+    func purgeCachedAudio() {
+        purgingCachedAudio = true
+        cachePurgeReceipt = nil
+        queue.async { [speech] in
+            var receipt: CachePurgeReceipt?
+            var failure: String?
+            do {
+                receipt = try speech.purgeCachedAudio()
+                if let receipt, receipt.failedFiles > 0 {
+                    failure = "Could not remove \(receipt.failedFiles) cached audio file(s)."
+                }
+            } catch let SpeechServiceError.rejected(_, message) {
+                failure = message
+            } catch {
+                failure = "daemon unreachable"
+            }
+            Task { @MainActor [weak self] in
+                self?.cachePurgeReceipt = receipt
+                self?.purgingCachedAudio = false
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
 
     func enqueueFile(_ url: URL) {
         queue.async { [documentEnqueuer] in

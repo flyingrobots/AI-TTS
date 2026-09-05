@@ -17,6 +17,7 @@ from aitts.application.schemas import (
     CaptionSettings,
     EnqueueSpeech,
     EnqueueSpeechReceipt,
+    PurgeCachedAudioReceipt,
     SetCaptionsEnabled,
     SpeechServiceError,
 )
@@ -143,6 +144,26 @@ def test_caption_settings_map_to_the_daemon_settings_operation() -> None:
     assert after == CaptionSettings(enabled=True)
     assert read_client.requests == [{"op": "settings"}]
     assert write_client.requests == [{"op": "settings", "set": {"captions_enabled": True}}]
+
+
+def test_cache_purge_maps_to_typed_daemon_operation_and_receipt() -> None:
+    response = {
+        "ok": True,
+        "removed_files": 2,
+        "removed_bytes": 13,
+        "protected_files": 1,
+        "protected_bytes": 6,
+        "failed_files": 0,
+        "failed_bytes": 0,
+    }
+    client = ScriptedClient(response)
+
+    receipt = UnixSocketSpeechAdapter(client).purge_cached_audio()
+
+    assert receipt == PurgeCachedAudioReceipt.model_validate(
+        {key: value for key, value in response.items() if key != "ok"}
+    )
+    assert client.requests == [{"op": "purge_cache"}]
 
 
 @pytest.mark.parametrize(

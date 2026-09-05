@@ -219,6 +219,36 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(speech.commands, [.setCaptionsEnabled(true)])
     }
 
+    @MainActor
+    func testMenuBarCachePurgePublishesTheTypedReceipt() async throws {
+        let suite = "ai-tts-cache-purge-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let speech = RecordingCaptionSpeechPort(
+            captionsEnabled: false,
+            captionsEnabledConfigured: true
+        )
+        let ports = InertApplicationPorts()
+        let state = AppState(
+            speech: speech,
+            documentEnqueuer: ports,
+            currentSelectionEnqueuer: ports,
+            clipboardEnqueuer: ports,
+            defaults: defaults
+        )
+        let receiptPublished = expectation(description: "cache purge receipt published")
+        let observation = state.$cachePurgeReceipt.dropFirst().sink { receipt in
+            if receipt != nil { receiptPublished.fulfill() }
+        }
+
+        state.purgeCachedAudio()
+        await fulfillment(of: [receiptPublished], timeout: 1)
+
+        XCTAssertEqual(state.cachePurgeReceipt, speech.cachePurgeReceipt)
+        XCTAssertFalse(state.purgingCachedAudio)
+        withExtendedLifetime(observation) {}
+    }
+
     func testDaemonStatusFallsBackToLegacyState() {
         let status = DaemonStatus(daemonJSON: ["state": "paused"])
         XCTAssertEqual(status?.playbackState, "paused")
@@ -374,6 +404,7 @@ private struct InertApplicationPorts: SpeechServicePort, DocumentEnqueueing,
     func snapshot() throws -> Snapshot { throw InertError.unexpectedCall }
     func submit(_ submission: SpeechSubmission) throws { throw InertError.unexpectedCall }
     func perform(_ command: SpeechCommand) throws { throw InertError.unexpectedCall }
+    func purgeCachedAudio() throws -> CachePurgeReceipt { throw InertError.unexpectedCall }
 
     func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
         throw InertError.unexpectedCall
@@ -391,6 +422,14 @@ private final class RecordingCaptionSpeechPort: SpeechServicePort, @unchecked Se
     private let snapshotValue: Snapshot
     private let lock = NSLock()
     private var recordedCommands: [SpeechCommand] = []
+    let cachePurgeReceipt = CachePurgeReceipt(
+        removedFiles: 2,
+        removedBytes: 13,
+        protectedFiles: 1,
+        protectedBytes: 6,
+        failedFiles: 0,
+        failedBytes: 0
+    )
 
     init(captionsEnabled: Bool, captionsEnabledConfigured: Bool) {
         snapshotValue = Snapshot(
@@ -423,6 +462,8 @@ private final class RecordingCaptionSpeechPort: SpeechServicePort, @unchecked Se
         lock.unlock()
         commandPerformed.fulfill()
     }
+
+    func purgeCachedAudio() throws -> CachePurgeReceipt { cachePurgeReceipt }
 
     func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
         throw InertError.unexpectedCall

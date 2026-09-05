@@ -14,6 +14,7 @@ import pytest
 
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.filesystem_cache import FileAudioCache
+from aitts.application.cache import CacheController
 from aitts.engine import FakeEngine
 from aitts.engines.kokoro import KokoroEngine
 from aitts.model import State
@@ -94,7 +95,7 @@ def test_kokoro_writes_wav_to_atomic_candidate(cache_dir: Path) -> None:
     }
 
 
-async def test_inflight_candidate_is_hidden_until_atomic_publish(
+async def test_inflight_candidate_is_hidden_from_cache_and_explicit_purge(
     store: Store,
     cache_dir: Path,
 ) -> None:
@@ -106,6 +107,8 @@ async def test_inflight_candidate_is_hidden_until_atomic_publish(
 
     started = await asyncio.to_thread(engine.started.wait, 1.0)
     inflight = tuple(entry.path.name for entry in cache.inventory())
+    purge = CacheController(store, cache).purge()
+    candidate_during_purge = tuple(path.read_bytes() for path in cache_dir.glob("*.part"))
     engine.release.set()
     await wait_for(
         lambda: (current := store.get(utterance.id)) is not None and current.state is State.READY
@@ -118,12 +121,16 @@ async def test_inflight_candidate_is_hidden_until_atomic_publish(
     assert {
         "engine_started": started,
         "inflight_cache": inflight,
+        "purge_removed": purge.removed_entries,
+        "candidate_during_purge": candidate_during_purge,
         "published_cache": published,
         "ready_path": None if current is None else Path(current.audio_path or "").name,
         "staging_after_publish": staging,
     } == {
         "engine_started": True,
         "inflight_cache": (),
+        "purge_removed": (),
+        "candidate_during_purge": (b"partial",),
         "published_cache": (f"{utterance.id}.wav",),
         "ready_path": f"{utterance.id}.wav",
         "staging_after_publish": (),

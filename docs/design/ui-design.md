@@ -23,6 +23,10 @@ The implemented surface follows these 368 × 500 SVG proposals:
 They carry light and dark themes in the same file. The earlier Now Playing,
 Up Next, synthesis Queue, and History SVGs remain in mockups/ as design
 history; they are superseded where they conflict with the unified proposals.
+[`mockups/settings.svg`](mockups/settings.svg) is also an early exploration,
+not the implemented contract: its output-device, autoplay, age-retention, and
+storage-meter controls remain unimplemented. The current Settings behavior is
+specified below.
 
 ## The user-facing model
 
@@ -214,7 +218,8 @@ when it still exists; otherwise synthesis runs again.
 
 **Clear history…** confirms before deleting all terminal records. Removing one
 record or clearing History does not cancel active work and does not implicitly
-delete cached audio. Cache retention remains a separate storage concern.
+delete cached audio. Cache retention remains a separate storage concern in
+Settings.
 
 ## Settings and voice previews
 
@@ -226,6 +231,12 @@ after the current clip and is visible in Queue like every other submission.
 Voice-generation speed is continuous from 0.5× to 2.0× and applies to future submissions.
 On-screen captions can also be enabled or disabled here, against the same
 daemon setting exposed to MCP.
+Storage exposes **Purge Cached Audio…** as a separately confirmed destructive
+action. Its confirmation says that history text remains and audio needed by
+current or queued speech is protected. While the request is running the action
+is disabled; afterward Settings reports removed, protected, and failed file
+counts and bytes. The action is one-shot and does not change the automatic
+size-cap policy.
 Settings take effect immediately; Done only dismisses the sheet.
 
 ## Tray state
@@ -253,7 +264,8 @@ flight; paused and error remain visually stable.
 
 The current implementation does not claim waveform scrubbing, word-synchronized
 karaoke highlighting, mute-without-pause, output-device selection, cache
-retention controls, history export, or a detachable History window. Text/file
+retention-policy controls beyond the existing size cap and one-shot purge,
+history export, or a detachable History window. Text/file
 Services, explicit Accessibility/clipboard admission, and App Intents are now
 part of the implemented surface. Their compatibility claims remain bounded by
 the installed evidence in [`os-integration.md`](os-integration.md): Services

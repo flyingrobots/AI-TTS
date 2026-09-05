@@ -24,6 +24,7 @@ from aitts.application.schemas import (
     HistoryQuery,
     HistoryView,
     PlaybackControlReceipt,
+    PurgeCachedAudioReceipt,
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
@@ -84,6 +85,7 @@ def create_server(speech: SpeechServicePort) -> MCPServer:
     _register_caption_tools(server, speech)
     _register_playback_tools(server, speech)
     _register_queue_tools(server, speech)
+    _register_storage_tools(server, speech)
     return server
 
 
@@ -223,6 +225,13 @@ def _register_queue_tools(server: MCPServer, speech: SpeechServicePort) -> None:
     def clear_speech_queue() -> ClearQueueReceipt:
         """Cancel every pending clip without interrupting the clip currently playing."""
         return _invoke(speech.clear_queue)
+
+
+def _register_storage_tools(server: MCPServer, speech: SpeechServicePort) -> None:
+    @server.tool(annotations=_DESTRUCTIVE)
+    def purge_cached_audio() -> PurgeCachedAudioReceipt:
+        """Delete reusable audio while retaining files needed by current or queued speech."""
+        return _invoke(speech.purge_cached_audio)
 
 
 def main() -> None:

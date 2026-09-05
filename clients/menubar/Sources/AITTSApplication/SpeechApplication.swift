@@ -87,6 +87,31 @@ public struct SpeechDocument: Equatable, Sendable {
     }
 }
 
+public struct CachePurgeReceipt: Equatable, Sendable {
+    public let removedFiles: Int
+    public let removedBytes: Int
+    public let protectedFiles: Int
+    public let protectedBytes: Int
+    public let failedFiles: Int
+    public let failedBytes: Int
+
+    public init(
+        removedFiles: Int,
+        removedBytes: Int,
+        protectedFiles: Int,
+        protectedBytes: Int,
+        failedFiles: Int,
+        failedBytes: Int
+    ) {
+        self.removedFiles = removedFiles
+        self.removedBytes = removedBytes
+        self.protectedFiles = protectedFiles
+        self.protectedBytes = protectedBytes
+        self.failedFiles = failedFiles
+        self.failedBytes = failedBytes
+    }
+}
+
 public enum SpeechCommand: Equatable, Sendable {
     case pause
     case resume
@@ -109,6 +134,7 @@ public protocol SpeechServicePort: Sendable {
     func snapshot() throws -> Snapshot
     func submit(_ submission: SpeechSubmission) throws
     func perform(_ command: SpeechCommand) throws
+    func purgeCachedAudio() throws -> CachePurgeReceipt
     func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws
 }
 

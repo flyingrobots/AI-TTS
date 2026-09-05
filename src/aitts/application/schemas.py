@@ -213,6 +213,17 @@ class ClearQueueReceipt(PublicSchema):
     cleared: NonNegativeInt
 
 
+class PurgeCachedAudioReceipt(PublicSchema):
+    """Outcome of removing audio that no current or pending speech still owns."""
+
+    removed_files: NonNegativeInt
+    removed_bytes: NonNegativeInt
+    protected_files: NonNegativeInt
+    protected_bytes: NonNegativeInt
+    failed_files: NonNegativeInt
+    failed_bytes: NonNegativeInt
+
+
 class SpeechServiceError(RuntimeError):
     """A stable application error that does not expose its transport adapter."""
 
