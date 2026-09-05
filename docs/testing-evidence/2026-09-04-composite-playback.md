@@ -125,3 +125,15 @@ The focused reopen test and the complete store suite are green:
 ```console
 uv run pytest tests/test_store.py -q
 ```
+
+## RED: synthesis claims inside the parent queue
+
+The next storage boundary requires synthesis claims to descend into the first
+parent's child queue before claiming a later top-level item. Each returned work
+item must contain the child text and artifact identity while resolving voice
+and synthesis speed from its immutable parent profile.
+
+The focused claim test exited 1. The legacy claimer returned the raw parent as
+the first work item, skipped both persisted children, then claimed the later
+top-level utterance. That is precisely the queue-flattening behavior this slice
+replaces.

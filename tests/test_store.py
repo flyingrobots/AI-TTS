@@ -191,6 +191,42 @@ def test_claim_for_synthesis_is_fifo_and_exclusive(store: Store) -> None:
     assert third is None
 
 
+def test_composite_claims_children_before_later_parent_with_one_parent_profile(
+    store: Store,
+) -> None:
+    parent = store.submit(
+        "# Original document",
+        voice="bm_george",
+        speed=1.25,
+        spoken_segments=("First spoken segment.", "Second spoken segment."),
+    )
+    following = submit(store, "following")
+
+    claims = [store.claim_for_synthesis() for _ in range(3)]
+    observed = [
+        None if claim is None else (claim.id, claim.text, claim.voice, claim.speed, claim.state)
+        for claim in claims
+    ]
+
+    assert observed == [
+        (
+            f"{parent.id}_segment_0000",
+            "First spoken segment.",
+            "bm_george",
+            1.25,
+            State.SYNTHESIZING,
+        ),
+        (
+            f"{parent.id}_segment_0001",
+            "Second spoken segment.",
+            "bm_george",
+            1.25,
+            State.SYNTHESIZING,
+        ),
+        (following.id, "following", "bm_daniel", 1.0, State.SYNTHESIZING),
+    ]
+
+
 def test_move_to_head_reorders_plan(store: Store) -> None:
     a = submit(store, "a")
     b = submit(store, "b")
