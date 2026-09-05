@@ -25,6 +25,17 @@ public enum SpeechServiceError: Error, Equatable, Sendable {
     case unavailable
 }
 
+public enum SpeechSelectionError: Error, Equatable, LocalizedError, Sendable {
+    case noSpeakableText
+
+    public var errorDescription: String? {
+        switch self {
+        case .noSpeakableText:
+            "The selection contains no speakable text."
+        }
+    }
+}
+
 public struct SpeechSubmission: Equatable, Sendable {
     public let text: String
     public let contentFormat: SpeechContentFormat
@@ -97,6 +108,36 @@ public protocol SpeechDocumentReaderPort: Sendable {
 /// Inbound application port shared by menu, Finder, Services, and Shortcuts adapters.
 public protocol DocumentEnqueueing: Sendable {
     func enqueueDocument(at url: URL) throws
+}
+
+/// Inbound application port shared by native selected-text adapters.
+public protocol SelectionEnqueueing: Sendable {
+    func enqueueSelection(_ text: String, source: String) throws
+}
+
+public struct EnqueueSelection: SelectionEnqueueing, Sendable {
+    private let speech: any SpeechServicePort
+
+    public init(speech: any SpeechServicePort) {
+        self.speech = speech
+    }
+
+    public func enqueueSelection(_ text: String, source: String) throws {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw SpeechSelectionError.noSpeakableText
+        }
+        try speech.submit(
+            SpeechSubmission(
+                text: text,
+                contentFormat: .plainText,
+                voice: nil,
+                speed: nil,
+                sensitivity: .confidential,
+                priority: .normal,
+                source: source
+            )
+        )
+    }
 }
 
 public struct EnqueueDocument: DocumentEnqueueing, Sendable {

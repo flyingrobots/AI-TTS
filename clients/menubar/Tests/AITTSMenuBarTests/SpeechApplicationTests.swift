@@ -1,7 +1,7 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
 // Test-Size: medium (Swift application boundary with owned fakes)
-// Test-Oracle: typed document-enqueue use case approved for interchangeable OS adapters
+// Test-Oracle: typed selection and document admission policy for interchangeable OS adapters
 
 import Foundation
 import XCTest
@@ -47,6 +47,45 @@ final class SpeechApplicationTests: XCTestCase {
                 )
             ]
         )
+    }
+
+    func testSelectionEnqueuePreservesExactLiteralTextAndOwnsAdmissionPolicy() throws {
+        let speech = RecordingSpeechService()
+        let enqueue = EnqueueSelection(speech: speech)
+        let selectedText = "  # Release notes\n\nKeep **this** literal.\n"
+
+        try enqueue.enqueueSelection(selectedText, source: "macos-service:text")
+
+        XCTAssertEqual(
+            speech.submissions,
+            [
+                SpeechSubmission(
+                    text: selectedText,
+                    contentFormat: .plainText,
+                    voice: nil,
+                    speed: nil,
+                    sensitivity: .confidential,
+                    priority: .normal,
+                    source: "macos-service:text"
+                )
+            ]
+        )
+    }
+
+    func testSelectionEnqueueRejectsWhitespaceWithoutSubmitting() throws {
+        let speech = RecordingSpeechService()
+        let enqueue = EnqueueSelection(speech: speech)
+
+        XCTAssertThrowsError(
+            try enqueue.enqueueSelection(" \n\t", source: "macos-service:text")
+        ) { error in
+            XCTAssertEqual(error as? SpeechSelectionError, .noSpeakableText)
+            XCTAssertEqual(
+                error.localizedDescription,
+                "The selection contains no speakable text."
+            )
+        }
+        XCTAssertEqual(speech.submissions, [])
     }
 }
 
