@@ -147,3 +147,15 @@ top-level plan position and then child index, so a document remains one
 blocking queue entry without becoming one giant engine request.
 
 The legacy FIFO claim test and the focused composite claim test are green.
+
+## RED: first-segment readiness
+
+A deterministic engine gate holds the second child inside synthesis. While it
+is held, the parent must already be Ready, the first child must be Ready, the
+second must remain Synthesizing, and both calls must carry the same parent
+voice/speed. This enters through the real `SynthesisPool`, artifact adapter,
+and store rather than mocking their collaboration.
+
+The focused test exited 1 at its one-second deterministic deadline: the pool
+looked up the child artifact id as though it were a parent id, synthesized
+nothing, and therefore never reached the second-child gate.

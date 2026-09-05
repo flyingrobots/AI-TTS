@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,23 @@ class PartialWriteFailureEngine(FakeEngine):
             out_path.write_bytes(b"partial audio")
             msg = "seeded disk full"
             raise OSError(msg)
+        return super().synthesize(text, voice, speed, out_path)
+
+
+class GatedRecordingEngine(FakeEngine):
+    def __init__(self) -> None:
+        super().__init__(voices=["bm_george"], duration_ms=1000)
+        self.calls: list[tuple[str, str, float]] = []
+        self.second_started = threading.Event()
+        self.release_second = threading.Event()
+
+    def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
+        self.calls.append((text, voice, speed))
+        if text == "Second segment.":
+            self.second_started.set()
+            if not self.release_second.wait(timeout=2):
+                msg = "test did not release second segment"
+                raise TimeoutError(msg)
         return super().synthesize(text, voice, speed, out_path)
 
 
@@ -192,3 +210,37 @@ async def test_notify_wakes_idle_pool(store: Store, cache_dir: Path) -> None:
     pool.notify()
     await wait_for(in_state(store, utt.id, State.READY))
     task.cancel()
+
+
+async def test_first_composite_segment_is_ready_while_second_is_still_synthesizing(
+    store: Store,
+    cache_dir: Path,
+) -> None:
+    engine = GatedRecordingEngine()
+    pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
+    parent = store.submit(
+        "# Original document",
+        voice="bm_george",
+        speed=1.5,
+        spoken_segments=("First segment.", "Second segment."),
+    )
+    task = await run_pool(pool)
+    try:
+        await wait_for(engine.second_started.is_set, timeout=1)
+        parent_while_blocked = store.get(parent.id)
+        segments_while_blocked = store.segments(parent.id)
+        assert {
+            "parent_state": None if parent_while_blocked is None else parent_while_blocked.state,
+            "segment_states": [segment.state for segment in segments_while_blocked],
+            "calls": engine.calls,
+        } == {
+            "parent_state": State.READY,
+            "segment_states": [State.READY, State.SYNTHESIZING],
+            "calls": [
+                ("First segment.", "bm_george", 1.5),
+                ("Second segment.", "bm_george", 1.5),
+            ],
+        }
+    finally:
+        engine.release_second.set()
+        task.cancel()
