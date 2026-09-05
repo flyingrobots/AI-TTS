@@ -708,10 +708,25 @@ class Store:
         anything that was playing comes back paused: a daemon that restarts
         and immediately begins speaking talks when nobody expects it.
         """
+        synthesizing_segments = self._segments_by_states((State.SYNTHESIZING,))
+        for segment in synthesizing_segments:
+            self.transition_segment(segment.utterance_id, segment.index, State.QUEUED)
+        playing_segments = self._segments_by_states((State.PLAYING,))
+        for segment in playing_segments:
+            self.transition_segment(segment.utterance_id, segment.index, State.PAUSED)
         for utt in self._by_states((State.SYNTHESIZING,)):
             self.transition(utt.id, State.QUEUED)
         for utt in self._by_states((State.PLAYING,)):
             self.transition(utt.id, State.PAUSED)
+
+    def _segments_by_states(self, states: tuple[State, ...]) -> list[UtteranceSegment]:
+        placeholders = ",".join("?" * len(states))
+        rows = self._db.execute(
+            f"SELECT {_SEGMENT_COLUMNS} FROM utterance_segments "  # noqa: S608
+            f"WHERE state IN ({placeholders}) ORDER BY utterance_id, segment_index",
+            tuple(state.value for state in states),
+        ).fetchall()
+        return [_row_to_segment(row) for row in rows]
 
     # -- settings --------------------------------------------------------
 

@@ -219,3 +219,10 @@ replayed.
 The focused test exited 1. Parent recovery already produced Paused at 400 ms,
 but its children remained Playing and Synthesizing; the independently Ready
 child stayed correct as the control.
+
+## GREEN: composite crash recovery
+
+Recovery now repairs child lifecycle before aggregating parent state:
+Synthesizing becomes Queued, Playing becomes Paused with its stored position,
+and Ready/Played children are untouched. The focused crash-state test and full
+store suite are green.
