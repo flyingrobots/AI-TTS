@@ -329,3 +329,9 @@ The visibility oracle was calibrated by temporarily ignoring the opt-in flag;
 its focused Swift test exited 1 on the disabled case while reachable/active
 controls stayed valid. The mutation was reverted, and all 13 Swift tests plus
 the focused backend caption test are green.
+
+The first full Python suite then exited 1 at the strict public application
+adapter because the new `segment_count` and `composite` receipt fields were
+correctly rejected as undocumented extras. The public schemas now model those
+fields, composite progress, and the optional active segment with backward-safe
+legacy defaults.

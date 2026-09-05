@@ -17,6 +17,7 @@ UtteranceId = Annotated[str, StringConstraints(pattern=r"^utt_[0-9a-f]{32}$")]
 PlaybackSpeed = Annotated[float, Field(ge=0.5, le=2.0)]
 PositiveLimit = Annotated[int, Field(ge=1)]
 NonNegativeInt = Annotated[int, Field(ge=0)]
+SegmentCount = Annotated[int, Field(ge=1)]
 
 
 class PublicSchema(BaseModel):
@@ -69,6 +70,20 @@ class EnqueueSpeechReceipt(SpeechAdmission):
     state: State
     sensitivity: Sensitivity
     eligible_engines: tuple[str, ...]
+    segment_count: SegmentCount = 1
+    composite: bool = False
+
+
+class ActiveSegment(PublicSchema):
+    """The exact synthesized child currently owning playback."""
+
+    index: NonNegativeInt
+    number: SegmentCount
+    count: SegmentCount
+    text: str
+    state: State
+    duration_ms: NonNegativeInt | None
+    position_ms: NonNegativeInt | None
 
 
 class QueueItem(PublicSchema):
@@ -87,12 +102,16 @@ class QueueItem(PublicSchema):
     played_ms: NonNegativeInt | None
     error: str | None
     replay_of: UtteranceId | None
+    composite: bool = False
+    segment_count: SegmentCount = 1
+    completed_segments: NonNegativeInt = 0
 
 
 class CurrentSpeech(QueueItem):
     """The active clip plus its live playback position."""
 
     position_ms: NonNegativeInt | None
+    active_segment: ActiveSegment | None = None
 
 
 class HistoryItem(QueueItem):
