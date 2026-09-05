@@ -115,6 +115,12 @@ def _build_parser() -> argparse.ArgumentParser:
     daemon.add_argument("--home", type=Path, default=None)
     daemon.add_argument("--engine", choices=["kokoro", "fake"], default="kokoro")
     daemon.add_argument("--workers", type=int, default=2)
+    daemon.add_argument(
+        "--log-file",
+        type=Path,
+        default=None,
+        help="write bounded owner-only diagnostics to this file instead of stderr",
+    )
 
     return parser
 
@@ -202,7 +208,20 @@ def _run_client_command(args: argparse.Namespace) -> int:
 
 
 def _run_daemon(args: argparse.Namespace) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    if args.log_file is None:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        )
+    else:
+        from aitts.adapters.diagnostic_logging import (  # noqa: PLC0415 - daemon-only adapter
+            configure_daemon_logging,
+        )
+
+        log_path = args.log_file.expanduser()
+        if not log_path.is_absolute():
+            log_path = Path.cwd() / log_path
+        configure_daemon_logging(log_path)
     from aitts.adapters.process_lifecycle import (  # noqa: PLC0415 - daemon-only adapter
         ImmediateProcessTerminator,
     )
@@ -234,7 +253,9 @@ def _run_daemon(args: argparse.Namespace) -> int:
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, stop.set)
         logging.getLogger("aitts").info(
-            "daemon ready: socket=%s engine=%s", daemon.socket_path, engine.name
+            "event=daemon_ready version=%s engine=%s",
+            __version__,
+            engine.name,
         )
         await stop.wait()
         await daemon.stop()

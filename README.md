@@ -112,6 +112,29 @@ launchctl bootstrap "gui/$(id -u)" \
 open "$HOME/Applications/AI-TTS.app"
 ```
 
+### Local diagnostic log
+
+The installed launch agent passes an explicit `--log-file` to the daemon. AI-TTS
+keeps `~/Library/Logs/AI-TTS/daemon.log` plus two rotated backups, each capped at
+2 MiB (about 6 MiB total). The directory is normalized to owner-only `0700` and
+every log generation to `0600`; a symlink in place of the active log is refused.
+An oversized generation left by an older installation is discarded when the
+bounded handler starts, rather than surviving indefinitely as a large backup.
+
+The file contains timestamps, severity, component names, stable operational
+event codes, and a small allowlist of non-content values such as byte counts,
+retry delays, the AI-TTS version, and engine name. Package diagnostics do not
+include speech text, source labels, selected-document or cache paths, exception
+messages, tracebacks, or stack payloads. Individual records are also truncated
+before they can exceed half of one log generation. Launchd sends unrelated
+stdout and stderr to `/dev/null` so they cannot bypass the bound.
+
+Foreground development without `--log-file` still logs to the terminal. To use
+the same policy manually, run `ai-tts daemon --log-file /absolute/path/to/log`.
+To remove retained diagnostics, stop the launch agent, delete the three explicit
+`daemon.log`, `daemon.log.1`, and `daemon.log.2` files, then bootstrap it again;
+the daemon recreates the active file privately.
+
 ### Install for coding agents
 
 AI-TTS supports two local agent integrations. Use the CLI for any agent that

@@ -96,7 +96,7 @@ class SynthesisPool:
         if not self._store.synthesis_work_is_active(work):
             # Cancelled underneath us: the engine could not abort, so the
             # result is discarded on completion (architecture §7).
-            self._discard(work.id, out_path)
+            self._discard(out_path)
             return
         failure = error
         if failure is None:
@@ -114,7 +114,7 @@ class SynthesisPool:
             except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
                 failure = f"artifact publication failed: {exc}"
         if failure is not None:
-            self._discard(work.id, out_path)
+            self._discard(out_path)
             self._record_failure(work, failure)
             return
         if published_path is None:  # pragma: no cover - guarded by failure handling
@@ -130,21 +130,16 @@ class SynthesisPool:
             duration_ms=duration_ms,
         )
 
-    def _discard(self, utt_id: str, out_path: Path) -> None:
+    def _discard(self, out_path: Path) -> None:
         try:
             discarded = self._artifacts.discard(out_path)
-        except Exception:
-            log.warning(
-                "could not discard failed synthesis artifact for %s: %s",
-                utt_id,
-                out_path,
-                exc_info=True,
-            )
+        except Exception:  # noqa: BLE001 - cleanup failure is isolated to one artifact
+            log.warning("event=synthesis_artifact_discard_failed")
             return
         if not discarded:
-            log.warning("could not discard failed synthesis artifact for %s: %s", utt_id, out_path)
+            log.warning("event=synthesis_artifact_discard_failed")
 
     def _record_failure(self, work: SynthesisWork, error: str) -> None:
         if self._store.synthesis_work_is_active(work):
             self._store.fail_synthesis(work, error)
-        log.warning("synthesis failed for %s: %s", work.id, error)
+        log.warning("event=synthesis_failed")

@@ -61,6 +61,7 @@ need red-on-parent evidence or the written irreproducible-failure carve-out.
 | Kokoro lifecycle | production engine starts and stops without wedging | engine adapter/process lifecycle | bounded non-cooperative shutdown process test; manual live acceptance | add automated real-Kokoro synthesis and teardown acceptance |
 | Distribution | installed binaries and app do not depend on a checkout | wheel/app/launch artifacts | isolated wheel install, bundle/plist contracts, signed bundle CI build | add clean external-machine install and launch lifecycle acceptance |
 | Dependency supply chain | the supported all-extras runtime graph is frozen, vulnerability-audited, inventoried, and non-vacuous | hashed `uv` export, PyPI advisory service, CycloneDX SBOM, installed metadata, and repository evidence verifier | exact tool pins; strict audit; cross-report package/version reconciliation; retained lock digest, SBOM, and licenses | hosted exact-head receipt and human distribution-license decision remain open |
+| Local diagnostics | daemon evidence remains useful without becoming unbounded or a second speech-history store | private rotating-file adapter plus shell-free launch-agent projection | exact retention defaults; legacy-mode migration; symlink refusal; record cap and exception-payload suppression; static-event safe-field audit | no user-facing diagnostics export or installed long-duration rollover receipt yet |
 
 ## Adoption ledger
 
@@ -123,6 +124,9 @@ Enforced now:
   converges with text intact and no persisted item left Playing.
 - an explicit playback-scheduling port and four deterministic sink-result /
   pause schedules, with condition-driven cycle witnesses instead of test sleeps.
+- bounded owner-only local diagnostics with one 2 MiB active log, two backups,
+  capped records, exception-payload suppression, and static-event/safe-field
+  enforcement across every AI-TTS package log call.
 
 Still open for v0.1.0 readiness where the product makes the corresponding
 promise:

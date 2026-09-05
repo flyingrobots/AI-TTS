@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Checkout-independent distribution**: a typed Python wheel with both CLI
   entry points, an ad-hoc-signed native `.app` builder, and a shell-free
   launch-agent renderer using the installed executable's absolute path.
+- **Bounded local diagnostics**: the launch agent routes AI-TTS package events
+  to one 2 MiB owner-only log plus two backups, suppresses exception payloads,
+  and reserves stdout/stderr for no persistent output.
 
 ### Changed
 

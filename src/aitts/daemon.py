@@ -154,10 +154,10 @@ class Daemon:
                 await self._require_controller().run()
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                log.exception("playback worker failed; restarting in %.2fs", delay)
+            except Exception:  # noqa: BLE001 - supervisor must restart any worker failure
+                log.warning("event=playback_worker_failed retry_seconds=%.2f", delay)
             else:  # pragma: no cover - run() is intentionally perpetual
-                log.error("playback worker exited; restarting in %.2fs", delay)
+                log.error("event=playback_worker_exited retry_seconds=%.2f", delay)
             await asyncio.sleep(delay)
             delay = min(delay * 2, _PLAYBACK_RESTART_MAX_SECONDS)
 
@@ -224,11 +224,11 @@ class Daemon:
         try:
             report = self._cache.enforce(max_bytes=self._cache_limit())
         except OSError:
-            log.warning("could not inspect audio cache", exc_info=True)
+            log.warning("event=cache_inspection_failed")
             return
         if not report.within_limit:
             log.warning(
-                "audio cache remains above its limit: %d > %d bytes",
+                "event=cache_limit_unmet after_bytes=%d max_bytes=%d",
                 report.after_bytes,
                 report.max_bytes,
             )
@@ -597,7 +597,7 @@ class Daemon:
         try:
             report = self._cache.purge()
         except OSError as exc:
-            log.warning("could not inspect audio cache for explicit purge", exc_info=True)
+            log.warning("event=cache_purge_inspection_failed")
             msg = "could not inspect audio cache"
             raise ApiError(INTERNAL, msg) from exc
         receipt = {

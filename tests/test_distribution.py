@@ -204,15 +204,43 @@ def test_launch_agent_uses_installed_executable_without_shell_expansion(tmp_path
         "has_home_expansion": b"$HOME" in encoded,
         "has_checkout": str(REPOSITORY).encode() in encoded,
     } == {
-        "arguments": [str(executable), "daemon"],
-        "stdout": str(log_path),
-        "stderr": str(log_path),
+        "arguments": [str(executable), "daemon", "--log-file", str(log_path)],
+        "stdout": "/dev/null",
+        "stderr": "/dev/null",
         "run_at_load": True,
         "keep_alive": {"SuccessfulExit": False},
         "has_shell": False,
         "has_home_expansion": False,
         "has_checkout": False,
     }
+    assert stat.S_IMODE(log_path.parent.stat().st_mode) == 0o700
+
+
+def test_launch_agent_renderer_runs_as_a_standalone_stdlib_script(tmp_path: Path) -> None:
+    script = REPOSITORY / "scripts" / "render_launch_agent.py"
+    output = tmp_path / "LaunchAgents" / "com.flyingrobots.ai-tts.plist"
+    log_path = tmp_path / "logs" / "daemon.log"
+    result = subprocess.run(  # noqa: S603
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            str(script),
+            "--executable",
+            str(tmp_path / "bin" / "ai-tts"),
+            "--output",
+            str(output),
+            "--log-path",
+            str(log_path),
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+
+    assert (result.returncode, output.exists(), result.stderr) == (0, True, "")
 
 
 def test_wheel_installs_cli_entry_points_outside_checkout(tmp_path: Path) -> None:

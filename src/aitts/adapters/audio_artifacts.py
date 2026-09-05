@@ -33,7 +33,7 @@ class FileAudioArtifacts:
         for member in self._root.iterdir():
             if self._is_candidate(member):
                 if not self.discard(member):
-                    log.warning("could not discard stale synthesis candidate %s", member)
+                    log.warning("event=stale_synthesis_candidate_discard_failed")
                 continue
             if member.is_symlink() or not member.is_file():
                 continue

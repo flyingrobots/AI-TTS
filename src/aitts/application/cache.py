@@ -124,7 +124,7 @@ class CacheController:
             try:
                 existed = self._cache.delete(entry.path)
             except OSError:
-                log.warning("could not evict cached audio %s", entry.path, exc_info=True)
+                log.warning("event=cache_eviction_failed")
                 failed.append(entry.path)
                 continue
             self._metadata.forget_terminal_audio(entry.path)
@@ -154,7 +154,7 @@ class CacheController:
             try:
                 existed = self._cache.delete(entry.path)
             except OSError:
-                log.warning("could not purge cached audio %s", entry.path, exc_info=True)
+                log.warning("event=cache_purge_delete_failed")
                 failed.append(entry)
                 continue
             self._metadata.forget_terminal_audio(entry.path)
@@ -172,5 +172,5 @@ class CacheController:
         try:
             return self._cache.touch(path)
         except OSError:
-            log.warning("could not refresh cached audio %s", path, exc_info=True)
+            log.warning("event=cache_access_refresh_failed")
             return False

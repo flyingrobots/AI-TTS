@@ -572,6 +572,25 @@ Every utterance carries a classification, assigned at submit and immutable there
   speech into them, so a permissive inherited umask cannot widen access.
 - **History is the most sensitive object in the system** — a durable record of everything ever spoken. It needs explicit single-entry and clear-all deletion. Those operations remove history records; cached audio remains governed by the separate bounded-cache policy and explicit purge action.
 
+### Bounded local diagnostics
+
+The installed daemon does not hand an ever-growing stderr stream to launchd.
+The launch-agent adapter passes an absolute `--log-file` and sends its own
+stdout/stderr descriptors to `/dev/null`; the Python diagnostics adapter owns
+the durable log lifecycle. It retains one 2 MiB active file and two 2 MiB
+backups. The log directory is `0700`, every generation is `0600`, the active
+path is opened without following a symlink, and each rendered record is capped
+below the file ceiling. Startup discards an oversized legacy generation before
+opening the handler so migration cannot preserve an already-unbounded file.
+
+The privacy boundary is structural. AI-TTS package call sites use literal,
+stable `event=` templates and may interpolate only a reviewed allowlist of
+non-content values. Exception messages, tracebacks, speech text, source labels,
+selected-document paths, and cache paths do not enter the persistent handler.
+The log is for local lifecycle and failure classification, not a second history
+store. Foreground development without `--log-file` may still log to the
+operator's terminal and is not a retained launch-agent surface.
+
 ## 10. Decisions taken at implementation
 
 The original review questions are preserved below. Items 1–4 and 6 were

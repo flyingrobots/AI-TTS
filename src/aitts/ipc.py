@@ -144,8 +144,8 @@ class IPCServer:
             response = await self._api.dispatch(payload)
         except ApiError as exc:
             response = _error(exc.error_type, str(exc))
-        except Exception:  # a bad request must never kill the daemon
-            log.exception("unhandled error dispatching %r", payload.get("op"))
+        except Exception:  # noqa: BLE001 - a bad request must never kill the daemon
+            log.warning("event=ipc_dispatch_failed")
             response = _error("internal", "internal error; see daemon log")
         await self._reply(writer, response)
 
