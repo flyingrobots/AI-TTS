@@ -111,3 +111,17 @@ uv run pytest tests/test_store.py::test_composite_submission_persists_original_a
 
 The reopened parent retained its original text and profile, while the observed
 child list was empty instead of the two expected Queued segments.
+
+## GREEN: durable parent-owned segment queue
+
+SQLite now stores child segments under a foreign key and composite primary key
+of parent id plus zero-based segment index. Parent submission and ordered child
+insertion share one commit. The children contain synthesis/playback lifecycle
+data only; voice, speed, sensitivity, priority, source, and original Markdown
+remain single-owned by the parent.
+
+The focused reopen test and the complete store suite are green:
+
+```console
+uv run pytest tests/test_store.py -q
+```

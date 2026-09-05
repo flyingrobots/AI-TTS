@@ -57,6 +57,18 @@ CREATE TABLE IF NOT EXISTS utterances (
 );
 CREATE INDEX IF NOT EXISTS idx_utterances_state ON utterances(state);
 CREATE INDEX IF NOT EXISTS idx_utterances_order ON utterances(order_key);
+CREATE TABLE IF NOT EXISTS utterance_segments (
+    utterance_id TEXT NOT NULL REFERENCES utterances(id) ON DELETE CASCADE,
+    segment_index INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    state TEXT NOT NULL,
+    error TEXT,
+    duration_ms INTEGER,
+    played_ms INTEGER,
+    audio_path TEXT,
+    PRIMARY KEY (utterance_id, segment_index)
+);
+CREATE INDEX IF NOT EXISTS idx_utterance_segments_state ON utterance_segments(state);
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -67,6 +79,9 @@ _COLUMNS = (
     "id, text, voice, speed, sensitivity, priority, state, order_key, "
     "submitted_at, state_changed_at, source, error, duration_ms, played_ms, "
     "audio_path, replay_of"
+)
+_SEGMENT_COLUMNS = (
+    "utterance_id, segment_index, text, state, error, duration_ms, played_ms, audio_path"
 )
 
 
@@ -104,6 +119,19 @@ def _row_to_utterance(row: sqlite3.Row) -> Utterance:
         played_ms=row["played_ms"],
         audio_path=row["audio_path"],
         replay_of=row["replay_of"],
+    )
+
+
+def _row_to_segment(row: sqlite3.Row) -> UtteranceSegment:
+    return UtteranceSegment(
+        utterance_id=row["utterance_id"],
+        index=row["segment_index"],
+        text=row["text"],
+        state=State(row["state"]),
+        error=row["error"],
+        duration_ms=row["duration_ms"],
+        played_ms=row["played_ms"],
+        audio_path=row["audio_path"],
     )
 
 
@@ -157,7 +185,11 @@ class Store:
         Sensitivity defaults to confidential: a caller cannot leak by
         forgetting, only by explicitly declaring text public (architecture §9).
         """
-        del spoken_segments
+        if spoken_segments is not None and (
+            not spoken_segments or any(not segment.strip() for segment in spoken_segments)
+        ):
+            msg = "spoken_segments must contain one or more non-empty segments"
+            raise ValueError(msg)
         now = time.time()
         order_key = self._head_order_key() if at_head else self._tail_order_key()
         utt = Utterance(
@@ -196,6 +228,15 @@ class Store:
                 utt.replay_of,
             ),
         )
+        if spoken_segments is not None:
+            self._db.executemany(
+                "INSERT INTO utterance_segments "
+                "(utterance_id, segment_index, text, state) VALUES (?, ?, ?, ?)",
+                [
+                    (utt.id, index, segment, State.QUEUED.value)
+                    for index, segment in enumerate(spoken_segments)
+                ],
+            )
         self._commit_or_rollback()
         return utt
 
@@ -225,8 +266,12 @@ class Store:
 
     def segments(self, utt_id: str) -> list[UtteranceSegment]:
         """Return the ordered internal speech queue owned by ``utt_id``."""
-        del utt_id
-        return []
+        rows = self._db.execute(
+            f"SELECT {_SEGMENT_COLUMNS} FROM utterance_segments "  # noqa: S608
+            "WHERE utterance_id = ? ORDER BY segment_index",
+            (utt_id,),
+        ).fetchall()
+        return [_row_to_segment(row) for row in rows]
 
     def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
         placeholders = ",".join("?" * len(states))
