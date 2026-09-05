@@ -442,7 +442,7 @@ uv run mypy
 # Success: no issues found in 57 source files
 
 uv run pytest
-# 193 passed in 4.31s
+# 194 passed in 4.19s
 
 cd clients/menubar
 python3 ../../scripts/run_with_deadline.py 60 swift test
