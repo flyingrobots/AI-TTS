@@ -24,7 +24,7 @@ def words(text: str) -> list[str]:
 
 
 def test_short_text_retains_single_clip_identity() -> None:
-    text = "A short clip should remain exactly as its caller submitted it."
+    text = "  A short clip should remain exactly as its caller submitted it.\n"
 
     assert segment_text(text) == (text,)
 

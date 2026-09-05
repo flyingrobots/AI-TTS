@@ -31,3 +31,26 @@ behavior rather than a general import or collection failure.
 
 Further synthesis, playback, recovery, and live-rate calibrations will be
 recorded here as those boundary slices are introduced.
+
+## GREEN: structure-aware segmenter
+
+The daemon policy now treats Markdown headings as strong section boundaries,
+prefers nearby paragraph boundaries, then sentence boundaries, and uses a word
+boundary only as the hard fallback. The target is 180 spoken words and the
+maximum search window is 220. Text of 180 words or fewer retains byte-for-byte
+clip identity.
+
+The focused suite is green:
+
+```console
+uv run pytest tests/test_segmentation.py -q
+```
+
+The short-clip identity assertion was independently calibrated by temporarily
+trimming its returned text. Its focused test exited 1 and displayed the missing
+leading spaces and trailing newline. The mutation was reverted before the
+green run. The losslessness assertion was separately calibrated by temporarily
+dismissing the final segment; its focused test exited 1 on both the expected
+segment count and the flattened source-word sequence. That mutation was also
+reverted before the green run. The original pass-through RED remains the
+calibration for bounded long-document planning and heading attachment.
