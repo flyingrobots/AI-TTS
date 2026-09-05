@@ -22,7 +22,7 @@ from aitts.model import State
 
 if TYPE_CHECKING:
     from aitts.application.playback_schedule import PlaybackSchedulePort
-    from aitts.model import Utterance
+    from aitts.model import Utterance, UtteranceSegment
     from aitts.store import Store
 
 log = logging.getLogger(__name__)
@@ -252,6 +252,7 @@ class PlaybackController:
         if self.held:
             self._store.set_setting("playback_held", "true")
         self._current_id: str | None = None
+        self._current_segment_index: int | None = None
         self._sink_active = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
@@ -269,6 +270,16 @@ class PlaybackController:
         """Live playhead position for the current utterance, if there is one."""
         if self._current_id is None:
             return None
+        if self._current_segment_index is not None:
+            completed = self._store.completed_segment_duration_ms(
+                self._current_id,
+                before=self._current_segment_index,
+            )
+            if self._sink_active:
+                return completed + self._sink.position_ms()
+            segment = self._store.get_segment(self._current_id, self._current_segment_index)
+            segment_position = 0 if segment is None else segment.played_ms or 0
+            return completed + segment_position
         if self._sink_active:
             return self._sink.position_ms()
         current = self._current()
@@ -284,9 +295,21 @@ class PlaybackController:
             await self._schedule.checkpoint(PlaybackCheckpoint.BEFORE_PLAN)
             if self._current_id is None and not self.held:
                 nxt = self._store.next_pending()
-                if nxt is not None and nxt.state is State.READY and nxt.audio_path is not None:
-                    self._begin(nxt.id, Path(nxt.audio_path), position_ms=0)
-                    continue
+                if nxt is not None and nxt.state is State.READY:
+                    segment = self._store.next_unfinished_segment(nxt.id)
+                    if segment is not None and segment.state is State.READY:
+                        self._begin_segment(nxt, segment, position_ms=0)
+                        continue
+                    if segment is None and nxt.audio_path is not None:
+                        self._begin(nxt.id, Path(nxt.audio_path), position_ms=0)
+                        continue
+            elif self._current_id is not None and not self._sink_active and not self.held:
+                current = self._current()
+                if current is not None and current.state is State.PLAYING:
+                    segment = self._store.next_unfinished_segment(current.id)
+                    if segment is not None and segment.state is State.READY:
+                        self._begin_segment(current, segment, position_ms=0)
+                        continue
             self._wake.clear()
             await self._schedule.checkpoint(PlaybackCheckpoint.PLAN_IDLE)
             with contextlib.suppress(TimeoutError):
@@ -296,6 +319,25 @@ class PlaybackController:
         self._store.transition(utt_id, State.PLAYING)
         self._current_id = utt_id
         self._sink.start(path, position_ms=position_ms)
+        self._sink_active = True
+        self._watcher = asyncio.get_running_loop().create_task(self._watch())
+
+    def _begin_segment(
+        self,
+        parent: Utterance,
+        segment: UtteranceSegment,
+        *,
+        position_ms: int,
+    ) -> None:
+        if parent.state in (State.READY, State.PAUSED):
+            self._store.transition(parent.id, State.PLAYING)
+        self._store.transition_segment(parent.id, segment.index, State.PLAYING)
+        self._current_id = parent.id
+        self._current_segment_index = segment.index
+        if segment.audio_path is None:  # pragma: no cover - Ready requires a published artifact
+            msg = "ready segment has no audio artifact"
+            raise RuntimeError(msg)
+        self._sink.start(Path(segment.audio_path), position_ms=position_ms)
         self._sink_active = True
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
 
@@ -309,7 +351,13 @@ class PlaybackController:
             return
         current = self._store.get(utt_id)
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
-            if ended:
+            if self._current_segment_index is not None:
+                self._finish_segment_playback(
+                    current,
+                    self._current_segment_index,
+                    ended=ended,
+                )
+            elif ended:
                 self._store.transition(utt_id, State.PLAYED, played_ms=current.duration_ms)
             else:
                 detail = self._sink.error or "unknown failure"
@@ -319,10 +367,52 @@ class PlaybackController:
                     error=f"playback device error: {detail}",
                     played_ms=self._sink.position_ms(),
                 )
-        self._current_id = None
         self._sink_active = False
+        self._current_segment_index = None
         self._watcher = None
+        after = self._store.get(utt_id)
+        document_finished = self._store.next_unfinished_segment(utt_id) is None
+        if after is None or after.is_terminal or document_finished:
+            self._current_id = None
         self.notify()
+
+    def _finish_segment_playback(
+        self,
+        parent: Utterance,
+        segment_index: int,
+        *,
+        ended: bool,
+    ) -> None:
+        segment = self._store.get_segment(parent.id, segment_index)
+        if segment is None:  # pragma: no cover - active segment rows remain owned
+            return
+        if ended:
+            self._store.transition_segment(
+                parent.id,
+                segment.index,
+                State.PLAYED,
+                played_ms=segment.duration_ms,
+            )
+            if self._store.next_unfinished_segment(parent.id) is None:
+                played_ms = self._store.completed_segment_duration_ms(parent.id)
+                self._store.transition(parent.id, State.PLAYED, played_ms=played_ms)
+            return
+        detail = self._sink.error or "unknown failure"
+        position = self._sink.position_ms()
+        self._store.transition_segment(
+            parent.id,
+            segment.index,
+            State.FAILED,
+            error=f"playback device error: {detail}",
+            played_ms=position,
+        )
+        played_ms = self._store.completed_segment_duration_ms(parent.id) + position
+        self._store.transition(
+            parent.id,
+            State.FAILED,
+            error=f"playback device error: {detail}",
+            played_ms=played_ms,
+        )
 
     async def _release_sink(self) -> None:
         """Stop playback and wait until the device can be acquired again."""
@@ -342,9 +432,18 @@ class PlaybackController:
         self.held = True
         self._store.set_setting("playback_held", "true")
         current = self._current()
-        if current is not None and current.state is State.PLAYING and self._sink_active:
-            self._sink.pause()
-            self._store.transition(current.id, State.PAUSED, played_ms=self._sink.position_ms())
+        if current is not None and current.state is State.PLAYING:
+            position = self.current_position_ms()
+            if self._sink_active:
+                self._sink.pause()
+                if self._current_segment_index is not None:
+                    self._store.transition_segment(
+                        current.id,
+                        self._current_segment_index,
+                        State.PAUSED,
+                        played_ms=self._sink.position_ms(),
+                    )
+            self._store.transition(current.id, State.PAUSED, played_ms=position)
 
     async def resume(self) -> None:
         """Release the hold and continue (or adopt a restored paused utterance)."""
@@ -358,7 +457,18 @@ class PlaybackController:
         if current is not None and current.state is State.PAUSED:
             if self._sink_active:
                 self._sink.resume()
+                if self._current_segment_index is not None:
+                    self._store.transition_segment(
+                        current.id,
+                        self._current_segment_index,
+                        State.PLAYING,
+                    )
                 self._store.transition(current.id, State.PLAYING)
+            elif (segment := self._store.next_unfinished_segment(current.id)) is not None:
+                if segment.state is State.PAUSED and segment.audio_path is not None:
+                    self._begin_segment(current, segment, position_ms=segment.played_ms or 0)
+                else:
+                    self._store.transition(current.id, State.PLAYING)
             elif current.audio_path is not None:
                 self._begin(
                     current.id,

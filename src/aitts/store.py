@@ -154,6 +154,7 @@ class Store:
         self._db.executescript(_SCHEMA)
         self._commit_or_rollback()
         self.on_transition: list[Callable[[Utterance, State], None]] = []
+        self.on_segment_transition: list[Callable[[UtteranceSegment, State], None]] = []
 
     def close(self) -> None:
         """Close the underlying database connection."""
@@ -283,6 +284,33 @@ class Store:
         ).fetchone()
         return _row_to_segment(row) if row else None
 
+    def next_unfinished_segment(self, utt_id: str) -> UtteranceSegment | None:
+        """Return the first child still owed within a composite utterance."""
+        placeholders = ",".join("?" * len(TERMINAL))
+        row = self._db.execute(
+            f"SELECT {_SEGMENT_COLUMNS} FROM utterance_segments "  # noqa: S608
+            f"WHERE utterance_id = ? AND state NOT IN ({placeholders}) "
+            "ORDER BY segment_index LIMIT 1",
+            (utt_id, *(state.value for state in TERMINAL)),
+        ).fetchone()
+        return _row_to_segment(row) if row else None
+
+    def completed_segment_duration_ms(self, utt_id: str, before: int | None = None) -> int:
+        """Return duration already played before an optional child index."""
+        if before is None:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(duration_ms), 0) AS duration FROM utterance_segments "
+                "WHERE utterance_id = ? AND state = ?",
+                (utt_id, State.PLAYED.value),
+            ).fetchone()
+        else:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(duration_ms), 0) AS duration FROM utterance_segments "
+                "WHERE utterance_id = ? AND state = ? AND segment_index < ?",
+                (utt_id, State.PLAYED.value, before),
+            ).fetchone()
+        return int(row["duration"]) if row is not None else 0
+
     def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
         placeholders = ",".join("?" * len(states))
         rows = self._db.execute(
@@ -398,6 +426,49 @@ class Store:
             callback(after, current.state)
         return after
 
+    def transition_segment(  # noqa: PLR0913 - mirrors the parent transition boundary
+        self,
+        utt_id: str,
+        index: int,
+        to: State,
+        *,
+        error: str | None = None,
+        duration_ms: int | None = None,
+        played_ms: int | None = None,
+        audio_path: str | None = None,
+    ) -> UtteranceSegment:
+        """Move one child through the same lifecycle rules as its parent."""
+        current = self.get_segment(utt_id, index)
+        if current is None:
+            raise KeyError((utt_id, index))
+        if not can_transition(current.state, to):
+            msg = f"segment {current.state.value} -> {to.value} is not a legal transition"
+            raise TransitionError(msg)
+        sets = ["state = ?"]
+        params: list[object] = [to.value]
+        for column, value in (
+            ("error", error),
+            ("duration_ms", duration_ms),
+            ("played_ms", played_ms),
+            ("audio_path", audio_path),
+        ):
+            if value is not None:
+                sets.append(f"{column} = ?")
+                params.append(value)
+        params.extend((utt_id, index))
+        self._db.execute(
+            f"UPDATE utterance_segments SET {', '.join(sets)} "  # noqa: S608
+            "WHERE utterance_id = ? AND segment_index = ?",
+            params,
+        )
+        self._commit_or_rollback()
+        after = self.get_segment(utt_id, index)
+        if after is None:  # pragma: no cover - row cannot vanish mid-update
+            raise KeyError((utt_id, index))
+        for callback in self.on_segment_transition:
+            callback(after, current.state)
+        return after
+
     def forget_terminal_audio(self, path: Path) -> int:
         """Clear history references to one evicted artifact while retaining its rows."""
         placeholders = ",".join("?" * len(TERMINAL))
@@ -499,23 +570,13 @@ class Store:
             )
             return
 
-        cursor = self._db.execute(
-            "UPDATE utterance_segments SET state = ?, audio_path = ?, duration_ms = ? "
-            "WHERE utterance_id = ? AND segment_index = ? AND state = ?",
-            (
-                State.READY.value,
-                audio_path,
-                duration_ms,
-                work.utterance_id,
-                work.segment_index,
-                State.SYNTHESIZING.value,
-            ),
+        self.transition_segment(
+            work.utterance_id,
+            work.segment_index,
+            State.READY,
+            audio_path=audio_path,
+            duration_ms=duration_ms,
         )
-        if cursor.rowcount != 1:
-            self._db.rollback()
-            msg = f"synthesis work {work.id!r} is no longer active"
-            raise TransitionError(msg)
-        self._commit_or_rollback()
         if work.segment_index == 0:
             parent = self.get(work.utterance_id)
             if parent is not None and parent.state is State.SYNTHESIZING:

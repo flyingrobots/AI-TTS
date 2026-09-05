@@ -198,3 +198,12 @@ state. Child lifecycle must be observable and overlap must remain zero.
 The focused test exited 1 immediately after the first plan cycle. Both children
 and the parent remained Ready and the sink started nothing, because legacy
 playback requires a single parent `audio_path`.
+
+## GREEN: nested playback serialization
+
+The controller now owns one parent id plus an optional active child index. It
+transitions and plays child artifacts in order, keeps the parent current while
+waiting between children, accumulates document position from completed child
+durations, and releases the top-level queue only when no child remains. The
+focused contract observed child 0, child 1, then the following legacy clip,
+with zero overlap; the complete playback suite is green.
