@@ -35,6 +35,11 @@ class DaemonError(Exception):
         self.error_type = error_type
 
 
+# How long one read waits before checking the overall deadline. Short enough
+# that a deadline is honoured promptly, long enough not to spin.
+_EVENT_POLL_SECONDS = 0.5
+
+
 class Client:
     """Talks NDJSON to the daemon over its Unix socket."""
 
@@ -88,10 +93,18 @@ class Client:
             if b"\n" in chunk:
                 return b"".join(chunks).split(b"\n", 1)[0]
 
-    def events(self, *, timeout: float | None = None) -> Generator[dict[str, Any], None, None]:
+    def events(
+        self,
+        *,
+        timeout: float | None = None,
+        until: float | None = None,
+    ) -> Generator[dict[str, Any], None, None]:
         """Subscribe and yield state-change events until the connection closes.
 
-        ``timeout`` bounds the wait for each event; None waits indefinitely.
+        ``timeout`` bounds the wait for each individual event. ``until`` is an
+        optional overall monotonic deadline: while it has not passed, a read
+        that times out is a quiet daemon rather than an absent one, so the
+        wait resumes instead of failing.
         """
         sock = self._connect()
         sock.settimeout(timeout)
@@ -103,7 +116,15 @@ class Client:
                 msg = "subscription refused"
                 raise DaemonUnreachableError(msg)
             while True:
-                line, buffer = self._read_buffered_line(sock, buffer)
+                try:
+                    line, buffer = self._read_buffered_line(sock, buffer)
+                except TimeoutError:
+                    if until is not None and time.monotonic() < until:
+                        # Nothing has happened yet, which is not a failure.
+                        continue
+                    if until is None:
+                        raise
+                    return
                 yield self._decode_line(line)
         except TimeoutError as exc:
             msg = "timed out waiting for an event"
@@ -137,7 +158,15 @@ class Client:
         check and the subscription cannot be missed.
         """
         deadline = None if timeout is None else time.monotonic() + timeout
-        events = self.events(timeout=timeout)
+        # Poll in short reads rather than handing the overall deadline to the
+        # socket. They are different questions: "has an event arrived yet" and
+        # "has this utterance run out of time". Conflating them reported a
+        # healthy daemon as unreachable whenever synthesis was simply slower
+        # than the deadline — a cold model, a long document, a loaded machine.
+        events = self.events(
+            timeout=_EVENT_POLL_SECONDS if timeout is None else min(_EVENT_POLL_SECONDS, timeout),
+            until=deadline,
+        )
         try:
             current = self.request({"op": "get", "id": utt_id})
             state = State(current["item"]["state"])
@@ -151,5 +180,8 @@ class Client:
                     return str(event["to"])
         finally:
             events.close()
+        if deadline is not None:
+            msg = f"utterance {utt_id} did not finish within {timeout}s"
+            raise DaemonUnreachableError(msg)
         msg = "the daemon closed the event stream"  # pragma: no cover
         raise DaemonUnreachableError(msg)  # pragma: no cover
