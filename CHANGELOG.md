@@ -164,6 +164,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The menu bar's `Views.swift` split by surface into the popover shell,
+  `CurrentPlaybackViews`, `QueueViews`, `HistoryViews`, `SettingsViews` and
+  `SharedViews`. It held every popover surface in one 1257-line file; no view
+  body changed, and each file now says at the top which surface it is and what
+  that surface is for.
 - The per-client voice register moved out of the daemon into
   `aitts.voice_registry`, and the listener-interrupt loop into
   `aitts.input_interrupt`. Both are durable policy with their own rules rather
