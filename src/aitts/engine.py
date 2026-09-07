@@ -46,6 +46,36 @@ class Engine(Protocol):
         ...
 
 
+@runtime_checkable
+class PreparingEngine(Protocol):
+    """An engine that can say whether it is still getting ready.
+
+    Deliberately separate from :class:`Engine`. Fetching model weights is a
+    property of one adapter, not of the boundary, and requiring every engine
+    to answer a question only one of them has would put an implementation
+    detail into the port. Callers probe for it and treat its absence as ready.
+    """
+
+    def preparation(self) -> tuple[str, float] | None:
+        """Return the asset being fetched and when that started, or ``None``."""
+        ...
+
+
+def engine_preparation(engine: object) -> dict[str, object] | None:
+    """Describe what ``engine`` is still fetching, in snapshot shape.
+
+    ``None`` for a ready engine *and* for one that cannot report, which are
+    the same thing to a caller: nothing is known to be outstanding.
+    """
+    if not isinstance(engine, PreparingEngine):
+        return None
+    reported = engine.preparation()
+    if reported is None:
+        return None
+    asset, since = reported
+    return {"asset": asset, "since": since}
+
+
 def eligible_engine_names(engines: Mapping[str, Engine], sensitivity: Sensitivity) -> list[str]:
     """Engines permitted to speak text of the given sensitivity.
 
@@ -76,6 +106,7 @@ class FakeEngine:
         self._duration_ms = duration_ms
         self._delay_s = delay_s
         self._fail_texts = frozenset(fail_texts or ())
+        self.preparing: tuple[str, float] | None = None
         self._lock = threading.Lock()
         self._concurrent = 0
         self.max_concurrent = 0
@@ -112,3 +143,7 @@ class FakeEngine:
     def warmup(self) -> None:
         """Record that warmup happened."""
         self.warmed_up = True
+
+    def preparation(self) -> tuple[str, float] | None:
+        """Report whatever ``preparing`` was set to."""
+        return self.preparing

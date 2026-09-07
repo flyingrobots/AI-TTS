@@ -39,6 +39,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap, and playback device failures counted apart from ordinary terminal
   states. A null summary means nothing has been measured, which a caller can
   tell from zero.
+- **A first run no longer looks like a hang.** The engine's weights are
+  around 330 MB and arrive on first use; until they did, a clip sat in
+  Synthesizing with nothing to distinguish a download from a wedged daemon.
+  The snapshot now carries `engine_preparing` — which asset is being fetched
+  and since when — and the menu bar shows it. Named rather than measured: the
+  model host reports no progress worth trusting, and an invented percentage
+  would be worse than an honest "still fetching this".
+- **Model asset failures say what to do.** A file that is cached but
+  unreadable and one that is absent and unreachable now read differently and
+  name the repository, because only one of them is fixed by connecting to a
+  network. The transport error stays out of the message, as it can carry a URL
+  and proxy details.
 - **A quiet model load.** Building the engine's model raised ninety-two
   warnings from inside torch, about torch APIs this project does not call. The
   known ones are now silenced for the duration of the load and by subject

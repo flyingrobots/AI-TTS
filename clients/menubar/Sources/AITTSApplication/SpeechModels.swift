@@ -49,6 +49,22 @@ public struct SpeechInterruption: Equatable, Sendable {
     }
 }
 
+/// What the engine is still fetching before it can speak at all.
+///
+/// Named rather than measured: the model host reports no progress this client
+/// can trust, and a fabricated percentage would be worse than an honest
+/// "still fetching this, since then".
+public struct EnginePreparation: Equatable, Sendable {
+    public let asset: String
+    /// When the fetch started, on the daemon's clock rather than this process's.
+    public let since: Double
+
+    public init(asset: String, since: Double) {
+        self.asset = asset
+        self.since = since
+    }
+}
+
 /// Which voice one speaking client holds, and who decided it.
 public struct VoiceAssignment: Identifiable, Equatable, Sendable {
     public let source: String
@@ -149,6 +165,10 @@ public struct DaemonStatus: Equatable, Sendable {
     /// nothing watching, nothing will interrupt playback.
     public let inputActive: Bool?
     public let interruption: SpeechInterruption?
+    /// Set while the engine is still fetching what it needs. A first run pulls
+    /// around 330 MB, and without this a fresh install renders exactly like a
+    /// wedged daemon.
+    public let enginePreparing: EnginePreparation?
 
     public init(
         playbackState: String,
@@ -157,7 +177,8 @@ public struct DaemonStatus: Equatable, Sendable {
         voice: String,
         engine: String,
         inputActive: Bool? = nil,
-        interruption: SpeechInterruption? = nil
+        interruption: SpeechInterruption? = nil,
+        enginePreparing: EnginePreparation? = nil
     ) {
         self.playbackState = playbackState
         self.current = current
@@ -166,6 +187,7 @@ public struct DaemonStatus: Equatable, Sendable {
         self.engine = engine
         self.inputActive = inputActive
         self.interruption = interruption
+        self.enginePreparing = enginePreparing
     }
 }
 

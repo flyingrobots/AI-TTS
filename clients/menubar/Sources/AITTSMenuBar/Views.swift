@@ -27,6 +27,7 @@ struct PopoverView: View {
             PopoverHeader(showingSettings: $showingSettings)
             Divider()
             if state.reachable {
+                EnginePreparationBanner()
                 InterruptionNotice()
                 CurrentPlaybackCard()
                 PlaybackTabBar(selected: $tab)
@@ -50,6 +51,43 @@ struct PopoverView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsSheet(isPresented: $showingSettings)
                 .environmentObject(state)
+        }
+    }
+}
+
+/// Why nothing is being spoken on a fresh install.
+///
+/// The engine's weights are around 330 MB and arrive on first use. Until then
+/// a clip sits in Synthesizing, which is exactly what a wedged daemon looks
+/// like — so the wait says what it is waiting for.
+struct EnginePreparationBanner: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        if let preparing = state.enginePreparing {
+            let notice = EnginePreparationNotice(preparing: preparing)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(notice.title)
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                }
+                Text(notice.detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            // Read as one element: a listener who cannot see the spinner still
+            // needs to hear that the silence has a reason and an end.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(notice.title). \(notice.detail)")
         }
     }
 }

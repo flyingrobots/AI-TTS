@@ -24,6 +24,7 @@ import contextlib
 import logging
 import re
 import threading
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -173,6 +174,8 @@ class KokoroAssets:
         self._repo_id = repo_id
         self._download = download
         self._resolved: dict[str, str] = {}
+        # Fetches currently in flight, so a first run can be told from a hang.
+        self._fetching: dict[str, float] = {}
         self._lock = threading.Lock()
 
     @property
@@ -197,6 +200,22 @@ class KokoroAssets:
         with self._lock:
             return self._resolved.setdefault(filename, resolved)
 
+    @property
+    def fetching(self) -> tuple[str, float] | None:
+        """The asset being fetched and when that started, or ``None``.
+
+        The oldest in-flight fetch, because with several workers running the
+        one that has been waiting longest is the one an operator is watching.
+        A first run downloads around 330 MB before anything can be spoken, and
+        without this the daemon reports exactly what it reports for a fast
+        clip: an utterance sitting in Synthesizing.
+        """
+        with self._lock:
+            if not self._fetching:
+                return None
+            filename = min(self._fetching, key=lambda name: self._fetching[name])
+            return (filename, self._fetching[filename])
+
     def voice_path(self, voice: str) -> str:
         """Return a local path for one voice pack.
 
@@ -217,16 +236,30 @@ class KokoroAssets:
         except Exception as exc:
             # A local problem. Fetching would reach the network unnecessarily
             # and then report a transport error as the cause of a filesystem
-            # one, hiding what actually went wrong.
-            msg = f"could not read cached model asset {filename!r}"
+            # one, hiding what actually went wrong. The two failures need
+            # different actions, so the message must not conflate them: this
+            # one is not fixed by connecting to a network.
+            msg = (
+                f"the model asset {filename!r} is present in the local cache but could not be "
+                f"read; check the permissions on the cache directory"
+            )
             raise ModelAssetError(msg) from exc
+        with self._lock:
+            self._fetching[filename] = time.time()
         try:
             return self._download(repo_id=self._repo_id, filename=filename, local_files_only=False)
         except Exception as exc:
             # The transport error can carry a URL and proxy details; name the
-            # asset instead and keep the cause off the message.
-            msg = f"could not resolve model asset {filename!r} locally or remotely"
+            # asset and the repository instead, and say the one thing the
+            # operator can act on.
+            msg = (
+                f"the model asset {filename!r} is not cached and could not be fetched from "
+                f"{self._repo_id}; a first run needs network access to that repository"
+            )
             raise ModelAssetError(msg) from exc
+        finally:
+            with self._lock:
+                self._fetching.pop(filename, None)
 
 
 class KokoroEngine:
@@ -241,6 +274,17 @@ class KokoroEngine:
         self._model: Any = None
         self._assets = assets if assets is not None else KokoroAssets()
         self._lock = threading.Lock()
+
+    def preparation(self) -> tuple[str, float] | None:
+        """Return the asset this engine is fetching and when that started.
+
+        ``None`` when nothing is outstanding. Read by the daemon snapshot so a
+        fresh install can tell a download from a wedge. Named rather than
+        measured: the model host reports no progress this adapter can trust,
+        and a fabricated percentage is worse than an honest "still fetching
+        this, since then".
+        """
+        return self._assets.fetching
 
     def _shared_model(self) -> Any:  # noqa: ANN401 - kokoro ships no type stubs
         """One model, built from local paths, shared by every language pipeline."""

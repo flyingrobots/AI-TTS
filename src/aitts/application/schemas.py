@@ -135,6 +135,18 @@ class SpeechInterruption(PublicSchema):
     resume_armed: bool
 
 
+class EnginePreparation(PublicSchema):
+    """What the engine is still fetching before it can speak at all.
+
+    Named rather than measured: the model host reports no progress this
+    adapter can trust, and a fabricated percentage would be worse than an
+    honest "still fetching this, since then".
+    """
+
+    asset: NonEmptyText
+    since: float
+
+
 class SpeechStatus(SpeechAdmission):
     """Machine-readable service, playback, and queue state."""
 
@@ -149,6 +161,11 @@ class SpeechStatus(SpeechAdmission):
     # means the platform could not be asked, which is materially different
     # from quiet: nothing is watching, so nothing will interrupt.
     input_active: bool | None = None
+    # Absent for a ready engine and for one that cannot report; both mean
+    # nothing is known to be outstanding. A first run fetches around 330 MB
+    # before anything can be spoken, and without this the snapshot reports
+    # exactly what it reports for a fast clip.
+    engine_preparing: EnginePreparation | None = None
     interruption: SpeechInterruption | None = None
 
 

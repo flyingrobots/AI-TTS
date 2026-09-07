@@ -94,3 +94,35 @@ enum TransportAction: String, CaseIterable {
         self == .previousChunk || self == .nextChunk
     }
 }
+
+/// What to show while the engine is still fetching what it needs to speak.
+///
+/// A first run pulls around 330 MB before a single word comes out. The daemon
+/// reports which asset and since when, and deliberately no percentage: the
+/// model host gives no progress this client can trust, and an invented one is
+/// worse than an honest "still fetching this".
+struct EnginePreparationNotice: Equatable {
+    let asset: String
+    let elapsed: TimeInterval
+
+    init(preparing: EnginePreparation, now: TimeInterval = Date().timeIntervalSince1970) {
+        asset = preparing.asset
+        // The timestamp is on the daemon's clock, not this process's, so it
+        // can legitimately sit ahead of `now`. Clamped, because a countdown
+        // running backwards reads as a bug in the thing you are waiting for.
+        elapsed = max(0, now - preparing.since)
+    }
+
+    var title: String { "Preparing the speech engine" }
+
+    var detail: String {
+        "Fetching \(asset), \(sinceDescription). Speech starts once it finishes."
+    }
+
+    private var sinceDescription: String {
+        // "0 sec" reads as a stalled counter on the very first frame.
+        if elapsed < 1 { return "just started" }
+        if elapsed < 60 { return "\(Int(elapsed)) sec so far" }
+        return "\(Int(elapsed) / 60) min so far"
+    }
+}

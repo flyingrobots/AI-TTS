@@ -193,6 +193,16 @@ extension SpeechInterruption {
     }
 }
 
+extension EnginePreparation {
+    init?(daemonJSON json: [String: Any]) {
+        // A banner that names no asset tells the listener less than no banner.
+        guard let asset = json["asset"] as? String, !asset.isEmpty else { return nil }
+        // NSNumber, not Double: a whole-numbered timestamp decodes as an
+        // integer and `as? Double` would quietly yield zero.
+        self.init(asset: asset, since: (json["since"] as? NSNumber)?.doubleValue ?? 0)
+    }
+}
+
 extension VoiceAssignment {
     init?(daemonJSON json: [String: Any]) {
         guard let source = json["source"] as? String,
@@ -250,7 +260,9 @@ extension DaemonStatus {
             engine: json["engine"] as? String ?? "",
             inputActive: json["input_active"] as? Bool,
             interruption: (json["interruption"] as? [String: Any])
-                .flatMap(SpeechInterruption.init(daemonJSON:))
+                .flatMap(SpeechInterruption.init(daemonJSON:)),
+            enginePreparing: (json["engine_preparing"] as? [String: Any])
+                .flatMap(EnginePreparation.init(daemonJSON:))
         )
     }
 }

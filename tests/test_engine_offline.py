@@ -102,12 +102,16 @@ def test_every_voice_resolves_to_a_file_path_not_a_bare_id(tmp_path: Path) -> No
 
 
 def test_a_missing_asset_that_cannot_be_fetched_is_reported_clearly() -> None:
-    def refuse(*, repo_id: str, filename: str, local_files_only: bool) -> str:
-        del repo_id, local_files_only
+    def absent_then_unreachable(*, repo_id: str, filename: str, local_files_only: bool) -> str:
+        del repo_id
+        # A bare OSError here would be a *local* failure and would never reach
+        # the fetch this test is named for; only an absent file goes out.
+        if local_files_only:
+            raise FileNotFoundError(2, "not cached")
         msg = f"no route to host for {filename}"
         raise OSError(msg)
 
-    assets = KokoroAssets(repo_id=REPO, download=refuse)
+    assets = KokoroAssets(repo_id=REPO, download=absent_then_unreachable)
 
     with pytest.raises(ModelAssetError) as raised:
         assets.path("config.json")

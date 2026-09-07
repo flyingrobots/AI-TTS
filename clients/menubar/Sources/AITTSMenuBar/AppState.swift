@@ -56,6 +56,9 @@ final class AppState: ObservableObject {
     /// The hold the listener's own voice caused, if that is why speech stopped.
     var interruption: SpeechInterruption? { status?.interruption }
 
+    /// Set while the engine is still fetching what it needs to speak at all.
+    var enginePreparing: EnginePreparation? { status?.enginePreparing }
+
     /// Whether the current clip has chunks to step between.
     var currentIsChunked: Bool { (status?.current?.segmentCount ?? 1) > 1 }
 

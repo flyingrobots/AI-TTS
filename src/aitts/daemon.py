@@ -27,7 +27,7 @@ from aitts.application.input_activity import (
 )
 from aitts.application.metrics import MetricsRecorder
 from aitts.application.voice_assignment import decide_speaking_voice
-from aitts.engine import eligible_engine_names
+from aitts.engine import eligible_engine_names, engine_preparation
 from aitts.ipc import (
     BAD_REQUEST,
     ILLEGAL_STATE,
@@ -905,6 +905,7 @@ class Daemon:
             "current": current_item,
             "counts": counts,
             "engine": self._engine.name,
+            "engine_preparing": engine_preparation(self._engine),
             "voice": self._store.get_setting("voice", self._default_voice()),
         }
 
