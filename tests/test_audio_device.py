@@ -231,3 +231,50 @@ def test_core_audio_identity_does_not_depend_on_portaudio_state() -> None:
     # The whole point: the truth is read from the OS, never from a cached
     # PortAudio enumeration that predates a newly connected display.
     assert device.default_output_identity() == device.default_output_identity()
+
+
+async def test_an_unreadable_device_identity_does_not_reopen_the_stream(
+    tone: Path,
+) -> None:
+    device = FakeAudioDevice(identity="studio-display")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    def blank_the_identity_once() -> None:
+        if streams.frames >= SoundDeviceSink._BLOCK_FRAMES:
+            streams.on_write = lambda: None
+            device.identity = None
+
+    streams.on_write = blank_the_identity_once
+
+    sink.start(tone)
+    assert await sink.wait() is True
+
+    # None means "could not ask", which the port's contract requires callers to
+    # read as unchanged. Reading it as a change tears down a working stream for
+    # nothing, and a reading that alternates between None and a real identity
+    # would reopen on every block and never finish the clip.
+    assert len(streams.opened) == 1
+    assert streams.frames == _FRAMES
+
+
+async def test_an_identity_that_flaps_to_none_and_back_still_finishes(
+    tone: Path,
+) -> None:
+    device = FakeAudioDevice(identity="studio-display")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    flips = {"n": 0}
+
+    def alternate_identity() -> None:
+        flips["n"] += 1
+        device.identity = None if flips["n"] % 2 else "studio-display"
+
+    streams.on_write = alternate_identity
+
+    sink.start(tone)
+    assert await sink.wait() is True
+
+    # The clip must still complete, and exactly once.
+    assert streams.frames == _FRAMES
+    assert len(streams.opened) == 1

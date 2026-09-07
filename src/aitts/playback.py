@@ -291,7 +291,7 @@ class SoundDeviceSink:
         opened_on = self._device.default_output_identity()
         with self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream:
             while not self._stop_flag.is_set() and source_frame < len(audio):
-                if self._device.default_output_identity() != opened_on:
+                if self._device_moved_from(opened_on):
                     log.info("event=audio_output_device_changed")
                     return source_frame
                 if self._pause_flag.is_set():
@@ -324,6 +324,20 @@ class SoundDeviceSink:
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
         return source_frame
+
+    def _device_moved_from(self, opened_on: str | None) -> bool:
+        """Whether the OS default output has moved away from ``opened_on``.
+
+        An unreadable identity means the platform could not be asked, which the
+        port's contract requires be read as unchanged. Reading it as a change
+        would tear down a working stream over a transient failure, and a
+        reading that alternated between unreadable and real would reopen on
+        every block and never finish the clip.
+        """
+        current = self._device.default_output_identity()
+        if current is None or opened_on is None:
+            return False
+        return current != opened_on
 
     def pause(self) -> None:
         """Hold playback, keeping position."""
