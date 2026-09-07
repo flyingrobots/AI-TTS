@@ -164,6 +164,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The per-client voice register moved out of the daemon into
+  `aitts.voice_registry`, and the listener-interrupt loop into
+  `aitts.input_interrupt`. Both are durable policy with their own rules rather
+  than steps in handling a request, and the reasons those rules are the way
+  they are now sit next to the code that enforces them. daemon.py is down from
+  1097 lines to 855; behaviour is unchanged and the whole suite is the
+  regression evidence.
 - The settings table moved out of the daemon into `aitts.settings`. It was the
   largest thing in there with nothing to do with queues, and its validation
   rules could not be exercised without standing up a daemon, a store, an

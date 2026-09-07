@@ -21,13 +21,10 @@ from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
-from aitts.application.input_activity import (
-    InputInterruptDetector,
-    platform_input_activity,
-)
+from aitts.application.input_activity import platform_input_activity
 from aitts.application.metrics import MetricsRecorder
-from aitts.application.voice_assignment import decide_speaking_voice
 from aitts.engine import eligible_engine_names, engine_preparation
+from aitts.input_interrupt import DEFAULT_POLL_SECONDS, InputInterruptWatcher
 from aitts.ipc import (
     BAD_REQUEST,
     ILLEGAL_STATE,
@@ -45,13 +42,13 @@ from aitts.model import (
     SynthesisWork,
     Utterance,
     UtteranceSegment,
-    VoiceAssignment,
 )
 from aitts.playback import PlaybackController
 from aitts.segmentation import prepare_speech_segments
 from aitts.settings import SPEED_MESSAGE, SettingsService, parse_speed
 from aitts.store import Store, TransitionError
 from aitts.synthesis import SynthesisPool
+from aitts.voice_registry import VoiceRegistry
 
 if TYPE_CHECKING:
     from aitts.application.input_activity import InputActivityPort
@@ -61,7 +58,6 @@ if TYPE_CHECKING:
 _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 # The listener's voice should take the floor within a syllable or two, and
 # each poll costs well under a millisecond.
-_INPUT_POLL_SECONDS = 0.15
 # The lifecycle points worth correlating: an utterance becoming playable,
 # taking the device, finishing, and failing. Enough to follow one clip through
 # a log without narrating every intermediate step.
@@ -70,15 +66,6 @@ _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
 
 log = logging.getLogger(__name__)
-
-
-def _serialize_assignment(assignment: VoiceAssignment) -> dict[str, Any]:
-    return {
-        "source": assignment.source,
-        "voice": assignment.voice,
-        "pinned": assignment.pinned,
-        "assigned_at": assignment.assigned_at,
-    }
 
 
 def _serialize(utt: Utterance, *, history: bool = False) -> dict[str, Any]:
@@ -116,7 +103,7 @@ class Daemon:
         workers: int = 2,
         socket_path: Path | None = None,
         input_activity: InputActivityPort | None = None,
-        input_poll_seconds: float = _INPUT_POLL_SECONDS,
+        input_poll_seconds: float = DEFAULT_POLL_SECONDS,
     ) -> None:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
         secure_private_state(home)
@@ -125,7 +112,6 @@ class Daemon:
             input_activity if input_activity is not None else platform_input_activity()
         )
         self._input_poll_seconds = input_poll_seconds
-        self._input_detector = InputInterruptDetector()
         self._metrics = MetricsRecorder()
         self._engines: dict[str, Engine] = {"local": engine}
         self._engine = engine
@@ -135,6 +121,19 @@ class Daemon:
         self._cache_dir = home / "cache"
         self._cache = CacheController(self._store, FileAudioCache(self._cache_dir))
         self._settings = SettingsService(self._store, self)
+        self._voices = VoiceRegistry(
+            self._store,
+            engine,
+            default_voice=self._settings.speaking_voice,
+            announce=self._announce,
+        )
+        self._listener = InputInterruptWatcher(
+            self._input_activity,
+            self._settings,
+            controller=self._require_controller,
+            announce=self._announce,
+            poll_seconds=self._input_poll_seconds,
+        )
         self._server = IPCServer(socket_path or home / "ai-tts.sock", self)
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
@@ -174,7 +173,7 @@ class Daemon:
             loop.create_task(self._pool.run(), name="aitts-synthesis"),
             loop.create_task(self._supervise_playback(), name="aitts-playback"),
             loop.create_task(asyncio.to_thread(self._engine.warmup), name="aitts-warmup"),
-            loop.create_task(self._watch_input_activity(), name="aitts-input"),
+            loop.create_task(self._listener.run(), name="aitts-input"),
         ]
         await self._server.start()
 
@@ -192,58 +191,6 @@ class Daemon:
                 log.error("event=playback_worker_exited retry_seconds=%.2f", delay)
             await asyncio.sleep(delay)
             delay = min(delay * 2, _PLAYBACK_RESTART_MAX_SECONDS)
-
-    async def _watch_input_activity(self) -> None:
-        """Give the listener the floor the moment they start speaking.
-
-        The reading is coarse and sticky, so only its cold-to-hot edge counts
-        as the floor changing hands (see
-        :mod:`aitts.application.input_activity`). A hold that came from an
-        interrupt can also release itself once the input goes quiet, when the
-        listener has asked for that.
-        """
-        while True:
-            try:
-                reading = self._input_activity.input_is_active()
-                if (
-                    self._input_detector.observe(reading)
-                    and self._settings.input_interrupt_enabled()
-                ):
-                    await self._interrupt_for_listener()
-                elif reading is False:
-                    # Deliberately not gated on the setting. An armed resume
-                    # can only exist because the listener asked for one while
-                    # the feature was on, and it is their request rather than
-                    # the feature acting; dropping it on a later toggle would
-                    # leave playback held with nothing to explain it.
-                    await self._resume_if_armed()
-            except asyncio.CancelledError:
-                raise
-            except Exception:  # noqa: BLE001 - a poll failure must not stop the daemon
-                log.warning("event=input_activity_poll_failed")
-            await asyncio.sleep(self._input_poll_seconds)
-
-    async def _interrupt_for_listener(self) -> None:
-        controller = self._require_controller()
-        if not await controller.interrupt():
-            return
-        if self._settings.input_interrupt_resume() == "when_idle":
-            controller.arm_resume_when_input_idle()
-        log.info("event=playback_interrupted_by_listener")
-        self._server.broadcast(
-            {
-                "event": "playback_interrupted",
-                "reason": "listener_speaking",
-                "resume_armed": controller.resume_when_input_idle_armed,
-            }
-        )
-
-    async def _resume_if_armed(self) -> None:
-        controller = self._require_controller()
-        if controller.resume_when_input_idle_armed:
-            await controller.resume()
-            log.info("event=playback_resumed_after_listener")
-            self._server.broadcast({"event": "playback_resumed", "reason": "input_idle"})
 
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""
@@ -389,7 +336,7 @@ class Daemon:
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
         source = payload.get("source")
-        voice = self._resolve_voice(
+        voice = self._voices.resolve(
             source=source if isinstance(source, str) else None,
             requested=payload.get("voice") or None,
         )
@@ -448,106 +395,17 @@ class Daemon:
             raise ApiError(BAD_REQUEST, SPEED_MESSAGE)
         return speed
 
-    def _resolve_voice(self, *, source: str | None, requested: str | None) -> str:
-        """Pick the voice this submission speaks in, and register a new claim.
-
-        The listener's assignment outranks the caller's request; otherwise a
-        client keeps whatever voice it already holds, and a client the daemon
-        has not heard from claims one nobody else has.
-        """
-        catalog = self._engine.list_voices()
-        # Validate the request before the register can record it. Claiming
-        # first and validating afterwards let a misspelled voice be written as
-        # a durable claim, and a held voice outranks later requests, so that
-        # source could never speak again.
-        if requested is not None and requested not in catalog:
-            msg = f"unknown voice {requested!r}"
-            raise ApiError(BAD_REQUEST, msg)
-        assignment = self._store.voice_assignment(source) if source is not None else None
-        assignment = self._reconcile_assignment(assignment, catalog)
-        decision = decide_speaking_voice(
-            source=source,
-            requested=requested,
-            default_voice=self._settings.speaking_voice(),
-            catalog=catalog,
-            pinned=assignment.voice if assignment is not None and assignment.pinned else None,
-            claimed=assignment.voice if assignment is not None else None,
-            taken=self._store.claimed_voices(),
-        )
-        if decision.claim and source is not None:
-            claimed = self._store.claim_voice(source, decision.voice)
-            log.info("event=voice_claimed")
-            self._server.broadcast(
-                {"event": "voice_assigned", "assignment": _serialize_assignment(claimed)}
-            )
-            return claimed.voice
-        return decision.voice
-
-    def _reconcile_assignment(
-        self, assignment: VoiceAssignment | None, catalog: list[str]
-    ) -> VoiceAssignment | None:
-        """Drop a held voice this engine no longer offers.
-
-        A catalog can shrink between runs — a voice withdrawn upstream, or a
-        different engine configured. An automatic claim is released so the
-        client claims something speakable; a pin is the listener's own choice,
-        so it is reported for repair rather than silently substituted.
-        """
-        if assignment is None or assignment.voice in catalog:
-            return assignment
-        if assignment.pinned:
-            msg = (
-                f"voice {assignment.voice!r} assigned to {assignment.source!r} is not "
-                f"offered by the {self._engine.name} engine; reassign it with assign_voice"
-            )
-            raise ApiError(ILLEGAL_STATE, msg)
-        self._store.release_voice(assignment.source)
-        log.info("event=voice_claim_released_unavailable")
-        self._server.broadcast({"event": "voice_released", "source": assignment.source})
-        return None
-
     async def _op_voice_assignments(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
-        return {
-            "ok": True,
-            "assignments": [
-                _serialize_assignment(item) for item in self._store.voice_assignments()
-            ],
-        }
+        return {"ok": True, "assignments": self._voices.assignments()}
 
     async def _op_assign_voice(self, payload: dict[str, Any]) -> dict[str, Any]:
-        source = payload.get("source")
-        if not isinstance(source, str) or not source.strip():
-            msg = "assign_voice requires a non-empty 'source'"
-            raise ApiError(BAD_REQUEST, msg)
-        voice = payload.get("voice")
-        release = payload.get("release", False)
-        if type(release) is not bool:
-            msg = "'release' must be a boolean"
-            raise ApiError(BAD_REQUEST, msg)
-        # Releasing is stated, never implied. Reading an omitted voice as
-        # "forget this one" meant a caller that left the field out destroyed
-        # an assignment while believing it was reading one.
-        if release and voice is not None:
-            msg = "assign_voice takes either 'voice' or 'release', not both"
-            raise ApiError(BAD_REQUEST, msg)
-        if release:
-            if not self._store.release_voice(source):
-                msg = f"no voice is assigned to {source!r}"
-                raise ApiError(NOT_FOUND, msg)
-            self._server.broadcast({"event": "voice_released", "source": source})
-            return {"ok": True, "assignment": None}
-        if voice is None:
-            msg = "assign_voice requires a 'voice', or 'release': true to forget one"
-            raise ApiError(BAD_REQUEST, msg)
-        if voice not in self._engine.list_voices():
-            msg = f"unknown voice {voice!r}"
-            raise ApiError(BAD_REQUEST, msg)
-        assignment = self._store.pin_voice(source, str(voice))
-        self._server.broadcast(
-            {"event": "voice_assigned", "assignment": _serialize_assignment(assignment)}
+        assignment = self._voices.assign(
+            source=payload.get("source"),
+            voice=payload.get("voice"),
+            release=payload.get("release", False),
         )
-        return {"ok": True, "assignment": _serialize_assignment(assignment)}
+        return {"ok": True, "assignment": assignment}
 
     async def _op_get(self, payload: dict[str, Any]) -> dict[str, Any]:
         utt = self._get_utterance(payload)
@@ -864,11 +722,7 @@ class Daemon:
             "state": "accepting",
             **self._speech_admission(),
             "playback_state": playback_state,
-            "input_active": (
-                self._input_detector.input_is_hot
-                if self._input_detector.reading_available
-                else None
-            ),
+            "input_active": self._listener.input_active,
             "interruption": self._interruption_view(),
             "current": current_item,
             "counts": counts,
@@ -926,9 +780,7 @@ class Daemon:
             "plan": [self._serialize_utterance(u) for u in plan],
             "history": history["items"],
             "voices": self._engine.list_voices(),
-            "voice_assignments": [
-                _serialize_assignment(item) for item in self._store.voice_assignments()
-            ],
+            "voice_assignments": self._voices.assignments(),
             "settings": settings["settings"],
         }
 
@@ -971,6 +823,10 @@ class Daemon:
     def set_playback_rate(self, rate: float) -> None:
         """Change the live playback rate."""
         self._require_controller().set_playback_rate(rate)
+
+    def _announce(self, event: dict[str, Any]) -> None:
+        """Publish one event to every subscriber."""
+        self._server.broadcast(event)
 
     def enforce_cache_limit(self) -> None:
         """Bring the cache back under its configured cap."""

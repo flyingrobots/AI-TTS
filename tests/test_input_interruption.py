@@ -632,7 +632,9 @@ async def test_status_says_unknown_rather_than_quiet_when_input_cannot_be_read(
     activity = FakeInputActivity(active=None)
     daemon, cleanup = await make_daemon(tmp_path, activity, sink)
     try:
-        await wait_for(lambda: daemon._input_detector.reading_available is False)
+        # Wait on the port's own poll count: the watcher has looked, so the
+        # snapshot is reporting an observed reading rather than its initial state.
+        await wait_for(lambda: activity.polls > 0)
 
         status = await daemon.dispatch({"op": "status"})
 
@@ -652,7 +654,7 @@ async def test_status_reports_a_readable_quiet_input_as_quiet(
     activity = FakeInputActivity(active=False)
     daemon, cleanup = await make_daemon(tmp_path, activity, sink)
     try:
-        await wait_for(lambda: daemon._input_detector.reading_available is True)
+        await wait_for(lambda: activity.polls > 0)
 
         status = await daemon.dispatch({"op": "status"})
 
