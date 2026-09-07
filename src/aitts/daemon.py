@@ -467,6 +467,9 @@ class Daemon:
             "accepted": True,
             "id": utt.id,
             "state": utt.state.value,
+            # The register can overrule the requested voice, so the receipt
+            # says which voice will actually speak.
+            "voice": utt.voice,
             "sensitivity": utt.sensitivity.value,
             "segment_count": len(spoken_segments),
             "composite": composite,

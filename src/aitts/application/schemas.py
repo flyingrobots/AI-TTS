@@ -69,6 +69,9 @@ class EnqueueSpeechReceipt(SpeechAdmission):
     accepted: Literal[True]
     id: UtteranceId
     state: State
+    # The daemon's voice register can overrule the requested voice; this is
+    # the voice that will actually speak.
+    voice: str = ""
     sensitivity: Sensitivity
     eligible_engines: tuple[str, ...]
     segment_count: SegmentCount = 1

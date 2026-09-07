@@ -342,3 +342,33 @@ async def test_seeding_happens_once_and_respects_a_later_reassignment(
     finally:
         await restarted.stop()
         shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+async def test_the_receipt_discloses_the_voice_the_register_chose(
+    voice_daemon: Daemon,
+) -> None:
+    await voice_daemon.dispatch(
+        {"op": "submit", "text": "first", "source": "holder", "voice": "bm_daniel"}
+    )
+
+    # A second client asks for a voice the first already holds. It gets a
+    # different one, so the receipt has to say which — otherwise the caller
+    # believes it spoke as bm_daniel and has no way to find out otherwise.
+    reply = await voice_daemon.dispatch(
+        {"op": "submit", "text": "second", "source": "latecomer", "voice": "bm_daniel"}
+    )
+
+    assert reply["voice"] != "bm_daniel"
+    spoken = voice_daemon.store.get(str(reply["id"]))
+    assert spoken is not None
+    assert reply["voice"] == spoken.voice
+
+
+async def test_the_receipt_discloses_an_overridden_voice(voice_daemon: Daemon) -> None:
+    await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent", "voice": "im_nicola"})
+
+    reply = await voice_daemon.dispatch(
+        {"op": "submit", "text": "hello", "source": "an-agent", "voice": "bm_daniel"}
+    )
+
+    assert reply["voice"] == "im_nicola"
