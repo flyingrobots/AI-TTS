@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the store showed three sharing `bm_daniel`. Settings lists the mapping and
   lets you reassign it; your assignment outranks the client's request.
   `voice_assignments` and `assign_voice` expose it on the wire.
+- **MCP parity for every new operation.** `next_speech_chunk`,
+  `previous_speech_chunk`, `resume_speech_when_input_idle`,
+  `list_speech_voice_assignments` and `assign_speech_voice` join the tool
+  surface, so the architecture's promise that nothing the tray can do is
+  unavailable to an agent holds again. The tool-count assertion now tracks the
+  declared inventory rather than a literal that had to be edited in step.
 - **Thirteen more voices**, for 41 total: Spanish, French, Hindi, Italian and
   Brazilian Portuguese alongside the English sets, each verified by
   synthesizing audio with the dependencies already installed. Settings groups
@@ -110,6 +116,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The engine no longer reaches the network to load a model it already has.
+  Left to its defaults the upstream package resolved its config, its weights,
+  and *each voice pack* through the model host on every load — 49 such
+  requests were observed in one session's log, each naming the exact voice.
+  For a daemon whose text is client-confidential that is metadata about
+  confidential speech leaving the machine, and it made the daemon useless
+  offline. Assets now resolve from the local cache first, are remembered for
+  the process, and only a genuinely absent file is fetched. Verified at zero
+  requests across three voices in two languages.
 - Playback now follows the system default output device. The audio library
   resolves its device list once, when it initializes, so a long-lived daemon
   kept speaking to the speakers that existed at startup — connect a display

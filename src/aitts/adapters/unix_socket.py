@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from pydantic import ValidationError
 
 from aitts.application.schemas import (
+    AssignVoice,
+    AssignVoiceReceipt,
     CancelSpeech,
     CancelSpeechReceipt,
     CaptionSettings,
@@ -24,9 +26,11 @@ from aitts.application.schemas import (
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
+    SegmentStepReceipt,
     SetCaptionsEnabled,
     SpeechServiceError,
     SpeechStatus,
+    VoiceAssignmentView,
     VoiceCatalog,
 )
 from aitts.client import Client, DaemonError, DaemonUnreachableError
@@ -106,6 +110,33 @@ class UnixSocketSpeechAdapter:
     def restart_current(self) -> PlaybackControlReceipt:
         """Restart the current clip from zero."""
         return self._exchange({"op": "rewind"}, PlaybackControlReceipt)
+
+    def next_segment(self) -> SegmentStepReceipt:
+        """Give up the current chunk and move to the next one."""
+        return self._exchange({"op": "next_segment"}, SegmentStepReceipt)
+
+    def previous_segment(self) -> SegmentStepReceipt:
+        """Replay the chunk before the current one."""
+        return self._exchange({"op": "previous_segment"}, SegmentStepReceipt)
+
+    def resume_when_input_idle(self) -> PlaybackControlReceipt:
+        """Arm a release of the hold for when audio input goes quiet."""
+        return self._exchange({"op": "resume_when_input_idle"}, PlaybackControlReceipt)
+
+    def list_voice_assignments(self) -> VoiceAssignmentView:
+        """Read the voice register."""
+        return self._exchange({"op": "voice_assignments"}, VoiceAssignmentView)
+
+    def assign_voice(self, request: AssignVoice) -> AssignVoiceReceipt:
+        """Assign or release one client's voice.
+
+        A null voice is omitted rather than sent: the protocol spells release
+        by leaving the field out.
+        """
+        payload: dict[str, Any] = {"op": "assign_voice", "source": request.source}
+        if request.voice is not None:
+            payload["voice"] = request.voice
+        return self._exchange(payload, AssignVoiceReceipt)
 
     def cancel_speech(self, request: CancelSpeech) -> CancelSpeechReceipt:
         """Encode a targeted cancellation."""

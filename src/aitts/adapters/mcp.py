@@ -15,6 +15,8 @@ from pydantic import Field, StringConstraints
 from aitts import __version__
 from aitts.adapters.unix_socket import UnixSocketSpeechAdapter
 from aitts.application.schemas import (
+    AssignVoice,
+    AssignVoiceReceipt,
     CancelSpeech,
     CancelSpeechReceipt,
     CaptionSettings,
@@ -23,15 +25,18 @@ from aitts.application.schemas import (
     EnqueueSpeechReceipt,
     HistoryQuery,
     HistoryView,
+    NonEmptyText,
     PlaybackControlReceipt,
     PurgeCachedAudioReceipt,
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
+    SegmentStepReceipt,
     SetCaptionsEnabled,
     SpeechServiceError,
     SpeechStatus,
     UtteranceId,
+    VoiceAssignmentView,
     VoiceCatalog,
 )
 from aitts.model import ContentFormat, Priority, Sensitivity
@@ -84,6 +89,7 @@ def create_server(speech: SpeechServicePort) -> MCPServer:
     _register_query_tools(server, speech)
     _register_caption_tools(server, speech)
     _register_playback_tools(server, speech)
+    _register_voice_tools(server, speech)
     _register_queue_tools(server, speech)
     _register_storage_tools(server, speech)
     return server
@@ -206,6 +212,70 @@ def _register_playback_tools(server: MCPServer, speech: SpeechServicePort) -> No
     def restart_current_speech() -> PlaybackControlReceipt:
         """Restart the current clip from the beginning without releasing a global hold."""
         return _invoke(speech.restart_current)
+
+    @server.tool(annotations=_WRITE)
+    def next_speech_chunk() -> SegmentStepReceipt:
+        """Give up the current chunk of a chunked document and play the next one.
+
+        Fails when the clip has no chunks, when it is already on its last
+        chunk, or while playback is held. Abandoning the whole clip is
+        skip_current_speech.
+        """
+        return _invoke(speech.next_segment)
+
+    @server.tool(annotations=_WRITE)
+    def previous_speech_chunk() -> SegmentStepReceipt:
+        """Replay the chunk before the current one, from its start.
+
+        Fails on the first chunk, when the clip has no chunks, and while
+        playback is held.
+        """
+        return _invoke(speech.previous_segment)
+
+    @server.tool(annotations=_IDEMPOTENT_WRITE)
+    def resume_speech_when_input_idle() -> PlaybackControlReceipt:
+        """Release a playback hold once nothing is capturing audio input.
+
+        The hold stays in force until then. Use this rather than resuming
+        outright when the listener may still be speaking.
+        """
+        return _invoke(speech.resume_when_input_idle)
+
+
+def _register_voice_tools(server: MCPServer, speech: SpeechServicePort) -> None:
+
+    @server.tool(annotations=_READ_ONLY)
+    def list_speech_voice_assignments() -> VoiceAssignmentView:
+        """Report which voice each speaking client holds.
+
+        A pinned assignment was set by the listener and outranks whatever a
+        client asks for at submission.
+        """
+        return _invoke(speech.list_voice_assignments)
+
+    @server.tool(annotations=_IDEMPOTENT_WRITE)
+    def assign_speech_voice(
+        source: Annotated[
+            NonEmptyText,
+            Field(description="The client identity to assign, as passed in 'source'."),
+        ],
+        voice: Annotated[
+            NonEmptyText | None,
+            Field(
+                default=None,
+                description="Voice id to assign; omit to release the assignment "
+                "so the client claims a voice again.",
+            ),
+        ] = None,
+    ) -> AssignVoiceReceipt:
+        """Assign a voice to one speaking client, or release that assignment.
+
+        An assignment made here outranks the voice a client requests. This
+        speaks for another client's audible identity, so prefer leaving it to
+        the listener unless they asked.
+        """
+        request = AssignVoice(source=source, voice=voice)
+        return _invoke(lambda: speech.assign_voice(request))
 
 
 def _register_queue_tools(server: MCPServer, speech: SpeechServicePort) -> None:

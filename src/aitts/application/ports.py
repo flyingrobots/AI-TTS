@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from aitts.application.schemas import (
+        AssignVoice,
+        AssignVoiceReceipt,
         CancelSpeech,
         CancelSpeechReceipt,
         CaptionSettings,
@@ -22,8 +24,10 @@ if TYPE_CHECKING:
         QueueView,
         RequeueSpeech,
         RequeueSpeechReceipt,
+        SegmentStepReceipt,
         SetCaptionsEnabled,
         SpeechStatus,
+        VoiceAssignmentView,
         VoiceCatalog,
     )
 
@@ -73,6 +77,26 @@ class SpeechServicePort(Protocol):
 
     def restart_current(self) -> PlaybackControlReceipt:
         """Restart the current clip from its beginning."""
+        ...
+
+    def next_segment(self) -> SegmentStepReceipt:
+        """Give up the current chunk of a document and play the next one."""
+        ...
+
+    def previous_segment(self) -> SegmentStepReceipt:
+        """Replay the chunk before the current one, from its start."""
+        ...
+
+    def resume_when_input_idle(self) -> PlaybackControlReceipt:
+        """Release the hold once nothing is capturing audio input."""
+        ...
+
+    def list_voice_assignments(self) -> VoiceAssignmentView:
+        """Report which voice each speaking client holds."""
+        ...
+
+    def assign_voice(self, request: AssignVoice) -> AssignVoiceReceipt:
+        """Assign a voice to one client, or release the assignment."""
         ...
 
     def cancel_speech(self, request: CancelSpeech) -> CancelSpeechReceipt:

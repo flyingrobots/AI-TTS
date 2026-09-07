@@ -171,6 +171,45 @@ class VoiceCatalog(PublicSchema):
     voices: tuple[str, ...]
 
 
+class SegmentStepReceipt(PublicSchema):
+    """Playback state after stepping one chunk within a document."""
+
+    state: State | None
+    current: UtteranceId | None
+    held: bool
+    segment_index: NonNegativeInt | None = None
+    segment_number: NonNegativeInt | None = None
+
+
+class VoiceAssignmentRecord(PublicSchema):
+    """Which voice one speaking client holds, and who decided it."""
+
+    source: NonEmptyText
+    voice: NonEmptyText
+    pinned: bool
+    assigned_at: float
+
+
+class VoiceAssignmentView(PublicSchema):
+    """Every voice currently spoken for."""
+
+    assignments: tuple[VoiceAssignmentRecord, ...]
+
+
+class AssignVoice(PublicSchema):
+    """Assign a voice to one client, or release the assignment."""
+
+    source: NonEmptyText
+    # Omitted means "forget this assignment"; the client then claims again.
+    voice: NonEmptyText | None = None
+
+
+class AssignVoiceReceipt(PublicSchema):
+    """The assignment now in force, or nothing when it was released."""
+
+    assignment: VoiceAssignmentRecord | None
+
+
 class CaptionSettings(PublicSchema):
     """The shared on-screen caption preference."""
 
