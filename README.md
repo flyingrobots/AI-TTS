@@ -263,7 +263,29 @@ Then ask the agent, for example, “Use AI-TTS to say that the build passed.” 
 correct CLI invocation returns an admission receipt immediately and lets the
 daemon finish synthesis and playback independently of the agent process.
 
-#### 3. Optionally give Codex typed MCP tools
+#### 3. Optionally install the bundled Claude Code skill
+
+For Claude Code specifically, [`skills/speak/SKILL.md`](skills/speak/SKILL.md)
+is a ready-made skill covering the same policy: which command to use, how to
+read `status` before speaking, what `--source` and the voice register mean,
+and how to write text that is bearable to listen to. Install it per-user:
+
+```sh
+mkdir -p ~/.claude/skills/speak
+cp skills/speak/SKILL.md ~/.claude/skills/speak/SKILL.md
+```
+
+Then replace `<AI_TTS_BIN>` inside the copy with the absolute path from
+`uv tool dir --bin`, and set `--source` to the name that agent should be known
+by. Claude Code discovers skills at session start, so start a new session
+afterwards.
+
+The skill is a starting point rather than a policy: edit your copy freely.
+Anything specific to you — how you like to be addressed, which meetings are
+sensitive, when silence is preferred — belongs in your copy, not in the
+repository's.
+
+#### 4. Optionally give Codex typed MCP tools
 
 The CLI policy is sufficient for speech. MCP is the richer option when the
 agent should also inspect status, list Queue or History, discover voices, or

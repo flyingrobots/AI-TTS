@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the store showed three sharing `bm_daniel`. Settings lists the mapping and
   lets you reassign it; your assignment outranks the client's request.
   `voice_assignments` and `assign_voice` expose it on the wire.
+- **A bundled Claude Code skill** at `skills/speak/SKILL.md`, installed by
+  copying it into `~/.claude/skills/speak/`. It states the same speech policy
+  the README describes for any shell-capable agent: check `status` before
+  speaking, treat a hold as a reason to write instead, pass a stable
+  `--source`, let the daemon decide the voice, and write for the ear rather
+  than the terminal.
 - **MCP parity for every new operation.** `next_speech_chunk`,
   `previous_speech_chunk`, `resume_speech_when_input_idle`,
   `list_speech_voice_assignments` and `assign_speech_voice` join the tool
