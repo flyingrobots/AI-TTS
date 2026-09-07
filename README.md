@@ -208,7 +208,11 @@ should use the current daemon default.
 - Use only `/Users/alex/.local/bin/ai-tts` for speech. Do not fall back to the
   macOS `say` command, `afplay`, a one-off TTS process, or another audio player.
 - When the user asks you to speak, enqueue one concise, literal summary with:
-  `/Users/alex/.local/bin/ai-tts say "<summary>" --source codex --voice bm_george`
+  `/Users/alex/.local/bin/ai-tts say "<summary>" --source codex`
+- Always pass the same `--source`. It is the identity the daemon keys each
+  client's voice on. `--voice` is only a first-time preference: once a source
+  holds a voice, that voice wins over any later request, and a voice another
+  source already holds is declined in favour of a free one.
 - Pass generated prose as one shell argument. Speech is literal plain text by
   default; add `--format markdown` only when Markdown projection is intended.
 - Treat exit code 0 and `"accepted": true` as queue admission, not proof that
@@ -365,8 +369,23 @@ ai-tts rewind
 ai-tts list playback
 ai-tts history
 ai-tts purge-cache
+
+# within one chunked document, rather than abandoning the whole entry
+ai-tts next-chunk
+ai-tts prev-chunk
+
+# release the hold once nothing is using the microphone
+ai-tts resume-when-idle
+
+# which voice each speaking client holds, and overriding it
+ai-tts voice-map
+ai-tts assign-voice claude-code af_heart
+ai-tts assign-voice claude-code --release
+
 ai-tts settings --set voice=bm_daniel
 ai-tts settings --set captions_enabled=true
+ai-tts settings --set input_interrupt_enabled=true
+ai-tts settings --set input_interrupt_resume=manual
 
 # agent-native MCP server: 100% JSONL, one JSON object per stdio line
 ai-tts-mcp
@@ -443,11 +462,15 @@ The v0.1.0 implementation is a release candidate, not a published release. The
 Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
 native Swift menu-bar app, native selected-text/selected-file Services,
 explicit Accessibility/clipboard fallbacks, and six installed-and-indexed App
-Intents are implemented. The suite encodes the state machine and serialized
-playback plan,
-global hold, fail-closed sensitivity, restart recovery, bounded cache and
-shutdown, single-instance menu process, public schemas, and
-checkout-independent release artifacts. Representative Services-menu host
+Intents are implemented. Playback also follows the system default output
+device, yields the floor when the microphone goes live, steps between the
+chunks of one document, reads any clip in full in its own window, and keeps a
+per-client voice register over a 41-voice, six-language catalog.
+
+The suite encodes the state machine and serialized playback plan, global hold,
+fail-closed sensitivity, restart recovery, bounded cache and shutdown,
+single-instance menu process, public schemas, and checkout-independent release
+artifacts. Representative Services-menu host
 acceptance and the remaining release-readiness work and accepted blind spots
 are tracked in
 [`docs/standards/testing-profile.md`](docs/standards/testing-profile.md).
