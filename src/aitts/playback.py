@@ -475,9 +475,18 @@ class PlaybackController:
                     if segment is None and nxt.audio_path is not None:
                         self._begin(nxt.id, Path(nxt.audio_path), position_ms=0)
                         continue
-            elif self._current_id is not None and not self._sink_active and not self.held:
+            elif self._current_id is not None and not self._sink_active:
                 current = self._current()
-                if current is not None and current.state is State.PLAYING:
+                # Release a document that ended while the controller still held
+                # it. A parent can reach a terminal state without the watcher
+                # running — a later chunk failing to synthesize does it — and
+                # holding onto it stalls everything queued behind it forever.
+                if current is None or current.is_terminal:
+                    log.info("event=terminal_current_released")
+                    self._current_id = None
+                    self._current_segment_index = None
+                    continue
+                if not self.held and current.state is State.PLAYING:
                     segment = self._store.next_unfinished_segment(current.id)
                     if segment is not None and segment.state is State.READY:
                         self._begin_segment(current, segment, position_ms=0)

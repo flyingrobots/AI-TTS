@@ -293,3 +293,62 @@ async def test_restarting_a_document_with_no_cached_audio_settles_it(
         assert ctl.current_id is None
     finally:
         task.cancel()
+
+
+# -- a terminal document must never keep the device ------------------------
+
+
+async def test_a_synthesis_failure_between_chunks_does_not_block_the_queue(
+    store: Store, sink: FakeSink
+) -> None:
+    segments = ("one", "two")
+    parent = store.submit(" ".join(segments), voice="v", speed=1.0, spoken_segments=segments)
+    first = store.claim_for_synthesis()
+    assert first is not None
+    store.finish_synthesis(first, audio_path="/x/0.wav", duration_ms=1000)
+
+    ctl = PlaybackController(store, sink, DeterministicPlaybackSchedule())
+    task = asyncio.get_running_loop().create_task(ctl.run())
+    try:
+        await wait_for(lambda: ctl.current_segment is not None)
+        sink.advance_to(1000)
+        sink.finish_current()
+        await wait_for(lambda: not sink_is_active(ctl))
+
+        # The second chunk fails to synthesize, which fails the document while
+        # the controller still owns it and no sink is active.
+        second = store.claim_for_synthesis()
+        assert second is not None
+        store.fail_synthesis(second, "engine unavailable")
+        await wait_for(lambda: is_settled(store, parent.id))
+
+        following = make_ready(store, "the next document")
+        ctl.notify()
+
+        # The plan's idle-current branch only handled a Playing parent, so a
+        # terminal one was never released and nothing behind it could start.
+        await wait_for(lambda: ctl.current_id == following.id)
+        following_now = store.get(following.id)
+        assert following_now is not None
+        assert following_now.state is State.PLAYING
+    finally:
+        task.cancel()
+
+
+async def test_a_cancelled_document_does_not_block_the_queue(store: Store, sink: FakeSink) -> None:
+    parent = make_composite_ready(store, " ".join(SEGMENTS), SEGMENTS)
+    ctl = PlaybackController(store, sink, DeterministicPlaybackSchedule())
+    task = asyncio.get_running_loop().create_task(ctl.run())
+    try:
+        await wait_for(lambda: ctl.current_segment is not None)
+        await ctl._release_sink()
+        # Any terminal state reached while the controller holds the document
+        # has to release it, not just Failed.
+        store.transition(parent.id, State.SKIPPED, played_ms=0)
+
+        following = make_ready(store, "the next document")
+        ctl.notify()
+
+        await wait_for(lambda: ctl.current_id == following.id)
+    finally:
+        task.cancel()
