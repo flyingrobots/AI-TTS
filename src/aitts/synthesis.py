@@ -16,6 +16,8 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING
 
+from aitts.adapters.diagnostic_logging import utterance_trace
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -148,4 +150,4 @@ class SynthesisPool:
     def _record_failure(self, work: SynthesisWork, error: str) -> None:
         if self._store.synthesis_work_is_active(work):
             self._store.fail_synthesis(work, error)
-        log.warning("event=synthesis_failed")
+        log.warning("event=synthesis_failed trace=%s", utterance_trace(work.utterance_id))

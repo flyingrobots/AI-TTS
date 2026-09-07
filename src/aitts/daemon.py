@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
+from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
@@ -64,6 +65,10 @@ _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 # The listener's voice should take the floor within a syllable or two, and
 # each poll costs well under a millisecond.
 _INPUT_POLL_SECONDS = 0.15
+# The lifecycle points worth correlating: an utterance becoming playable,
+# taking the device, finishing, and failing. Enough to follow one clip through
+# a log without narrating every intermediate step.
+_TRACED_STATES = (State.READY, State.PLAYING, State.PLAYED, State.FAILED)
 _INPUT_INTERRUPT_RESUME_POLICIES = ("manual", "when_idle")
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
@@ -261,6 +266,8 @@ class Daemon:
 
     def _on_transition(self, utt: Utterance, from_state: State) -> None:
         self._metrics.observe(utt)
+        if utt.state in _TRACED_STATES:
+            log.info("event=utterance_state trace=%s", utterance_trace(utt.id))
         self._server.broadcast(
             {
                 "event": "state_changed",

@@ -123,3 +123,25 @@ def configure_daemon_logging(path: Path) -> None:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
+
+
+# How much of an utterance identifier is enough to follow one clip through a
+# log without becoming a second identifier to reason about.
+_TRACE_LENGTH = 8
+_UNKNOWN_TRACE = "unknown"
+
+
+def utterance_trace(utterance_id: str) -> str:
+    """Return a short correlation token for ``utterance_id``.
+
+    Derived rather than stored, so following a clip through the log needs no
+    schema change and every component computes the same token from the same
+    id. The identifier is a random uuid, which is why this is allowed into a
+    log that deliberately carries no speech, no source label and no path.
+
+    A malformed identifier yields a marker instead of raising: a diagnostic
+    call on the hot path must not be able to fail.
+    """
+    body = utterance_id.removeprefix("utt_")
+    token = body[:_TRACE_LENGTH]
+    return token or _UNKNOWN_TRACE

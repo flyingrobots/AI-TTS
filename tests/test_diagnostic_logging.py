@@ -128,6 +128,13 @@ def test_package_diagnostics_use_static_events_and_safe_dynamic_fields() -> None
         "engine.name",
         "report.after_bytes",
         "report.max_bytes",
+        # A short token derived from the utterance's random identifier. It is
+        # what makes one clip followable across submit, synthesis and
+        # playback, and it can carry no speech, source label or path.
+        "utterance_trace(utt.id)",
+        "utterance_trace(work.utterance_id)",
+        "utterance_trace(utt_id)",
+        "utterance_trace(self._current_id)",
     }
     violations: list[str] = []
     observed = 0

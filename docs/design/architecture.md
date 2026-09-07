@@ -595,6 +595,17 @@ The log is for local lifecycle and failure classification, not a second history
 store. Foreground development without `--log-file` may still log to the
 operator's terminal and is not a retained launch-agent surface.
 
+One clip is followable through that log by a short correlation token. An
+utterance passes through submit, segmentation, a synthesis worker, the playback
+controller and the sink, and with no shared key a stuck clip had to be
+diagnosed by reading state out of SQLite instead. The token is the first eight
+characters of the utterance's identifier, **derived rather than stored**, so
+every component computes the same value with no schema change and nothing has
+to be threaded through the call graph to carry it. It is allowed into a log
+that deliberately carries no speech precisely because the identifier is a
+random uuid: it names a row and reveals nothing about its content. Full
+distributed tracing would be the wrong instrument for one local process.
+
 ## 10. Decisions taken at implementation
 
 The original review questions are preserved below. Items 1–4 and 6 were

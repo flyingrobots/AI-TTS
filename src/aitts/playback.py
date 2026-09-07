@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
+from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.application.audio_device import platform_audio_device
 from aitts.application.playback_schedule import PlaybackCheckpoint
 from aitts.model import State
@@ -523,7 +524,10 @@ class PlaybackController:
                 # running — a later chunk failing to synthesize does it — and
                 # holding onto it stalls everything queued behind it forever.
                 if current is None or current.is_terminal:
-                    log.info("event=terminal_current_released")
+                    log.info(
+                        "event=terminal_current_released trace=%s",
+                        utterance_trace(self._current_id),
+                    )
                     self._current_id = None
                     self._current_segment_index = None
                     continue
@@ -869,7 +873,7 @@ class PlaybackController:
                 error="playback stopped: no cached audio remains for this document",
                 played_ms=played,
             )
-        log.warning("event=document_playback_unrecoverable")
+        log.warning("event=document_playback_unrecoverable trace=%s", utterance_trace(utt_id))
         self._current_id = None
         self._current_segment_index = None
         self.notify()

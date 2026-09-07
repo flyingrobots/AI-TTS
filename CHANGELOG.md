@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap, and playback device failures counted apart from ordinary terminal
   states. A null summary means nothing has been measured, which a caller can
   tell from zero.
+- **One clip is followable through the log.** Lifecycle events now carry a
+  short `trace=` token derived from the utterance identifier, so a stuck clip
+  can be diagnosed by reading the log instead of reading state out of SQLite.
+  It is emitted when a clip becomes playable, takes the device, finishes or
+  fails, when synthesis fails, and on the two lines that explain why nothing
+  is playing — a terminal document being released and a document that cannot
+  resume. Derived rather than stored: no schema change, and the token can
+  carry no speech, source label or path.
 - **A Makefile as the entry point for a clone.** `make` builds the menu-bar
   app, `make install` installs the executables, the app and the launchd agent,
   and `make install-agents` wires it into every local coding agent found. It
