@@ -66,7 +66,7 @@ formatting, strict MyPy, and diff hygiene also passed.
 
 Commit `650a0fd` produced a signed candidate whose menu executable SHA-256 was
 `2de42c76e4736e935e03efbcd39cb8ed805b82ff32f5566fbb69cafa74875005`.
-The candidate replaced only `/Users/james/Applications/AI-TTS.app`; the
+The candidate replaced only `~/Applications/AI-TTS.app`; the
 installed executable was byte-identical and passed strict deep signature
 verification. The prior bundle remains recoverable at
 `/private/tmp/ai-tts-install-650a0fd.Dpzz7O/AI-TTS.previous.app`.
@@ -117,7 +117,7 @@ the phrase remains centered and limited to two lines.
 
 Commit `604e462` produced a signed candidate whose menu executable SHA-256 was
 `102987c6c9be3d89b434d25c4ee56865bf5353fc8db7baf158b663e149b6e44b`.
-The candidate replaced only `/Users/james/Applications/AI-TTS.app`; the
+The candidate replaced only `~/Applications/AI-TTS.app`; the
 installed executable was byte-identical and passed strict deep signature
 verification. The prior installed app remains recoverable at
 `/private/tmp/ai-tts-install-604e462.julFKJ/AI-TTS.previous.app`.

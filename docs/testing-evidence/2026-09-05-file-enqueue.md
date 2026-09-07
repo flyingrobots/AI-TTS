@@ -96,7 +96,7 @@ uv build --offline
 ```
 
 The release bundle was rebuilt at
-`/Users/james/Applications/AI-TTS.app`, passed `codesign --verify --deep
+`~/Applications/AI-TTS.app`, passed `codesign --verify --deep
 --strict`, and launched as the expected `com.flyingrobots.ai-tts.menubar`
 accessory app. Its final executable was byte-identical to the separately built
 and verified release candidate at SHA-256

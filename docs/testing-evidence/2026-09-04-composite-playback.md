@@ -479,7 +479,7 @@ boundary. The complete CLI suite is green.
 
 ## Installed caption-panel acceptance
 
-The signed app installed at `/Users/james/Applications/AI-TTS.app` was run
+The signed app installed at `~/Applications/AI-TTS.app` was run
 against a private Unix-socket fixture that reported one active segment. The
 fixture performed no synthesis and emitted no audio. Captions were enabled from
 their originally absent preference only for the run.

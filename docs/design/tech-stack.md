@@ -38,7 +38,7 @@ The seam between them is already load-bearing in the architecture: **nothing the
 | Packaging | source wheel/sdist, `uv tool`, ad-hoc-signed `.app`, generated launchd plist | Checkout-independent on the owner's machine, but deliberately not a notarized third-party package; the Python environment is never bundled |
 | Lint / types / tests | `ruff` (all rules on), `mypy --strict`, `pytest` | House rule: maximal strictness, warnings promoted to errors |
 
-The one genuinely uncomfortable dependency is transitive, and it is worse than the Piper situation flagged in [engine-evaluation §2](engine-evaluation.md#2-local-models): `misaki`'s G2P fallback arrives via `espeakng-loader`, which **bundles `libespeak-ng.dylib` (GPL-3.0) and loads it into the Python process**. That is dynamic linking, not mere aggregation. Verified against the working install at `~/git/kokoro` (2026-09-01): the venv there holds `kokoro 0.9.4` and `misaki 0.9.4`, both Apache-2.0 by their own metadata, alongside `espeakng-loader 0.2.4` shipping the dylib inside the wheel. `torch` is 2.10.0, so that machine is already running the exact reference path this document proposes.
+The one genuinely uncomfortable dependency is transitive, and it is worse than the Piper situation flagged in [engine-evaluation §2](engine-evaluation.md#2-local-models): `misaki`'s G2P fallback arrives via `espeakng-loader`, which **bundles `libespeak-ng.dylib` (GPL-3.0) and loads it into the Python process**. That is dynamic linking, not mere aggregation. Verified against a working reference install (2026-09-01): `kokoro 0.9.4` and `misaki 0.9.4`, both Apache-2.0 by their own metadata, alongside `espeakng-loader 0.2.4` shipping the dylib inside the wheel, on `torch` 2.10.0 — the exact reference path this document proposes.
 
 The dependency gate is now executable rather than an occasional manual scan.
 CI exports the hashed `uv.lock` graph with the Kokoro extra, audits every
@@ -132,6 +132,6 @@ Merely compiling an `AppIntent` type is not distribution proof.
 
 ## What I could not establish
 
-- **Actual synthesis throughput of `kokoro` on PyTorch/MPS on the target machine.** Every performance figure inherited from the engine evaluation is `unverified`. Fix: a ten-line spike script against the environment that already exists at `~/git/kokoro`, timed, before the queue design is validated against real numbers.
+- **Actual synthesis throughput of `kokoro` on PyTorch/MPS on the target machine.** Every performance figure inherited from the engine evaluation is `unverified`. Fix: a ten-line spike script against a reference environment, timed, before the queue design is validated against real numbers.
 - **Whether `sounddevice` supports pause-and-resume at a sample offset cleanly on CoreAudio**, which within-utterance rewind ([architecture §10.1](architecture.md#10-decisions-taken-at-implementation)) would need. If it does not, the fallback is chunk-granular seeking, which is another argument for utterance-level rewind in v1.
-- **Whether `misaki` operates fully without espeak-ng present.** The working install at `~/git/kokoro` has `espeakng-loader` present, so it demonstrates the path *with* the fallback, not without it. This is the licence question above wearing its practical clothes.
+- **Whether `misaki` operates fully without espeak-ng present.** The reference install has `espeakng-loader` present, so it demonstrates the path *with* the fallback, not without it. This is the licence question above wearing its practical clothes.

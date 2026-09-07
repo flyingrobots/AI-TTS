@@ -10,7 +10,8 @@ report.
 ## Reproducing
 
 ```sh
-python3 ~/git/code-quality/scripts/quality_auditor.py \
+git clone https://github.com/flyingrobots/code-quality
+python3 code-quality/scripts/quality_auditor.py \
   docs/quality-audit/2026-09-06-audit-input.json \
   --profile fintech \
   --output /tmp/ai-tts-audit.md

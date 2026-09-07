@@ -150,7 +150,7 @@ session-persistent submitted job, not a newly installed login plist.
 The updated daemon is accepting and idle with its prior terminal history
 intact. A live raw request with `content_format: null` returned the exact
 `bad_request` and left both pending queues empty. The separately built signed
-candidate and `/Users/james/Applications/AI-TTS.app` executable are
+candidate and `~/Applications/AI-TTS.app` executable are
 byte-identical at SHA-256
 `6f652f7c091175d037bc5f0a57fa5c3c6359a2c25ea8d74807ffae6611726e40`.
 `codesign --verify --deep --strict` passed, and the updated menu app launched

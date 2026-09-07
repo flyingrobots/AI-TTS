@@ -117,7 +117,7 @@ uv build --offline
 # source distribution and wheel built successfully
 ```
 
-The release bundle replaced only `/Users/james/Applications/AI-TTS.app`, passed
+The release bundle replaced only `~/Applications/AI-TTS.app`, passed
 `codesign --verify --deep --strict`, and launched beside the unchanged daemon.
 Its installed executable was byte-identical to the separately built and signed
 candidate at SHA-256

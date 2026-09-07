@@ -202,13 +202,16 @@ repository instruction file. Replace the example executable and voice with
 absolute values reported by the commands above. Omit `--voice` if every agent
 should use the current daemon default.
 
+Replace `<AI_TTS_BIN>` below with the absolute path printed by
+`uv tool dir --bin`; a non-login agent shell may not inherit your `PATH`.
+
 ```md
 ## Spoken updates
 
-- Use only `/Users/alex/.local/bin/ai-tts` for speech. Do not fall back to the
+- Use only `<AI_TTS_BIN>` for speech. Do not fall back to the
   macOS `say` command, `afplay`, a one-off TTS process, or another audio player.
 - When the user asks you to speak, enqueue one concise, literal summary with:
-  `/Users/alex/.local/bin/ai-tts say "<summary>" --source codex`
+  `<AI_TTS_BIN> say "<summary>" --source codex`
 - Always pass the same `--source`. It is the identity the daemon keys each
   client's voice on. `--voice` is only a first-time preference: once a source
   holds a voice, that voice wins over any later request, and a voice another

@@ -130,7 +130,7 @@ machine-specific acceptance evidence for the exact committed implementation at
 The release builder created an ad-hoc-signed candidate outside the checkout.
 `codesign --verify --deep --strict` passed, and AppKit's own Services database
 parser accepted both entries. The candidate then replaced only
-`/Users/james/Applications/AI-TTS.app`; the previous bundle was retained in the
+`~/Applications/AI-TTS.app`; the previous bundle was retained in the
 owned temporary acceptance directory as a rollback copy. The installed
 executable was byte-identical to the candidate at SHA-256
 `05339e100864ab8c02278ad42c2787257971499528c466136b8a2d4138886d56`.
@@ -138,7 +138,7 @@ executable was byte-identical to the candidate at SHA-256
 After Launch Services refresh and app restart, `pbs -dump` reported both
 installed entries against bundle identifier
 `com.flyingrobots.ai-tts.menubar` and path
-`/Users/james/Applications/AI-TTS.app`:
+`~/Applications/AI-TTS.app`:
 
 - **Read Selection with AI-TTS**, message `readSelection`, sending
   `public.utf8-plain-text`;
@@ -428,7 +428,7 @@ Commit `1b1ff6a` produced a clean signed candidate whose executable SHA-256 was
 The running prior app was terminated by its exact executable path, and its
 signed bundle was retained at
 `/private/tmp/ai-tts-install-rollback.EoXBxW/AI-TTS.previous.app`. The candidate
-then replaced only `/Users/james/Applications/AI-TTS.app` and LaunchServices
+then replaced only `~/Applications/AI-TTS.app` and LaunchServices
 registered that exact path.
 
 The installed executable retained the candidate SHA-256 and passed
@@ -438,7 +438,7 @@ the exact six action titles, six shortcut identifiers, and six playback rates.
 
 The live `linkd` metadata store was queried read-only after registration. Its
 `bundles` table resolved `com.flyingrobots.ai-tts.menubar` to
-`/Users/james/Applications/AI-TTS.app/`; its `actions` table contained exactly
+`~/Applications/AI-TTS.app/`; its `actions` table contained exactly
 the six identifiers; and `appShortcuts` contained six rows for the bundle.
 This is installed system-indexing evidence, not a claim that a human-visible
 Shortcuts journey has run.
