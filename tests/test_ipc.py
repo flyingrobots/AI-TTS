@@ -743,6 +743,9 @@ async def test_history_after_playback(daemon: Daemon) -> None:
 
     await wait_for_async(played)
 
+    # State the outcome rather than leaving it implicit in the waiter.
+    assert await played()
+
 
 async def test_urgent_priority_jumps_the_plan(daemon: Daemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})

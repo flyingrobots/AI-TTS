@@ -350,6 +350,7 @@ async def test_a_cancelled_document_does_not_block_the_queue(store: Store, sink:
         ctl.notify()
 
         await wait_for(lambda: ctl.current_id == following.id)
+        assert ctl.current_id == following.id
     finally:
         task.cancel()
 

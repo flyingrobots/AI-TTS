@@ -502,6 +502,8 @@ async def test_terminal_head_is_passed_over(store: Store, sink: FakeSink) -> Non
     controller, schedule = playback_controller(store, sink)
     task = await start(controller, schedule)
     await wait_for(lambda: state_of(store, b.id) is State.PLAYING)
+    assert state_of(store, b.id) is State.PLAYING
+    assert sink.started, "the second clip should have reached the device"
     task.cancel()
 
 
@@ -610,6 +612,9 @@ async def test_current_position_uses_stored_ms_when_paused_after_restart(
     task = await start(controller, schedule)
     await controller.resume()
     await wait_for(lambda: state_of(store, a.id) is State.PLAYING)
+    # The point of the test: playback resumed from the stored position.
+    assert state_of(store, a.id) is State.PLAYING
+    assert sink.start_positions[-1] == 400
     task.cancel()
 
 

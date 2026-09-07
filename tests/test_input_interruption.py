@@ -111,6 +111,17 @@ def test_the_detector_reads_from_the_activity_port() -> None:
 # -- what an interrupt does to playback -----------------------------------
 
 
+async def after_more_polls(activity: FakeInputActivity, count: int = 3) -> None:
+    """Wait until the watcher has polled ``count`` more times.
+
+    Evidence that the watcher ran and declined to act, which a sleep cannot
+    provide: a negative assertion after a sleep also passes when the watcher
+    has not run at all.
+    """
+    target = activity.polls + count
+    await wait_for(lambda: activity.polls >= target)
+
+
 def is_held(ctl: PlaybackController) -> bool:
     # Read through a call so mypy does not narrow the attribute across mutations.
     return ctl.held
@@ -128,10 +139,18 @@ def is_armed(ctl: PlaybackController) -> bool:
 
 async def controller(store: Store, sink: FakeSink) -> tuple[PlaybackController, asyncio.Task[None]]:
     """Start a controller draining the plan through ``sink``."""
+    ctl, task, _schedule = await controller_with_schedule(store, sink)
+    return ctl, task
+
+
+async def controller_with_schedule(
+    store: Store, sink: FakeSink
+) -> tuple[PlaybackController, asyncio.Task[None], DeterministicPlaybackSchedule]:
+    """Start a controller and hand back its schedule, for idle-cycle waits."""
     schedule = DeterministicPlaybackSchedule()
     ctl = PlaybackController(store, sink, schedule)
     task = asyncio.get_running_loop().create_task(ctl.run())
-    return ctl, task
+    return ctl, task, schedule
 
 
 async def test_interrupt_pauses_the_current_clip_and_records_why(
@@ -161,13 +180,16 @@ async def test_an_interrupt_holds_the_queue_so_nothing_new_starts(
     store: Store, sink: FakeSink
 ) -> None:
     first = make_ready(store, "first")
-    ctl, task = await controller(store, sink)
+    ctl, task, schedule = await controller_with_schedule(store, sink)
     try:
         await wait_for(lambda: ctl.current_id == first.id)
         await ctl.interrupt()
         make_ready(store, "second")
         ctl.notify()
-        await asyncio.sleep(0.05)
+        # Wait for the plan loop to go idle twice with the new clip available,
+        # which is evidence that it considered and declined it.
+        cycle = schedule.idle_cycles
+        await schedule.wait_for_idle_after(cycle + 1)
 
         # Speech submitted while the listener has the floor spools, silently.
         assert len(sink.started) == 1
@@ -318,7 +340,7 @@ async def test_input_that_stays_hot_does_not_re_hold_after_the_listener_resumes(
         # Dictation software keeps the device open for minutes. Resume must
         # stick anyway, or the listener can never hear the answer.
         await daemon.dispatch({"op": "resume"})
-        await asyncio.sleep(0.1)
+        await after_more_polls(activity)
 
         controller = daemon._require_controller()
         assert controller.held is False
@@ -339,7 +361,7 @@ async def test_resume_when_input_idle_waits_for_the_listener_to_finish(
         await wait_for(lambda: daemon._require_controller().interrupted_at is not None)
 
         await daemon.dispatch({"op": "resume_when_input_idle"})
-        await asyncio.sleep(0.05)
+        await after_more_polls(activity)
         assert daemon._require_controller().held is True
 
         activity.active = False
@@ -358,7 +380,7 @@ async def test_the_interrupt_can_be_turned_off_in_settings(tmp_path: Path, sink:
         await submit_and_play(daemon, "a long explanation")
 
         activity.active = True
-        await asyncio.sleep(0.1)
+        await after_more_polls(activity)
 
         controller = daemon._require_controller()
         assert controller.interrupted_at is None
@@ -381,6 +403,7 @@ async def test_the_default_resume_policy_is_configurable(tmp_path: Path, sink: F
         activity.active = False
 
         await wait_for(lambda: daemon._require_controller().held is False)
+        assert is_held(daemon._require_controller()) is False
     finally:
         await daemon.stop()
         cleanup()
@@ -495,8 +518,8 @@ async def test_an_interrupt_during_a_chunk_step_keeps_playback_held(
 
         # The step must not restart audio through the hold it did not see when
         # it started. Releasing the device is not reversible, so the hold has
-        # to be re-checked at the moment audio would begin.
-        await asyncio.sleep(0.1)
+        # to be re-checked at the moment audio would begin. Awaiting the step
+        # is the synchronisation; there is nothing left in flight to sleep for.
         assert is_held(ctl) is True
         assert sink.paused is True or not sink_active(ctl)
     finally:

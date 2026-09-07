@@ -45,14 +45,21 @@ class NullInputActivity:
 
 
 class FakeInputActivity:
-    """An activity port for tests: a settable capture state."""
+    """An activity port for tests: a settable capture state, and a poll count.
+
+    The count exists so a test can assert that the watcher *looked* and chose
+    not to act, rather than sleeping and hoping. "Nothing happened after
+    50ms" passes just as well when nothing has run yet.
+    """
 
     def __init__(self, *, active: bool | None = False) -> None:
         """Create a port reporting ``active`` until a test changes it."""
         self.active = active
+        self.polls = 0
 
     def input_is_active(self) -> bool | None:
         """Return the currently configured state."""
+        self.polls += 1
         return self.active
 
 

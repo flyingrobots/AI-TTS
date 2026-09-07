@@ -44,6 +44,11 @@ class SynthesisPool:
         self._artifacts = artifacts
         self._workers = max(1, workers)
         self._wake = asyncio.Event()
+        # Counts how many times a worker has found no work and parked. It is
+        # the only observable moment at which the pool is provably idle, which
+        # a test needs in order to prove that notify() is what woke it rather
+        # than a worker that had not started looking yet.
+        self.parks = 0
 
     def notify(self) -> None:
         """Tell the pool new work may be available."""
@@ -60,6 +65,7 @@ class SynthesisPool:
         while True:
             claimed = self._store.claim_for_synthesis()
             if claimed is None:
+                self.parks += 1
                 self._wake.clear()
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._wake.wait(), timeout=0.5)

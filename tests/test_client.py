@@ -116,6 +116,7 @@ async def test_the_event_stream_subscribes_before_it_is_iterated(daemon: Daemon)
         # generator's body does not run until it is first iterated, so the
         # subscription had not happened yet and the promise was not kept.
         await wait_for(lambda: len(daemon._server._subscribers) == 1)
+        assert len(daemon._server._subscribers) == 1
     finally:
         stream.close()
 

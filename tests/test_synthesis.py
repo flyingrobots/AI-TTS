@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,7 @@ pytestmark = [
 ]
 
 
-def in_state(store: Store, utt_id: str, state: State) -> object:
+def in_state(store: Store, utt_id: str, state: State) -> Callable[[], bool]:
     def check() -> bool:
         got = store.get(utt_id)
         return got is not None and got.state is state
@@ -180,7 +181,10 @@ async def test_cancel_during_synthesis_discards_result(store: Store, cache_dir: 
     await wait_for(in_state(store, utt.id, State.SYNTHESIZING))
     store.transition(utt.id, State.CANCELLED)
     await wait_for(lambda: engine.finished >= 1)
-    await asyncio.sleep(0.02)
+    # Wait for the outcome rather than for the clock. A settle-time sleep makes
+    # "no artifact was published" pass while the worker simply has not got
+    # there yet, which is the assertion most in need of a real oracle.
+    await wait_for(lambda: list(cache_dir.iterdir()) == [])
     got = store.get(utt.id)
     assert got is not None
     assert got.state is State.CANCELLED
@@ -205,10 +209,14 @@ async def test_notify_wakes_idle_pool(store: Store, cache_dir: Path) -> None:
     engine = FakeEngine(voices=["v"])
     pool = SynthesisPool(store, engine, FileAudioArtifacts(cache_dir), workers=1)
     task = await run_pool(pool)
-    await asyncio.sleep(0.02)
+    # The pool must be provably parked before submitting, or a worker that had
+    # not started looking yet would claim the work and the test would pass
+    # without notify() doing anything.
+    await wait_for(lambda: pool.parks >= 1)
     utt = store.submit("later", voice="v", speed=1.0)
     pool.notify()
     await wait_for(in_state(store, utt.id, State.READY))
+    assert in_state(store, utt.id, State.READY)()
     task.cancel()
 
 
