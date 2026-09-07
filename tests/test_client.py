@@ -66,3 +66,40 @@ async def test_unreachable_daemon_is_distinguishable(tmp_path: Path) -> None:
     client = Client(tmp_path / "nowhere.sock", timeout=0.5)
     with pytest.raises(DaemonUnreachableError):
         await asyncio.to_thread(client.request, {"op": "status"})
+
+
+async def test_a_slow_utterance_is_not_reported_as_an_unreachable_daemon(
+    tmp_path: Path,
+) -> None:
+    # A sink that never finishes: the daemon is healthy and the clip is
+    # playing, it simply has not reached a terminal state yet.
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-slow-"))
+    daemon = Daemon(
+        home=tmp_path,
+        engine=FakeEngine(voices=["bm_daniel"]),
+        sink=FakeSink(),
+        workers=1,
+        socket_path=sock_dir / "d.sock",
+    )
+    await daemon.start()
+    try:
+        client = Client(daemon.socket_path)
+        response = await asyncio.to_thread(client.request, {"op": "submit", "text": "hi"})
+
+        with pytest.raises(DaemonUnreachableError) as raised:
+            await asyncio.to_thread(client.wait_for_terminal, response["id"], timeout=0.5)
+
+        # The overall deadline was passed to the socket as a per-read timeout,
+        # so a quiet period raised "timed out waiting for an event" — which
+        # says the daemon is gone. It was reachable throughout, and an agent
+        # reading that exit reports a failure that did not happen.
+        message = str(raised.value)
+        assert "did not finish" in message, message
+        assert "waiting for an event" not in message, message
+
+        # And the daemon really was reachable the whole time.
+        status = await asyncio.to_thread(client.request, {"op": "status"})
+        assert status["ok"] is True
+    finally:
+        await daemon.stop()
+        shutil.rmtree(sock_dir, ignore_errors=True)

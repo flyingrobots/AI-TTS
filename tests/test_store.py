@@ -554,3 +554,18 @@ def test_recovery_converges_after_each_committed_crash_point(
         playing.id: ("playing", State.PAUSED),
         ready.id: ("ready", State.READY),
     }
+
+
+@pytest.mark.oracle("the voice register's ownership rule: a claim never takes a held voice")
+def test_claiming_never_overwrites_an_existing_assignment(store: Store) -> None:
+    store.pin_voice("an-agent", "bm_daniel")
+
+    store.claim_voice("an-agent", "af_heart")
+
+    # An automatic claim is a last resort, and it must never quietly replace
+    # what the listener pinned. The insert is guarded for this reason and
+    # nothing was checking the guard.
+    held = store.voice_assignment("an-agent")
+    assert held is not None
+    assert held.voice == "bm_daniel"
+    assert held.pinned is True

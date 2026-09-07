@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import shutil
 import stat
@@ -15,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from aitts.adapters.jsonl import MAX_JSONL_LINE_BYTES
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.model import Priority, State
@@ -24,6 +26,24 @@ pytestmark = [
     pytest.mark.medium,
     pytest.mark.oracle("daemon NDJSON wire contract in docs/design/architecture.md section 5"),
 ]
+
+
+async def send_raw(daemon: Daemon, line: bytes) -> dict[str, Any]:
+    """Write one raw line to the socket and read the single reply."""
+    reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
+    try:
+        writer.write(line)
+        # The server answers an unacceptable line and then closes, so a large
+        # write can fail part-way. That is the server behaving correctly; the
+        # reply is what matters and is still readable.
+        with contextlib.suppress(ConnectionError):
+            await writer.drain()
+        result: dict[str, Any] = json.loads(await reader.readline())
+    finally:
+        writer.close()
+        with contextlib.suppress(ConnectionError):
+            await writer.wait_closed()
+    return result
 
 
 async def rpc(sock: Path, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1053,3 +1073,22 @@ async def test_purge_cache_removes_reusable_audio_without_interrupting_active_wo
     history_item = next(item for item in history["items"] if item["id"] == terminal.id)
     assert history_item["text"] == "historical text"
     assert history_item["audio_cached"] is False
+
+
+async def test_a_line_just_past_the_boundary_is_refused(daemon: Daemon) -> None:
+    # Sized to slip past the stream's own buffer limit and land on the
+    # explicit length check, which is the only thing standing between a local
+    # client and an unbounded request. Sending something merely enormous
+    # exercises the reader instead and leaves this check unproven — and cannot
+    # be asserted reliably anyway, because the server answers and closes
+    # while the oversized write is still in flight.
+    envelope = b'{"op": "submit", "text": "' + b'"}\n'
+    filler = b"a" * (MAX_JSONL_LINE_BYTES + 1 - len(envelope))
+    line = b'{"op": "submit", "text": "' + filler + b'"}\n'
+    assert len(line) == MAX_JSONL_LINE_BYTES + 1
+
+    response = await send_raw(daemon, line)
+
+    assert response["ok"] is False
+    assert response["error"]["type"] == "bad_request"
+    assert "too large" in response["error"]["message"]

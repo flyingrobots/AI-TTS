@@ -18,8 +18,15 @@ from aitts.adapters.jsonl import (
     encode_json_object,
 )
 
+# Medium, not small. The standard budgets small tests in milliseconds, and a
+# 200-example generative sweep over recursive JSON costs about a second and a
+# half in-suite. Against the small tier's 2s ceiling that margin vanishes
+# under load, and hypothesis reports the interruption as
+# FlakyStrategyDefinition rather than as a timeout — which is why it read as
+# codec flakiness rather than as a mislabelled size class. The sibling
+# generative suite in test_mcp_jsonl.py costs the same and is already medium.
 pytestmark = [
-    pytest.mark.small,
+    pytest.mark.medium,
     pytest.mark.oracle("RFC 8259 UTF-8 object grammar and JSONL one-line framing"),
 ]
 

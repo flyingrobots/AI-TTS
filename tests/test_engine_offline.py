@@ -187,3 +187,44 @@ def test_an_unreadable_cache_names_the_asset_without_the_transport_error() -> No
 
     assert "config.json" in str(raised.value)
     assert "/private/cache" not in str(raised.value)
+
+
+# -- the engine must hand the pipeline a path, not a voice id -------------
+
+
+class RecordingPipeline:
+    """Stands in for the upstream pipeline, recording how the voice arrived."""
+
+    def __init__(self) -> None:
+        self.voices: list[str] = []
+
+    def __call__(self, text: str, voice: str, speed: float) -> list[object]:
+        del text, speed
+        self.voices.append(voice)
+        return []
+
+
+def test_synthesis_passes_a_resolved_path_rather_than_a_voice_id(tmp_path: Path) -> None:
+    from aitts.engine import SynthesisError  # noqa: PLC0415
+    from aitts.engines.kokoro import KokoroEngine  # noqa: PLC0415
+
+    hub = RecordingHub(cached={"voices/af_heart.pt"}, root=tmp_path)
+    pipeline = RecordingPipeline()
+
+    class PipelinelessEngine(KokoroEngine):
+        def _pipeline(self, voice: str) -> object:
+            del voice
+            return pipeline
+
+    engine = PipelinelessEngine(assets=KokoroAssets(repo_id=REPO, download=hub.download))
+    # No audio comes back from the stub, so synthesis fails after the call we
+    # care about has already been made.
+    with pytest.raises(SynthesisError):
+        engine.synthesize("hello", "af_heart", 1.0, tmp_path / "out.wav")
+
+    # This is the whole network fix: given a bare id the upstream pipeline
+    # resolves the voice pack through the model host on every load. Given a
+    # path ending in .pt it reads the file. Nothing else enforced this.
+    assert pipeline.voices
+    assert pipeline.voices[0].endswith("voices/af_heart.pt")
+    assert pipeline.voices[0] != "af_heart"
