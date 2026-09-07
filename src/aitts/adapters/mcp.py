@@ -263,8 +263,8 @@ def _register_voice_tools(server: MCPServer, speech: SpeechServicePort) -> None:
             NonEmptyText | None,
             Field(
                 default=None,
-                description="Voice id to assign; omit to release the assignment "
-                "so the client claims a voice again.",
+                description="Voice id to assign. Pass null to release the "
+                "assignment so the client claims a voice again.",
             ),
         ] = None,
     ) -> AssignVoiceReceipt:

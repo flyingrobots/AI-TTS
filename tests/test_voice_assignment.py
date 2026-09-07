@@ -252,7 +252,9 @@ async def test_releasing_an_assignment_lets_the_agent_claim_again(
 ) -> None:
     await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent", "voice": "im_nicola"})
 
-    released = await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent"})
+    released = await voice_daemon.dispatch(
+        {"op": "assign_voice", "source": "an-agent", "release": True}
+    )
     assert released["assignment"] is None
 
     reply = await voice_daemon.dispatch(
@@ -417,3 +419,46 @@ async def test_a_pinned_voice_outside_the_catalog_is_reported_not_guessed(
     assert "withdrawn_voice" in message
     assert "an-agent" in message
     assert voice_daemon.store.voice_assignment("an-agent") is not None
+
+
+# -- releasing an assignment must be asked for, not implied ---------------
+
+
+async def test_assigning_with_no_voice_is_refused_rather_than_treated_as_release(
+    voice_daemon: Daemon,
+) -> None:
+    await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent", "voice": "af_bella"})
+
+    with pytest.raises(ApiError) as raised:
+        await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent"})
+
+    # Omission meant deletion, so a caller that forgot the field destroyed an
+    # assignment while believing it was reading one. Releasing is a real
+    # decision and now has to be stated.
+    assert "release" in str(raised.value)
+    held = voice_daemon.store.voice_assignment("an-agent")
+    assert held is not None
+    assert held.voice == "af_bella"
+
+
+async def test_an_explicit_release_still_works(voice_daemon: Daemon) -> None:
+    await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent", "voice": "af_bella"})
+
+    reply = await voice_daemon.dispatch(
+        {"op": "assign_voice", "source": "an-agent", "release": True}
+    )
+
+    assert reply["assignment"] is None
+    assert voice_daemon.store.voice_assignment("an-agent") is None
+
+
+async def test_release_and_a_voice_together_are_refused(voice_daemon: Daemon) -> None:
+    with pytest.raises(ApiError):
+        await voice_daemon.dispatch(
+            {
+                "op": "assign_voice",
+                "source": "an-agent",
+                "voice": "af_bella",
+                "release": True,
+            }
+        )

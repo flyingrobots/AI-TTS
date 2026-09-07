@@ -130,11 +130,13 @@ class UnixSocketSpeechAdapter:
     def assign_voice(self, request: AssignVoice) -> AssignVoiceReceipt:
         """Assign or release one client's voice.
 
-        A null voice is omitted rather than sent: the protocol spells release
-        by leaving the field out.
+        A null voice means release, which the protocol requires be stated
+        rather than implied by an absent field.
         """
         payload: dict[str, Any] = {"op": "assign_voice", "source": request.source}
-        if request.voice is not None:
+        if request.voice is None:
+            payload["release"] = True
+        else:
             payload["voice"] = request.voice
         return self._exchange(payload, AssignVoiceReceipt)
 

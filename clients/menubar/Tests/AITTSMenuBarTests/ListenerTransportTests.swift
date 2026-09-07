@@ -53,8 +53,8 @@ final class ListenerTransportTests: XCTestCase {
             try transport.canonicalRequests(),
             [
                 #"{"op":"assign_voice","source":"claude-code","voice":"af_heart"}"#,
-                // Omitting the voice is how the protocol spells "forget this one".
-                #"{"op":"assign_voice","source":"claude-code"}"#,
+                // Releasing is stated rather than implied by an absent voice.
+                #"{"op":"assign_voice","release":true,"source":"claude-code"}"#,
             ]
         )
     }

@@ -94,8 +94,9 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
         case .assignVoice(let source, let voice):
             payload = ["op": "assign_voice", "source": source, "voice": voice]
         case .releaseVoice(let source):
-            // Omitting the voice is how the protocol spells "forget this one".
-            payload = ["op": "assign_voice", "source": source]
+            // Stated, not implied: an absent voice is a mistake, not a request
+            // to forget an assignment.
+            payload = ["op": "assign_voice", "source": source, "release": true]
         }
         _ = try request(payload)
     }

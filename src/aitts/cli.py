@@ -180,8 +180,7 @@ def _assign_voice_payload(args: argparse.Namespace) -> dict[str, Any]:
         if args.voice is not None:
             msg = "--release does not take a voice"
             raise SystemExit(msg)
-        # Omitting the voice is how the protocol spells "forget this one".
-        return {"op": "assign_voice", "source": args.source}
+        return {"op": "assign_voice", "source": args.source, "release": True}
     if args.voice is None:
         msg = "assign-voice needs a voice, or --release to forget the assignment"
         raise SystemExit(msg)

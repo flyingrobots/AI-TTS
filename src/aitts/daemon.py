@@ -542,12 +542,25 @@ class Daemon:
             msg = "assign_voice requires a non-empty 'source'"
             raise ApiError(BAD_REQUEST, msg)
         voice = payload.get("voice")
-        if voice is None:
+        release = payload.get("release", False)
+        if type(release) is not bool:
+            msg = "'release' must be a boolean"
+            raise ApiError(BAD_REQUEST, msg)
+        # Releasing is stated, never implied. Reading an omitted voice as
+        # "forget this one" meant a caller that left the field out destroyed
+        # an assignment while believing it was reading one.
+        if release and voice is not None:
+            msg = "assign_voice takes either 'voice' or 'release', not both"
+            raise ApiError(BAD_REQUEST, msg)
+        if release:
             if not self._store.release_voice(source):
                 msg = f"no voice is assigned to {source!r}"
                 raise ApiError(NOT_FOUND, msg)
             self._server.broadcast({"event": "voice_released", "source": source})
             return {"ok": True, "assignment": None}
+        if voice is None:
+            msg = "assign_voice requires a 'voice', or 'release': true to forget one"
+            raise ApiError(BAD_REQUEST, msg)
         if voice not in self._engine.list_voices():
             msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
