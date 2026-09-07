@@ -102,9 +102,44 @@ These are stated at this level on purpose. **This repository is public**, so the
 
 ## Using it
 
-Install the Python tools from a source checkout. Kokoro stays an optional,
-locally resolved dependency so this repository never vendors or redistributes
-its Python environment:
+**macOS only.** AI-TTS owns a CoreAudio output device and installs a launchd
+user agent, neither of which exists elsewhere; the Makefile refuses to run on
+any other host rather than half-installing.
+
+```sh
+# requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
+make                 # build the menu-bar app into dist/
+make install         # install the CLI, MCP server, app, and launchd agent
+make install-agents  # wire it into every local coding agent found
+make doctor          # is the daemon up, and what is wired in?
+make help            # every target
+```
+
+`make install-all` does all three. `make uninstall` stops and removes the
+launchd agent and the executables, and deliberately leaves your speech history,
+cached audio, and installed app alone.
+
+Agent integrations take the agents by name, either through make or by calling
+the installer directly:
+
+```sh
+make install-mcp                        # every agent found
+make install-skill AGENTS="--claude"    # just one
+
+./scripts/install-integration.sh mcp   --claude --codex
+./scripts/install-integration.sh skill --all --dry-run
+```
+
+Supported: `--claude`, `--codex`, `--gemini`, `--all`. An agent whose CLI is
+not installed is skipped rather than failing the run, and `--dry-run` prints
+each host's own `mcp add` command so an unsupported agent can be wired up by
+hand.
+
+### Doing it by hand
+
+The Makefile is a convenience over three steps you can run yourself. Kokoro
+stays an optional, locally resolved dependency so this repository never vendors
+or redistributes its Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
@@ -263,22 +298,27 @@ Then ask the agent, for example, “Use AI-TTS to say that the build passed.” 
 correct CLI invocation returns an admission receipt immediately and lets the
 daemon finish synthesis and playback independently of the agent process.
 
-#### 3. Optionally install the bundled Claude Code skill
+#### 3. Optionally install the bundled skill
 
-For Claude Code specifically, [`skills/speak/SKILL.md`](skills/speak/SKILL.md)
-is a ready-made skill covering the same policy: which command to use, how to
-read `status` before speaking, what `--source` and the voice register mean,
-and how to write text that is bearable to listen to. Install it per-user:
+[`skills/speak/SKILL.md`](skills/speak/SKILL.md) states the same policy as a
+skill: which command to use, how to read `status` before speaking, what
+`--source` and the voice register mean, and how to write text that is bearable
+to listen to.
+
+It follows the open agent-skills layout — one `SKILL.md` with `name` and
+`description` frontmatter in a directory named after the skill — so the same
+file works for Claude Code, Codex and Gemini:
 
 ```sh
-mkdir -p ~/.claude/skills/speak
-cp skills/speak/SKILL.md ~/.claude/skills/speak/SKILL.md
+make install-skill                      # every agent found
+make install-skill AGENTS="--codex"     # just one
 ```
 
-Then replace `<AI_TTS_BIN>` inside the copy with the absolute path from
-`uv tool dir --bin`, and set `--source` to the name that agent should be known
-by. Claude Code discovers skills at session start, so start a new session
-afterwards.
+The installer replaces the committed `<AI_TTS_BIN>` placeholder with the
+absolute path on this machine, so the copy an agent reads names a real
+executable while the copy in the repository stays machine-independent. Set
+`--source` in your copy to the name that agent should be known by. Skills are
+discovered at session start, so start a new session afterwards.
 
 The skill is a starting point rather than a policy: edit your copy freely.
 Anything specific to you — how you like to be addressed, which meetings are

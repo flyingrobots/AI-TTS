@@ -31,8 +31,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the store showed three sharing `bm_daniel`. Settings lists the mapping and
   lets you reassign it; your assignment outranks the client's request.
   `voice_assignments` and `assign_voice` expose it on the wire.
-- **A bundled Claude Code skill** at `skills/speak/SKILL.md`, installed by
-  copying it into `~/.claude/skills/speak/`. It states the same speech policy
+- **A Makefile as the entry point for a clone.** `make` builds the menu-bar
+  app, `make install` installs the executables, the app and the launchd agent,
+  and `make install-agents` wires it into every local coding agent found. It
+  refuses to run off macOS at parse time rather than half-installing, and
+  `make doctor` reports what is up and what is wired in without changing
+  anything.
+- **`scripts/install-integration.sh`**, which the agent targets delegate to and
+  which takes the agents by name: `--claude`, `--codex`, `--gemini`, `--all`,
+  plus `--dry-run`. An agent whose CLI is absent is skipped rather than failing
+  the run, and a dry run prints each host's own `mcp add` command so an
+  unsupported agent can be wired up by hand.
+- **A bundled skill** at `skills/speak/SKILL.md`, following the open
+  agent-skills layout, so the same file installs for Claude Code, Codex and
+  Gemini. The installer substitutes the committed `<AI_TTS_BIN>` placeholder
+  for this machine's path, so an installed copy names a real executable while
+  the committed one stays machine-independent. It states the same speech policy
   the README describes for any shell-capable agent: check `status` before
   speaking, treat a hold as a reason to write instead, pass a stable
   `--source`, let the daemon decide the voice, and write for the ear rather
