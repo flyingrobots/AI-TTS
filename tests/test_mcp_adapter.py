@@ -12,6 +12,8 @@ from mcp import Client as MCPClient
 
 from aitts.adapters.mcp import create_server
 from aitts.application.schemas import (
+    AssignVoice,
+    AssignVoiceReceipt,
     CancelSpeech,
     CancelSpeechReceipt,
     CaptionSettings,
@@ -26,10 +28,13 @@ from aitts.application.schemas import (
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
+    SegmentStepReceipt,
     SetCaptionsEnabled,
     SpeechServiceError,
     SpeechStatus,
     SubmissionDisposition,
+    VoiceAssignmentRecord,
+    VoiceAssignmentView,
     VoiceCatalog,
 )
 from aitts.model import ContentFormat, Priority, Sensitivity, State
@@ -58,6 +63,12 @@ TOOL_NAMES = {
     "requeue_speech",
     "clear_speech_queue",
     "purge_cached_audio",
+    # Parity with the tray: nothing it can do is unavailable to an agent.
+    "next_speech_chunk",
+    "previous_speech_chunk",
+    "resume_speech_when_input_idle",
+    "list_speech_voice_assignments",
+    "assign_speech_voice",
 }
 
 
@@ -83,6 +94,12 @@ class FakeSpeechPort:
     """Owned fake implementing the same public schema contract as the real socket adapter."""
 
     def __init__(self, *, held: bool = False, fail_status: bool = False) -> None:
+        self.segment_steps: list[str] = []
+        self.resume_armed = False
+        self.assign_calls: list[AssignVoice] = []
+        self.assignments: list[VoiceAssignmentRecord] = [
+            VoiceAssignmentRecord(source="codex", voice="bm_george", pinned=False, assigned_at=1.0)
+        ]
         self.held = held
         self.fail_status = fail_status
         self.captions_enabled = False
@@ -146,6 +163,46 @@ class FakeSpeechPort:
     def restart_current(self) -> PlaybackControlReceipt:
         return PlaybackControlReceipt(state=None, current=None, held=self.held)
 
+    def next_segment(self) -> SegmentStepReceipt:
+        self.segment_steps.append("next")
+        return SegmentStepReceipt(
+            state=State.PLAYING,
+            current=None,
+            held=self.held,
+            segment_index=1,
+            segment_number=2,
+        )
+
+    def previous_segment(self) -> SegmentStepReceipt:
+        self.segment_steps.append("previous")
+        return SegmentStepReceipt(
+            state=State.PLAYING,
+            current=None,
+            held=self.held,
+            segment_index=0,
+            segment_number=1,
+        )
+
+    def resume_when_input_idle(self) -> PlaybackControlReceipt:
+        self.resume_armed = True
+        return PlaybackControlReceipt(state=None, current=None, held=True)
+
+    def list_voice_assignments(self) -> VoiceAssignmentView:
+        return VoiceAssignmentView(assignments=tuple(self.assignments))
+
+    def assign_voice(self, request: AssignVoice) -> AssignVoiceReceipt:
+        self.assign_calls.append(request)
+        if request.voice is None:
+            self.assignments = [item for item in self.assignments if item.source != request.source]
+            return AssignVoiceReceipt(assignment=None)
+        record = VoiceAssignmentRecord(
+            source=request.source, voice=request.voice, pinned=True, assigned_at=1.0
+        )
+        self.assignments = [item for item in self.assignments if item.source != request.source] + [
+            record
+        ]
+        return AssignVoiceReceipt(assignment=record)
+
     def cancel_speech(self, request: CancelSpeech) -> CancelSpeechReceipt:
         return CancelSpeechReceipt(id=request.id, state=State.CANCELLED)
 
@@ -174,7 +231,7 @@ async def test_mcp_publishes_typed_tool_schemas() -> None:
 
     tools = {tool.name: tool for tool in result.tools}
     assert set(tools) == TOOL_NAMES
-    assert len(tools) == 15
+    assert len(tools) == len(TOOL_NAMES)
     assert all(tool.output_schema is not None for tool in tools.values())
     enqueue_schema = tools["enqueue_speech"].input_schema
     assert enqueue_schema["required"] == ["text"]
@@ -261,3 +318,56 @@ async def test_mcp_status_error_is_visible_to_the_model() -> None:
     assert result.is_error is True
     assert result.structured_content is None
     assert "unreachable: daemon unavailable" in result.content[0].text  # type: ignore[union-attr]
+
+
+async def test_mcp_chunk_tools_step_within_the_current_document() -> None:
+    port = FakeSpeechPort()
+    async with MCPClient(create_server(port), raise_exceptions=True) as client:
+        forwards = await client.call_tool("next_speech_chunk", {})
+        backwards = await client.call_tool("previous_speech_chunk", {})
+
+    assert port.segment_steps == ["next", "previous"]
+    assert forwards.structured_content is not None
+    assert forwards.structured_content["segment_number"] == 2
+    assert backwards.structured_content is not None
+    assert backwards.structured_content["segment_number"] == 1
+
+
+async def test_mcp_can_defer_a_resume_until_the_listener_stops_speaking() -> None:
+    port = FakeSpeechPort()
+    async with MCPClient(create_server(port), raise_exceptions=True) as client:
+        receipt = await client.call_tool("resume_speech_when_input_idle", {})
+
+    assert port.resume_armed is True
+    # The hold is still in force; it releases itself later.
+    assert receipt.structured_content is not None
+    assert receipt.structured_content["held"] is True
+
+
+async def test_mcp_reads_the_voice_register() -> None:
+    async with MCPClient(create_server(FakeSpeechPort()), raise_exceptions=True) as client:
+        result = await client.call_tool("list_speech_voice_assignments", {})
+
+    assert result.structured_content is not None
+    assignments = result.structured_content["assignments"]
+    assert [item["source"] for item in assignments] == ["codex"]
+    assert assignments[0]["pinned"] is False
+
+
+async def test_mcp_assigns_and_releases_a_clients_voice() -> None:
+    port = FakeSpeechPort()
+    async with MCPClient(create_server(port), raise_exceptions=True) as client:
+        assigned = await client.call_tool(
+            "assign_speech_voice", {"source": "claude-code", "voice": "af_heart"}
+        )
+        released = await client.call_tool("assign_speech_voice", {"source": "claude-code"})
+
+    assert assigned.structured_content is not None
+    record = assigned.structured_content["assignment"]
+    assert record["voice"] == "af_heart"
+    # An assignment made through the port is the listener's, so it is pinned.
+    assert record["pinned"] is True
+    # Omitting the voice releases it rather than assigning something empty.
+    assert released.structured_content is not None
+    assert released.structured_content["assignment"] is None
+    assert [request.voice for request in port.assign_calls] == ["af_heart", None]
