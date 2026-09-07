@@ -23,7 +23,7 @@ expected to arrive with one. -->
 - [ ] `CHANGELOG.md` describes this from the user's side.
 - [ ] Anything in `README.md` or `docs/` that this makes untrue is fixed in
       the same commit.
-- [ ] If this fixes something in `docs/backlog/`, its file is deleted here.
+- [ ] If this closes an issue, the commit body says `Closes #N`.
 
 ## Deliberate omissions
 

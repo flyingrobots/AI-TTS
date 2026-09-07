@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a tooltip and no key. It is now a `TransportAction` like the rest, so its
   label and its key are values a test can check rather than modifiers at a
   call site.
+- **GitHub Issues is the only defect tracker.** Known defects and deferred
+  work are filed as issues rather than kept as Markdown in the repository. Two
+  lists is one list recorded wrong: an in-repo file and an issue for the same
+  defect disagree within a release, and the issue is the one people find. The
+  issue and pull-request templates and `CONTRIBUTING.md` point there.
 - **A walkthrough of one utterance**, at
   [`docs/design/one-utterance.md`](docs/design/one-utterance.md): what actually
   runs, in order, from an agent's `say` to the state change that ends it,

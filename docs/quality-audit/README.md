@@ -35,7 +35,7 @@ and a number written by hand would be worth nothing. What the work was is in
 | Observability — Metrics | A `metrics` op, `ai-tts metrics` and a `speech_metrics` tool report the two waits separately, plus queue depth, cache bytes against the cap, and device failures counted apart from cancellations |
 | Observability — Tracing | Lifecycle events carry a `trace=` token derived from the utterance id |
 | Project Health — Bus Factor | [`docs/design/one-utterance.md`](../design/one-utterance.md) walks one utterance end to end |
-| Project Health — Issue & Bug Management | [`docs/backlog/`](../backlog/) tracks known defects; issue and PR templates added |
+| Project Health — Issue & Bug Management | [GitHub Issues](https://github.com/flyingrobots/AI-TTS/issues) is the tracker, with issue and PR templates; see the deviation below |
 | Maintainability — SRP violations | `daemon.py` 1097 → 855 lines (`aitts.settings`, `aitts.voice_registry`, `aitts.input_interrupt`); `Views.swift` 1257 lines → six files by surface |
 | Code Maturity — Automated Deployment | A tag builds and retains the wheel, sdist and signed bundle after every other job passes, and refuses a tag that disagrees with the tree |
 | Accessibility — all three | Transport labels and keys as assertable values, spoken progress, a live-region announcement for the interruption notice, and pause on `p` |
@@ -47,6 +47,12 @@ recorded where the code is:
 - It suggested the extracted Python services go under `src/aitts/application/`.
   They went to the top level instead: that package holds pure logic and ports
   and deliberately does not import `Store`, while these services hold it.
+- It suggested a tracked `docs/backlog/` directory of Markdown files. That
+  existed briefly and was migrated to GitHub Issues, which is now the only
+  tracker. Two lists is one list recorded wrong: an in-repo file and an issue
+  for the same defect disagree within a release, and the issue is the one
+  people actually find. The private working journal at `.claude/bad_code.md`
+  stays untracked for design-level notes with no user-visible consequence.
 - It suggested marking the caption overlay as accessibility-announcing. That
   would have VoiceOver read aloud, in a second voice, the words already being
   spoken aloud. The overlay is explicitly hidden from the accessibility tree

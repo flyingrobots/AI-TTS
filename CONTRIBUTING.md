@@ -15,10 +15,10 @@ way in.** It follows one utterance from an agent's `say` to the state change
 that ends it, naming the module at each step. `architecture.md` says what the
 parts are and why; that one says what actually runs.
 
-**Check [`docs/backlog/`](docs/backlog/) before starting on a defect.** Several
-known ones are open on purpose, with the reasoning written down. Disagreeing
-with that reasoning is welcome; rediscovering it over an afternoon is not a
-good use of yours.
+**Check [the open issues](https://github.com/flyingrobots/AI-TTS/issues)
+before starting on a defect.** Several known ones are open on purpose, with
+the reasoning written into the issue. Disagreeing with that reasoning is
+welcome; rediscovering it over an afternoon is not a good use of yours.
 
 ## Ground rules
 
@@ -46,14 +46,15 @@ several of them are enforced at collection time rather than trusted.
 
 ## Commits
 
-Conventional commit messages. Reference the issue a change closes in the
-footer.
+Conventional commit messages, with a `Closes #N` footer for the issue a
+change closes so the issue closes itself when the commit lands.
 
 Say *why* in the body, not just what. The what is in the diff and will still
-be there in a year; the reasoning will not be anywhere else. If you fixed
-something listed in [`docs/backlog/`](docs/backlog/), delete its file in the
-same commit — a backlog whose entries are marked done rather than removed
-stops being readable within a release.
+be there in a year; the reasoning will not be anywhere else.
+
+GitHub Issues is the only tracker. There is no backlog file in the repository
+and no second list to keep in sync — a defect recorded in two places is a
+defect recorded wrong within a release.
 
 ## Licence
 

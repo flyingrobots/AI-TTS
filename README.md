@@ -583,8 +583,9 @@ acceptance and the remaining release-readiness work and accepted blind spots
 are tracked in
 [`docs/standards/testing-profile.md`](docs/standards/testing-profile.md).
 
-Known defects and deliberately deferred work are tracked in
-[`docs/backlog/`](docs/backlog/) rather than left implicit. Where this daemon
+Known defects and deliberately deferred work are tracked as
+[GitHub Issues](https://github.com/flyingrobots/AI-TTS/issues) rather than
+left implicit; several are open on purpose and say why in the issue. Where this daemon
 departs from general-purpose service practice — it is stateful, single
 instance, unauthenticated, and cannot run in a container — those are decisions
 rather than gaps, and each is recorded with its reasoning in
