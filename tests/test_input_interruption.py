@@ -116,6 +116,11 @@ def is_held(ctl: PlaybackController) -> bool:
     return ctl.held
 
 
+def sink_active(ctl: PlaybackController) -> bool:
+    # Read through a call so mypy does not narrow the attribute across mutations.
+    return ctl._sink_active
+
+
 def is_armed(ctl: PlaybackController) -> bool:
     # Read through a call so mypy does not narrow the attribute across mutations.
     return ctl.resume_when_input_idle_armed
@@ -443,3 +448,85 @@ async def test_resuming_forgets_the_interruption_permanently(store: Store, sink:
     restored = PlaybackController(store, FakeSink(), DeterministicPlaybackSchedule())
 
     assert restored.interrupted_at is None
+
+
+# -- a hold taken during a transport step must still be honoured -----------
+
+
+class GatedSink(FakeSink):
+    """A sink whose stop can be held open, to interleave at the release await."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stopping = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def wait(self) -> bool:
+        if self.stopping.is_set():
+            await self.release.wait()
+        return await super().wait()
+
+    def stop(self) -> None:
+        self.stopping.set()
+        super().stop()
+
+
+async def test_an_interrupt_during_a_chunk_step_keeps_playback_held(
+    store: Store,
+) -> None:
+    from tests.test_playback import make_composite_ready  # noqa: PLC0415
+
+    segments = ("one", "two", "three")
+    sink = GatedSink()
+    make_composite_ready(store, " ".join(segments), segments)
+    ctl = PlaybackController(store, sink, DeterministicPlaybackSchedule())
+    task = asyncio.get_running_loop().create_task(ctl.run())
+    try:
+        await wait_for(lambda: ctl.current_segment is not None)
+
+        # Step to the next chunk; the step blocks inside its sink release.
+        step = asyncio.get_running_loop().create_task(ctl.next_segment())
+        await wait_for(sink.stopping.is_set)
+
+        # The listener starts speaking while the step is mid-flight.
+        await ctl.interrupt()
+        sink.release.set()
+        await step
+
+        # The step must not restart audio through the hold it did not see when
+        # it started. Releasing the device is not reversible, so the hold has
+        # to be re-checked at the moment audio would begin.
+        await asyncio.sleep(0.1)
+        assert is_held(ctl) is True
+        assert sink.paused is True or not sink_active(ctl)
+    finally:
+        task.cancel()
+
+
+async def test_two_chunk_steps_at_once_do_not_wedge_the_document(
+    store: Store,
+) -> None:
+    from tests.test_playback import make_composite_ready  # noqa: PLC0415
+
+    segments = ("one", "two", "three")
+    sink = FakeSink()
+    parent = make_composite_ready(store, " ".join(segments), segments)
+    ctl = PlaybackController(store, sink, DeterministicPlaybackSchedule())
+    task = asyncio.get_running_loop().create_task(ctl.run())
+    try:
+        await wait_for(lambda: ctl.current_segment is not None)
+
+        # Two clients press next at the same time. Both captured chunk 0, so
+        # the loser must not settle a chunk the winner already moved past, and
+        # must not stop the sink the winner just started.
+        first, second = await asyncio.gather(ctl.next_segment(), ctl.next_segment())
+
+        assert [first, second].count(True) >= 1
+        await wait_for(lambda: sink_active(ctl))
+        held = store.get(parent.id)
+        assert held is not None
+        assert held.state is State.PLAYING
+        assert ctl.current_segment is not None
+        assert sink.overlaps == 0
+    finally:
+        task.cancel()

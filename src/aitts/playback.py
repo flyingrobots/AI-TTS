@@ -394,6 +394,11 @@ class PlaybackController:
         self._sink_active = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
+        # Releasing the device is an await, so two transport commands can
+        # interleave inside it: each captures the same active chunk, and the
+        # loser then settles a chunk the winner has moved past and stops the
+        # sink the winner just started. They take turns instead.
+        self._transport_lock = asyncio.Lock()
         # The hold an interrupt causes is durable, so its reason has to be
         # too: a listener returning to a restarted daemon would otherwise find
         # silence with nothing on screen to explain it. Wall clock, because a
@@ -692,6 +697,11 @@ class PlaybackController:
         self.notify()
 
     async def skip(self) -> None:
+        """Take the transport lock, then run the step; see :attr:`_transport_lock`."""
+        async with self._transport_lock:
+            await self._skip_locked()
+
+    async def _skip_locked(self) -> None:
         """Abandon the current utterance and let the next one begin.
 
         Skip is a playback decision, not an editorial one: the audio stays
@@ -715,6 +725,11 @@ class PlaybackController:
         self.notify()
 
     async def next_segment(self) -> bool:
+        """Take the transport lock, then run the step; see :attr:`_transport_lock`."""
+        async with self._transport_lock:
+            return await self._next_segment_locked()
+
+    async def _next_segment_locked(self) -> bool:
         """Give up the current chunk and move to the next one in the document.
 
         Skip abandons the whole queue entry; this abandons one chunk of it, so
@@ -735,6 +750,11 @@ class PlaybackController:
         return True
 
     async def previous_segment(self) -> bool:
+        """Take the transport lock, then run the step; see :attr:`_transport_lock`."""
+        async with self._transport_lock:
+            return await self._previous_segment_locked()
+
+    async def _previous_segment_locked(self) -> bool:
         """Replay the chunk before the current one, from its beginning."""
         target = self._navigable_segment_index()
         if target is None:
@@ -803,10 +823,22 @@ class PlaybackController:
         parent = self._store.get(utt_id)
         if segment is None or parent is None:
             return
+        if self.held:
+            # A hold arrived while the device was being released, which the
+            # step could not have seen when it checked. Leave the document
+            # resumable instead of starting audio through the hold.
+            if parent.state is State.PLAYING:
+                self._store.transition(parent.id, State.PAUSED, played_ms=parent.played_ms or 0)
+            return
         if segment.state is State.READY:
             self._begin_segment(parent, segment, position_ms=0)
 
     async def restart_current(self) -> None:
+        """Take the transport lock, then run the step; see :attr:`_transport_lock`."""
+        async with self._transport_lock:
+            await self._restart_current_locked()
+
+    async def _restart_current_locked(self) -> None:
         """Replay the current utterance from its start."""
         if self.held:
             return
