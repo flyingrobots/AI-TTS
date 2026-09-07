@@ -35,6 +35,11 @@ _SAMPLE_RATE = 24000
 _DEFAULT_REPO_ID = "hexgrad/Kokoro-82M"
 _CONFIG_FILE = "config.json"
 _WEIGHTS_FILE = "kokoro-v1_0.pth"
+# What the model host raises when a file is simply not in the cache. Its
+# LocalEntryNotFoundError subclasses FileNotFoundError, which PermissionError
+# and UnicodeDecodeError deliberately do not.
+_CACHE_MISS = (FileNotFoundError,)
+
 _MISSING_PACKAGE = "the 'kokoro' package is not installed; install ai-tts with the [kokoro] extra"
 
 # Kokoro v1.0 voices (hexgrad/Kokoro-82M). Every voice listed here was
@@ -173,8 +178,18 @@ class KokoroAssets:
     def _resolve(self, filename: str) -> str:
         try:
             return self._download(repo_id=self._repo_id, filename=filename, local_files_only=True)
-        except Exception:  # noqa: BLE001 - any cache miss means we must fetch it
+        except _CACHE_MISS:
+            # Absent from the cache is the one local outcome that justifies
+            # going out. Verified against the installed model host: its
+            # local-miss error subclasses FileNotFoundError, while an
+            # unreadable or undecodable cache does not.
             log.info("event=model_asset_fetch_required")
+        except Exception as exc:
+            # A local problem. Fetching would reach the network unnecessarily
+            # and then report a transport error as the cause of a filesystem
+            # one, hiding what actually went wrong.
+            msg = f"could not read cached model asset {filename!r}"
+            raise ModelAssetError(msg) from exc
         try:
             return self._download(repo_id=self._repo_id, filename=filename, local_files_only=False)
         except Exception as exc:

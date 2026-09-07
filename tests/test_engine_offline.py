@@ -48,8 +48,10 @@ class RecordingHub:
         del repo_id
         self.calls.append((filename, local_files_only))
         if local_files_only and filename not in self.cached:
+            # What the real model host raises for a local miss: its
+            # LocalEntryNotFoundError subclasses FileNotFoundError.
             msg = f"{filename} is not cached"
-            raise OSError(msg)
+            raise FileNotFoundError(msg)
         if self.root is None:  # pragma: no cover - tests that need a path pass one
             return f"/cache/{filename}"
         path = self.root / filename
@@ -126,3 +128,62 @@ def test_resolution_is_recorded_per_asset(tmp_path: Path) -> None:
 
     # Distinct assets resolve independently; a repeat costs nothing.
     assert hub.calls == [("config.json", True), ("voices/af_heart.pt", True)]
+
+
+# -- a broken cache is not the same as an absent file ---------------------
+
+
+def test_an_unreadable_cache_is_not_treated_as_a_cache_miss() -> None:
+    attempts: list[bool] = []
+
+    def guarded(*, repo_id: str, filename: str, local_files_only: bool) -> str:
+        del repo_id, filename
+        attempts.append(local_files_only)
+        if local_files_only:
+            # Not "absent": the cache is there and cannot be read.
+            raise PermissionError(13, "Permission denied")
+        return "/should/not/be/reached"
+
+    assets = KokoroAssets(repo_id=REPO, download=guarded)
+
+    with pytest.raises(ModelAssetError):
+        assets.path("config.json")
+
+    # Falling back on any local failure turns a local permissions problem into
+    # a network request, and reports the network error as the cause, which
+    # hides the real one. Only an absent file justifies going out.
+    assert attempts == [True]
+
+
+def test_a_genuinely_absent_file_is_still_fetched(tmp_path: Path) -> None:
+    attempts: list[bool] = []
+
+    def absent_then_available(*, repo_id: str, filename: str, local_files_only: bool) -> str:
+        del repo_id
+        attempts.append(local_files_only)
+        if local_files_only:
+            raise FileNotFoundError(2, "not cached")
+        path = tmp_path / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"asset")
+        return str(path)
+
+    assets = KokoroAssets(repo_id=REPO, download=absent_then_available)
+
+    assets.path("config.json")
+
+    assert attempts == [True, False]
+
+
+def test_an_unreadable_cache_names_the_asset_without_the_transport_error() -> None:
+    def guarded(*, repo_id: str, filename: str, local_files_only: bool) -> str:
+        del repo_id, local_files_only
+        raise PermissionError(13, f"Permission denied reading /private/cache/{filename}")
+
+    assets = KokoroAssets(repo_id=REPO, download=guarded)
+
+    with pytest.raises(ModelAssetError) as raised:
+        assets.path("config.json")
+
+    assert "config.json" in str(raised.value)
+    assert "/private/cache" not in str(raised.value)
