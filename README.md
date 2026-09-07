@@ -278,6 +278,29 @@ to prevent. Assign or change any of it under **Agent voices** in Settings;
 what you set there wins over `--voice`. `ai-tts voices` lists the valid ids on
 the installed engine.
 
+### The voice catalog, and adding to it
+
+`ai-tts voices` reports 41 voices across six languages. That list is curated
+rather than copied from the model repository: every entry was verified to
+synthesize with the grapheme-to-phoneme dependencies this project installs.
+The Japanese and Mandarin voices ship in the same model repository and are
+deliberately absent, because they need `misaki[ja]` (which builds
+`pyopenjtalk` from source and bundles Open JTalk) or `misaki[zh]` — a
+supply-chain decision rather than a voice-list edit.
+
+If you install those extras yourself, or a new upstream release adds a voice,
+declare it and the daemon will offer it:
+
+```sh
+AI_TTS_EXTRA_VOICES=jf_alpha,zm_yunxi ai-ttsd
+```
+
+Declared names are validated for shape and de-duplicated against the curated
+list; a malformed name is dropped rather than accepted, because a voice the
+catalog offers but cannot speak fails at synthesis instead of at the point you
+typed it. Whether the language backend is actually installed is yours to know
+— the daemon takes the declaration at its word.
+
 For Codex, append the policy instead of overwriting existing instructions:
 
 - `~/.codex/AGENTS.md` applies it across repositories;

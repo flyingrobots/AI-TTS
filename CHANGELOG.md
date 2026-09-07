@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap, and playback device failures counted apart from ordinary terminal
   states. A null summary means nothing has been measured, which a caller can
   tell from zero.
+- **The voice catalog can be extended without a release.**
+  `AI_TTS_EXTRA_VOICES` adds voices to the curated list — for someone who has
+  installed the Japanese or Mandarin G2P extras themselves, or who wants a
+  voice a new upstream release added. Declared names are validated for shape
+  and de-duplicated: a name the catalog offers but cannot speak would fail at
+  synthesis instead of where it was typed. The curated list stays the default
+  because every entry in it was verified against the dependencies this project
+  installs.
 - **A first run no longer looks like a hang.** The engine's weights are
   around 330 MB and arrive on first use; until they did, a clip sat in
   Synthesizing with nothing to distinguish a download from a wedged daemon.

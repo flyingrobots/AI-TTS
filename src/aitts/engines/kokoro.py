@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import re
 import threading
 import time
@@ -134,6 +135,39 @@ VOICES: tuple[str, ...] = (
     "pm_alex",
     "pm_santa",
 )
+
+
+# What a Kokoro voice identifier looks like: a two-letter language-and-gender
+# prefix and a lowercase name. Validated rather than trusted, because a typo'd
+# voice that reached the catalog would become claimable and then fail every
+# synthesis, which is a worse answer than being told the name is wrong.
+_VOICE_PATTERN = re.compile(r"^[a-z]{2}_[a-z]+$")
+
+# The environment variable that extends the catalog. Deployment-scoped on
+# purpose: what a machine can actually speak depends on which G2P extras were
+# installed there, which is the same axis as the engine choice and not
+# something a client should be able to change over the socket.
+EXTRA_VOICES_ENV = "AI_TTS_EXTRA_VOICES"
+
+
+def parse_extra_voices(declared: str | None) -> tuple[str, ...]:
+    """Parse an extra-voice declaration into validated, ordered voice ids.
+
+    The curated list cannot simply become configuration — every entry in it
+    was verified against the G2P dependencies this project installs, and two
+    language sets are excluded as a supply-chain decision. It also cannot be
+    closed: someone who installed those extras themselves, or who wants a
+    voice a new upstream release added, should not have to wait for a release
+    of this project.
+
+    A malformed entry costs that entry and not its neighbours, and the result
+    is sorted, because the catalog is read into pickers and a voice moving
+    between restarts is its own defect.
+    """
+    if not declared:
+        return ()
+    named = {entry.strip() for entry in declared.split(",")}
+    return tuple(sorted(name for name in named if _VOICE_PATTERN.match(name)))
 
 
 class ModelAssetError(SynthesisError):
@@ -268,12 +302,23 @@ class KokoroEngine:
     name = "kokoro"
     is_local = True
 
-    def __init__(self, *, assets: KokoroAssets | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        assets: KokoroAssets | None = None,
+        extra_voices: tuple[str, ...] | None = None,
+    ) -> None:
         """Create the adapter; the model loads on warmup or first use."""
         self._pipelines: dict[str, Any] = {}
         self._model: Any = None
         self._assets = assets if assets is not None else KokoroAssets()
         self._lock = threading.Lock()
+        declared = (
+            extra_voices
+            if extra_voices is not None
+            else parse_extra_voices(os.environ.get(EXTRA_VOICES_ENV))
+        )
+        self._voices = VOICES + tuple(voice for voice in declared if voice not in set(VOICES))
 
     def preparation(self) -> tuple[str, float] | None:
         """Return the asset this engine is fetching and when that started.
@@ -343,8 +388,8 @@ class KokoroEngine:
         return int(len(samples) / _SAMPLE_RATE * 1000)
 
     def list_voices(self) -> list[str]:
-        """Enumerate the known Kokoro voices."""
-        return list(VOICES)
+        """Enumerate the verified Kokoro voices plus any declared extras."""
+        return list(self._voices)
 
     def warmup(self) -> None:
         """Load the default-language pipeline so first synthesis is not cold."""
