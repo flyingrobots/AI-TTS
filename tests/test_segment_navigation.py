@@ -32,6 +32,17 @@ pytestmark = [
 SEGMENTS = ("first chunk", "second chunk", "third chunk")
 
 
+def is_settled(store: Store, utt_id: str) -> bool:
+    """Whether the document has reached a terminal state."""
+    found = store.get(utt_id)
+    return found is not None and found.is_terminal
+
+
+def sink_is_active(ctl: PlaybackController) -> bool:
+    # Read through a call so mypy does not narrow the attribute across mutations.
+    return ctl._sink_active
+
+
 def segment_states(store: Store, utt_id: str) -> list[State]:
     """Every segment state of ``utt_id``, in order."""
     return [segment.state for segment in store.segments(utt_id)]
@@ -210,5 +221,75 @@ async def test_chunk_navigation_is_refused_while_playback_is_held(
         assert await ctl.next_segment() is False
         assert await ctl.previous_segment() is False
         assert segment_states(store, utt_id)[0] is State.PAUSED
+    finally:
+        task.cancel()
+
+
+# -- never leave the device idle while the document says Playing -----------
+
+
+def evict_segment_audio(store: Store, utt_id: str, index: int) -> None:
+    """Simulate the cached audio for one chunk having gone away."""
+    store._db.execute(
+        "UPDATE utterance_segments SET audio_path = NULL "
+        "WHERE utterance_id = ? AND segment_index = ?",
+        (utt_id, index),
+    )
+    store._db.commit()
+
+
+async def test_stepping_back_to_an_evicted_chunk_keeps_playing(
+    store: Store, sink: FakeSink
+) -> None:
+    parent = make_composite_ready(store, " ".join(SEGMENTS), SEGMENTS)
+    ctl = PlaybackController(store, sink, DeterministicPlaybackSchedule())
+    task = asyncio.get_running_loop().create_task(ctl.run())
+    try:
+        await wait_for(lambda: ctl.current_segment is not None)
+        sink.advance_to(1000)
+        sink.finish_current()
+        await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 1)
+        evict_segment_audio(store, parent.id, 0)
+
+        moved = await ctl.previous_segment()
+
+        # Declining is correct — there is nothing to replay. Going silent is
+        # not: releasing the device before knowing the step can succeed left
+        # the document Playing with nothing on the device and no way back,
+        # because the plan loop only starts a Ready child.
+        assert moved is False
+        await wait_for(lambda: sink_is_active(ctl))
+        still = store.get(parent.id)
+        assert still is not None
+        assert still.state is State.PLAYING
+        assert ctl.current_segment is not None
+        assert ctl.current_segment.index == 1
+    finally:
+        task.cancel()
+
+
+async def test_restarting_a_document_with_no_cached_audio_settles_it(
+    store: Store, sink: FakeSink
+) -> None:
+    parent = make_composite_ready(store, " ".join(SEGMENTS), SEGMENTS)
+    ctl = PlaybackController(store, sink, DeterministicPlaybackSchedule())
+    task = asyncio.get_running_loop().create_task(ctl.run())
+    try:
+        await wait_for(lambda: ctl.current_segment is not None)
+        for index in range(len(SEGMENTS)):
+            evict_segment_audio(store, parent.id, index)
+
+        await ctl.restart_current()
+
+        # Restart releases the device before knowing restart_segments can
+        # reopen anything, and with no audio left it cannot. The invariant is
+        # not "keeps playing" — there is nothing to play — but that it never
+        # sits Playing in silence holding the queue open. It settles instead.
+        await wait_for(lambda: is_settled(store, parent.id))
+        settled = store.get(parent.id)
+        assert settled is not None
+        assert settled.state is State.FAILED
+        assert settled.error is not None
+        assert ctl.current_id is None
     finally:
         task.cancel()

@@ -205,3 +205,44 @@ def test_the_committed_skill_keeps_its_placeholder() -> None:
     # machine's layout again, which is what the placeholder exists to prevent.
     assert "<AI_TTS_BIN>" in body
     assert "/Users/" not in body
+
+
+# -- paths that are legal but awkward -------------------------------------
+
+
+@pytest.mark.parametrize(
+    "directory",
+    ["dir with spaces", "dir&ampersand", "dir'quote"],
+)
+def test_a_skill_installs_under_an_awkward_path(tmp_path: Path, directory: str) -> None:
+    # macOS paths routinely contain spaces, and sed's replacement grammar
+    # treats & as "the matched text". Building a command string and re-splitting
+    # it, or substituting without escaping, corrupts both.
+    binary = tmp_path / directory / "bin" / "ai-tts"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["AITTS_BIN"] = str(binary)
+    env["AITTS_CLAUDE_SKILLS_DIR"] = str(tmp_path / "skills")
+
+    result = run(env, "skill", "--claude")
+
+    assert result.returncode == 0, result.stderr
+    body = (tmp_path / "skills" / "speak" / "SKILL.md").read_text(encoding="utf-8")
+    assert str(binary) in body
+    assert "<AI_TTS_BIN>" not in body
+
+
+def test_the_rendered_mcp_command_quotes_the_server_path(tmp_path: Path) -> None:
+    server = tmp_path / "dir with spaces" / "ai-tts-mcp"
+    server.parent.mkdir(parents=True)
+    server.write_text("#!/bin/sh\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["AITTS_MCP_BIN"] = str(server)
+
+    result = run(env, "mcp", "--claude", "--dry-run")
+
+    assert result.returncode == 0
+    # Printed for a human to retype, so the path must be quoted or they will
+    # paste something that splits into three arguments.
+    assert f"'{server}'" in result.stdout
