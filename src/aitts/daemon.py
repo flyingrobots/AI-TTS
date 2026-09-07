@@ -315,6 +315,8 @@ class Daemon:
             "resume_when_input_idle": self._op_resume_when_input_idle,
             "skip": self._op_skip,
             "rewind": self._op_rewind,
+            "next_segment": self._op_next_segment,
+            "previous_segment": self._op_previous_segment,
             "requeue": self._op_requeue,
             "reorder": self._op_reorder,
             "cancel": self._op_cancel,
@@ -504,6 +506,30 @@ class Daemon:
         del payload
         await self._require_controller().skip()
         return self._transport_reply()
+
+    async def _op_next_segment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        return await self._step_segment(forwards=True)
+
+    async def _op_previous_segment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        return await self._step_segment(forwards=False)
+
+    async def _step_segment(self, *, forwards: bool) -> dict[str, Any]:
+        """Move one chunk within the current document, or say why it cannot."""
+        controller = self._require_controller()
+        moved = await controller.next_segment() if forwards else await controller.previous_segment()
+        if not moved:
+            msg = (
+                "no further chunk in the current document; chunk steps need an unheld, chunked clip"
+            )
+            raise ApiError(ILLEGAL_STATE, msg)
+        reply = self._transport_reply()
+        segment = controller.current_segment
+        if segment is not None:
+            reply["segment_index"] = segment.index
+            reply["segment_number"] = segment.index + 1
+        return reply
 
     async def _op_rewind(self, payload: dict[str, Any]) -> dict[str, Any]:
         controller = self._require_controller()

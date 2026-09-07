@@ -691,6 +691,62 @@ class PlaybackController:
             self._current_segment_index = None
         self.notify()
 
+    async def next_segment(self) -> bool:
+        """Give up the current chunk and move to the next one in the document.
+
+        Skip abandons the whole queue entry; this abandons one chunk of it, so
+        it declines on the last chunk rather than quietly becoming Skip.
+        """
+        target = self._navigable_segment_index()
+        if target is None:
+            return False
+        current, index = target
+        if index + 1 >= len(self._store.segments(current.id)):
+            return False
+        position = self._sink.position_ms() if self._sink_active else 0
+        await self._release_sink()
+        self._store.transition_segment(current.id, index, State.SKIPPED, played_ms=position)
+        self._current_segment_index = None
+        self._resume_document_at_next_ready(current.id)
+        self.notify()
+        return True
+
+    async def previous_segment(self) -> bool:
+        """Replay the chunk before the current one, from its beginning."""
+        target = self._navigable_segment_index()
+        if target is None:
+            return False
+        current, index = target
+        if index == 0:
+            return False
+        await self._release_sink()
+        if not self._store.reset_segments_from(current.id, index - 1):
+            return False
+        self._current_segment_index = None
+        self._resume_document_at_next_ready(current.id)
+        self.notify()
+        return True
+
+    def _navigable_segment_index(self) -> tuple[Utterance, int] | None:
+        """Return the document and active chunk when chunk stepping applies."""
+        if self.held:
+            return None
+        current = self._current()
+        if current is None or self._current_segment_index is None:
+            return None
+        if not self._store.segments(current.id):  # pragma: no cover - index implies children
+            return None
+        return current, self._current_segment_index
+
+    def _resume_document_at_next_ready(self, utt_id: str) -> None:
+        """Start the next playable chunk now, or leave it to the plan loop."""
+        segment = self._store.next_unfinished_segment(utt_id)
+        parent = self._store.get(utt_id)
+        if segment is None or parent is None:
+            return
+        if segment.state is State.READY:
+            self._begin_segment(parent, segment, position_ms=0)
+
     async def restart_current(self) -> None:
         """Replay the current utterance from its start."""
         if self.held:

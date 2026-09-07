@@ -680,6 +680,34 @@ class Store:
         self._commit_or_rollback()
         return True
 
+    def reset_segments_from(self, utt_id: str, index: int) -> bool:
+        """Return the children from ``index`` onward to Ready for replay.
+
+        Stepping backwards through a document has to reopen children the state
+        machine already closed, exactly as a whole-document restart does. It
+        succeeds only when the target's audio still exists; nothing is
+        disturbed when it has been evicted.
+        """
+        target = self.get_segment(utt_id, index)
+        if target is None or target.audio_path is None:
+            return False
+        resettable = (State.READY, State.PLAYING, State.PAUSED, State.PLAYED, State.SKIPPED)
+        placeholders = ",".join("?" * len(resettable))
+        self._db.execute(
+            f"UPDATE utterance_segments SET state = ?, played_ms = 0 "  # noqa: S608
+            f"WHERE utterance_id = ? AND segment_index >= ? AND audio_path IS NOT NULL "
+            f"AND state IN ({placeholders})",
+            (State.READY.value, utt_id, index, *(state.value for state in resettable)),
+        )
+        # The document's elapsed time is whatever remains behind the playhead.
+        self._db.execute(
+            "UPDATE utterances SET played_ms = ? WHERE id = ?",
+            (self.completed_segment_duration_ms(utt_id, before=index), utt_id),
+        )
+        self._commit_or_rollback()
+        moved = self.get_segment(utt_id, index)
+        return moved is not None and moved.state is State.READY
+
     def skip_segments(self, utt_id: str, active_index: int | None, played_ms: int) -> None:
         """Settle one document's child queue after a parent-level Skip."""
         if active_index is not None:
