@@ -229,8 +229,10 @@ def test_a_skill_installs_under_an_awkward_path(tmp_path: Path, directory: str) 
 
     assert result.returncode == 0, result.stderr
     body = (tmp_path / "skills" / "speak" / "SKILL.md").read_text(encoding="utf-8")
-    assert str(binary) in body
     assert "<AI_TTS_BIN>" not in body
+    # The path is shell-quoted, so it is not a bare substring once it contains
+    # an apostrophe; what matters is that it parses back to the executable.
+    assert any(str(binary) in shell_words(line) for line in fenced_commands(body))
 
 
 def test_the_rendered_mcp_command_quotes_the_server_path(tmp_path: Path) -> None:
@@ -246,3 +248,70 @@ def test_the_rendered_mcp_command_quotes_the_server_path(tmp_path: Path) -> None
     # Printed for a human to retype, so the path must be quoted or they will
     # paste something that splits into three arguments.
     assert f"'{server}'" in result.stdout
+
+
+def fenced_commands(body: str) -> list[str]:
+    """Every command line inside a fenced block, joined across continuations."""
+    lines: list[str] = []
+    inside = False
+    pending = ""
+    for line in body.splitlines():
+        if line.startswith("```"):
+            inside = not inside
+            continue
+        if not inside or not line.strip() or line.lstrip().startswith("#"):
+            continue
+        pending += line.rstrip("\\")
+        if line.rstrip().endswith("\\"):
+            continue
+        lines.append(pending.strip())
+        pending = ""
+    return lines
+
+
+def shell_words(command: str) -> list[str]:
+    """Split ``command`` the way a POSIX shell would."""
+    import shlex  # noqa: PLC0415 - only this check needs it
+
+    return shlex.split(command)
+
+
+@pytest.mark.parametrize("directory", ["dir with spaces", "dir&ampersand", "dir'quote"])
+def test_the_installed_skill_is_runnable_under_an_awkward_path(
+    tmp_path: Path, directory: str
+) -> None:
+    binary = tmp_path / directory / "bin" / "ai-tts"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["AITTS_BIN"] = str(binary)
+    env["AITTS_CLAUDE_SKILLS_DIR"] = str(tmp_path / "skills")
+
+    run(env, "skill", "--claude")
+
+    body = (tmp_path / "skills" / "speak" / "SKILL.md").read_text(encoding="utf-8")
+    # Preserving the path's text is not enough: an agent reads these commands
+    # and runs them. Unquoted, `/Users/Jane Doe/bin/ai-tts say ...` executes
+    # /Users/Jane, and a path containing & becomes a shell operator.
+    commands = [line for line in fenced_commands(body) if "ai-tts" in line]
+    assert commands, "the installed skill should contain a runnable command"
+    for command in commands:
+        words = shell_words(command)
+        assert words[0] == str(binary), f"first word is not the executable: {words[0]!r}"
+
+
+def test_the_rendered_mcp_command_survives_an_apostrophe(tmp_path: Path) -> None:
+    server = tmp_path / "O'Brien" / "ai-tts-mcp"
+    server.parent.mkdir(parents=True)
+    server.write_text("#!/bin/sh\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["AITTS_MCP_BIN"] = str(server)
+
+    result = run(env, "mcp", "--claude", "--dry-run")
+
+    assert result.returncode == 0
+    printed = next(line for line in result.stdout.splitlines() if "mcp add" in line)
+    command = printed.split("-> ", 1)[1].removesuffix(" (dry run)")
+    # Wrapping in single quotes without escaping embedded apostrophes makes the
+    # printed command unpasteable.
+    assert shell_words(command)[-1] == str(server)

@@ -104,6 +104,13 @@ resolve_bin() {
     printf '%s' "$resolved"
 }
 
+# Render a value as a single POSIX shell word. Single-quote it and close,
+# escape, reopen around each embedded apostrophe, which is the only character
+# single quotes cannot carry.
+shell_quote() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
 skills_dir_for() {
     case "$1" in
         claude) printf '%s' "${AITTS_CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}" ;;
@@ -120,9 +127,10 @@ skills_dir_for() {
 # to re-split would break on any path containing a space and would run
 # whatever a crafted path contained.
 mcp_add_command_for() {
+    quoted=$(shell_quote "$2")
     case "$1" in
-        claude | codex) printf "%s mcp add %s -- '%s'" "$1" "$SERVER_NAME" "$2" ;;
-        gemini) printf "gemini mcp add %s '%s'" "$SERVER_NAME" "$2" ;;
+        claude | codex) printf '%s mcp add %s -- %s' "$1" "$SERVER_NAME" "$quoted" ;;
+        gemini) printf 'gemini mcp add %s %s' "$SERVER_NAME" "$quoted" ;;
     esac
 }
 
@@ -150,10 +158,12 @@ install_skill_for() {
     # Replace the committed placeholder with this machine's path. The skill in
     # the repository stays machine-independent; the installed copy is concrete.
     #
-    # The path is escaped for sed's replacement grammar first: an unescaped &
-    # inserts the matched text and an unescaped | would end the expression, so
-    # a path containing either would silently produce the wrong command.
-    escaped=$(printf '%s' "$binary" | sed -e 's/[&|\\]/\\&/g')
+    # Two separate escapes, and both are needed. The skill's commands are run
+    # by an agent, so the path has to be a single shell word first; that word
+    # is then escaped for sed's replacement grammar, where an unescaped &
+    # inserts the matched text and an unescaped | would end the expression.
+    quoted=$(shell_quote "$binary")
+    escaped=$(printf '%s' "$quoted" | sed -e 's/[&|\\]/\\&/g')
     sed "s|<AI_TTS_BIN>|$escaped|g" "$SKILL_SOURCE" >"$destination/SKILL.md"
     printf '  %-7s skill  -> %s/SKILL.md\n' "$agent" "$destination"
 }

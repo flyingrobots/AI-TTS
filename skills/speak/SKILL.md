@@ -9,9 +9,11 @@ All speech goes through the **AI-TTS daemon**. It owns the audio device, queues
 utterances so agents never overlap, records who said what, and honours a hold
 when the user pauses it.
 
-Replace `<AI_TTS_BIN>` below with the absolute path printed by
-`uv tool dir --bin`, suffixed with `/ai-tts`. Use the absolute path: a
-non-login agent shell may not inherit an interactive `PATH`.
+The commands below name the `ai-tts` executable by absolute path, because a
+non-login agent shell may not inherit an interactive `PATH`. If a command
+still shows a bracketed placeholder, this copy was not installed by
+`make install-skill`; replace it with the output of `uv tool dir --bin`
+suffixed with `/ai-tts`.
 
 ## Run it
 
