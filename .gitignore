@@ -44,8 +44,15 @@ xcuserdata/
 *.dmg
 *.pkg
 
-# Runtime state — never commit spoken content or cached audio
+# Runtime state — never commit spoken content or cached audio.
+# The store is named state.db, so *.sqlite* alone did not cover it: a stray
+# AI_TTS_HOME pointing inside the checkout would have left a database of
+# everything ever spoken stageable by `git add -A`.
 /state/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite-journal
 *.sqlite-shm

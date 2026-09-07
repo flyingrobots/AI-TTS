@@ -102,6 +102,49 @@ mean cyclomatic complexity across 423 Python functions, duplication as
 repeated six-line normalized blocks over significant source lines, and LoC as
 Python plus Swift source excluding tests.
 
+## Errata: three errors in the reports themselves
+
+Found by a pre-push audit on 2026-09-07 and verified by hand. These are not the
+citation drift described below — they were wrong at the commit each report
+names, so regenerating against a current checkout will not explain them away.
+They are recorded here rather than corrected in place, because the reports are
+committed verbatim and a hand-edit would be undone by the next regeneration.
+
+**The commit count is wrong by about three and a half times.** Both reports and
+both payloads assert "571 commits" — fourteen occurrences in total, used to
+support the versioning and single-author findings. The real counts:
+
+```sh
+git rev-list --count 8ecbb7f   # 147, the 2026-09-06 report's own commit
+git rev-list --count e2c7706   # 160, the 2026-09-07 report's own commit
+```
+
+This matters more than the number does. The claim under "What the numbers
+mean" below is that quantitative inputs were *measured, not estimated*, and a
+headline figure disproved by one command undercuts that for the figures that
+were measured correctly.
+
+**The 2026-09-07 report contradicts itself on one page.** Its Level-2 rationale
+calls `Views.swift` "a single 900-line file"; its Level-1 matrix, same
+document, same commit, says it "has grown to 1169 lines". The cause is visible
+in a diff of the two reports: all eleven Level-2 category rationales are
+byte-identical between them while the scores and Level-1 rows changed, so the
+second audit reused the first's prose against new numbers. The same mismatch
+appears on release tooling, where one section says CI builds no artifact and
+another describes the Makefile that had just landed.
+
+**The payloads publish a file that is deliberately untracked.** The
+`mitigation_prompt` fields are instructions addressed to a coding assistant
+rather than findings, and one of them enumerates the contents of
+`.claude/bad_code.md` — a gitignored working journal — to justify a
+recommendation that was in the end not followed. Four of the items it lists had
+already shipped when it was written.
+
+Read the reports with that in mind, and with one more thing: the **PRODUCTION
+READY** banner at the top of each is self-administered. The tool, the weight
+profile, and the repository are all the same author's. The scores below are
+worth what any self-assessment is worth, which is why this file exists.
+
 ## This is a dated snapshot, and it drifts
 
 Both files name the commit they were produced against, and every `location`
