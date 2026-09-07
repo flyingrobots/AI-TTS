@@ -27,3 +27,4 @@ instead of removed stops being readable within a release.
 | --- | --- |
 | [`elapsed-time-ignores-abandoned-chunks.md`](elapsed-time-ignores-abandoned-chunks.md) | The progress bar under-reports after a chunk is skipped |
 | [`no-history-search.md`](no-history-search.md) | History is browsable but not searchable |
+| [`swift-test-harness-crashed-once.md`](swift-test-harness-crashed-once.md) | Seen once, unreproduced in 13 runs; would fail CI with no test failure attached |
