@@ -39,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap, and playback device failures counted apart from ordinary terminal
   states. A null summary means nothing has been measured, which a caller can
   tell from zero.
+- **A walkthrough of one utterance**, at
+  [`docs/design/one-utterance.md`](docs/design/one-utterance.md): what actually
+  runs, in order, from an agent's `say` to the state change that ends it,
+  naming the module and symbol at each step. The architecture document says
+  what the parts are and why; this is the one to read before changing code.
+- **The README's CLI examples are pinned to the CLI that exists.** A test
+  fails when a subcommand has no example, or when an example names a command
+  that has been removed. Seven commands had been added without one, so the
+  README described a smaller tool than the one installed.
 - **The voice catalog can be extended without a release.**
   `AI_TTS_EXTRA_VOICES` adds voices to the curated list — for someone who has
   installed the Japanese or Mandarin G2P extras themselves, or who wants a

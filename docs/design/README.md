@@ -25,11 +25,17 @@ Out of scope for v1: multiple users, multiple machines, any network transport, a
 | Document | What it covers | Depends on |
 |---|---|---|
 | [`features.md`](features.md) | What the thing does. Every feature labelled STATED / INFERRED / PROPOSED with priority, so proposals can be cut in one pass | — |
+| [`one-utterance.md`](one-utterance.md) | The life of one utterance, in order, from an agent's `say` to the state change that ends it. The walkthrough the other documents assume; the fastest way into the codebase | architecture |
 | [`architecture.md`](architecture.md) | The two queues, the utterance lifecycle, components, IPC, persistence, transport semantics, sensitivity routing | features |
 | [`os-integration.md`](os-integration.md) | Accepted design for selected-text and selected-file Services, the explicit Accessibility fallback, privacy boundaries, and later App Intents | features, architecture |
 | [`engine-evaluation.md`](engine-evaluation.md) | Whether Kokoro-82M is still the right engine. Answer: yes, and why the cloud field is disqualified | — |
 | [`tech-stack.md`](tech-stack.md) | Language and framework choices, with the rejected options and why | architecture, engine-evaluation, OS integration |
 | [`ui-design.md`](ui-design.md) | Interaction design for the menu-bar app and native entry points, with mockups in [`mockups/`](mockups/) | features, architecture, OS integration |
+
+[`one-utterance.md`](one-utterance.md) is the one to read if you intend to
+change code rather than argue with the design. `architecture.md` says what the
+parts are and why; that document says what actually runs, in order, and names
+the module and symbol at each step.
 
 `features.md` separates *what* from *how* and is the document to argue with
 first. If a feature falls out of it, the sections built on that feature fall

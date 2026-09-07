@@ -85,6 +85,7 @@ Read these in order. They are the current deliverable.
 | [`docs/design/README.md`](docs/design/README.md) | Index, scope, and the questions still open |
 | [`docs/design/features.md`](docs/design/features.md) | Feature breakdown, separated into stated, inferred, and proposed |
 | [`docs/design/architecture.md`](docs/design/architecture.md) | Components, the two queues, utterance lifecycle, IPC, persistence |
+| [`docs/design/one-utterance.md`](docs/design/one-utterance.md) | The life of one utterance in order, module by module. Start here to change code |
 | [`docs/design/engine-evaluation.md`](docs/design/engine-evaluation.md) | Whether Kokoro-82M is still the right engine; local and cloud alternatives |
 | [`docs/design/tech-stack.md`](docs/design/tech-stack.md) | Language and framework choices, with the rejected options and why |
 | [`docs/design/ui-design.md`](docs/design/ui-design.md) | Interaction design, with SVG mockups in [`mockups/`](docs/design/mockups/) |
@@ -450,14 +451,29 @@ ai-tts say $'# Release notes\n\nEverything is **ready**.' --format markdown
 # exit 0 only after the clip reaches Played
 ai-tts say "Deploy finished." --wait
 
-# transport and visibility
+# block on one clip you already have the id of
+ai-tts wait utt_1a2b3c4d
+
+# transport
 ai-tts pause
 ai-tts resume
 ai-tts skip
 ai-tts rewind
+
+# what the daemon is doing, and what it can speak
+ai-tts status
+ai-tts voices
+
+# the queues: 'playback' is the speaking plan, 'input' is what is still
+# being synthesized
 ai-tts list playback
+ai-tts list input
 ai-tts history
 ai-tts purge-cache
+
+# give up on something before it is spoken, or drain a whole queue
+ai-tts cancel utt_1a2b3c4d
+ai-tts clear input
 
 # how long synthesis and the playback queue are actually taking
 ai-tts metrics
