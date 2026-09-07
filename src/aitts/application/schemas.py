@@ -123,6 +123,14 @@ class HistoryItem(QueueItem):
     audio_cached: bool
 
 
+class SpeechInterruption(PublicSchema):
+    """A playback hold the listener's own voice caused."""
+
+    reason: Literal["listener_speaking"]
+    at: float
+    resume_armed: bool
+
+
 class SpeechStatus(SpeechAdmission):
     """Machine-readable service, playback, and queue state."""
 
@@ -132,6 +140,10 @@ class SpeechStatus(SpeechAdmission):
     counts: dict[str, NonNegativeInt]
     engine: NonEmptyText
     voice: str
+    # Whether an audio input is capturing right now. Coarse and sticky by
+    # nature; it says the device is open, not that anyone is talking.
+    input_active: bool = False
+    interruption: SpeechInterruption | None = None
 
 
 class QueueView(PublicSchema):

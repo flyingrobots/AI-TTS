@@ -35,12 +35,19 @@ def _fourcc(code: str) -> int:
 
 
 _SCOPE_GLOBAL = _fourcc("glob")
+_SCOPE_INPUT = _fourcc("inpt")
 _DEFAULT_OUTPUT_DEVICE = _fourcc("dOut")
 _DEVICE_UID = _fourcc("uid ")
+_DEVICES = _fourcc("dev#")
+_DEVICE_IS_RUNNING_SOMEWHERE = _fourcc("gone")
+_STREAM_CONFIGURATION = _fourcc("slay")
 
 # kCFStringEncodingUTF8
 _UTF8 = 0x08000100
 _UID_BUFFER_BYTES = 512
+# An AudioBufferList with no buffers is this many bytes; anything larger means
+# the device really does present input streams.
+_EMPTY_BUFFER_LIST_BYTES = 8
 
 
 class _PropertyAddress(ctypes.Structure):
@@ -141,6 +148,82 @@ class CoreAudioOutputDevice:
         finally:
             # AudioObjectGetPropertyData hands back a +1 CFString.
             self._core_foundation.CFRelease(value)
+
+
+class CoreAudioInputActivity:
+    """Report whether any input-capable device is currently capturing.
+
+    The reading is per *device*, not per process, and stays true while any
+    process holds the device open — which dictation software does long after a
+    recording ends. Callers must treat it as an edge, never as a level; see
+    :mod:`aitts.application.input_activity`.
+    """
+
+    def __init__(self) -> None:
+        """Bind CoreAudio; a missing framework disables input reporting."""
+        self._core_audio = _load("CoreAudio")
+        if self._core_audio is None:  # pragma: no cover - the framework ships with macOS
+            log.warning("event=core_audio_unavailable")
+
+    def input_is_active(self) -> bool | None:
+        """Return whether some input device is capturing, or ``None``."""
+        if self._core_audio is None:
+            return None
+        devices = self._devices()
+        if devices is None:
+            return None
+        return any(
+            self._has_input_streams(device) and self._is_running_somewhere(device)
+            for device in devices
+        )
+
+    def _devices(self) -> list[int] | None:
+        assert self._core_audio is not None  # noqa: S101 - guarded by the caller
+        address = _PropertyAddress(_DEVICES, _SCOPE_GLOBAL, 0)
+        size = ctypes.c_uint32(0)
+        status = self._core_audio.AudioObjectGetPropertyDataSize(
+            ctypes.c_uint32(_SYSTEM_OBJECT), ctypes.byref(address), 0, None, ctypes.byref(size)
+        )
+        if status != _STATUS_OK or size.value == 0:
+            return None
+        count = size.value // ctypes.sizeof(ctypes.c_uint32)
+        buffer = (ctypes.c_uint32 * count)()
+        held = ctypes.c_uint32(size.value)
+        status = self._core_audio.AudioObjectGetPropertyData(
+            ctypes.c_uint32(_SYSTEM_OBJECT),
+            ctypes.byref(address),
+            0,
+            None,
+            ctypes.byref(held),
+            buffer,
+        )
+        if status != _STATUS_OK:  # pragma: no cover - the size query just succeeded
+            return None
+        return [int(device) for device in buffer]
+
+    def _has_input_streams(self, device: int) -> bool:
+        assert self._core_audio is not None  # noqa: S101 - guarded by the caller
+        address = _PropertyAddress(_STREAM_CONFIGURATION, _SCOPE_INPUT, 0)
+        size = ctypes.c_uint32(0)
+        status = self._core_audio.AudioObjectGetPropertyDataSize(
+            ctypes.c_uint32(device), ctypes.byref(address), 0, None, ctypes.byref(size)
+        )
+        return status == _STATUS_OK and size.value > _EMPTY_BUFFER_LIST_BYTES
+
+    def _is_running_somewhere(self, device: int) -> bool:
+        assert self._core_audio is not None  # noqa: S101 - guarded by the caller
+        address = _PropertyAddress(_DEVICE_IS_RUNNING_SOMEWHERE, _SCOPE_GLOBAL, 0)
+        running = ctypes.c_uint32(0)
+        size = ctypes.c_uint32(ctypes.sizeof(running))
+        status = self._core_audio.AudioObjectGetPropertyData(
+            ctypes.c_uint32(device),
+            ctypes.byref(address),
+            0,
+            None,
+            ctypes.byref(size),
+            ctypes.byref(running),
+        )
+        return status == _STATUS_OK and running.value != 0
 
 
 def _load(framework: str) -> ctypes.CDLL | None:

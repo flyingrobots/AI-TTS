@@ -20,6 +20,10 @@ from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES, CacheController
+from aitts.application.input_activity import (
+    InputInterruptDetector,
+    platform_input_activity,
+)
 from aitts.engine import eligible_engine_names
 from aitts.ipc import (
     BAD_REQUEST,
@@ -47,12 +51,17 @@ from aitts.synthesis import SynthesisPool
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from aitts.application.input_activity import InputActivityPort
     from aitts.engine import Engine
     from aitts.playback import AudioSink
 
 _SPEED_MIN = 0.5
 _SPEED_MAX = 2.0
 _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
+# The listener's voice should take the floor within a syllable or two, and
+# each poll costs well under a millisecond.
+_INPUT_POLL_SECONDS = 0.15
+_INPUT_INTERRUPT_RESUME_POLICIES = ("manual", "when_idle")
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
 
@@ -85,7 +94,7 @@ def _serialize(utt: Utterance, *, history: bool = False) -> dict[str, Any]:
 class Daemon:
     """One process that outlives its clients and owns the audio device."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - every collaborator is injected by name
         self,
         *,
         home: Path,
@@ -93,10 +102,17 @@ class Daemon:
         sink: AudioSink,
         workers: int = 2,
         socket_path: Path | None = None,
+        input_activity: InputActivityPort | None = None,
+        input_poll_seconds: float = _INPUT_POLL_SECONDS,
     ) -> None:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
         secure_private_state(home)
         self._home = home
+        self._input_activity = (
+            input_activity if input_activity is not None else platform_input_activity()
+        )
+        self._input_poll_seconds = input_poll_seconds
+        self._input_detector = InputInterruptDetector()
         self._engines: dict[str, Engine] = {"local": engine}
         self._engine = engine
         self._sink = sink
@@ -143,6 +159,7 @@ class Daemon:
             loop.create_task(self._pool.run(), name="aitts-synthesis"),
             loop.create_task(self._supervise_playback(), name="aitts-playback"),
             loop.create_task(asyncio.to_thread(self._engine.warmup), name="aitts-warmup"),
+            loop.create_task(self._watch_input_activity(), name="aitts-input"),
         ]
         await self._server.start()
 
@@ -160,6 +177,56 @@ class Daemon:
                 log.error("event=playback_worker_exited retry_seconds=%.2f", delay)
             await asyncio.sleep(delay)
             delay = min(delay * 2, _PLAYBACK_RESTART_MAX_SECONDS)
+
+    async def _watch_input_activity(self) -> None:
+        """Give the listener the floor the moment they start speaking.
+
+        The reading is coarse and sticky, so only its cold-to-hot edge counts
+        as the floor changing hands (see
+        :mod:`aitts.application.input_activity`). A hold that came from an
+        interrupt can also release itself once the input goes quiet, when the
+        listener has asked for that.
+        """
+        while True:
+            try:
+                reading = self._input_activity.input_is_active()
+                if self._input_detector.observe(reading) and self._input_interrupt_enabled():
+                    await self._interrupt_for_listener()
+                elif reading is False:
+                    await self._resume_if_armed()
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - a poll failure must not stop the daemon
+                log.warning("event=input_activity_poll_failed")
+            await asyncio.sleep(self._input_poll_seconds)
+
+    async def _interrupt_for_listener(self) -> None:
+        controller = self._require_controller()
+        if not await controller.interrupt():
+            return
+        if self._input_interrupt_resume() == "when_idle":
+            controller.arm_resume_when_input_idle()
+        log.info("event=playback_interrupted_by_listener")
+        self._server.broadcast(
+            {
+                "event": "playback_interrupted",
+                "reason": "listener_speaking",
+                "resume_armed": controller.resume_when_input_idle_armed,
+            }
+        )
+
+    async def _resume_if_armed(self) -> None:
+        controller = self._require_controller()
+        if controller.resume_when_input_idle_armed:
+            await controller.resume()
+            log.info("event=playback_resumed_after_listener")
+            self._server.broadcast({"event": "playback_resumed", "reason": "input_idle"})
+
+    def _input_interrupt_enabled(self) -> bool:
+        return self._store.get_setting("input_interrupt_enabled", "true") == "true"
+
+    def _input_interrupt_resume(self) -> str:
+        return self._store.get_setting("input_interrupt_resume", "manual")
 
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""
@@ -245,6 +312,7 @@ class Daemon:
             "history": self._op_history,
             "pause": self._op_pause,
             "resume": self._op_resume,
+            "resume_when_input_idle": self._op_resume_when_input_idle,
             "skip": self._op_skip,
             "rewind": self._op_rewind,
             "requeue": self._op_requeue,
@@ -421,6 +489,15 @@ class Daemon:
     async def _op_resume(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
         await self._require_controller().resume()
+        return self._transport_reply()
+
+    async def _op_resume_when_input_idle(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        controller = self._require_controller()
+        if not controller.held:
+            msg = "playback is not held; there is nothing to resume"
+            raise ApiError(ILLEGAL_STATE, msg)
+        controller.arm_resume_when_input_idle()
         return self._transport_reply()
 
     async def _op_skip(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -657,10 +734,23 @@ class Daemon:
             "state": "accepting",
             **self._speech_admission(),
             "playback_state": playback_state,
+            "input_active": self._input_detector.input_is_hot,
+            "interruption": self._interruption_view(),
             "current": current_item,
             "counts": counts,
             "engine": self._engine.name,
             "voice": self._store.get_setting("voice", self._default_voice()),
+        }
+
+    def _interruption_view(self) -> dict[str, Any] | None:
+        """Describe a hold the listener's own voice caused, for the UI to explain."""
+        controller = self._require_controller()
+        if controller.interrupted_at is None:
+            return None
+        return {
+            "reason": "listener_speaking",
+            "at": controller.interrupted_at,
+            "resume_armed": controller.resume_when_input_idle_armed,
         }
 
     async def _op_snapshot(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -712,6 +802,8 @@ class Daemon:
             "cache_max_bytes": self._cache_limit(),
             "captions_enabled": self._captions_enabled(),
             "captions_enabled_configured": self._store.has_setting("captions_enabled"),
+            "input_interrupt_enabled": self._input_interrupt_enabled(),
+            "input_interrupt_resume": self._input_interrupt_resume(),
         }
 
     def _captions_enabled(self) -> bool:
@@ -724,6 +816,8 @@ class Daemon:
             "cache_max_bytes": self._apply_cache_limit_setting,
             "playback_rate": self._apply_playback_rate_setting,
             "captions_enabled": self._apply_captions_enabled_setting,
+            "input_interrupt_enabled": self._apply_input_interrupt_enabled_setting,
+            "input_interrupt_resume": self._apply_input_interrupt_resume_setting,
         }
         for key, value in updates.items():
             handler = handlers.get(key)
@@ -766,6 +860,19 @@ class Daemon:
             msg = "'captions_enabled' must be a boolean"
             raise ApiError(BAD_REQUEST, msg)
         self._store.set_setting("captions_enabled", "true" if value else "false")
+
+    def _apply_input_interrupt_enabled_setting(self, value: object) -> None:
+        if type(value) is not bool:
+            msg = "'input_interrupt_enabled' must be a boolean"
+            raise ApiError(BAD_REQUEST, msg)
+        self._store.set_setting("input_interrupt_enabled", "true" if value else "false")
+
+    def _apply_input_interrupt_resume_setting(self, value: object) -> None:
+        if value not in _INPUT_INTERRUPT_RESUME_POLICIES:
+            choices = ", ".join(_INPUT_INTERRUPT_RESUME_POLICIES)
+            msg = f"'input_interrupt_resume' must be one of: {choices}"
+            raise ApiError(BAD_REQUEST, msg)
+        self._store.set_setting("input_interrupt_resume", str(value))
 
     @staticmethod
     def _parse_playback_rate(raw: object) -> float | None:

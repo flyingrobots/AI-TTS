@@ -377,6 +377,10 @@ class PlaybackController:
         self._sink_active = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
+        # An interrupt is transient session state, not a durable preference:
+        # the listener took the floor now, and the UI needs to say so.
+        self.interrupted_at: float | None = None
+        self.resume_when_input_idle_armed = False
         if self.held:
             paused = self._adoptable_paused()
             if paused is not None:
@@ -592,9 +596,31 @@ class PlaybackController:
                     )
             self._store.transition(current.id, State.PAUSED, played_ms=position)
 
+    async def interrupt(self) -> bool:
+        """Hold playback because the listener started speaking.
+
+        Returns whether this call took the floor. A hold the listener already
+        set by hand is left exactly as it is: there is nothing to interrupt,
+        and reporting one would put a notice on screen they never caused.
+        """
+        if self.held:
+            return False
+        await self.pause()
+        self.interrupted_at = asyncio.get_running_loop().time()
+        return True
+
+    def arm_resume_when_input_idle(self) -> None:
+        """Resume by itself once the listener's input goes quiet again."""
+        self.resume_when_input_idle_armed = True
+
+    def _clear_interruption(self) -> None:
+        self.interrupted_at = None
+        self.resume_when_input_idle_armed = False
+
     async def resume(self) -> None:
         """Release the hold and continue (or adopt a restored paused utterance)."""
         self.held = False
+        self._clear_interruption()
         self._store.set_setting("playback_held", "false")
         current = self._current()
         if current is None:
@@ -631,6 +657,7 @@ class PlaybackController:
         cached, the history entry records where it stopped, and the input
         queue is untouched.
         """
+        self._clear_interruption()
         current = self._current()
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
             document_position = self.current_position_ms() or 0

@@ -703,6 +703,8 @@ async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
                 "cache_max_bytes": 4,
                 "captions_enabled": False,
                 "captions_enabled_configured": False,
+                "input_interrupt_enabled": True,
+                "input_interrupt_resume": "manual",
             },
         },
         "terminal_exists": False,
