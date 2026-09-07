@@ -3,6 +3,7 @@
 
 import AITTSApplication
 import Foundation
+import SwiftUI
 
 extension RequeuePriority {
     var actionDescription: String {
@@ -39,4 +40,57 @@ struct FullTextSubject: Identifiable, Equatable {
     let activeSegmentText: String?
 
     var isChunked: Bool { segmentCount > 1 }
+}
+
+/// One transport control, with everything a caller needs to render it
+/// accessibly and to bind a key to it.
+///
+/// This exists so accessibility is a value that can be asserted rather than a
+/// modifier somebody has to remember. Icon-only buttons discard their text
+/// label from the accessibility tree, and this tool is for people who are
+/// listening rather than looking; an unlabelled transport is a pointed
+/// failure here rather than a cosmetic one.
+enum TransportAction: String, CaseIterable {
+    case restart
+    case previousChunk
+    case nextChunk
+    case skip
+    case fullText
+
+    /// Spoken by VoiceOver, and shown as the tooltip.
+    var label: String {
+        switch self {
+        case .restart: "Restart this clip"
+        case .previousChunk: "Previous chunk"
+        case .nextChunk: "Next chunk"
+        case .skip: "Skip this clip"
+        case .fullText: "Read the full text"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .restart: "backward.end.fill"
+        case .previousChunk: "backward.fill"
+        case .nextChunk: "forward.fill"
+        case .skip: "forward.end.fill"
+        case .fullText: "text.alignleft"
+        }
+    }
+
+    /// The key that operates it while the popover is focused.
+    var shortcut: KeyEquivalent {
+        switch self {
+        case .restart: "r"
+        case .previousChunk: .leftArrow
+        case .nextChunk: .rightArrow
+        case .skip: "."
+        case .fullText: "t"
+        }
+    }
+
+    /// Whether the control only makes sense for a clip split into chunks.
+    var needsChunks: Bool {
+        self == .previousChunk || self == .nextChunk
+    }
 }

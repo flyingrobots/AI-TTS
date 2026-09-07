@@ -7,6 +7,7 @@
 
 import AITTSApplication
 import AITTSMacAdapters
+import AppKit
 import SwiftUI
 
 enum PlaybackTab: String, CaseIterable {
@@ -111,7 +112,29 @@ struct InterruptionNotice: View {
             )
             .padding(.horizontal, 10)
             .padding(.top, 8)
+            // The one message in this app that must arrive without being
+            // looked for: playback stopped because the listener started
+            // speaking. A screen-reader user given no announcement simply
+            // hears silence and no reason for it.
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isSummaryElement)
+            .onAppear { announce(interruption) }
         }
+    }
+
+    private func announce(_ interruption: SpeechInterruption) -> Void {
+        let message =
+            interruption.resumeArmed
+            ? "Playback interrupted. It will continue once your microphone goes quiet."
+            : "Playback interrupted because you started speaking. It is waiting for you."
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue,
+            ]
+        )
     }
 }
 
@@ -254,53 +277,11 @@ struct CurrentPlaybackCard: View {
                 chunkProgress(for: current)
                 progress(for: current)
                 HStack(spacing: 14) {
-                    Button {
-                        state.rewind()
-                    } label: {
-                        Label("Restart", systemImage: "backward.end.fill")
-                    }
-                    .disabled(isPaused)
-                    .help(
-                        isPaused
-                            ? "Resume playback before restarting the current clip"
-                            : "Restart the current clip"
-                    )
-                    if current.segmentCount > 1 {
-                        Button {
-                            state.previousChunk()
-                        } label: {
-                            Label("Previous chunk", systemImage: "backward.fill")
+                    ForEach(TransportAction.allCases, id: \.self) { action in
+                        if !action.needsChunks || current.segmentCount > 1 {
+                            transportButton(action, current: current)
                         }
-                        .disabled(isPaused || (current.activeSegment?.index ?? 0) == 0)
-                        .help(
-                            isPaused
-                                ? "Resume playback before stepping between chunks"
-                                : "Replay the previous chunk of this document"
-                        )
-                        Button {
-                            state.nextChunk()
-                        } label: {
-                            Label("Next chunk", systemImage: "forward.fill")
-                        }
-                        .disabled(isPaused || isOnLastChunk(current))
-                        .help(
-                            isPaused
-                                ? "Resume playback before stepping between chunks"
-                                : "Skip to the next chunk of this document"
-                        )
                     }
-                    Button {
-                        state.skip()
-                    } label: {
-                        Label("Skip", systemImage: "forward.end.fill")
-                    }
-                    .help("Give up on this whole clip")
-                    Button {
-                        state.readFullText(of: current)
-                    } label: {
-                        Label("Full text", systemImage: "text.alignleft")
-                    }
-                    .help("Read the whole thing in its own window")
                     Spacer()
                     Button {
                         state.setCaptionsEnabled(!state.captionsEnabled)
@@ -310,6 +291,8 @@ struct CurrentPlaybackCard: View {
                                 ? "captions.bubble.fill" : "captions.bubble")
                     }
                     .help(state.captionsEnabled ? "Hide on-screen captions" : "Show on-screen captions")
+                    .accessibilityLabel(
+                        state.captionsEnabled ? "Hide on-screen captions" : "Show on-screen captions")
                     Picker("Playback speed", selection: playbackRate) {
                         ForEach(PlaybackRate.allCases, id: \.self) { rate in
                             Text(rate.label).tag(rate)
@@ -319,6 +302,7 @@ struct CurrentPlaybackCard: View {
                     .pickerStyle(.menu)
                     .frame(width: 72)
                     .help("Change playback speed immediately")
+                    .accessibilityLabel("Playback speed")
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
@@ -339,6 +323,53 @@ struct CurrentPlaybackCard: View {
         .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
         .padding(.horizontal, 10)
         .padding(.top, 8)
+    }
+
+    /// One transport control, labelled and keyed from its action.
+    @ViewBuilder
+    private func transportButton(_ action: TransportAction, current: Utterance) -> some View {
+        Button {
+            switch action {
+            case .restart: state.rewind()
+            case .previousChunk: state.previousChunk()
+            case .nextChunk: state.nextChunk()
+            case .skip: state.skip()
+            case .fullText: state.readFullText(of: current)
+            }
+        } label: {
+            Label(action.label, systemImage: action.systemImage)
+        }
+        .disabled(isDisabled(action, current: current))
+        .keyboardShortcut(action.shortcut, modifiers: [])
+        .help(helpText(action))
+        .accessibilityLabel(action.label)
+    }
+
+    private func isDisabled(_ action: TransportAction, current: Utterance) -> Bool {
+        switch action {
+        case .fullText, .skip:
+            return false
+        case .restart:
+            return isPaused
+        case .previousChunk:
+            return isPaused || (current.activeSegment?.index ?? 0) == 0
+        case .nextChunk:
+            return isPaused || isOnLastChunk(current)
+        }
+    }
+
+    private func helpText(_ action: TransportAction) -> String {
+        if isPaused, action == .restart || action.needsChunks {
+            return "Resume playback before using \(action.label.lowercased())"
+        }
+        return action.label
+    }
+
+    /// Elapsed and total time as words, because a bar conveys nothing spoken.
+    private func spokenProgress(position: Int, duration: Int) -> String {
+        let elapsed = Int((Double(position) / 1000).rounded())
+        let total = Int((Double(duration) / 1000).rounded())
+        return "\(elapsed) seconds of \(total)"
     }
 
     private func isOnLastChunk(_ current: Utterance) -> Bool {
@@ -366,6 +397,10 @@ struct CurrentPlaybackCard: View {
                         .frame(height: 3)
                 }
             }
+            // The pips restate the counter beside them; announcing both would
+            // read the same fact twice.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Chunk \(active.number) of \(active.count)")
         }
     }
 
@@ -385,6 +420,8 @@ struct CurrentPlaybackCard: View {
                     value: min(Double(position), Double(duration)),
                     total: Double(duration)
                 )
+                .accessibilityLabel("Playback progress")
+                .accessibilityValue(spokenProgress(position: position, duration: duration))
                 HStack {
                     Text(clock(position))
                     Spacer()

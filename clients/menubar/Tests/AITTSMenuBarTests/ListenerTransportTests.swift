@@ -291,3 +291,32 @@ extension ListenerTransportTests {
         XCTAssertEqual(try service.snapshot().status.inputActive, false)
     }
 }
+
+extension ListenerTransportTests {
+
+    // MARK: - Accessibility is a value, not a modifier somebody remembers
+
+    func testEveryTransportActionCarriesASpokenLabelAndAKey() {
+        // An icon-only button discards its text label from the accessibility
+        // tree, and this is a tool for people who are listening. A missing
+        // label here is a control that cannot be found by voice.
+        XCTAssertEqual(TransportAction.allCases.count, 5)
+        var seenKeys: Set<String> = []
+        for action in TransportAction.allCases {
+            XCTAssertFalse(action.label.isEmpty, "\(action.rawValue) has no label")
+            XCTAssertFalse(action.systemImage.isEmpty, "\(action.rawValue) has no icon")
+            let key = String(describing: action.shortcut.character)
+            XCTAssertFalse(
+                seenKeys.contains(key),
+                "\(action.rawValue) reuses the key \(key)"
+            )
+            seenKeys.insert(key)
+        }
+    }
+
+    func testOnlyTheChunkControlsClaimToNeedChunks() {
+        let needing = TransportAction.allCases.filter(\.needsChunks)
+
+        XCTAssertEqual(Set(needing), [.previousChunk, .nextChunk])
+    }
+}
