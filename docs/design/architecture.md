@@ -606,6 +606,52 @@ that deliberately carries no speech precisely because the identifier is a
 random uuid: it names a row and reveals nothing about its content. Full
 distributed tracing would be the wrong instrument for one local process.
 
+## 9a. Deliberate deviations from general-purpose service practice
+
+Reviewed against a general service checklist, this daemon fails several items.
+Each failure is a decision, recorded here so it is not mistaken for an
+oversight and re-"fixed" by someone reading the checklist rather than the
+requirements.
+
+**It is stateful, and that is the product.** A stateless service keeps nothing
+between requests. This one keeps a permanent, searchable record of everything
+ever spoken, because the original request was for exactly that (§6). It also
+holds the audio device and a warm model, neither of which can be re-acquired
+per request at any acceptable cost — reloading the model per utterance is the
+failure mode the daemon exists to avoid. There is no version of this tool that
+is stateless and still the tool that was asked for.
+
+**It is single-instance, deliberately.** Two processes cannot both own one
+audio device, and the whole point is that two voices never speak at once. The
+menu-bar app takes a single-instance lock and the daemon owns one socket path.
+Horizontal scaling is not deferred here; it is a contradiction.
+
+**It does not run in a container.** A container cannot reach CoreAudio, the
+default output device, the microphone activity reading, or the macOS Services
+and App Intents surfaces. Every one of those is load-bearing. A containerised
+build would be a different program that happened to share a repository.
+
+**It has no health endpoint or readiness probe.** `ai-tts status` answers over
+the same Unix socket everything else uses, and the launch agent restarts the
+process. Adding a network listener to be probed would open the one attack
+surface the socket choice was made to avoid (§5).
+
+**It has no authentication.** The socket is mode `0600` in the user's own
+directory, so the operating system's permission check *is* the authentication,
+and it is a stronger one than anything this daemon could implement. A single
+user on a single machine has nobody to authenticate against.
+
+**Its configuration is not environment-driven.** Settings live in the store so
+the menu bar, the CLI and the MCP adapter cannot disagree about them, and so a
+change made in one is visible in the others immediately. The two exceptions are
+deployment facts rather than preferences: `AI_TTS_SOCKET` names where to
+connect, and `AI_TTS_EXTRA_VOICES` declares what the installed G2P extras can
+actually speak.
+
+What this section is *not* is a claim that the checklist is wrong. It is the
+right checklist for a service with users on other machines. This has one user,
+on this machine, and the items above are the ones that follow from that.
+
 ## 10. Decisions taken at implementation
 
 The original review questions are preserved below. Items 1–4 and 6 were

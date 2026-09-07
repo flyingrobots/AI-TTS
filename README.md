@@ -583,6 +583,13 @@ acceptance and the remaining release-readiness work and accepted blind spots
 are tracked in
 [`docs/standards/testing-profile.md`](docs/standards/testing-profile.md).
 
+Known defects and deliberately deferred work are tracked in
+[`docs/backlog/`](docs/backlog/) rather than left implicit. Where this daemon
+departs from general-purpose service practice — it is stateful, single
+instance, unauthenticated, and cannot run in a container — those are decisions
+rather than gaps, and each is recorded with its reasoning in
+[`architecture.md`](docs/design/architecture.md) §9a.
+
 ## Licence
 
 Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

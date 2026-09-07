@@ -6,6 +6,8 @@ permissions:
 on:
   push:
     branches: [main]
+    tags:
+      - "v*"
   pull_request:
 
 jobs:
@@ -99,3 +101,50 @@ jobs:
         run: python3 scripts/build_app_bundle.py --output dist/AI-TTS.app
       - name: Verify app bundle
         run: codesign --verify --deep --strict dist/AI-TTS.app
+
+  # A tagged commit produces the artifacts a person installs, built from the
+  # commit the tag names and only after every other job has passed. They are
+  # retained on the workflow run rather than attached to a GitHub Release:
+  # attaching needs contents: write, and this workflow's whole trust boundary
+  # is that nothing in it can write to the repository. Creating the release
+  # from these verified artifacts stays a human action.
+  release:
+    name: build release artifacts (tagged commits)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [python, supply-chain, swift]
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.9.18"
+          enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
+      - name: Sync dependencies
+        run: uv sync --frozen --dev
+      - name: Check the tag matches the packaged version
+        run: uv run --frozen python scripts/check_release_tag.py "${GITHUB_REF_NAME}"
+      - name: Build the Python distributions
+        run: uv build --offline --out-dir dist/release
+      - name: Build the signed app bundle
+        run: python3 scripts/build_app_bundle.py --output dist/release/AI-TTS.app
+      - name: Verify the app bundle
+        run: codesign --verify --deep --strict dist/release/AI-TTS.app
+      - name: Archive the app bundle
+        working-directory: dist/release
+        run: ditto -c -k --keepParent AI-TTS.app AI-TTS.app.zip
+      - name: Retain the release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ github.ref_name }}
+          path: |
+            dist/release/*.whl
+            dist/release/*.tar.gz
+            dist/release/AI-TTS.app.zip
+          if-no-files-found: error
+          retention-days: 90

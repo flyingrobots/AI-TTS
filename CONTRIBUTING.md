@@ -10,6 +10,16 @@ architecture, the feature breakdown, and the open questions. If a change
 contradicts a design decision, raise it as an issue rather than implementing
 around it.
 
+**[`docs/design/one-utterance.md`](docs/design/one-utterance.md) is the fastest
+way in.** It follows one utterance from an agent's `say` to the state change
+that ends it, naming the module at each step. `architecture.md` says what the
+parts are and why; that one says what actually runs.
+
+**Check [`docs/backlog/`](docs/backlog/) before starting on a defect.** Several
+known ones are open on purpose, with the reasoning written down. Disagreeing
+with that reasoning is welcome; rediscovering it over an afternoon is not a
+good use of yours.
+
 ## Ground rules
 
 - **Discuss before building anything large.** Open an issue describing the
@@ -22,10 +32,28 @@ around it.
 - **Keep the text private.** Never commit spoken content, audio artifacts,
   history databases, or anything else the tool produced at runtime. They are
   gitignored for a reason.
+- **Nothing from your own machine.** No absolute paths from your home
+  directory, no local agent names, no personal voice assignments. If someone
+  cloning this repository would read it and wonder whose setup they were
+  looking at, it does not belong here.
+- **Zero warnings.** Including ones that were already there in a file you
+  touched.
+
+The full testing rules — size classes and their time budgets, what counts as an
+oracle, the flakiness policy, and why every assertion must be shown able to
+fail — are in [`docs/standards/testing.md`](docs/standards/testing.md), and
+several of them are enforced at collection time rather than trusted.
 
 ## Commits
 
-Conventional commit messages. Reference the issue a change closes in the footer.
+Conventional commit messages. Reference the issue a change closes in the
+footer.
+
+Say *why* in the body, not just what. The what is in the diff and will still
+be there in a year; the reasoning will not be anywhere else. If you fixed
+something listed in [`docs/backlog/`](docs/backlog/), delete its file in the
+same commit — a backlog whose entries are marked done rather than removed
+stops being readable within a release.
 
 ## Licence
 

@@ -114,3 +114,65 @@ def test_supply_chain_job_audits_and_retains_the_full_optional_graph() -> None:
         "if: always()",
     }
     assert {fragment for fragment in required_fragments if fragment not in body} == set()
+
+
+# -- a tagged commit produces verified, retained release artifacts --------
+
+
+def test_a_tag_triggers_the_workflow() -> None:
+    text = _workflow_text()
+
+    # Without this a release is built from whatever was last pushed to main,
+    # which is not necessarily the commit the tag names.
+    assert re.search(r"(?m)^  push:\n(?:.*\n)*?    tags:\n      - \"v\*\"$", text)
+
+
+def test_the_release_job_only_runs_for_a_tag() -> None:
+    body = _job_body("release")
+
+    # On every other push it would rebuild what the other jobs already built.
+    assert "if: startsWith(github.ref, 'refs/tags/v')" in body
+
+
+def test_the_release_job_builds_every_distributed_artifact() -> None:
+    body = _job_body("release")
+
+    # What a person actually installs: the wheel and sdist for the CLI and
+    # MCP server, and the signed bundle for the menu-bar app. A release
+    # missing one of them is discovered by whoever tries to install it.
+    required = {
+        "uv build",
+        "scripts/build_app_bundle.py",
+        "codesign --verify",
+        "actions/upload-artifact@",
+        "if-no-files-found: error",
+    }
+    assert {fragment for fragment in required if fragment not in body} == set()
+
+
+def test_the_release_job_verifies_before_it_publishes_anything() -> None:
+    body = _job_body("release")
+
+    # Artifacts built from an unverified tree are worse than no artifacts:
+    # they look official.
+    assert "needs: [python, supply-chain, swift]" in body
+
+
+def test_the_release_job_holds_no_more_privilege_than_the_rest() -> None:
+    body = _job_body("release")
+
+    # Deliberately read-only, like every other job. Assets are retained on
+    # the run rather than pushed to a GitHub Release, because attaching them
+    # needs contents: write and the whole workflow's trust boundary is that
+    # nothing here can write to the repository. Creating the release from
+    # these verified artifacts stays a human action.
+    assert not re.search(r"(?m)^\s+[a-z-]+: write$", body)
+
+
+def _job_body(name: str) -> str:
+    match = re.search(
+        rf"(?ms)^  {re.escape(name)}:\n(?P<body>.*?)(?=^  [a-z][a-z-]+:\n|\Z)",
+        _workflow_text(),
+    )
+    assert match is not None, f"no {name} job in the workflow"
+    return match.group("body")
