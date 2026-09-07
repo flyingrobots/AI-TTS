@@ -20,7 +20,7 @@ from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
-from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES, CacheController
+from aitts.application.cache import CacheController
 from aitts.application.input_activity import (
     InputInterruptDetector,
     platform_input_activity,
@@ -47,20 +47,17 @@ from aitts.model import (
     UtteranceSegment,
     VoiceAssignment,
 )
-from aitts.playback import PLAYBACK_RATES, PlaybackController
+from aitts.playback import PlaybackController
 from aitts.segmentation import prepare_speech_segments
+from aitts.settings import SPEED_MESSAGE, SettingsService, parse_speed
 from aitts.store import Store, TransitionError
 from aitts.synthesis import SynthesisPool
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from aitts.application.input_activity import InputActivityPort
     from aitts.engine import Engine
     from aitts.playback import AudioSink
 
-_SPEED_MIN = 0.5
-_SPEED_MAX = 2.0
 _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 # The listener's voice should take the floor within a syllable or two, and
 # each poll costs well under a millisecond.
@@ -69,7 +66,6 @@ _INPUT_POLL_SECONDS = 0.15
 # taking the device, finishing, and failing. Enough to follow one clip through
 # a log without narrating every intermediate step.
 _TRACED_STATES = (State.READY, State.PLAYING, State.PLAYED, State.FAILED)
-_INPUT_INTERRUPT_RESUME_POLICIES = ("manual", "when_idle")
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
 
@@ -138,6 +134,7 @@ class Daemon:
         self._store = Store(home / "state.db")
         self._cache_dir = home / "cache"
         self._cache = CacheController(self._store, FileAudioCache(self._cache_dir))
+        self._settings = SettingsService(self._store, self)
         self._server = IPCServer(socket_path or home / "ai-tts.sock", self)
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
@@ -156,7 +153,7 @@ class Daemon:
     async def start(self) -> None:
         """Recover state, start the workers, and begin serving."""
         self._store.recover()
-        self._enforce_cache_limit()
+        self.enforce_cache_limit()
         held = any(u.state is State.PAUSED for u in self._store.playback_queue())
         self._controller = PlaybackController(
             self._store,
@@ -208,7 +205,10 @@ class Daemon:
         while True:
             try:
                 reading = self._input_activity.input_is_active()
-                if self._input_detector.observe(reading) and self._input_interrupt_enabled():
+                if (
+                    self._input_detector.observe(reading)
+                    and self._settings.input_interrupt_enabled()
+                ):
                     await self._interrupt_for_listener()
                 elif reading is False:
                     # Deliberately not gated on the setting. An armed resume
@@ -227,7 +227,7 @@ class Daemon:
         controller = self._require_controller()
         if not await controller.interrupt():
             return
-        if self._input_interrupt_resume() == "when_idle":
+        if self._settings.input_interrupt_resume() == "when_idle":
             controller.arm_resume_when_input_idle()
         log.info("event=playback_interrupted_by_listener")
         self._server.broadcast(
@@ -244,12 +244,6 @@ class Daemon:
             await controller.resume()
             log.info("event=playback_resumed_after_listener")
             self._server.broadcast({"event": "playback_resumed", "reason": "input_idle"})
-
-    def _input_interrupt_enabled(self) -> bool:
-        return self._store.get_setting("input_interrupt_enabled", "true") == "true"
-
-    def _input_interrupt_resume(self) -> str:
-        return self._store.get_setting("input_interrupt_resume", "manual")
 
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""
@@ -284,7 +278,7 @@ class Daemon:
         if utt.state is State.PLAYING and utt.audio_path is not None:
             self._cache.note_access(Path(utt.audio_path))
         if utt.state in TERMINAL:
-            self._enforce_cache_limit()
+            self.enforce_cache_limit()
 
     def _on_segment_transition(self, segment: UtteranceSegment, from_state: State) -> None:
         self._server.broadcast(
@@ -303,28 +297,7 @@ class Daemon:
         if segment.state is State.PLAYING and segment.audio_path is not None:
             self._cache.note_access(Path(segment.audio_path))
         if segment.state in TERMINAL:
-            self._enforce_cache_limit()
-
-    def _cache_limit(self) -> int:
-        raw = self._store.get_setting("cache_max_bytes", str(DEFAULT_CACHE_MAX_BYTES))
-        try:
-            parsed = int(raw)
-        except ValueError:
-            return DEFAULT_CACHE_MAX_BYTES
-        return parsed if parsed >= 0 else DEFAULT_CACHE_MAX_BYTES
-
-    def _enforce_cache_limit(self) -> None:
-        try:
-            report = self._cache.enforce(max_bytes=self._cache_limit())
-        except OSError:
-            log.warning("event=cache_inspection_failed")
-            return
-        if not report.within_limit:
-            log.warning(
-                "event=cache_limit_unmet after_bytes=%d max_bytes=%d",
-                report.after_bytes,
-                report.max_bytes,
-            )
+            self.enforce_cache_limit()
 
     # -- dispatch ------------------------------------------------------------
 
@@ -423,9 +396,7 @@ class Daemon:
         if voice not in self._engine.list_voices():
             msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
-        speed = self._parse_speed(payload.get("speed")) or float(
-            self._store.get_setting("speed", "1.0")
-        )
+        speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
         content_format: ContentFormat | None
         if "content_format" not in payload:
             content_format = None
@@ -469,16 +440,13 @@ class Daemon:
 
     @staticmethod
     def _parse_speed(raw: object) -> float | None:
+        """Read a submitted speed, telling "absent" from "not usable"."""
         if raw is None:
             return None
-        if not isinstance(raw, (int, float)) or not _SPEED_MIN <= float(raw) <= _SPEED_MAX:
-            msg = f"speed must be a number between {_SPEED_MIN} and {_SPEED_MAX}"
-            raise ApiError(BAD_REQUEST, msg)
-        return float(raw)
-
-    def _default_voice(self) -> str:
-        voices = self._engine.list_voices()
-        return voices[0] if voices else ""
+        speed = parse_speed(raw)
+        if speed is None:
+            raise ApiError(BAD_REQUEST, SPEED_MESSAGE)
+        return speed
 
     def _resolve_voice(self, *, source: str | None, requested: str | None) -> str:
         """Pick the voice this submission speaks in, and register a new claim.
@@ -500,7 +468,7 @@ class Daemon:
         decision = decide_speaking_voice(
             source=source,
             requested=requested,
-            default_voice=self._store.get_setting("voice", self._default_voice()),
+            default_voice=self._settings.speaking_voice(),
             catalog=catalog,
             pinned=assignment.voice if assignment is not None and assignment.pinned else None,
             claimed=assignment.voice if assignment is not None else None,
@@ -906,7 +874,7 @@ class Daemon:
             "counts": counts,
             "engine": self._engine.name,
             "engine_preparing": engine_preparation(self._engine),
-            "voice": self._store.get_setting("voice", self._default_voice()),
+            "voice": self._settings.speaking_voice(),
         }
 
     def _interruption_view(self) -> dict[str, Any] | None:
@@ -936,7 +904,7 @@ class Daemon:
             },
             "cache": {
                 "bytes": self._cached_bytes(),
-                "max_bytes": self._cache_limit(),
+                "max_bytes": self._settings.cache_limit(),
             },
             **self._metrics.snapshot(),
         }
@@ -974,8 +942,8 @@ class Daemon:
             if not isinstance(updates, dict):
                 msg = "'set' must be an object of settings"
                 raise ApiError(BAD_REQUEST, msg)
-            self._apply_settings(updates)
-        settings = self._settings_values()
+            self._settings.apply(updates)
+        settings = self._settings.values()
         if updates:
             self._server.broadcast(
                 {
@@ -985,104 +953,38 @@ class Daemon:
             )
         return {"ok": True, "settings": settings}
 
-    def _settings_values(self) -> dict[str, object]:
-        return {
-            "voice": self._store.get_setting("voice", self._default_voice()),
-            "speed": float(self._store.get_setting("speed", "1.0")),
-            "playback_rate": self._require_controller().playback_rate,
-            "cache_max_bytes": self._cache_limit(),
-            "captions_enabled": self._captions_enabled(),
-            "captions_enabled_configured": self._store.has_setting("captions_enabled"),
-            "input_interrupt_enabled": self._input_interrupt_enabled(),
-            "input_interrupt_resume": self._input_interrupt_resume(),
-        }
+    # -- what a settings write may reach (see aitts.settings) ----------------
 
-    def _captions_enabled(self) -> bool:
-        return self._store.get_setting("captions_enabled", "false") == "true"
+    def available_voices(self) -> list[str]:
+        """Voices the configured engine accepts."""
+        return self._engine.list_voices()
 
-    def _apply_settings(self, updates: dict[str, Any]) -> None:
-        handlers: dict[str, Callable[[object], None]] = {
-            "voice": self._apply_voice_setting,
-            "speed": self._apply_speed_setting,
-            "cache_max_bytes": self._apply_cache_limit_setting,
-            "playback_rate": self._apply_playback_rate_setting,
-            "captions_enabled": self._apply_captions_enabled_setting,
-            "input_interrupt_enabled": self._apply_input_interrupt_enabled_setting,
-            "input_interrupt_resume": self._apply_input_interrupt_resume_setting,
-        }
-        for key, value in updates.items():
-            handler = handlers.get(key)
-            if handler is None:
-                msg = f"unknown setting {key!r}"
-                raise ApiError(BAD_REQUEST, msg)
-            handler(value)
+    def default_voice(self) -> str:
+        """Return the voice to report when none has been chosen."""
+        voices = self._engine.list_voices()
+        return voices[0] if voices else ""
 
-    def _apply_voice_setting(self, value: object) -> None:
-        if value not in self._engine.list_voices():
-            msg = f"unknown voice {value!r}"
-            raise ApiError(BAD_REQUEST, msg)
-        self._store.set_setting("voice", str(value))
+    def playback_rate(self) -> float:
+        """Return the live playback rate, which the controller owns."""
+        return self._require_controller().playback_rate
 
-    def _apply_speed_setting(self, value: object) -> None:
-        speed = self._parse_speed(value)
-        if speed is None:
-            msg = "'speed' must be a number"
-            raise ApiError(BAD_REQUEST, msg)
-        self._store.set_setting("speed", str(speed))
-
-    def _apply_cache_limit_setting(self, value: object) -> None:
-        limit = self._parse_cache_limit(value)
-        if limit is None:
-            msg = "'cache_max_bytes' must be a non-negative integer"
-            raise ApiError(BAD_REQUEST, msg)
-        self._store.set_setting("cache_max_bytes", str(limit))
-        self._enforce_cache_limit()
-
-    def _apply_playback_rate_setting(self, value: object) -> None:
-        rate = self._parse_playback_rate(value)
-        if rate is None:
-            choices = ", ".join(f"{choice:g}" for choice in PLAYBACK_RATES)
-            msg = f"'playback_rate' must be one of: {choices}"
-            raise ApiError(BAD_REQUEST, msg)
+    def set_playback_rate(self, rate: float) -> None:
+        """Change the live playback rate."""
         self._require_controller().set_playback_rate(rate)
 
-    def _apply_captions_enabled_setting(self, value: object) -> None:
-        if type(value) is not bool:
-            msg = "'captions_enabled' must be a boolean"
-            raise ApiError(BAD_REQUEST, msg)
-        self._store.set_setting("captions_enabled", "true" if value else "false")
-
-    def _apply_input_interrupt_enabled_setting(self, value: object) -> None:
-        if type(value) is not bool:
-            msg = "'input_interrupt_enabled' must be a boolean"
-            raise ApiError(BAD_REQUEST, msg)
-        self._store.set_setting("input_interrupt_enabled", "true" if value else "false")
-
-    def _apply_input_interrupt_resume_setting(self, value: object) -> None:
-        if value not in _INPUT_INTERRUPT_RESUME_POLICIES:
-            choices = ", ".join(_INPUT_INTERRUPT_RESUME_POLICIES)
-            msg = f"'input_interrupt_resume' must be one of: {choices}"
-            raise ApiError(BAD_REQUEST, msg)
-        self._store.set_setting("input_interrupt_resume", str(value))
-
-    @staticmethod
-    def _parse_playback_rate(raw: object) -> float | None:
-        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-            return None
-        rate = float(raw)
-        return rate if rate in PLAYBACK_RATES else None
-
-    @staticmethod
-    def _parse_cache_limit(raw: object) -> int | None:
-        if isinstance(raw, bool) or not isinstance(raw, (int, str)):
-            return None
+    def enforce_cache_limit(self) -> None:
+        """Bring the cache back under its configured cap."""
         try:
-            limit = int(raw)
-        except ValueError:
-            return None
-        if isinstance(raw, str) and raw.strip() != str(limit):
-            return None
-        return limit if limit >= 0 else None
+            report = self._cache.enforce(max_bytes=self._settings.cache_limit())
+        except OSError:
+            log.warning("event=cache_inspection_failed")
+            return
+        if not report.within_limit:
+            log.warning(
+                "event=cache_limit_unmet after_bytes=%d max_bytes=%d",
+                report.after_bytes,
+                report.max_bytes,
+            )
 
     def _transport_reply(self) -> dict[str, Any]:
         controller = self._require_controller()

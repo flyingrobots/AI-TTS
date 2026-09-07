@@ -164,6 +164,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The settings table moved out of the daemon into `aitts.settings`. It was the
+  largest thing in there with nothing to do with queues, and its validation
+  rules could not be exercised without standing up a daemon, a store, an
+  engine and a sink — which is why several of them had no test. The two
+  settings that reach live components rather than the table name what they
+  need as one seam.
 - Unified the former Now Playing, Up Next, and synthesis Queue surfaces. The
   current clip is always pinned above two tabs: Queue shows every upcoming clip
   exactly once, and History is newest-first. Internal synthesis and playback
@@ -177,6 +183,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A rejected settings update no longer applies half of itself. Validation now
+  completes for every key before anything is written, so a request that names
+  two changes and is refused leaves the client showing an error and its state
+  unmoved, rather than showing an error while one of the changes silently
+  landed. The live effects — the playback rate and a cache eviction — are held
+  back on the same basis.
+- `speed` is now refused where it is typed rather than accepted and ignored.
+  A settings write of `speed: true` was taken as 1.0, because a bool is an int
+  in Python, and an out-of-range speed reached the store through the settings
+  path while the submit path rejected it. Both paths now share one range and
+  one message.
 - The engine no longer reaches the network to load a model it already has.
   Left to its defaults the upstream package resolved its config, its weights,
   and *each voice pack* through the model host on every load — 49 such
