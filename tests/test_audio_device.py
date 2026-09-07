@@ -278,3 +278,55 @@ async def test_an_identity_that_flaps_to_none_and_back_still_finishes(
     # The clip must still complete, and exactly once.
     assert streams.frames == _FRAMES
     assert len(streams.opened) == 1
+
+
+async def test_an_identity_that_alternates_between_two_readable_forms_finishes(
+    tone: Path,
+) -> None:
+    device = FakeAudioDevice(identity="uid-A")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    flips = {"n": 0}
+
+    def alternate_readable_identity() -> None:
+        # One unchanged device can report two *readable* identities: the
+        # adapter falls back to a numeric form when the UID query fails, so an
+        # intermittent failure looks exactly like the listener switching back
+        # and forth. Handling only the unreadable case does not cover this.
+        flips["n"] += 1
+        device.identity = "device:41" if flips["n"] % 2 else "uid-A"
+
+    streams.on_write = alternate_readable_identity
+
+    sink.start(tone)
+    assert await sink.wait() is True
+
+    # It must not reopen on every block and make no progress.
+    assert streams.frames == _FRAMES
+    assert len(streams.opened) <= 3
+
+
+async def test_an_unreadable_first_read_still_follows_a_later_device_change(
+    tone: Path,
+) -> None:
+    device = FakeAudioDevice(identity=None)
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    stage = {"n": 0}
+
+    def become_readable_then_move() -> None:
+        stage["n"] += 1
+        if stage["n"] == 1:
+            device.identity = "uid-A"
+        elif stage["n"] == 3:
+            device.identity = "uid-B"
+
+    streams.on_write = become_readable_then_move
+
+    sink.start(tone)
+    assert await sink.wait() is True
+
+    # Latching an unreadable baseline once and never revisiting it disabled
+    # device following for the rest of the clip.
+    assert any(stream.identity == "uid-B" for stream in streams.opened)
+    assert streams.frames == _FRAMES

@@ -66,6 +66,9 @@ class CoreAudioOutputDevice:
     def __init__(self) -> None:
         """Bind the system frameworks; a missing framework disables tracking."""
         self._lock = threading.Lock()
+        # One stable identity per device, so a failing UID query cannot look
+        # like a device change.
+        self._uids: dict[int, str] = {}
         self._core_audio = _load("CoreAudio")
         if self._core_audio is None:  # pragma: no cover - the framework ships with macOS
             log.warning("event=core_audio_unavailable")
@@ -83,15 +86,30 @@ class CoreAudioOutputDevice:
             self._core_foundation.CFRelease.argtypes = (ctypes.c_void_p,)
 
     def default_output_identity(self) -> str | None:
-        """Return the device UID of the OS default output, or ``None``."""
+        """Return the device UID of the OS default output, or ``None``.
+
+        One device must always answer with the same string. An intermittent
+        UID query would otherwise make an unchanged device alternate between
+        its UID and a numeric fallback, which a caller cannot tell apart from
+        the listener switching outputs, so the UID is remembered per device
+        and reused when a later query fails.
+        """
         if self._core_audio is None:
             return None
         device = self._default_output_device()
         if device is None:
             return None
         uid = self._device_uid(device)
-        # The numeric id still distinguishes devices when the UID is unreadable.
-        return uid if uid is not None else f"device:{device}"
+        with self._lock:
+            if uid is not None:
+                self._uids[device] = uid
+                return uid
+            remembered = self._uids.get(device)
+        if remembered is not None:
+            return remembered
+        # Never seen this device's UID; the numeric id at least distinguishes
+        # it, and it stays stable for as long as the query keeps failing.
+        return f"device:{device}"
 
     def refresh(self) -> None:
         """Rebuild PortAudio's device snapshot so the next stream sees the truth."""

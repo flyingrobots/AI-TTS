@@ -193,6 +193,10 @@ class SoundDeviceSink:
     """
 
     _BLOCK_FRAMES = 2048
+    # Consecutive readings agreeing on a new device before it is followed.
+    # A single disagreeing reading is noise; two in a row is a decision. The
+    # same confirmation idea guards the input-activity reading.
+    _DEVICE_CHANGE_CONFIRMATIONS = 2
 
     def __init__(
         self,
@@ -215,6 +219,9 @@ class SoundDeviceSink:
         self._rate_lock = threading.Lock()
         self._position = 0.0
         self._position_lock = threading.Lock()
+        self._opened_on: str | None = None
+        self._pending_device: str | None = None
+        self._pending_confirmations = 0
 
     def set_rate(self, rate: float) -> None:
         """Apply ``rate`` to the active stream at its next audio block."""
@@ -288,10 +295,10 @@ class SoundDeviceSink:
 
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
-        opened_on = self._device.default_output_identity()
+        self._opened_on = self._device.default_output_identity()
         with self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream:
             while not self._stop_flag.is_set() and source_frame < len(audio):
-                if self._device_moved_from(opened_on):
+                if self._device_moved_from(self._opened_on):
                     log.info("event=audio_output_device_changed")
                     return source_frame
                 if self._pause_flag.is_set():
@@ -335,9 +342,33 @@ class SoundDeviceSink:
         every block and never finish the clip.
         """
         current = self._device.default_output_identity()
-        if current is None or opened_on is None:
+        if current is None:
+            self._pending_device = None
+            self._pending_confirmations = 0
             return False
-        return current != opened_on
+        if opened_on is None:
+            # The baseline was unreadable when this stream opened. Adopt the
+            # first readable answer instead of latching "unknown" for the whole
+            # clip, which disabled following entirely.
+            self._opened_on = current
+            return False
+        if current == opened_on:
+            self._pending_device = None
+            self._pending_confirmations = 0
+            return False
+        # A change has to hold still before the device is torn down for it. A
+        # reading that disagrees once and then agrees again is noise, and
+        # acting on every disagreement reopens the stream per audio block.
+        if current == self._pending_device:
+            self._pending_confirmations += 1
+        else:
+            self._pending_device = current
+            self._pending_confirmations = 1
+        if self._pending_confirmations < self._DEVICE_CHANGE_CONFIRMATIONS:
+            return False
+        self._pending_device = None
+        self._pending_confirmations = 0
+        return True
 
     def pause(self) -> None:
         """Hold playback, keeping position."""
