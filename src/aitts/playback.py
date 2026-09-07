@@ -283,7 +283,7 @@ class SoundDeviceSink:
                     source_frame = self._play_on_current_device(audio, source_frame)
                 if not self._stop_flag.is_set() and source_frame >= len(audio):
                     self._natural = True
-        except Exception as exc:  # noqa: BLE001  # pragma: no cover - real device failure
+        except Exception as exc:  # noqa: BLE001 - any device or file failure ends this clip
             self.error = str(exc) or type(exc).__name__
             log.warning("event=audio_output_failed")
             self._natural = False

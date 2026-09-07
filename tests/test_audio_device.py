@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -330,3 +331,74 @@ async def test_an_unreadable_first_read_still_follows_a_later_device_change(
     # device following for the rest of the clip.
     assert any(stream.identity == "uid-B" for stream in streams.opened)
     assert streams.frames == _FRAMES
+
+
+# -- a device that fails mid-clip -----------------------------------------
+
+
+async def test_a_device_that_cannot_be_opened_is_reported_not_swallowed(
+    tone: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    device = FakeAudioDevice(identity="studio-display")
+
+    def refuse(*, samplerate: int, channels: int) -> Any:
+        del samplerate, channels
+        msg = "PortAudio: device unavailable"
+        raise OSError(msg)
+
+    sink = SoundDeviceSink(device=device, open_stream=refuse)
+
+    with caplog.at_level(logging.WARNING, logger="aitts"):
+        sink.start(tone)
+        natural = await sink.wait()
+
+    # This is what the metrics recorder counts as a playback device failure,
+    # and what the controller settles the document on. A failure reported as a
+    # natural end would mark the clip Played with nothing having been heard.
+    assert natural is False
+    assert sink.error is not None
+    assert "device unavailable" in sink.error
+    assert any("event=audio_output_failed" in record.getMessage() for record in caplog.records)
+
+
+async def test_a_device_that_fails_mid_clip_keeps_the_frames_it_managed(
+    tone: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    device = FakeAudioDevice(identity="studio-display")
+    streams = RecordingStreams(device)
+
+    def fail_after_two_blocks() -> None:
+        if streams.frames >= 2 * SoundDeviceSink._BLOCK_FRAMES:
+            msg = "PortAudio: stream stopped"
+            raise OSError(msg)
+
+    streams.on_write = fail_after_two_blocks
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    with caplog.at_level(logging.WARNING, logger="aitts"):
+        sink.start(tone)
+        natural = await sink.wait()
+
+    # A mid-clip failure must end the pass rather than loop on it, and the
+    # position already reached is what a resume would have to start from.
+    assert natural is False
+    assert sink.error is not None
+    assert streams.frames >= 2 * SoundDeviceSink._BLOCK_FRAMES
+    assert sink.position_ms() > 0
+
+
+async def test_an_unreadable_audio_file_fails_the_clip_rather_than_the_daemon(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    device = FakeAudioDevice(identity="studio-display")
+    absent = tmp_path / "evicted.wav"
+    sink = SoundDeviceSink(device=device, open_stream=RecordingStreams(device))
+
+    with caplog.at_level(logging.WARNING, logger="aitts"):
+        sink.start(absent)
+        natural = await sink.wait()
+
+    # Cached audio can be evicted between the plan choosing a clip and the
+    # sink opening it. That has to end this clip, not the process.
+    assert natural is False
+    assert sink.error is not None

@@ -195,6 +195,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The sink's failure path is now tested rather than marked unreachable. A
+  device that cannot be opened, a device that fails part-way through a clip,
+  and cached audio evicted before the sink opened it all end that clip with an
+  error and a non-natural finish — which is what stops a clip being marked
+  Played with nothing having been heard. The stream factory the device-follow
+  tests already inject was enough to drive all three; no new seam was needed.
 - A rejected settings update no longer applies half of itself. Validation now
   completes for every key before anything is written, so a request that names
   two changes and is refused leaves the client showing an error and its state
