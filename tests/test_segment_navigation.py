@@ -352,3 +352,49 @@ async def test_a_cancelled_document_does_not_block_the_queue(store: Store, sink:
         await wait_for(lambda: ctl.current_id == following.id)
     finally:
         task.cancel()
+
+
+async def test_restart_returns_to_the_first_chunk_after_one_was_skipped(
+    store: Store, sink: FakeSink
+) -> None:
+    ctl, task, utt_id = await playing_document(store, sink)
+    try:
+        await ctl.next_segment()
+        await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 1)
+
+        await ctl.restart_current()
+
+        # Restart replays the whole document. restart_segments reopened every
+        # resettable child except Skipped ones, so a chunk given up with Next
+        # stayed terminal and Restart silently began at chunk 1 instead.
+        await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 0)
+        assert segment_states(store, utt_id) == [State.PLAYING, State.READY, State.READY]
+        restarted = store.get(utt_id)
+        assert restarted is not None
+        assert restarted.played_ms == 0
+    finally:
+        task.cancel()
+
+
+async def test_a_skipped_chunk_stops_counting_as_played_after_a_restart(
+    store: Store, sink: FakeSink
+) -> None:
+    ctl, task, utt_id = await playing_document(store, sink)
+    try:
+        sink.advance_to(400)
+        await ctl.next_segment()
+        await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 1)
+        abandoned = store.get_segment(utt_id, 0)
+        assert abandoned is not None
+        assert abandoned.played_ms == 400
+
+        await ctl.restart_current()
+
+        # The child's own progress has to be cleared with the parent's, or the
+        # document reports time played against a chunk it is about to replay.
+        await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 0)
+        reopened = store.get_segment(utt_id, 0)
+        assert reopened is not None
+        assert reopened.played_ms == 0
+    finally:
+        task.cancel()

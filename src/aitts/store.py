@@ -42,6 +42,17 @@ _INPUT_STATES = (State.SUBMITTED, State.QUEUED, State.SYNTHESIZING)
 _PLAYBACK_STATES = (State.READY, State.PLAYING, State.PAUSED)
 _PENDING_STATES = (State.QUEUED, State.SYNTHESIZING, State.READY)
 
+# Children a replay may reopen. Terminal states are ordinarily closed, and
+# reopening these is the deliberate exception the transport controls rely on;
+# Cancelled is absent because a cancelled child was never owed to the listener.
+_REPLAYABLE_STATES = (
+    State.READY,
+    State.PLAYING,
+    State.PAUSED,
+    State.PLAYED,
+    State.SKIPPED,
+)
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS utterances (
     id TEXT PRIMARY KEY,
@@ -681,11 +692,17 @@ class Store:
             self._commit_or_rollback()
 
     def restart_segments(self, utt_id: str) -> bool:
-        """Reset every cached child of an active document for replay from zero."""
+        """Reset every cached child of an active document for replay from zero.
+
+        Skipped children are reopened along with the rest. Replaying a
+        document means replaying all of it, and a chunk the listener stepped
+        past with next-chunk is exactly the one they are most likely to want
+        back. Leaving it terminal made Restart begin partway through.
+        """
         segments = self.segments(utt_id)
         if not segments:
             return False
-        resettable = (State.READY, State.PLAYING, State.PAUSED, State.PLAYED)
+        resettable = _REPLAYABLE_STATES
         placeholders = ",".join("?" * len(resettable))
         self._db.execute(
             f"UPDATE utterance_segments SET state = ?, played_ms = 0 "  # noqa: S608
@@ -707,7 +724,7 @@ class Store:
         target = self.get_segment(utt_id, index)
         if target is None or target.audio_path is None:
             return False
-        resettable = (State.READY, State.PLAYING, State.PAUSED, State.PLAYED, State.SKIPPED)
+        resettable = _REPLAYABLE_STATES
         placeholders = ",".join("?" * len(resettable))
         self._db.execute(
             f"UPDATE utterance_segments SET state = ?, played_ms = 0 "  # noqa: S608
