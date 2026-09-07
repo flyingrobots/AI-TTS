@@ -719,8 +719,17 @@ class PlaybackController:
         current, index = target
         if index == 0:
             return False
+        # Decide before releasing the device. The plan loop only ever starts a
+        # Ready child, so a document left Playing with no Ready child and no
+        # active sink is silent for good.
+        previous = self._store.get_segment(current.id, index - 1)
+        if previous is None or previous.audio_path is None:
+            return False
         await self._release_sink()
         if not self._store.reset_segments_from(current.id, index - 1):
+            # The artifact was there a moment ago. Put the document back on the
+            # device rather than leaving it wedged.
+            self._restore_after_failed_step(current.id, index)
             return False
         self._current_segment_index = None
         self._resume_document_at_next_ready(current.id)
@@ -737,6 +746,33 @@ class PlaybackController:
         if not self._store.segments(current.id):  # pragma: no cover - index implies children
             return None
         return current, self._current_segment_index
+
+    def _restore_after_failed_step(self, utt_id: str, index: int) -> None:
+        """Return the device to a document whose transport step could not land.
+
+        Releasing the sink is not reversible, so the child that was playing is
+        reopened and handed back to the plan loop. Anything else leaves the
+        document reporting Playing with silence coming out of it.
+        """
+        if self._store.reset_segments_from(utt_id, index):
+            self._current_segment_index = None
+            self._resume_document_at_next_ready(utt_id)
+            self.notify()
+            return
+        # Nothing replayable is left at all; settle the document rather than
+        # holding a queue slot open forever.
+        played = self._store.completed_segment_duration_ms(utt_id)
+        with contextlib.suppress(Exception):
+            self._store.transition(
+                utt_id,
+                State.FAILED,
+                error="playback stopped: no cached audio remains for this document",
+                played_ms=played,
+            )
+        log.warning("event=document_playback_unrecoverable")
+        self._current_id = None
+        self._current_segment_index = None
+        self.notify()
 
     def _resume_document_at_next_ready(self, utt_id: str) -> None:
         """Start the next playable chunk now, or leave it to the plan loop."""
@@ -757,6 +793,7 @@ class PlaybackController:
         if current.state not in (State.PLAYING, State.PAUSED):  # pragma: no cover
             return
         if self._store.segments(current.id):
+            active = self._current_segment_index
             await self._release_sink()
             self._store.restart_segments(current.id)
             self._current_segment_index = None
@@ -764,6 +801,10 @@ class PlaybackController:
             refreshed = self._store.get(current.id)
             if first is not None and refreshed is not None and first.state is State.READY:
                 self._begin_segment(refreshed, first, position_ms=0)
+            elif active is not None:
+                # restart_segments only reopens children whose audio survives;
+                # if none did, the device was released for nothing.
+                self._restore_after_failed_step(current.id, active)
             self.notify()
             return
         if current.audio_path is None:

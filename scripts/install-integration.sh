@@ -78,8 +78,13 @@ require_macos() {
 }
 
 resolve_bin() {
-    # $1 = executable name, $2 = env override
-    override=$(eval "printf '%s' \"\${$2:-}\"")
+    # $1 = executable name. The override is read by name rather than through
+    # eval, which would expand whatever the value contained.
+    case "$1" in
+        ai-tts) override=${AITTS_BIN:-} ;;
+        ai-tts-mcp) override=${AITTS_MCP_BIN:-} ;;
+        *) override= ;;
+    esac
     if [ -n "$override" ]; then
         printf '%s' "$override"
         return 0
@@ -109,18 +114,30 @@ skills_dir_for() {
 
 # Each host spells stdio registration differently; claude and codex want the
 # command after a `--` separator, gemini takes it positionally.
+#
+# This renders the command for a human to read or retype. It is deliberately
+# not what gets executed: a path is a single argument, and building a string
+# to re-split would break on any path containing a space and would run
+# whatever a crafted path contained.
 mcp_add_command_for() {
     case "$1" in
-        claude) printf 'claude mcp add %s -- %s' "$SERVER_NAME" "$2" ;;
-        codex) printf 'codex mcp add %s -- %s' "$SERVER_NAME" "$2" ;;
-        gemini) printf 'gemini mcp add %s %s' "$SERVER_NAME" "$2" ;;
+        claude | codex) printf "%s mcp add %s -- '%s'" "$1" "$SERVER_NAME" "$2" ;;
+        gemini) printf "gemini mcp add %s '%s'" "$SERVER_NAME" "$2" ;;
+    esac
+}
+
+# Registration, with the server path passed as exactly one argument.
+run_mcp_add() {
+    case "$1" in
+        claude | codex) "$1" mcp add "$SERVER_NAME" -- "$2" ;;
+        gemini) gemini mcp add "$SERVER_NAME" "$2" ;;
     esac
 }
 
 install_skill_for() {
     agent=$1
     destination="$(skills_dir_for "$agent")/$SKILL_NAME"
-    binary=$(resolve_bin ai-tts AITTS_BIN)
+    binary=$(resolve_bin ai-tts)
     if [ -z "$binary" ]; then
         die "could not find the ai-tts executable; run 'make install' first, or
        set AITTS_BIN to its absolute path"
@@ -132,13 +149,18 @@ install_skill_for() {
     mkdir -p "$destination"
     # Replace the committed placeholder with this machine's path. The skill in
     # the repository stays machine-independent; the installed copy is concrete.
-    sed "s|<AI_TTS_BIN>|$binary|g" "$SKILL_SOURCE" >"$destination/SKILL.md"
+    #
+    # The path is escaped for sed's replacement grammar first: an unescaped &
+    # inserts the matched text and an unescaped | would end the expression, so
+    # a path containing either would silently produce the wrong command.
+    escaped=$(printf '%s' "$binary" | sed -e 's/[&|\\]/\\&/g')
+    sed "s|<AI_TTS_BIN>|$escaped|g" "$SKILL_SOURCE" >"$destination/SKILL.md"
     printf '  %-7s skill  -> %s/SKILL.md\n' "$agent" "$destination"
 }
 
 install_mcp_for() {
     agent=$1
-    server=$(resolve_bin ai-tts-mcp AITTS_MCP_BIN)
+    server=$(resolve_bin ai-tts-mcp)
     if [ -z "$server" ]; then
         die "could not find the ai-tts-mcp executable; run 'make install' first,
        or set AITTS_MCP_BIN to its absolute path"
@@ -152,14 +174,20 @@ install_mcp_for() {
         printf '  %-7s mcp    -> skipped, no %s on PATH\n' "$agent" "$agent"
         return 0
     fi
-    # Re-registering is the normal case after an upgrade moves the binary, so
-    # drop any existing entry first and ignore the failure when there is none.
-    "$agent" mcp remove "$SERVER_NAME" >/dev/null 2>&1 || true
-    if eval "$command_line" >/dev/null 2>&1; then
+    # Add first. Re-registering after an upgrade moved the binary is the normal
+    # case, and only then is the existing entry removed — removing first would
+    # leave the caller with no registration at all if the add went on to fail.
+    if run_mcp_add "$agent" "$server" >/dev/null 2>&1; then
         printf '  %-7s mcp    -> registered %s\n' "$agent" "$SERVER_NAME"
-    else
-        printf '  %-7s mcp    -> FAILED; run by hand: %s\n' "$agent" "$command_line"
+        return 0
     fi
+    "$agent" mcp remove "$SERVER_NAME" >/dev/null 2>&1 || true
+    if run_mcp_add "$agent" "$server" >/dev/null 2>&1; then
+        printf '  %-7s mcp    -> re-registered %s\n' "$agent" "$SERVER_NAME"
+        return 0
+    fi
+    printf '  %-7s mcp    -> FAILED; run by hand: %s\n' "$agent" "$command_line"
+    return 0
 }
 
 # -- arguments ------------------------------------------------------------
