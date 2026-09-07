@@ -16,12 +16,16 @@ import logging
 import math
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
+from aitts.application.audio_device import platform_audio_device
 from aitts.application.playback_schedule import PlaybackCheckpoint
 from aitts.model import State
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
+
+    from aitts.application.audio_device import AudioDevicePort
     from aitts.application.playback_schedule import PlaybackSchedulePort
     from aitts.model import Utterance, UtteranceSegment
     from aitts.store import Store
@@ -151,13 +155,51 @@ class FakeSink:
         return self._natural
 
 
+class OutputStream(Protocol):
+    """The one thing playback asks of an opened output stream."""
+
+    def write(self, block: Any) -> None:  # noqa: ANN401 - a numpy block of frames
+        """Write one block of frames, blocking until the device accepts it."""
+        ...
+
+
+class OutputStreamFactory(Protocol):
+    """Opens one output stream on the current default device."""
+
+    def __call__(self, *, samplerate: int, channels: int) -> AbstractContextManager[OutputStream]:
+        """Return a context-managed stream for ``samplerate`` and ``channels``."""
+        ...
+
+
+def _open_sounddevice_stream(
+    *, samplerate: int, channels: int
+) -> AbstractContextManager[OutputStream]:
+    """Open a PortAudio stream on whatever it currently considers default."""
+    import sounddevice as sd  # noqa: PLC0415 - keep audio deps out of test imports
+
+    stream = sd.OutputStream(samplerate=samplerate, channels=channels, dtype="float32")
+    return cast("AbstractContextManager[OutputStream]", stream)
+
+
 class SoundDeviceSink:
-    """Real audio output through PortAudio, one stream at a time."""
+    """Real audio output through PortAudio, one stream at a time.
+
+    The stream is reopened whenever the OS default output moves, so playback
+    follows the listener between devices instead of continuing to a device
+    they have already left (architecture §10 item 3).
+    """
 
     _BLOCK_FRAMES = 2048
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        device: AudioDevicePort | None = None,
+        open_stream: OutputStreamFactory | None = None,
+    ) -> None:
         """Create the sink; nothing is opened until :meth:`start`."""
+        self._device = device if device is not None else platform_audio_device()
+        self._open_stream = open_stream if open_stream is not None else _open_sounddevice_stream
         self.paused = False
         self.error: str | None = None
         self._pause_flag = threading.Event()
@@ -211,9 +253,7 @@ class SoundDeviceSink:
         self._thread.start()
 
     def _play_blocking(self, path: Path, position_ms: int, signal_end: object) -> None:
-        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
-        import sounddevice as sd  # noqa: PLC0415 - keep audio deps out of test imports
-        import soundfile as sf  # noqa: PLC0415
+        import soundfile as sf  # noqa: PLC0415 - keep audio deps out of test imports
 
         assert callable(signal_end)  # noqa: S101 - internal invariant
         try:
@@ -221,47 +261,66 @@ class SoundDeviceSink:
                 self._samplerate = int(audio.samplerate)
                 source_frame = float(int(position_ms / 1000 * audio.samplerate))
                 self._set_position_ms(source_frame / self._samplerate * 1000)
-                with sd.OutputStream(
-                    samplerate=audio.samplerate, channels=audio.channels, dtype="float32"
-                ) as stream:
-                    while not self._stop_flag.is_set() and source_frame < len(audio):
-                        if self._pause_flag.is_set():
-                            self._stop_flag.wait(0.05)
-                            continue
-                        rate = self._current_rate()
-                        remaining = len(audio) - source_frame
-                        output_frames = min(
-                            self._BLOCK_FRAMES,
-                            max(1, math.ceil(remaining / rate)),
-                        )
-                        source_positions = source_frame + np.arange(output_frames) * rate
-                        first_source = int(source_frame)
-                        final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
-                        audio.seek(first_source)
-                        source = audio.read(
-                            final_source - first_source + 1,
-                            dtype="float32",
-                            always_2d=True,
-                        )
-                        relative_positions = source_positions - first_source
-                        source_axis = np.arange(len(source))
-                        block = np.column_stack(
-                            [
-                                np.interp(relative_positions, source_axis, source[:, channel])
-                                for channel in range(audio.channels)
-                            ]
-                        ).astype("float32")
-                        stream.write(block)
-                        source_frame = min(float(len(audio)), source_frame + output_frames * rate)
-                        self._set_position_ms(source_frame / self._samplerate * 1000)
-                    if not self._stop_flag.is_set() and source_frame >= len(audio):
-                        self._natural = True
+                # Each pass owns one device. A pass ends at the end of the file,
+                # on stop, or when the listener moves the system default; only
+                # the last of those comes back for another pass.
+                while not self._stop_flag.is_set() and source_frame < len(audio):
+                    source_frame = self._play_on_current_device(audio, source_frame)
+                if not self._stop_flag.is_set() and source_frame >= len(audio):
+                    self._natural = True
         except Exception as exc:  # noqa: BLE001  # pragma: no cover - real device failure
             self.error = str(exc) or type(exc).__name__
             log.warning("event=audio_output_failed")
             self._natural = False
         finally:
             signal_end()
+
+    def _play_on_current_device(self, audio: Any, source_frame: float) -> float:  # noqa: ANN401
+        """Stream from ``source_frame`` until the file ends or the default moves.
+
+        Returns the frame reached, so the caller can resume there on the new
+        device without repeating or dropping audio.
+        """
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        # Refreshed with no stream open: re-initializing invalidates live streams.
+        self._device.refresh()
+        opened_on = self._device.default_output_identity()
+        with self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream:
+            while not self._stop_flag.is_set() and source_frame < len(audio):
+                if self._device.default_output_identity() != opened_on:
+                    log.info("event=audio_output_device_changed")
+                    return source_frame
+                if self._pause_flag.is_set():
+                    self._stop_flag.wait(0.05)
+                    continue
+                rate = self._current_rate()
+                remaining = len(audio) - source_frame
+                output_frames = min(
+                    self._BLOCK_FRAMES,
+                    max(1, math.ceil(remaining / rate)),
+                )
+                source_positions = source_frame + np.arange(output_frames) * rate
+                first_source = int(source_frame)
+                final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
+                audio.seek(first_source)
+                source = audio.read(
+                    final_source - first_source + 1,
+                    dtype="float32",
+                    always_2d=True,
+                )
+                relative_positions = source_positions - first_source
+                source_axis = np.arange(len(source))
+                block = np.column_stack(
+                    [
+                        np.interp(relative_positions, source_axis, source[:, channel])
+                        for channel in range(audio.channels)
+                    ]
+                ).astype("float32")
+                stream.write(block)
+                source_frame = min(float(len(audio)), source_frame + output_frames * rate)
+                self._set_position_ms(source_frame / self._samplerate * 1000)
+        return source_frame
 
     def pause(self) -> None:
         """Hold playback, keeping position."""

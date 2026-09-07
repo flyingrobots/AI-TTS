@@ -255,7 +255,11 @@ graph TB
 **Boundaries, and why each exists:**
 
 - **Daemon** — long-lived, model resident. **This is what makes generation hot rather than cold**, and it is what makes F3 impossible: playback is not bounded by any client's process lifetime.
-- **Playback controller** — **the only component permitted to touch the audio device.** It is single-threaded by construction. This is the entire fix for F4; overlap is not prevented by convention but by there being one owner.
+- **Playback controller** — **the only component permitted to touch the audio device.** It is single-threaded by construction. This is the entire fix for F4; overlap is not prevented by convention but by there being one owner. Sole ownership is not ownership of a *fixed* device: the sink follows the system default output, reopening its stream mid-clip when the listener moves it (§10 item 3).
+- **Audio device port** — reports the OS default output live and rebuilds the
+  audio library's cached device enumeration. Separate from the sink because the
+  two halves come from different system libraries, and separate from playback
+  because a stale enumeration is a platform defect, not a queueing concern.
 - **Playback scheduling port** — names the controller's plan and sink-result
   yield boundaries. Production passes them immediately; deterministic tests
   can gate either side and enumerate event-loop interleavings without sleeps.
@@ -600,7 +604,7 @@ safe without a heuristic content sniffer.
 
 1. **Rewind granularity** — is within-utterance seeking required, or is utterance-level rewind enough for v1? Seeking needs the offset tracked and complicates resume-after-restart.
 2. **Priority levels** — is `normal`/`urgent` sufficient, or is a numeric priority wanted? Barge-in default (off) is a judgement call worth confirming.
-3. **Multiple output devices** — one device is assumed. If output routing is wanted, the playback controller owns it and it becomes a setting.
+3. **Multiple output devices** — ~~one device is assumed.~~ **Partly resolved.** Assuming one device was wrong in a way that assuming *a* device is not: the audio library resolves its device list at initialization and answers every later query from that snapshot, so a daemon that outlives a hardware change speaks to a device the listener has already left. Playback therefore tracks the *system default*: the default output is read live from CoreAudio (never from the cached enumeration, which is the defect), the cache is rebuilt before each clip, and a mid-clip change reopens the stream on the new device at the frame already reached. Explicit output *routing* — pinning speech to a chosen device regardless of the system default — remains unimplemented and would still be a setting the playback controller owns.
 4. **History retention** — permanent by default is what was asked for. Confirm there should be no automatic expiry, only explicit deletion.
 5. **Who classifies, and can the daemon help?** §9 makes the caller responsible for `sensitivity` and fails closed. **The open question is whether the daemon should additionally *refuse* text that looks confidential but was declared `public`** — a path-shaped string, a `PRO-` identifier, an `@` address. That would catch a caller's honest mistake, but a heuristic that blocks a legitimate `public` utterance is its own failure and there is no good way to appeal it. **Deliberately unresolved: fail-closed defaults are cheap and correct; a content sniffer is neither obviously.**
 6. **Client identity** — should history record *which* client submitted an utterance? Useful when several agents are speaking; costs a field and a client-id concept.

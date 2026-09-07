@@ -82,6 +82,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Playback now follows the system default output device. The audio library
+  resolves its device list once, when it initializes, so a long-lived daemon
+  kept speaking to the speakers that existed at startup — connect a display
+  with its own speakers and every other sound moved over while speech stayed
+  on the laptop. The default output is now read live from CoreAudio, the
+  cached enumeration is rebuilt before each clip, and a device change mid-clip
+  reopens the stream on the new device from the frame already reached, so
+  nothing is repeated or dropped. A device moved while playback is paused is
+  adopted before it resumes.
 - Hardened GitHub Actions to an explicit read-only token, immutable action
   commit pins, non-persisted checkout credentials, a reviewed `uv` version,
   and frozen project commands that cannot silently rewrite dependency state.
