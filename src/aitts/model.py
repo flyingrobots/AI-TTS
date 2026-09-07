@@ -134,6 +134,20 @@ class UtteranceSegment:
 
 
 @dataclass(frozen=True, slots=True)
+class VoiceAssignment:
+    """Which voice one speaking client holds, and who decided it.
+
+    ``pinned`` marks the listener's own assignment, which outranks whatever
+    voice the client asks for.
+    """
+
+    source: str
+    voice: str
+    pinned: bool
+    assigned_at: float
+
+
+@dataclass(frozen=True, slots=True)
 class SynthesisWork:
     """One atomically claimed engine job, resolved through its parent profile."""
 

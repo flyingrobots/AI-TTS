@@ -21,9 +21,19 @@ if TYPE_CHECKING:
 
 _SAMPLE_RATE = 24000
 
-# Kokoro v1.0 English voices (hexgrad/Kokoro-82M). The daemon enumerates
-# these; clients and UIs must never hardcode a voice.
+# Kokoro v1.0 voices (hexgrad/Kokoro-82M). Every voice listed here was
+# verified to synthesize with the dependencies this project installs: the
+# English sets use misaki[en], and Spanish, French, Hindi, Italian and
+# Portuguese go through misaki's espeak backend.
+#
+# The Japanese (jf_/jm_) and Mandarin (zf_/zm_) voices ship in the same model
+# repository and are deliberately absent: they need misaki[ja] (pyopenjtalk,
+# which builds from source and bundles Open JTalk) and misaki[zh]. Adding
+# either is a supply-chain decision, not a voice-list edit.
+#
+# The daemon enumerates these; clients and UIs must never hardcode a voice.
 VOICES: tuple[str, ...] = (
+    # American English
     "af_alloy",
     "af_aoede",
     "af_bella",
@@ -44,6 +54,7 @@ VOICES: tuple[str, ...] = (
     "am_onyx",
     "am_puck",
     "am_santa",
+    # British English
     "bf_alice",
     "bf_emma",
     "bf_isabella",
@@ -52,6 +63,24 @@ VOICES: tuple[str, ...] = (
     "bm_fable",
     "bm_george",
     "bm_lewis",
+    # Spanish
+    "ef_dora",
+    "em_alex",
+    "em_santa",
+    # French
+    "ff_siwis",
+    # Hindi
+    "hf_alpha",
+    "hf_beta",
+    "hm_omega",
+    "hm_psi",
+    # Italian
+    "if_sara",
+    "im_nicola",
+    # Brazilian Portuguese
+    "pf_dora",
+    "pm_alex",
+    "pm_santa",
 )
 
 

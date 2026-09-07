@@ -24,6 +24,7 @@ from aitts.application.input_activity import (
     InputInterruptDetector,
     platform_input_activity,
 )
+from aitts.application.voice_assignment import decide_speaking_voice
 from aitts.engine import eligible_engine_names
 from aitts.ipc import (
     BAD_REQUEST,
@@ -42,6 +43,7 @@ from aitts.model import (
     SynthesisWork,
     Utterance,
     UtteranceSegment,
+    VoiceAssignment,
 )
 from aitts.playback import PLAYBACK_RATES, PlaybackController
 from aitts.segmentation import prepare_speech_segments
@@ -62,10 +64,27 @@ _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 # each poll costs well under a millisecond.
 _INPUT_POLL_SECONDS = 0.15
 _INPUT_INTERRUPT_RESUME_POLICIES = ("manual", "when_idle")
+_VOICE_REGISTER_SEEDED = "voice_register_seeded"
+# Voices these agents had already been speaking in before the daemon kept a
+# register, recorded in the operator's agent instructions. Seeded so an
+# upgrade does not renumber everyone the listener already recognises.
+_ESTABLISHED_VOICES: tuple[tuple[str, str], ...] = (
+    ("agent-alpha", "bm_daniel"),
+    ("codex", "bm_george"),
+)
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
 
 log = logging.getLogger(__name__)
+
+
+def _serialize_assignment(assignment: VoiceAssignment) -> dict[str, Any]:
+    return {
+        "source": assignment.source,
+        "voice": assignment.voice,
+        "pinned": assignment.pinned,
+        "assigned_at": assignment.assigned_at,
+    }
 
 
 def _serialize(utt: Utterance, *, history: bool = False) -> dict[str, Any]:
@@ -138,6 +157,7 @@ class Daemon:
     async def start(self) -> None:
         """Recover state, start the workers, and begin serving."""
         self._store.recover()
+        self._seed_voice_register()
         self._enforce_cache_limit()
         held = any(u.state is State.PAUSED for u in self._store.playback_queue())
         self._controller = PlaybackController(
@@ -162,6 +182,23 @@ class Daemon:
             loop.create_task(self._watch_input_activity(), name="aitts-input"),
         ]
         await self._server.start()
+
+    def _seed_voice_register(self) -> None:
+        """Record the voices long-standing agents already speak in.
+
+        Without this, the first agent to speak after an upgrade claims the
+        head of the catalog and the listener stops recognising anyone. Seeded
+        once, as ordinary claims rather than overrides, so they can be
+        reassigned like any other. Claims never overwrite, so a client that
+        already holds a voice keeps it.
+        """
+        if self._store.get_setting(_VOICE_REGISTER_SEEDED, "false") == "true":
+            return
+        catalog = self._engine.list_voices()
+        for source, voice in _ESTABLISHED_VOICES:
+            if voice in catalog and self._store.voice_assignment(source) is None:
+                self._store.claim_voice(source, voice)
+        self._store.set_setting(_VOICE_REGISTER_SEEDED, "true")
 
     async def _supervise_playback(self) -> None:
         """Restart the critical playback loop if it exits unexpectedly."""
@@ -326,6 +363,8 @@ class Daemon:
             "status": self._op_status,
             "snapshot": self._op_snapshot,
             "voices": self._op_voices,
+            "voice_assignments": self._op_voice_assignments,
+            "assign_voice": self._op_assign_voice,
             "settings": self._op_settings,
         }
         handler = handlers.get(op) if isinstance(op, str) else None
@@ -386,14 +425,17 @@ class Daemon:
             priority = Priority(payload.get("priority", "normal"))
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
-        voice = payload.get("voice") or self._store.get_setting("voice", self._default_voice())
+        source = payload.get("source")
+        voice = self._resolve_voice(
+            source=source if isinstance(source, str) else None,
+            requested=payload.get("voice") or None,
+        )
         if voice not in self._engine.list_voices():
             msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
         speed = self._parse_speed(payload.get("speed")) or float(
             self._store.get_setting("speed", "1.0")
         )
-        source = payload.get("source")
         content_format: ContentFormat | None
         if "content_format" not in payload:
             content_format = None
@@ -444,6 +486,63 @@ class Daemon:
     def _default_voice(self) -> str:
         voices = self._engine.list_voices()
         return voices[0] if voices else ""
+
+    def _resolve_voice(self, *, source: str | None, requested: str | None) -> str:
+        """Pick the voice this submission speaks in, and register a new claim.
+
+        The listener's assignment outranks the caller's request; otherwise a
+        client keeps whatever voice it already holds, and a client the daemon
+        has not heard from claims one nobody else has.
+        """
+        assignment = self._store.voice_assignment(source) if source is not None else None
+        catalog = self._engine.list_voices()
+        decision = decide_speaking_voice(
+            source=source,
+            requested=requested,
+            default_voice=self._store.get_setting("voice", self._default_voice()),
+            catalog=catalog,
+            pinned=assignment.voice if assignment is not None and assignment.pinned else None,
+            claimed=assignment.voice if assignment is not None else None,
+            taken=self._store.claimed_voices(),
+        )
+        if decision.claim and source is not None:
+            claimed = self._store.claim_voice(source, decision.voice)
+            log.info("event=voice_claimed")
+            self._server.broadcast(
+                {"event": "voice_assigned", "assignment": _serialize_assignment(claimed)}
+            )
+            return claimed.voice
+        return decision.voice
+
+    async def _op_voice_assignments(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        return {
+            "ok": True,
+            "assignments": [
+                _serialize_assignment(item) for item in self._store.voice_assignments()
+            ],
+        }
+
+    async def _op_assign_voice(self, payload: dict[str, Any]) -> dict[str, Any]:
+        source = payload.get("source")
+        if not isinstance(source, str) or not source.strip():
+            msg = "assign_voice requires a non-empty 'source'"
+            raise ApiError(BAD_REQUEST, msg)
+        voice = payload.get("voice")
+        if voice is None:
+            if not self._store.release_voice(source):
+                msg = f"no voice is assigned to {source!r}"
+                raise ApiError(NOT_FOUND, msg)
+            self._server.broadcast({"event": "voice_released", "source": source})
+            return {"ok": True, "assignment": None}
+        if voice not in self._engine.list_voices():
+            msg = f"unknown voice {voice!r}"
+            raise ApiError(BAD_REQUEST, msg)
+        assignment = self._store.pin_voice(source, str(voice))
+        self._server.broadcast(
+            {"event": "voice_assigned", "assignment": _serialize_assignment(assignment)}
+        )
+        return {"ok": True, "assignment": _serialize_assignment(assignment)}
 
     async def _op_get(self, payload: dict[str, Any]) -> dict[str, Any]:
         utt = self._get_utterance(payload)
@@ -796,6 +895,9 @@ class Daemon:
             "plan": [self._serialize_utterance(u) for u in plan],
             "history": history["items"],
             "voices": self._engine.list_voices(),
+            "voice_assignments": [
+                _serialize_assignment(item) for item in self._store.voice_assignments()
+            ],
             "settings": settings["settings"],
         }
 

@@ -28,6 +28,7 @@ from aitts.model import (
     SynthesisWork,
     Utterance,
     UtteranceSegment,
+    VoiceAssignment,
     can_transition,
     new_utterance_id,
 )
@@ -77,6 +78,12 @@ CREATE INDEX IF NOT EXISTS idx_utterance_segments_state ON utterance_segments(st
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS voice_assignments (
+    source TEXT PRIMARY KEY,
+    voice TEXT NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    assigned_at REAL NOT NULL
 );
 """
 
@@ -137,6 +144,15 @@ def _row_to_segment(row: sqlite3.Row) -> UtteranceSegment:
         duration_ms=row["duration_ms"],
         played_ms=row["played_ms"],
         audio_path=row["audio_path"],
+    )
+
+
+def _row_to_voice_assignment(row: sqlite3.Row) -> VoiceAssignment:
+    return VoiceAssignment(
+        source=row["source"],
+        voice=row["voice"],
+        pinned=bool(row["pinned"]),
+        assigned_at=row["assigned_at"],
     )
 
 
@@ -829,6 +845,64 @@ class Store:
         return [_row_to_segment(row) for row in rows]
 
     # -- settings --------------------------------------------------------
+
+    # -- voice assignments -------------------------------------------------
+
+    def voice_assignment(self, source: str) -> VoiceAssignment | None:
+        """Return the voice held by ``source``, however it was decided."""
+        row = self._db.execute(
+            "SELECT source, voice, pinned, assigned_at FROM voice_assignments WHERE source = ?",
+            (source,),
+        ).fetchone()
+        return None if row is None else _row_to_voice_assignment(row)
+
+    def voice_assignments(self) -> list[VoiceAssignment]:
+        """Every voice currently spoken for, newest assignment last."""
+        rows = self._db.execute(
+            "SELECT source, voice, pinned, assigned_at FROM voice_assignments "
+            "ORDER BY assigned_at, source"
+        ).fetchall()
+        return [_row_to_voice_assignment(row) for row in rows]
+
+    def claimed_voices(self) -> frozenset[str]:
+        """Voices already held by some client, so a new claim avoids them."""
+        rows = self._db.execute("SELECT DISTINCT voice FROM voice_assignments").fetchall()
+        return frozenset(row["voice"] for row in rows)
+
+    def claim_voice(self, source: str, voice: str) -> VoiceAssignment:
+        """Record an automatic claim, leaving any existing assignment alone."""
+        self._db.execute(
+            "INSERT INTO voice_assignments (source, voice, pinned, assigned_at) "
+            "VALUES (?, ?, 0, ?) ON CONFLICT(source) DO NOTHING",
+            (source, voice, time.time()),
+        )
+        self._commit_or_rollback()
+        assignment = self.voice_assignment(source)
+        if assignment is None:  # pragma: no cover - the insert just ran
+            msg = f"voice claim for {source!r} did not persist"
+            raise RuntimeError(msg)
+        return assignment
+
+    def pin_voice(self, source: str, voice: str) -> VoiceAssignment:
+        """Record the listener's own assignment, which outranks the client."""
+        self._db.execute(
+            "INSERT INTO voice_assignments (source, voice, pinned, assigned_at) "
+            "VALUES (?, ?, 1, ?) ON CONFLICT(source) DO UPDATE SET voice = excluded.voice, "
+            "pinned = 1, assigned_at = excluded.assigned_at",
+            (source, voice, time.time()),
+        )
+        self._commit_or_rollback()
+        assignment = self.voice_assignment(source)
+        if assignment is None:  # pragma: no cover - the upsert just ran
+            msg = f"voice pin for {source!r} did not persist"
+            raise RuntimeError(msg)
+        return assignment
+
+    def release_voice(self, source: str) -> bool:
+        """Forget one assignment entirely, so the client claims again."""
+        cursor = self._db.execute("DELETE FROM voice_assignments WHERE source = ?", (source,))
+        self._commit_or_rollback()
+        return cursor.rowcount > 0
 
     def get_setting(self, key: str, default: str) -> str:
         """Read a setting, falling back to ``default``."""
