@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from aitts.daemon import _VOICE_REGISTER_SEEDED, Daemon
+from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.ipc import ApiError
 from aitts.playback import FakeSink
@@ -59,9 +59,6 @@ async def voice_daemon(tmp_path: Path) -> AsyncIterator[Daemon]:
         socket_path=sock_dir / "d.sock",
     )
     daemon.store.set_setting("voice", DAEMON_DEFAULT)
-    # Start from an empty register; seeding established agents is exercised
-    # separately, against the real catalog.
-    daemon.store.set_setting(_VOICE_REGISTER_SEEDED, "true")
     await daemon.start()
     yield daemon
     await daemon.stop()
@@ -281,43 +278,28 @@ async def test_the_listeners_own_reading_does_not_appear_in_the_mapping(
     assert voice_daemon.store.voice_assignments() == []
 
 
-async def test_established_agents_keep_the_voices_they_already_spoke_in(
+def test_no_client_identity_is_hardcoded_in_the_source() -> None:
+    source_root = Path(__file__).parents[1] / "src"
+    swift_root = Path(__file__).parents[1] / "clients" / "menubar" / "Sources"
+    # A voice register keyed on client identity invites baking real client
+    # names in as seed data. They are the operator's, not this project's, and
+    # a public repository is the wrong place to learn them.
+    offenders: list[str] = []
+    for root, pattern in ((source_root, "*.py"), (swift_root, "*.swift")):
+        for path in sorted(root.rglob(pattern)):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if "agent" in line.lower():
+                    offenders.append(f"{path.relative_to(Path(__file__).parents[1])}:{number}")
+
+    assert offenders == []
+
+
+async def test_an_upgrade_does_not_disturb_assignments_already_held(
     tmp_path: Path,
 ) -> None:
     from aitts.engines.kokoro import VOICES  # noqa: PLC0415 - the real catalog
 
-    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-seed-"))
-    daemon = Daemon(
-        home=tmp_path,
-        engine=FakeEngine(voices=list(VOICES)),
-        sink=FakeSink(auto_finish_ms=5),
-        workers=1,
-        socket_path=sock_dir / "d.sock",
-    )
-    await daemon.start()
-    try:
-        held = {item.source: item.voice for item in daemon.store.voice_assignments()}
-        # An upgrade must not renumber the agents the listener already knows.
-        assert held == {"agent-alpha": "bm_daniel", "codex": "bm_george"}
-
-        # And a newcomer cannot take one of them.
-        reply = await daemon.dispatch(
-            {"op": "submit", "text": "hello", "source": "claude-code", "voice": "bm_daniel"}
-        )
-        spoken = daemon.store.get(str(reply["id"]))
-        assert spoken is not None
-        assert spoken.voice != "bm_daniel"
-    finally:
-        await daemon.stop()
-        shutil.rmtree(sock_dir, ignore_errors=True)
-
-
-async def test_seeding_happens_once_and_respects_a_later_reassignment(
-    tmp_path: Path,
-) -> None:
-    from aitts.engines.kokoro import VOICES  # noqa: PLC0415 - the real catalog
-
-    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-reseed-"))
+    sock_dir = Path(tempfile.mkdtemp(prefix="aitts-upgrade-"))
 
     def build() -> Daemon:
         return Daemon(
@@ -330,45 +312,21 @@ async def test_seeding_happens_once_and_respects_a_later_reassignment(
 
     first = build()
     await first.start()
-    await first.dispatch({"op": "assign_voice", "source": "codex", "voice": "im_nicola"})
-    await first.stop()
+    try:
+        # Nothing is invented at startup: the register begins empty and fills
+        # from what clients actually say.
+        assert first.store.voice_assignments() == []
+        await first.dispatch({"op": "submit", "text": "hello", "source": "an-agent"})
+        await first.dispatch({"op": "assign_voice", "source": "codex", "voice": "bm_george"})
+        held = {item.source: item.voice for item in first.store.voice_assignments()}
+    finally:
+        await first.stop()
 
     restarted = build()
     await restarted.start()
     try:
-        held = {item.source: item.voice for item in restarted.store.voice_assignments()}
-        # Seeding must not undo the listener's own decision on restart.
-        assert held["codex"] == "im_nicola"
+        after = {item.source: item.voice for item in restarted.store.voice_assignments()}
+        assert after == held
     finally:
         await restarted.stop()
         shutil.rmtree(sock_dir, ignore_errors=True)
-
-
-async def test_the_receipt_discloses_the_voice_the_register_chose(
-    voice_daemon: Daemon,
-) -> None:
-    await voice_daemon.dispatch(
-        {"op": "submit", "text": "first", "source": "holder", "voice": "bm_daniel"}
-    )
-
-    # A second client asks for a voice the first already holds. It gets a
-    # different one, so the receipt has to say which — otherwise the caller
-    # believes it spoke as bm_daniel and has no way to find out otherwise.
-    reply = await voice_daemon.dispatch(
-        {"op": "submit", "text": "second", "source": "latecomer", "voice": "bm_daniel"}
-    )
-
-    assert reply["voice"] != "bm_daniel"
-    spoken = voice_daemon.store.get(str(reply["id"]))
-    assert spoken is not None
-    assert reply["voice"] == spoken.voice
-
-
-async def test_the_receipt_discloses_an_overridden_voice(voice_daemon: Daemon) -> None:
-    await voice_daemon.dispatch({"op": "assign_voice", "source": "an-agent", "voice": "im_nicola"})
-
-    reply = await voice_daemon.dispatch(
-        {"op": "submit", "text": "hello", "source": "an-agent", "voice": "bm_daniel"}
-    )
-
-    assert reply["voice"] == "im_nicola"

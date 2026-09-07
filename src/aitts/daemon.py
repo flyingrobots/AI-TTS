@@ -64,14 +64,6 @@ _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 # each poll costs well under a millisecond.
 _INPUT_POLL_SECONDS = 0.15
 _INPUT_INTERRUPT_RESUME_POLICIES = ("manual", "when_idle")
-_VOICE_REGISTER_SEEDED = "voice_register_seeded"
-# Voices these agents had already been speaking in before the daemon kept a
-# register, recorded in the operator's agent instructions. Seeded so an
-# upgrade does not renumber everyone the listener already recognises.
-_ESTABLISHED_VOICES: tuple[tuple[str, str], ...] = (
-    ("agent-alpha", "bm_daniel"),
-    ("codex", "bm_george"),
-)
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
 
@@ -157,7 +149,6 @@ class Daemon:
     async def start(self) -> None:
         """Recover state, start the workers, and begin serving."""
         self._store.recover()
-        self._seed_voice_register()
         self._enforce_cache_limit()
         held = any(u.state is State.PAUSED for u in self._store.playback_queue())
         self._controller = PlaybackController(
@@ -182,23 +173,6 @@ class Daemon:
             loop.create_task(self._watch_input_activity(), name="aitts-input"),
         ]
         await self._server.start()
-
-    def _seed_voice_register(self) -> None:
-        """Record the voices long-standing agents already speak in.
-
-        Without this, the first agent to speak after an upgrade claims the
-        head of the catalog and the listener stops recognising anyone. Seeded
-        once, as ordinary claims rather than overrides, so they can be
-        reassigned like any other. Claims never overwrite, so a client that
-        already holds a voice keeps it.
-        """
-        if self._store.get_setting(_VOICE_REGISTER_SEEDED, "false") == "true":
-            return
-        catalog = self._engine.list_voices()
-        for source, voice in _ESTABLISHED_VOICES:
-            if voice in catalog and self._store.voice_assignment(source) is None:
-                self._store.claim_voice(source, voice)
-        self._store.set_setting(_VOICE_REGISTER_SEEDED, "true")
 
     async def _supervise_playback(self) -> None:
         """Restart the critical playback loop if it exits unexpectedly."""

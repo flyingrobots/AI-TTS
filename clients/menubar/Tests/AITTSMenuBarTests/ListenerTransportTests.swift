@@ -79,7 +79,7 @@ final class ListenerTransportTests: XCTestCase {
             snapshot.voiceAssignments,
             [
                 VoiceAssignment(
-                    source: "agent-alpha",
+                    source: "an-agent",
                     voice: "bm_daniel",
                     pinned: false,
                     assignedAt: 1_788_000_001
@@ -208,7 +208,7 @@ final class ListenerTransportTests: XCTestCase {
         "voices": ["bf_emma", "bm_daniel", "bm_george"],
         "voice_assignments": [
             [
-                "source": "agent-alpha", "voice": "bm_daniel",
+                "source": "an-agent", "voice": "bm_daniel",
                 "pinned": false, "assigned_at": 1_788_000_001,
             ],
             [
