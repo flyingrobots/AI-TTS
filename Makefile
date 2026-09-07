@@ -42,36 +42,40 @@ UV := $(shell command -v uv 2>/dev/null)
 # -- build ----------------------------------------------------------------
 
 ## build: compile the menu-bar app and sync the Python environment
+build: export AITTS_DIST := $(DIST)
 build: tools
 	@printf '==> syncing the Python environment\n'
 	@uv sync --all-extras
-	@printf '==> building the menu-bar app bundle into $(DIST)\n'
-	@mkdir -p $(DIST)
-	@uv run python scripts/build_app_bundle.py --output "$(DIST)/AI-TTS.app" --force
-	@printf '\nBuilt $(DIST)/AI-TTS.app\n'
+	@printf '==> building the menu-bar app bundle into %s\n' "$$AITTS_DIST"
+	@mkdir -p -- "$$AITTS_DIST"
+	@uv run python scripts/build_app_bundle.py --output "$$AITTS_DIST/AI-TTS.app" --force
+	@printf '\nBuilt %s\n' "$$AITTS_DIST/AI-TTS.app"
 	@printf 'Install it with: make install\n'
 
 ## app: rebuild only the installed app bundle in place
+app: export AITTS_APP := $(APP_BUNDLE)
 app: tools
-	@printf '==> rebuilding $(APP_BUNDLE)\n'
-	@uv run python scripts/build_app_bundle.py --output "$(APP_BUNDLE)" --force
-	@printf 'Quit and reopen AI-TTS to pick it up, or: open "$(APP_BUNDLE)"\n'
+	@printf '==> rebuilding %s\n' "$$AITTS_APP"
+	@uv run python scripts/build_app_bundle.py --output "$$AITTS_APP" --force
+	@printf 'Quit and reopen AI-TTS to pick it up, or: open %s\n' "$$AITTS_APP"
 
 # -- install --------------------------------------------------------------
 
 ## install: install the CLI and MCP server, the app, and the launchd agent
+install: export AITTS_APP := $(APP_BUNDLE)
+install: export AITTS_PLIST := $(LAUNCH_AGENT)
 install: tools
 	@printf '==> installing the ai-tts and ai-tts-mcp executables\n'
 	@uv tool install --force --python $(PYTHON_VERSION) --with "kokoro>=0.9.4" .
-	@printf '==> installing $(APP_BUNDLE)\n'
-	@uv run python scripts/build_app_bundle.py --output "$(APP_BUNDLE)" --force
+	@printf '==> installing %s\n' "$$AITTS_APP"
+	@uv run python scripts/build_app_bundle.py --output "$$AITTS_APP" --force
 	@printf '==> installing the launchd user agent\n'
 	@uv run python scripts/render_launch_agent.py \
 		--executable "$$(uv tool dir --bin)/ai-tts" --force
 	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
-	@launchctl bootstrap "$(GUI_DOMAIN)" "$(LAUNCH_AGENT)"
+	@launchctl bootstrap "$(GUI_DOMAIN)" "$$AITTS_PLIST"
 	@printf '\nInstalled. The daemon is running; the menu-bar app is not.\n'
-	@printf 'Start it when you want it:  open "$(APP_BUNDLE)"\n'
+	@printf 'Start it when you want it:  open %s\n' "$$AITTS_APP"
 	@printf 'Check the daemon:           make doctor\n'
 	@printf 'Wire up your agents:        make install-agents\n'
 
@@ -98,7 +102,7 @@ test-python: tools
 	@uv run pytest
 
 test-swift:
-	@swift test --package-path $(MENUBAR)
+	@swift test --package-path "$(MENUBAR)"
 
 ## lint: ruff and mypy, both at the strictness this repo enforces
 lint: tools
@@ -123,18 +127,22 @@ doctor:
 # -- housekeeping ---------------------------------------------------------
 
 ## clean: remove build products, leaving anything installed alone
+clean: export AITTS_DIST := $(DIST)
+clean: export AITTS_MENUBAR := $(MENUBAR)
 clean:
-	@rm -rf $(DIST) $(MENUBAR)/.build
-	@printf 'Removed $(DIST) and $(MENUBAR)/.build\n'
+	@rm -rf -- "$$AITTS_DIST" "$$AITTS_MENUBAR/.build"
+	@printf 'Removed %s and %s/.build\n' "$$AITTS_DIST" "$$AITTS_MENUBAR"
 
 ## uninstall: stop and remove the launchd agent, and the installed executables
+uninstall: export AITTS_PLIST := $(LAUNCH_AGENT)
+uninstall: export AITTS_APP := $(APP_BUNDLE)
 uninstall:
 	@printf '==> stopping and removing the launchd agent\n'
 	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
-	@rm -f "$(LAUNCH_AGENT)"
+	@rm -f -- "$$AITTS_PLIST"
 	@printf '==> removing the executables\n'
 	@uv tool uninstall ai-tts 2>/dev/null || true
-	@printf '\nLeft in place on purpose: $(APP_BUNDLE), your speech history and\n'
+	@printf '\nLeft in place on purpose: %s, your speech history and\n' "$$AITTS_APP"
 	@printf 'cached audio under ~/Library/Application Support/ai-tts, and any\n'
 	@printf 'skill or MCP registration in your agents. Remove those by hand.\n'
 
