@@ -247,7 +247,7 @@ extension DaemonStatus {
             counts: json["counts"] as? [String: Int] ?? [:],
             voice: json["voice"] as? String ?? "",
             engine: json["engine"] as? String ?? "",
-            inputActive: json["input_active"] as? Bool ?? false,
+            inputActive: json["input_active"] as? Bool,
             interruption: (json["interruption"] as? [String: Any])
                 .flatMap(SpeechInterruption.init(daemonJSON:))
         )

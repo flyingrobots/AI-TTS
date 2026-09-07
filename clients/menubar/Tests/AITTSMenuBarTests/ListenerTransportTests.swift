@@ -67,7 +67,7 @@ final class ListenerTransportTests: XCTestCase {
 
         let snapshot = try service.snapshot()
 
-        XCTAssertTrue(snapshot.status.inputActive)
+        XCTAssertEqual(snapshot.status.inputActive, true)
         let interruption = try XCTUnwrap(snapshot.status.interruption)
         XCTAssertEqual(interruption.reason, "listener_speaking")
         XCTAssertEqual(interruption.at, 1_788_000_000, accuracy: 0.001)
@@ -110,7 +110,7 @@ final class ListenerTransportTests: XCTestCase {
 
         let snapshot = try service.snapshot()
 
-        XCTAssertFalse(snapshot.status.inputActive)
+        XCTAssertNil(snapshot.status.inputActive)
         XCTAssertNil(snapshot.status.interruption)
         XCTAssertEqual(snapshot.voiceAssignments, [])
         XCTAssertEqual(snapshot.inputInterruptResume, .manual)
@@ -249,5 +249,45 @@ private final class ListenerTransport: DaemonTransport, @unchecked Sendable {
             let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
             return try XCTUnwrap(String(data: data, encoding: .utf8))
         }
+    }
+}
+
+extension ListenerTransportTests {
+
+    // MARK: - An unavailable microphone reading
+
+    func testAnAbsentInputReadingDecodesAsUnknownRatherThanQuiet() throws {
+        let transport = ListenerTransport(responses: [
+            [
+                "ok": true,
+                "status": [
+                    "playback_state": "playing", "current": NSNull(),
+                    "counts": [:], "voice": "bf_emma", "engine": "kokoro",
+                    "input_active": NSNull(),
+                ],
+            ]
+        ])
+        let service = UnixSocketSpeechService(transport: transport)
+
+        // Quiet and unanswerable are different states, and collapsing them
+        // tells the listener their voice takes precedence when nothing is
+        // watching for it.
+        XCTAssertNil(try service.snapshot().status.inputActive)
+    }
+
+    func testAReadableQuietInputDecodesAsFalse() throws {
+        let transport = ListenerTransport(responses: [
+            [
+                "ok": true,
+                "status": [
+                    "playback_state": "playing", "current": NSNull(),
+                    "counts": [:], "voice": "bf_emma", "engine": "kokoro",
+                    "input_active": false,
+                ],
+            ]
+        ])
+        let service = UnixSocketSpeechService(transport: transport)
+
+        XCTAssertEqual(try service.snapshot().status.inputActive, false)
     }
 }

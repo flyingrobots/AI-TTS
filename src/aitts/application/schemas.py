@@ -145,8 +145,10 @@ class SpeechStatus(SpeechAdmission):
     engine: NonEmptyText
     voice: str
     # Whether an audio input is capturing right now. Coarse and sticky by
-    # nature; it says the device is open, not that anyone is talking.
-    input_active: bool = False
+    # nature; it says the device is open, not that anyone is talking. None
+    # means the platform could not be asked, which is materially different
+    # from quiet: nothing is watching, so nothing will interrupt.
+    input_active: bool | None = None
     interruption: SpeechInterruption | None = None
 
 

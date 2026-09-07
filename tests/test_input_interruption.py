@@ -574,3 +574,66 @@ async def test_a_manual_pause_stops_describing_the_hold_as_the_listener_speaking
     # the hold wrongly on the next start.
     restored = PlaybackController(store, FakeSink(), DeterministicPlaybackSchedule())
     assert restored.interrupted_at is None
+
+
+# -- an unavailable reading must not look like a quiet one ----------------
+
+
+def available(detector: InputInterruptDetector) -> bool:
+    # Read through a call so mypy does not narrow the property across polls.
+    return detector.reading_available
+
+
+def test_the_detector_reports_whether_the_reading_is_available() -> None:
+    detector = InputInterruptDetector(confirmations=2)
+    quiet, unreadable, hot = False, None, True
+
+    # Before anything has been observed the platform has not been asked.
+    assert available(detector) is False
+
+    detector.observe(quiet)
+    assert available(detector) is True
+
+    detector.observe(unreadable)
+    # An unreadable poll means the question cannot be answered right now, and
+    # saying "not active" would claim the listener is silent on no evidence.
+    assert available(detector) is False
+
+    detector.observe(hot)
+    assert available(detector) is True
+
+
+async def test_status_says_unknown_rather_than_quiet_when_input_cannot_be_read(
+    tmp_path: Path, sink: FakeSink
+) -> None:
+    activity = FakeInputActivity(active=None)
+    daemon, cleanup = await make_daemon(tmp_path, activity, sink)
+    try:
+        await wait_for(lambda: daemon._input_detector.reading_available is False)
+
+        status = await daemon.dispatch({"op": "status"})
+
+        # This is the failure that matters: with the toggle on and the reading
+        # broken, the listener believes their microphone takes precedence over
+        # playback and it does not. Reporting False here is indistinguishable
+        # from a working, quiet microphone.
+        assert status["input_active"] is None
+    finally:
+        await daemon.stop()
+        cleanup()
+
+
+async def test_status_reports_a_readable_quiet_input_as_quiet(
+    tmp_path: Path, sink: FakeSink
+) -> None:
+    activity = FakeInputActivity(active=False)
+    daemon, cleanup = await make_daemon(tmp_path, activity, sink)
+    try:
+        await wait_for(lambda: daemon._input_detector.reading_available is True)
+
+        status = await daemon.dispatch({"op": "status"})
+
+        assert status["input_active"] is False
+    finally:
+        await daemon.stop()
+        cleanup()

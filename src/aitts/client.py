@@ -99,9 +99,15 @@ class Client:
         timeout: float | None = None,
         until: float | None = None,
     ) -> Generator[dict[str, Any], None, None]:
-        """Subscribe and yield state-change events until the connection closes.
+        """Subscribe now and return a generator over the state-change stream.
 
-        ``timeout`` bounds the wait for each individual event. ``until`` is an
+        The subscription is established before this returns, not on first
+        iteration. Callers rely on that: reading an utterance's current state
+        after subscribing is only safe if the subscription is already live,
+        and a generator whose body had not run yet silently broke the
+        guarantee its caller documented.
+
+        ``timeout`` bounds the wait for each individual read. ``until`` is an
         optional overall monotonic deadline: while it has not passed, a read
         that times out is a quiet daemon rather than an absent one, so the
         wait resumes instead of failing.
@@ -112,23 +118,40 @@ class Client:
             sock.sendall(encode_json_object({"op": "subscribe"}))
             line, buffer = self._read_buffered_line(sock, b"")
             ack = self._decode_line(line)
-            if not ack.get("ok", False):  # pragma: no cover - subscribe cannot fail
-                msg = "subscription refused"
-                raise DaemonUnreachableError(msg)
+        except TimeoutError as exc:
+            sock.close()
+            msg = "timed out waiting for an event"
+            raise DaemonUnreachableError(msg) from exc
+        except BaseException:
+            sock.close()
+            raise
+        if not ack.get("ok", False):  # pragma: no cover - subscribe cannot fail
+            sock.close()
+            msg = "subscription refused"
+            raise DaemonUnreachableError(msg)
+        return self._stream_events(sock, buffer, until=until)
+
+    def _stream_events(
+        self,
+        sock: socket.socket,
+        buffer: bytes,
+        *,
+        until: float | None,
+    ) -> Generator[dict[str, Any], None, None]:
+        """Yield decoded events from an already-subscribed socket."""
+        try:
             while True:
                 try:
                     line, buffer = self._read_buffered_line(sock, buffer)
                 except TimeoutError:
-                    if until is not None and time.monotonic() < until:
+                    if until is None:
+                        msg = "timed out waiting for an event"
+                        raise DaemonUnreachableError(msg) from None
+                    if time.monotonic() < until:
                         # Nothing has happened yet, which is not a failure.
                         continue
-                    if until is None:
-                        raise
                     return
                 yield self._decode_line(line)
-        except TimeoutError as exc:
-            msg = "timed out waiting for an event"
-            raise DaemonUnreachableError(msg) from exc
         finally:
             sock.close()
 

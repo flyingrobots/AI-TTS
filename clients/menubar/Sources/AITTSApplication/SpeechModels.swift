@@ -144,8 +144,10 @@ public struct DaemonStatus: Equatable, Sendable {
     public let counts: [String: Int]
     public let voice: String
     public let engine: String
-    /// Whether some process is capturing audio input right now.
-    public let inputActive: Bool
+    /// Whether some process is capturing audio input right now. `nil` means
+    /// the platform could not be asked, which is not the same as quiet: with
+    /// nothing watching, nothing will interrupt playback.
+    public let inputActive: Bool?
     public let interruption: SpeechInterruption?
 
     public init(
@@ -154,7 +156,7 @@ public struct DaemonStatus: Equatable, Sendable {
         counts: [String: Int],
         voice: String,
         engine: String,
-        inputActive: Bool = false,
+        inputActive: Bool? = nil,
         interruption: SpeechInterruption? = nil
     ) {
         self.playbackState = playbackState

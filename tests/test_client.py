@@ -17,6 +17,7 @@ from aitts.client import Client, DaemonError, DaemonUnreachableError
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.playback import FakeSink
+from tests.conftest import wait_for
 
 pytestmark = [
     pytest.mark.medium,
@@ -103,3 +104,32 @@ async def test_a_slow_utterance_is_not_reported_as_an_unreachable_daemon(
     finally:
         await daemon.stop()
         shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+async def test_the_event_stream_subscribes_before_it_is_iterated(daemon: Daemon) -> None:
+    client = Client(daemon.socket_path)
+
+    stream = await asyncio.to_thread(client.events, timeout=0.5, until=None)
+    try:
+        # wait_for_terminal documents that it subscribes before reading the
+        # current state, so a transition in between cannot be missed. A
+        # generator's body does not run until it is first iterated, so the
+        # subscription had not happened yet and the promise was not kept.
+        await wait_for(lambda: len(daemon._server._subscribers) == 1)
+    finally:
+        stream.close()
+
+
+async def test_an_utterance_that_finishes_immediately_is_still_observed(
+    daemon: Daemon,
+) -> None:
+    client = Client(daemon.socket_path)
+
+    # The fixture's sink finishes 5ms after playback starts, so this clip can
+    # reach a terminal state inside the window between the state check and a
+    # late subscription. Missing the event meant waiting out the whole timeout
+    # and then reporting failure for speech that had already played.
+    for _ in range(6):
+        response = await asyncio.to_thread(client.request, {"op": "submit", "text": "hi"})
+        final = await asyncio.to_thread(client.wait_for_terminal, response["id"], timeout=5.0)
+        assert final == "Played"

@@ -69,6 +69,15 @@ class InputInterruptDetector:
         # when the daemon starts is somebody else's, not a change of floor.
         self._hot: bool | None = None
         self._streak = 0
+        # Whether the most recent poll could be answered at all. An
+        # unanswerable poll is not "quiet": reporting quiet would tell the
+        # listener their voice takes precedence when nothing is watching.
+        self._readable = False
+
+    @property
+    def reading_available(self) -> bool:
+        """Whether the platform answered the most recent poll."""
+        return self._readable
 
     @property
     def input_is_hot(self) -> bool:
@@ -77,6 +86,7 @@ class InputInterruptDetector:
 
     def observe(self, active: bool | None, /) -> bool:  # noqa: FBT001 - one tri-state reading
         """Feed one reading; return True only on a genuine cold-to-hot edge."""
+        self._readable = active is not None
         if active is None:
             return False
         if not active:

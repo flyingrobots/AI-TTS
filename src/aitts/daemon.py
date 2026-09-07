@@ -872,7 +872,11 @@ class Daemon:
             "state": "accepting",
             **self._speech_admission(),
             "playback_state": playback_state,
-            "input_active": self._input_detector.input_is_hot,
+            "input_active": (
+                self._input_detector.input_is_hot
+                if self._input_detector.reading_available
+                else None
+            ),
             "interruption": self._interruption_view(),
             "current": current_item,
             "counts": counts,

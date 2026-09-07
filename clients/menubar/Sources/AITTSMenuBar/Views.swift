@@ -1083,10 +1083,23 @@ struct InputInterruptSettings: View {
         .pickerStyle(.radioGroup)
         .disabled(!state.inputInterruptEnabled)
 
-        if state.status?.inputActive == true {
+        switch state.status?.inputActive {
+        case .some(true):
             Label("Something is using the microphone right now.", systemImage: "mic.fill")
                 .font(.caption2)
                 .foregroundStyle(.orange)
+        case .none where state.reachable:
+            // The toggle being on is not the same as the watch running. Saying
+            // nothing here would let the listener believe their voice takes
+            // precedence while nothing is watching for it.
+            Label(
+                "Microphone monitoring is unavailable, so playback will not stop when you speak.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .font(.caption2)
+            .foregroundStyle(.red)
+        default:
+            EmptyView()
         }
     }
 }
