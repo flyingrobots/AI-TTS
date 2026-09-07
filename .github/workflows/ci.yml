@@ -105,7 +105,15 @@ jobs:
         working-directory: clients/menubar
         run: python3 ../../scripts/run_with_deadline.py 60 swift test
       - name: Build signed app bundle
-        run: python3 scripts/build_app_bundle.py --output dist/AI-TTS.app
+        # --allow-missing-app-intents: no Xcode on the runner image ships the
+        # App Intents protocol catalog, so the bundle assembled here has no
+        # Shortcuts integration and is never released. Verifying the rest of
+        # it — assembly, Info.plist, signature — is worth more than verifying
+        # nothing. The release job deliberately omits the flag and will fail
+        # rather than publish a bundle missing the intents it documents.
+        run: >-
+          python3 scripts/build_app_bundle.py --output dist/AI-TTS.app
+          --allow-missing-app-intents
       - name: Verify app bundle
         run: codesign --verify --deep --strict dist/AI-TTS.app
 

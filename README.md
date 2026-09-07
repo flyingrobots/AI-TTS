@@ -591,6 +591,13 @@ instance, unauthenticated, and cannot run in a container — those are decisions
 rather than gaps, and each is recorded with its reasoning in
 [`architecture.md`](docs/design/architecture.md) §9a.
 
+Building the app bundle needs an Xcode whose toolchain ships the App Intents
+protocol catalog (`SwiftConstantValues/AppIntents.json`). Xcode 26.3 and older
+do not, which includes every version on GitHub's macOS runner images — so CI
+builds its bundle with `--allow-missing-app-intents` and release artifacts are
+built locally. `make build` tells you which file is missing if your toolchain
+cannot do it.
+
 ## Licence
 
 Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

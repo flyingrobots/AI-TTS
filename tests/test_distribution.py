@@ -360,3 +360,71 @@ def test_app_intents_failure_names_the_toolchain_and_the_missing_file(
     assert "AppIntents.json" in message
     assert str(toolchain) in message
     assert "xcode-select" in message
+
+
+def test_app_intents_search_finds_a_relocated_catalog(tmp_path: Path) -> None:
+    from scripts.build_app_bundle import find_app_intents_catalog  # noqa: PLC0415
+
+    toolchain = tmp_path / "Toolchains" / "X.xctoolchain"
+    moved = toolchain / "usr" / "lib" / "swift" / "SwiftConstantValues" / "AppIntents.json"
+    moved.parent.mkdir(parents=True)
+    moved.write_text('{"version": 1, "constValueProtocols": ["AppIntent"]}')
+
+    found = find_app_intents_catalog(toolchain)
+
+    # Apple has moved this file between releases. Searching rather than
+    # hardcoding one path means a relocation is not indistinguishable from an
+    # Xcode that cannot do the job at all.
+    assert found == moved
+
+
+def test_app_intents_search_returns_none_when_no_catalog_exists(tmp_path: Path) -> None:
+    from scripts.build_app_bundle import find_app_intents_catalog  # noqa: PLC0415
+
+    (tmp_path / "usr" / "bin").mkdir(parents=True)
+
+    assert find_app_intents_catalog(tmp_path) is None
+
+
+def test_a_release_bundle_refuses_to_ship_without_app_intents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.build_app_bundle import generate_app_intents_metadata  # noqa: PLC0415
+
+    toolchain = tmp_path / "Xcode.app/Contents/Developer/Toolchains/X.xctoolchain"
+    swiftc = toolchain / "usr" / "bin" / "swiftc"
+    swiftc.parent.mkdir(parents=True)
+    swiftc.write_text("#!/bin/sh\n")
+    (toolchain / "usr" / "bin" / "appintentsmetadataprocessor").write_text("#!/bin/sh\n")
+
+    def find_swiftc(arguments: list[str]) -> str:
+        del arguments
+        return str(swiftc)
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr("scripts.build_app_bundle._checked_output", find_swiftc)
+
+    # Default: refuse. A bundle without this metadata has no Shortcuts
+    # integration, and shipping one silently is worse than a failed build.
+    with pytest.raises(RuntimeError) as raised:
+        generate_app_intents_metadata(
+            repository=tmp_path,
+            binary=tmp_path / "bin",
+            module_search_path=tmp_path,
+            resources=tmp_path / "Resources",
+        )
+    assert "AppIntents.json" in str(raised.value)
+
+    # Opted in explicitly: skip, and return nothing so the caller knows.
+    resources = tmp_path / "Resources"
+    resources.mkdir()
+    assert (
+        generate_app_intents_metadata(
+            repository=tmp_path,
+            binary=tmp_path / "bin",
+            module_search_path=tmp_path,
+            resources=resources,
+            allow_missing_catalog=True,
+        )
+        is None
+    )

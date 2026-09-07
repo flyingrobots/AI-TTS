@@ -148,10 +148,76 @@ def _checked_output(arguments: list[str]) -> str:
     ).stdout.strip()
 
 
+def find_app_intents_catalog(toolchain: Path) -> Path | None:
+    """Locate the App Intents constant-value catalog inside ``toolchain``.
+
+    The catalog is a short list of the Swift protocols whose conformances the
+    compiler must gather constant values for. Apple has moved it between
+    releases, so the documented location is tried first and the toolchain is
+    then searched — a relocation should not be indistinguishable from a
+    toolchain that cannot do the job at all.
+    """
+    documented = toolchain / "usr" / "share" / "swift" / "SwiftConstantValues" / "AppIntents.json"
+    if documented.is_file():
+        return documented
+    for candidate in sorted(toolchain.rglob("SwiftConstantValues/AppIntents.json")):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _app_intents_tooling(toolchain: Path, *, processor: Path, allow_missing: bool) -> Path | None:
+    """Return the protocol catalog, or ``None`` when absence is permitted.
+
+    Raises when the toolchain cannot extract App Intents metadata and the
+    caller has not explicitly allowed a bundle without it.
+    """
+    catalog = find_app_intents_catalog(toolchain)
+    missing = [
+        name
+        for name, present in (
+            ("usr/bin/appintentsmetadataprocessor", processor.is_file()),
+            ("SwiftConstantValues/AppIntents.json", catalog is not None),
+        )
+        if not present
+    ]
+    if not missing:
+        return catalog
+    if allow_missing:
+        sys.stderr.write(
+            f"warning: skipping App Intents metadata — {', '.join(missing)} missing under "
+            f"{toolchain}. THE RESULTING BUNDLE HAS NO SHORTCUTS INTEGRATION and must not be "
+            "released. Build with a toolchain that ships the catalog.\n"
+        )
+        return None
+    # "cannot extract App Intents metadata" is true of every cause and points
+    # at none of them. The cause in practice is an Xcode older than the one
+    # this was developed against — a CI runner's default, most likely — so name
+    # the toolchain, name what is absent, and name the command that changes it.
+    msg = (
+        "the active Xcode toolchain cannot extract App Intents metadata: "
+        f"{', '.join(missing)} missing under {toolchain}. "
+        "Select a newer Xcode with `sudo xcode-select -s /Applications/Xcode_<version>.app` "
+        "and check `xcodebuild -version`."
+    )
+    raise RuntimeError(msg)
+
+
 def generate_app_intents_metadata(
-    *, repository: Path, binary: Path, module_search_path: Path, resources: Path
-) -> Path:
-    """Extract compile-time App Intents metadata into an assembled bundle."""
+    *,
+    repository: Path,
+    binary: Path,
+    module_search_path: Path,
+    resources: Path,
+    allow_missing_catalog: bool = False,
+) -> Path | None:
+    """Extract compile-time App Intents metadata into an assembled bundle.
+
+    Returns the metadata bundle, or ``None`` when the toolchain cannot supply
+    the protocol catalog *and* the caller has explicitly allowed that. The
+    default is to refuse: a bundle without this metadata has no Shortcuts
+    integration, and shipping one silently is worse than a failed build.
+    """
     xcrun = shutil.which("xcrun")
     xcodebuild = shutil.which("xcodebuild")
     if xcrun is None or xcodebuild is None:
@@ -161,28 +227,11 @@ def generate_app_intents_metadata(
     swiftc = Path(_checked_output([xcrun, "--find", "swiftc"]))
     toolchain = swiftc.parents[2]
     processor = toolchain / "usr" / "bin" / "appintentsmetadataprocessor"
-    protocol_catalog = (
-        toolchain / "usr" / "share" / "swift" / "SwiftConstantValues" / "AppIntents.json"
+    found_catalog = _app_intents_tooling(
+        toolchain, processor=processor, allow_missing=allow_missing_catalog
     )
-    missing = [
-        str(path.relative_to(toolchain))
-        for path in (processor, protocol_catalog)
-        if not path.is_file()
-    ]
-    if missing:
-        # "cannot extract App Intents metadata" is true of every cause and
-        # points at none of them. The cause in practice is an Xcode older than
-        # the one this was developed against — a CI runner's default, most
-        # likely — so name the toolchain, name what is absent, and name the
-        # command that changes it.
-        msg = (
-            "the active Xcode toolchain cannot extract App Intents metadata: "
-            f"{', '.join(missing)} missing under {toolchain}. "
-            "Select a newer Xcode with `sudo xcode-select -s /Applications/Xcode_<version>.app` "
-            "and check `xcodebuild -version`."
-        )
-        raise RuntimeError(msg)
-
+    if found_catalog is None:
+        return None
     sdk = Path(_checked_output([xcrun, "--sdk", "macosx", "--show-sdk-path"]))
     target_info = json.loads(_checked_output([str(swiftc), "-print-target-info"]))
     target = target_info.get("target")
@@ -208,6 +257,8 @@ def generate_app_intents_metadata(
         repository / "clients" / "menubar" / "Sources" / "AITTSMenuBar" / "AppIntents.swift"
     )
     source_files = sorted(app_intents_source.parent.glob("*.swift"))
+    protocol_catalog = found_catalog
+    assert protocol_catalog is not None  # noqa: S101 - guarded by the check above
     with protocol_catalog.open(encoding="utf-8") as stream:
         catalog = json.load(stream)
     protocols = catalog.get("constValueProtocols") if isinstance(catalog, dict) else None
@@ -353,7 +404,12 @@ def project_version(repository: Path) -> str:
 
 
 def build_app_bundle(
-    *, repository: Path, output: Path, configuration: str = "release", sign: bool = True
+    *,
+    repository: Path,
+    output: Path,
+    configuration: str = "release",
+    sign: bool = True,
+    allow_missing_app_intents: bool = False,
 ) -> Path:
     """Build Swift, assemble the bundle, and optionally apply an ad-hoc signature."""
     swift = shutil.which("swift")
@@ -383,6 +439,7 @@ def build_app_bundle(
         binary=bundle / "Contents" / "MacOS" / EXECUTABLE_NAME,
         module_search_path=Path(bin_path) / "Modules",
         resources=bundle / "Contents" / "Resources",
+        allow_missing_catalog=allow_missing_app_intents,
     )
     if sign:
         codesign = shutil.which("codesign")
@@ -403,6 +460,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--configuration", choices=("debug", "release"), default="release")
     parser.add_argument("--unsigned", action="store_true")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--allow-missing-app-intents",
+        action="store_true",
+        help=(
+            "assemble the bundle even when the toolchain cannot supply the App Intents "
+            "protocol catalog. The result has NO Shortcuts integration and must never be "
+            "released; this exists so CI can verify the rest of the bundle on a runner "
+            "whose newest Xcode does not ship the catalog."
+        ),
+    )
     args = parser.parse_args(argv)
     repository = Path(__file__).resolve().parents[1]
     output = args.output.expanduser().resolve()
@@ -415,6 +482,7 @@ def main(argv: list[str] | None = None) -> int:
         output=output,
         configuration=args.configuration,
         sign=not args.unsigned,
+        allow_missing_app_intents=args.allow_missing_app_intents,
     )
     sys.stdout.write(f"{output}\n")
     return 0

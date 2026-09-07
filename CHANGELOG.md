@@ -228,6 +228,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error and a non-natural finish — which is what stops a clip being marked
   Played with nothing having been heard. The stream factory the device-follow
   tests already inject was enough to drive all three; no new seam was needed.
+- **Releases require a newer Xcode than any GitHub runner offers.** The App
+  Intents protocol catalog the bundle build needs is absent from every Xcode
+  on the runner image, so CI assembles its bundle with
+  `--allow-missing-app-intents` and verifies everything else about it. The
+  release job deliberately does not pass that flag: an artifact people install
+  without the Shortcuts integration it is documented to have is a silent
+  product regression, so a failed release is the correct outcome until a
+  runner ships a capable toolchain. Releases are built locally today.
 - The first CI run failed three ways, all of them latent rather than new, and
   all of them invisible locally because a developer's environment is richer
   than CI's. `huggingface_hub` had no mypy override — it is not a declared

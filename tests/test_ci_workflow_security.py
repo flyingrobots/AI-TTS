@@ -207,3 +207,18 @@ def test_the_selected_xcode_is_pinned_to_one_version() -> None:
     # version across both jobs, so the CI bundle and the release bundle are
     # built by the same compiler.
     assert len(selections) == 1, selections
+
+
+def test_only_the_ci_job_may_skip_app_intents_metadata() -> None:
+    swift_job = _job_body("swift")
+    release_job = _job_body("release")
+
+    # CI may assemble a bundle without Shortcuts integration on a runner whose
+    # newest Xcode does not ship the protocol catalog, because verifying the
+    # rest of the bundle is worth more than verifying nothing.
+    assert "--allow-missing-app-intents" in swift_job
+
+    # A release may not. An artifact people install without the App Intents it
+    # is documented to have is a silent product regression, and a failed
+    # release job is the correct outcome until the toolchain can do the job.
+    assert "--allow-missing-app-intents" not in release_job
