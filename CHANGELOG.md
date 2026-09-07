@@ -179,6 +179,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Python suite's latency budget is now per class rather than one number
+  for the whole suite, charged on measured test time including fixtures, and
+  each run prints the count, charged total and p95 call latency per class. The
+  single 30-second whole-suite gate had started tripping intermittently at 545
+  tests, which is the worst state a gate can be in. Two test modules that had
+  been marked `small` while starting a daemon or spawning a subprocess are now
+  `medium`, which is most of what the small tier was actually costing.
 - The menu bar's `Views.swift` split by surface into the popover shell,
   `CurrentPlaybackViews`, `QueueViews`, `HistoryViews`, `SettingsViews` and
   `SharedViews`. It held every popover surface in one 1257-line file; no view

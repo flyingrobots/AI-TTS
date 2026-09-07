@@ -26,7 +26,9 @@ import pytest
 from aitts import __version__
 
 pytestmark = [
-    pytest.mark.small,
+    # Medium rather than small: the checker runs in its own process, which is
+    # the point — it has to work as the workflow invokes it, not as an import.
+    pytest.mark.medium,
     pytest.mark.oracle("the single packaged version declared in pyproject.toml"),
 ]
 

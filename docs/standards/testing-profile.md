@@ -26,17 +26,41 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 
 ## Enforced Python test classes and budgets
 
-| Class | Ceiling per test | Resource posture |
-|---|---:|---|
-| small | 2 seconds | one process; no filesystem, sockets, threads, or sleeps |
-| medium | 15 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
-| large | 30 seconds | explicit external boundary; none currently gate CI |
+| Class | Ceiling per test | Tier budget | Resource posture |
+|---|---:|---:|---|
+| small | 2 seconds | 10 seconds | one process; no sockets, subprocesses, threads, or sleeps |
+| medium | 15 seconds | 45 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
+| large | 30 seconds | 120 seconds | explicit external boundary; none currently gate CI |
 
-The complete Python suite has a 30-second budget. `tests/conftest.py` rejects
-collection unless each test inherits exactly one size marker and one non-empty
-`oracle(...)` marker, then installs the class timeout. The policy and timeout
-gates have falsification receipts in
+`tests/conftest.py` rejects collection unless each test inherits exactly one
+size marker and one non-empty `oracle(...)` marker, then installs the class
+timeout. The policy and timeout gates have falsification receipts in
 `docs/testing-evidence/2026-09-03-policy-gates.md`.
+
+**Budgets are per class, not per suite.** They were a single 30-second
+whole-suite number until the suite reached 545 tests and started tripping it
+intermittently — which is the worst state a gate can be in, because a gate
+that varies across runs of an unchanged build does not gate (rule 10). Rule 9
+budgets by class for the reason that showed up here: one number means every
+test pays the slowest test's schedule, and it can be met by relabelling a slow
+test rather than fixing it.
+
+The budget is charged on measured test time, setup and teardown included — a
+fixture that starts a daemon costs the same feedback latency as a slow
+assertion, and charging only the call is how a suite gets slow without any
+test looking slow. Each run prints the count, the charged total and the p95
+call latency per class, which is the SLO reading rule 9 asks for; the
+budgets sit several times above the current cost on purpose, so they alarm on
+decay rather than on a busy machine.
+
+**One deviation on `small`, stated rather than drifted into.** Rule 9 lists
+"no filesystem" for small tests; here a small test may write inside its own
+`tmp_path`. A temp-directory write is deterministic and sub-millisecond — the
+small tier's p95 call latency is around 1ms with several such tests in it — and
+the properties the class exists to guarantee, fast and deterministic feedback,
+are met. Sockets, subprocesses, threads and sleeps are not covered by this
+deviation and remain medium; a test that reaches for one of those is medium
+even if it looks quick.
 
 The Swift XCTest suite is medium. Each test gets a 15-second XCTest execution
 allowance, its source file carries harvested size/oracle declarations, and CI
@@ -74,7 +98,8 @@ Enforced now:
   non-vacuity and cross-report checks, a CycloneDX 1.5 SBOM, normalized license
   inventory, exact tool versions, and bounded artifact retention;
 - named oracle and explicit size class on every collected Python test;
-- per-class time ceilings and a whole-suite latency budget;
+- per-class time ceilings and per-class latency budgets, reported as p95 per
+  class on every run;
 - deterministic generated round trips for new public schemas and encoding;
 - raw JSONL framing and no-stdout-noise check for the MCP server;
 - typed MCP caption read/write over the shared daemon setting, with event-driven

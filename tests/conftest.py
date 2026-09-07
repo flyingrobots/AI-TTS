@@ -20,15 +20,50 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _SIZE_SECONDS = {"small": 2, "medium": 15, "large": 30}
-_SUITE_BUDGET_SECONDS = 30.0
+
+# Per-class tier budgets, in seconds of measured test time. Rule 9 budgets by
+# class rather than by suite, and for a reason this repository already hit: one
+# whole-suite number means every test pays the slowest test's schedule, and it
+# can be met by relabelling a slow test rather than fixing it.
+#
+# These are decay alarms, not targets. Measured on an unloaded machine the
+# tiers cost about 1.5s and 12s, so the headroom is roughly six-fold and
+# four-fold. That headroom is deliberate: the numbers gate on *test* time, and
+# a gate that fires when the machine is busy is a flaky gate, which rule 10
+# says does not gate at all. Anything approaching these is real decay, and the
+# p95 line printed every run is where it shows up first.
+_CLASS_BUDGET_SECONDS = {"small": 10.0, "medium": 45.0, "large": 120.0}
+_durations: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
+_overheads: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _suite_started = 0.0
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    """Start the repository's explicit whole-suite latency budget."""
+    """Start the wall clock the run reports alongside its per-class budgets."""
     del session
     global _suite_started  # noqa: PLW0603 - pytest session hook owns this process timer
     _suite_started = time.perf_counter()
+    for samples in (*_durations.values(), *_overheads.values()):
+        samples.clear()
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    """Attribute each test's own time to its size class.
+
+    Setup and teardown count, not just the call. A fixture that starts a
+    daemon costs the same feedback latency as a slow assertion, and charging
+    only the call is how a suite gets slow without any test looking slow.
+    """
+    if report.when == "call":
+        samples = _durations
+    elif report.when in ("setup", "teardown"):
+        samples = _overheads
+    else:  # pragma: no cover - pytest defines only these three phases
+        return
+    for name in _SIZE_SECONDS:
+        if name in report.keywords:
+            samples[name].append(report.duration)
+            return
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -56,18 +91,49 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """Fail a green suite that exceeds its declared 30-second latency budget."""
-    elapsed = time.perf_counter() - _suite_started
-    if elapsed <= _SUITE_BUDGET_SECONDS:
-        return
+    """Report per-class latency, and fail a green suite that has decayed."""
     reporter = session.config.pluginmanager.get_plugin("terminalreporter")
-    if reporter is not None:
-        reporter.write_line(
-            f"suite latency budget exceeded: {elapsed:.2f}s > {_SUITE_BUDGET_SECONDS:.2f}s",
-            red=True,
+    elapsed = time.perf_counter() - _suite_started
+    breaches: list[str] = []
+    for name, budget in _CLASS_BUDGET_SECONDS.items():
+        samples = _durations[name]
+        if not samples:
+            continue
+        total = sum(samples) + sum(_overheads[name])
+        line = (
+            f"{name}: {len(samples)} tests, {total:.2f}s including fixtures, "
+            f"p95 call {_percentile(samples, 0.95) * 1000:.0f}ms, budget {budget:.0f}s"
         )
+        if total > budget:
+            breaches.append(f"{name} tier latency budget exceeded: {total:.2f}s > {budget:.0f}s")
+        if reporter is not None:
+            reporter.write_line(line, red=total > budget)
+    if reporter is not None:
+        reporter.write_line(f"wall clock {elapsed:.2f}s")
+    if not breaches:
+        return
+    if reporter is not None:
+        for breach in breaches:
+            reporter.write_line(breach, red=True)
     if exitstatus == int(pytest.ExitCode.OK):
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+def _percentile(samples: list[float], fraction: float) -> float:
+    """The p95 rule 9 asks for, so decay is visible before it is a failure.
+
+    Deliberately not imported from ``aitts.application.metrics``, which has the
+    same function: the harness must not depend on the code it is measuring, or
+    a defect in that code becomes a mis-reading rather than a failure.
+    """
+    ordered = sorted(samples)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = fraction * (len(ordered) - 1)
+    low = int(position)
+    high = min(low + 1, len(ordered) - 1)
+    weight = position - low
+    return ordered[low] * (1 - weight) + ordered[high] * weight
 
 
 @pytest.fixture
