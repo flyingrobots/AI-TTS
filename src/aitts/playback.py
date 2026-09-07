@@ -15,6 +15,7 @@ import contextlib
 import logging
 import math
 import threading
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
+# Recorded as the cause of a hold the listener's own voice took.
+_LISTENER = "listener_speaking"
 
 
 @runtime_checkable
@@ -377,9 +380,13 @@ class PlaybackController:
         self._sink_active = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
-        # An interrupt is transient session state, not a durable preference:
-        # the listener took the floor now, and the UI needs to say so.
-        self.interrupted_at: float | None = None
+        # The hold an interrupt causes is durable, so its reason has to be
+        # too: a listener returning to a restarted daemon would otherwise find
+        # silence with nothing on screen to explain it. Wall clock, because a
+        # monotonic reading means nothing once the process is gone.
+        self.interrupted_at = self._restore_interrupted_at()
+        # Arming is deliberately not restored: releasing a hold by itself
+        # after a restart is a surprise, and the listener never asked twice.
         self.resume_when_input_idle_armed = False
         if self.held:
             paused = self._adoptable_paused()
@@ -596,6 +603,14 @@ class PlaybackController:
                     )
             self._store.transition(current.id, State.PAUSED, played_ms=position)
 
+    def _restore_interrupted_at(self) -> float | None:
+        if not self.held or self._store.get_setting("playback_hold_reason", "") != _LISTENER:
+            return None
+        try:
+            return float(self._store.get_setting("playback_hold_at", ""))
+        except ValueError:  # pragma: no cover - written as a float by interrupt()
+            return None
+
     async def interrupt(self) -> bool:
         """Hold playback because the listener started speaking.
 
@@ -606,7 +621,9 @@ class PlaybackController:
         if self.held:
             return False
         await self.pause()
-        self.interrupted_at = asyncio.get_running_loop().time()
+        self.interrupted_at = time.time()
+        self._store.set_setting("playback_hold_reason", _LISTENER)
+        self._store.set_setting("playback_hold_at", str(self.interrupted_at))
         return True
 
     def arm_resume_when_input_idle(self) -> None:
@@ -616,6 +633,7 @@ class PlaybackController:
     def _clear_interruption(self) -> None:
         self.interrupted_at = None
         self.resume_when_input_idle_armed = False
+        self._store.set_setting("playback_hold_reason", "")
 
     async def resume(self) -> None:
         """Release the hold and continue (or adopt a restored paused utterance)."""

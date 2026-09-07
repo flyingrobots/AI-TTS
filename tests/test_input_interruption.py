@@ -390,3 +390,56 @@ async def test_settings_reject_an_unknown_resume_policy(tmp_path: Path, sink: Fa
     finally:
         await daemon.stop()
         cleanup()
+
+
+async def test_an_interrupted_hold_still_explains_itself_after_a_restart(
+    store: Store, sink: FakeSink
+) -> None:
+    utt = make_ready(store, "an explanation")
+    ctl, task = await controller(store, sink)
+    try:
+        await wait_for(lambda: ctl.current_id == utt.id)
+        await ctl.interrupt()
+        interrupted_at = ctl.interrupted_at
+    finally:
+        task.cancel()
+
+    # The hold outlives the daemon, so the reason for it has to as well —
+    # otherwise the listener comes back to silence with no explanation.
+    restored = PlaybackController(store, FakeSink(), DeterministicPlaybackSchedule())
+
+    assert is_held(restored) is True
+    assert restored.interrupted_at == interrupted_at
+    assert is_armed(restored) is False
+
+
+async def test_a_hold_the_listener_set_by_hand_explains_nothing_after_a_restart(
+    store: Store, sink: FakeSink
+) -> None:
+    utt = make_ready(store, "an explanation")
+    ctl, task = await controller(store, sink)
+    try:
+        await wait_for(lambda: ctl.current_id == utt.id)
+        await ctl.pause()
+    finally:
+        task.cancel()
+
+    restored = PlaybackController(store, FakeSink(), DeterministicPlaybackSchedule())
+
+    assert is_held(restored) is True
+    assert restored.interrupted_at is None
+
+
+async def test_resuming_forgets_the_interruption_permanently(store: Store, sink: FakeSink) -> None:
+    utt = make_ready(store, "an explanation")
+    ctl, task = await controller(store, sink)
+    try:
+        await wait_for(lambda: ctl.current_id == utt.id)
+        await ctl.interrupt()
+        await ctl.resume()
+    finally:
+        task.cancel()
+
+    restored = PlaybackController(store, FakeSink(), DeterministicPlaybackSchedule())
+
+    assert restored.interrupted_at is None
