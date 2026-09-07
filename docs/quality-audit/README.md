@@ -7,15 +7,37 @@ payload, and `scripts/quality_auditor.py` normalizes the quantitative metrics,
 applies a weight profile, runs the safety circuit-breakers, and compiles the
 report.
 
+## Snapshots
+
+| Date | Commit | Fintech | Equal | Startup |
+| --- | --- | --- | --- | --- |
+| 2026-09-06 | `8ecbb7f` | 3.73 | 3.56 | 3.86 |
+| 2026-09-07 | `e2c7706` | 3.78 | 3.62 | 3.94 |
+
+The second was taken after a self-review and an independent review, and the
+remediation of both. Movement is small on purpose: the work fixed defects
+rather than adding capability, and defect *count* is not a rubric input. The
+categories that moved are the ones that should have — Developer Experience
+(`+0.25`, a Makefile and a one-command install), Code UX (`+0.16`, transport
+correctness), Code Maturity and Project Health (`+0.17` each). Maintainability
+went **down** `0.05`: the fixes were added to the four files that were already
+too large, so size concentration got worse.
+
 ## Reproducing
 
 ```sh
 git clone https://github.com/flyingrobots/code-quality
 python3 code-quality/scripts/quality_auditor.py \
-  docs/quality-audit/2026-09-06-audit-input.json \
+  docs/quality-audit/2026-09-07-audit-input.json \
   --profile fintech \
   --output /tmp/ai-tts-audit.md
 ```
+
+Use a current checkout of the auditor. Two of its commits change scoring —
+one redesigns the lines-of-code curve and one regrades SRP violations — so an
+older copy answers a different question and its number is not comparable with
+the table above. The same payload scored `3.75` rather than `3.78` on a copy
+four commits behind.
 
 `--profile equal` and `--profile startup` reweight the same scores; this
 repository was audited under `fintech` because architecture section 9 makes
