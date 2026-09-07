@@ -39,6 +39,11 @@ final class AppState: ObservableObject {
     @Published var purgingCachedAudio = false
     @Published var reachable = false
     @Published var lastError: String?
+    @Published var voiceAssignments: [VoiceAssignment] = []
+    @Published var inputInterruptEnabled = true
+    @Published var inputInterruptResume: InputInterruptResume = .manual
+    /// The full text the listener asked to read, shown in its own window.
+    @Published var readingFullText: FullTextSubject?
 
     private(set) var statusObservedAt = Date()
     private(set) var observedPlaybackRate: Double = 1.0
@@ -47,6 +52,12 @@ final class AppState: ObservableObject {
     var upcoming: [Utterance] {
         plan.filter { ["Queued", "Synthesizing", "Ready"].contains($0.state) }
     }
+
+    /// The hold the listener's own voice caused, if that is why speech stopped.
+    var interruption: SpeechInterruption? { status?.interruption }
+
+    /// Whether the current clip has chunks to step between.
+    var currentIsChunked: Bool { (status?.current?.segmentCount ?? 1) > 1 }
 
     private let speech: any SpeechServicePort
     private let documentEnqueuer: any DocumentEnqueueing
@@ -111,6 +122,9 @@ final class AppState: ObservableObject {
                 self.speed = snapshot.speed
                 self.playbackRate = snapshot.playbackRate
                 self.applyCaptionSettings(snapshot)
+                self.voiceAssignments = snapshot.voiceAssignments
+                self.inputInterruptEnabled = snapshot.inputInterruptEnabled
+                self.inputInterruptResume = snapshot.inputInterruptResume
                 if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
             }
         }
@@ -186,6 +200,38 @@ final class AppState: ObservableObject {
     func clearQueue() { send(.clearQueue) }
     func clearHistory() { send(.clearHistory) }
     func removeHistory(_ id: String) { send(.removeHistory(id: id)) }
+    func nextChunk() { send(.nextSegment) }
+    func previousChunk() { send(.previousSegment) }
+    func resumeWhenInputIdle() { send(.resumeWhenInputIdle) }
+    func setInputInterruptEnabled(_ enabled: Bool) {
+        inputInterruptEnabled = enabled
+        send(.setInputInterruptEnabled(enabled))
+    }
+    func setInputInterruptResume(_ policy: InputInterruptResume) {
+        inputInterruptResume = policy
+        send(.setInputInterruptResume(policy))
+    }
+    func assignVoice(source: String, voice: String) {
+        send(.assignVoice(source: source, voice: voice))
+    }
+    func releaseVoice(source: String) { send(.releaseVoice(source: source)) }
+
+    /// Open the untruncated text of one clip in its own window.
+    ///
+    /// Confidential by default means it never goes to a file the listener did
+    /// not ask for: the window reads what the snapshot already carries.
+    func readFullText(of item: Utterance) {
+        readingFullText = FullTextSubject(
+            id: item.id,
+            text: item.text,
+            voice: item.voice,
+            source: item.source,
+            segmentCount: item.segmentCount,
+            activeSegmentText: item.activeSegment?.text
+        )
+    }
+
+    func closeFullText() { readingFullText = nil }
 
     func purgeCachedAudio() {
         purgingCachedAudio = true

@@ -26,6 +26,7 @@ struct PopoverView: View {
             PopoverHeader(showingSettings: $showingSettings)
             Divider()
             if state.reachable {
+                InterruptionNotice()
                 CurrentPlaybackCard()
                 PlaybackTabBar(selected: $tab)
                 Divider()
@@ -48,6 +49,68 @@ struct PopoverView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsSheet(isPresented: $showingSettings)
                 .environmentObject(state)
+        }
+    }
+}
+
+/// Why speech stopped, when it stopped because the listener started talking.
+///
+/// Without this the hold is indistinguishable from a pause they set and forgot
+/// — silence with nothing on screen to explain it.
+struct InterruptionNotice: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        if let interruption = state.interruption {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("PLAYBACK INTERRUPTED")
+                        .font(.caption2.smallCaps().weight(.semibold))
+                    Spacer()
+                    if state.status?.inputActive == true {
+                        Text("mic in use")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .foregroundStyle(.orange)
+
+                Text(
+                    interruption.resumeArmed
+                        ? "You started speaking. Playback will continue once your mic goes quiet."
+                        : "You started speaking, so playback stopped and is waiting for you."
+                )
+                .font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Button("Resume") { state.resume() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    Button("Resume when mic is cold") { state.resumeWhenInputIdle() }
+                        .controlSize(.small)
+                        .disabled(interruption.resumeArmed)
+                        .help(
+                            interruption.resumeArmed
+                                ? "Already waiting for your mic to go quiet"
+                                : "Continue by itself once nothing is using the mic"
+                        )
+                    Button("Skip") { state.skip() }
+                        .controlSize(.small)
+                        .help("Give up on this clip and move on")
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9)
+                    .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+            )
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
         }
     }
 }
@@ -177,10 +240,18 @@ struct CurrentPlaybackCard: View {
             }
 
             if let current {
-                Text(current.text)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    state.readFullText(of: current)
+                } label: {
+                    Text(current.text)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help("Read the whole thing in its own window")
+                chunkProgress(for: current)
                 progress(for: current)
                 HStack(spacing: 14) {
                     Button {
@@ -194,11 +265,42 @@ struct CurrentPlaybackCard: View {
                             ? "Resume playback before restarting the current clip"
                             : "Restart the current clip"
                     )
+                    if current.segmentCount > 1 {
+                        Button {
+                            state.previousChunk()
+                        } label: {
+                            Label("Previous chunk", systemImage: "backward.fill")
+                        }
+                        .disabled(isPaused || (current.activeSegment?.index ?? 0) == 0)
+                        .help(
+                            isPaused
+                                ? "Resume playback before stepping between chunks"
+                                : "Replay the previous chunk of this document"
+                        )
+                        Button {
+                            state.nextChunk()
+                        } label: {
+                            Label("Next chunk", systemImage: "forward.fill")
+                        }
+                        .disabled(isPaused || isOnLastChunk(current))
+                        .help(
+                            isPaused
+                                ? "Resume playback before stepping between chunks"
+                                : "Skip to the next chunk of this document"
+                        )
+                    }
                     Button {
                         state.skip()
                     } label: {
                         Label("Skip", systemImage: "forward.end.fill")
                     }
+                    .help("Give up on this whole clip")
+                    Button {
+                        state.readFullText(of: current)
+                    } label: {
+                        Label("Full text", systemImage: "text.alignleft")
+                    }
+                    .help("Read the whole thing in its own window")
                     Spacer()
                     Button {
                         state.setCaptionsEnabled(!state.captionsEnabled)
@@ -237,6 +339,32 @@ struct CurrentPlaybackCard: View {
         .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
         .padding(.horizontal, 10)
         .padding(.top, 8)
+    }
+
+    private func isOnLastChunk(_ current: Utterance) -> Bool {
+        guard let active = current.activeSegment else { return true }
+        return active.index >= current.segmentCount - 1
+    }
+
+    /// Which chunk of a document is being heard, and how many there are.
+    @ViewBuilder
+    private func chunkProgress(for current: Utterance) -> some View {
+        if let active = current.activeSegment, current.segmentCount > 1 {
+            HStack(spacing: 5) {
+                Text("Chunk \(active.number) of \(active.count)")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                ForEach(0..<current.segmentCount, id: \.self) { index in
+                    Capsule()
+                        .fill(
+                            index == active.index
+                                ? Color.accentColor
+                                : Color.primary.opacity(index < active.index ? 0.28 : 0.12)
+                        )
+                        .frame(height: 3)
+                }
+            }
+        }
     }
 
     private var playbackRate: Binding<PlaybackRate> {
@@ -534,10 +662,30 @@ struct HistoryRow: View {
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.tertiary)
                     .frame(width: 34, alignment: .leading)
-                Text(item.text)
-                    .font(.system(size: 12))
-                    .lineLimit(2)
+                Button {
+                    state.readFullText(of: item)
+                } label: {
+                    Text(item.text)
+                        .font(.system(size: 12))
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help("Read the whole thing in its own window")
                 Spacer(minLength: 2)
+                if item.segmentCount > 1 {
+                    Text("\(item.segmentCount)◦")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .help("\(item.segmentCount) chunks")
+                }
+                Button {
+                    state.readFullText(of: item)
+                } label: {
+                    Image(systemName: "text.alignleft")
+                }
+                .buttonStyle(.borderless)
+                .help("Read the whole thing in its own window")
                 Button {
                     state.removeHistory(item.id)
                 } label: {
@@ -660,14 +808,32 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Voice").font(.caption.smallCaps()).foregroundStyle(.secondary)
-                VStack(spacing: 0) {
-                    ForEach(state.voices, id: \.self) { voice in
-                        VoiceRow(voice: voice, selected: voice == state.status?.voice)
-                        if voice != state.voices.last { Divider() }
+                Text("Default voice").font(.caption.smallCaps()).foregroundStyle(.secondary)
+                Text("Used for anything you read yourself, and for clients with no voice of their own.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                ForEach(VoiceLanguage.groups(of: state.voices), id: \.name) { group in
+                    Text(group.name)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                    VStack(spacing: 0) {
+                        ForEach(group.voices, id: \.self) { voice in
+                            VoiceRow(voice: voice, selected: voice == state.status?.voice)
+                            if voice != group.voices.last { Divider() }
+                        }
                     }
+                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
                 }
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+
+                Divider()
+
+                Text("Agent voices").font(.caption.smallCaps()).foregroundStyle(.secondary)
+                AgentVoiceSettings()
+
+                Divider()
+
+                Text("When you speak").font(.caption.smallCaps()).foregroundStyle(.secondary)
+                InputInterruptSettings()
 
                 Text("Voice generation speed")
                     .font(.caption.smallCaps())
@@ -764,6 +930,162 @@ struct SettingsView: View {
 
     private func failureCount(_ count: Int) -> String {
         "\(count) \(count == 1 ? "failure" : "failures")"
+    }
+}
+
+/// Kokoro encodes a voice's language in the first letter of its id.
+enum VoiceLanguage {
+    struct Group {
+        let name: String
+        let voices: [String]
+    }
+
+    private static let names: [Character: String] = [
+        "a": "American English",
+        "b": "British English",
+        "e": "Spanish",
+        "f": "French",
+        "h": "Hindi",
+        "i": "Italian",
+        "p": "Brazilian Portuguese",
+        "j": "Japanese",
+        "z": "Mandarin Chinese",
+    ]
+
+    private static let order = "abefhipjz"
+
+    static func name(of voice: String) -> String {
+        guard let first = voice.first, let name = names[first] else { return "Other" }
+        return name
+    }
+
+    /// Group voices by language, in a stable order, so 41 rows stay readable.
+    static func groups(of voices: [String]) -> [Group] {
+        let byLanguage = Dictionary(grouping: voices, by: name(of:))
+        return byLanguage.keys
+            .sorted { left, right in rank(left) < rank(right) }
+            .map { Group(name: $0, voices: byLanguage[$0]?.sorted() ?? []) }
+    }
+
+    private static func rank(_ languageName: String) -> Int {
+        for (offset, letter) in order.enumerated() where names[letter] == languageName {
+            return offset
+        }
+        return order.count
+    }
+}
+
+/// Which voice each speaking client holds, and the listener's override.
+struct AgentVoiceSettings: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        if state.voiceAssignments.isEmpty {
+            Text("No client has spoken yet. Each one claims its own voice the first time it does.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else {
+            Text("A voice you set here wins over whatever the client asks for.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                ForEach(state.voiceAssignments) { assignment in
+                    AgentVoiceRow(assignment: assignment)
+                    if assignment.id != state.voiceAssignments.last?.id { Divider() }
+                }
+            }
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+struct AgentVoiceRow: View {
+    @EnvironmentObject var state: AppState
+    let assignment: VoiceAssignment
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(assignment.source)
+                    .font(.system(size: 12, weight: .medium))
+                Text(assignment.pinned ? "set by you" : "claimed automatically")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            Picker("Voice", selection: voiceBinding) {
+                ForEach(state.voices, id: \.self) { voice in
+                    Text(voice).tag(voice)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(width: 132)
+            Button {
+                state.releaseVoice(source: assignment.source)
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!assignment.pinned)
+            .help(
+                assignment.pinned
+                    ? "Forget your override and let this client claim a voice again"
+                    : "Nothing to undo: this voice was claimed automatically"
+            )
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+    }
+
+    private var voiceBinding: Binding<String> {
+        Binding(
+            get: { assignment.voice },
+            set: { state.assignVoice(source: assignment.source, voice: $0) }
+        )
+    }
+}
+
+/// What playback does when the listener starts talking.
+struct InputInterruptSettings: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        Toggle(
+            "Stop playback when I start speaking",
+            isOn: Binding(
+                get: { state.inputInterruptEnabled },
+                set: { state.setInputInterruptEnabled($0) }
+            )
+        )
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        Text(
+            "Detected from the microphone being in use. The reading stays true for a while "
+                + "after you stop, so playback stops once when you begin and then waits."
+        )
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+
+        Picker(
+            "Afterwards",
+            selection: Binding(
+                get: { state.inputInterruptResume },
+                set: { state.setInputInterruptResume($0) }
+            )
+        ) {
+            ForEach(InputInterruptResume.allCases, id: \.self) { policy in
+                Text(policy.label).tag(policy)
+            }
+        }
+        .pickerStyle(.radioGroup)
+        .disabled(!state.inputInterruptEnabled)
+
+        if state.status?.inputActive == true {
+            Label("Something is using the microphone right now.", systemImage: "mic.fill")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+        }
     }
 }
 

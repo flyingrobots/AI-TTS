@@ -30,6 +30,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     private let state: AppState
     private let captionPanel: CaptionPanelController
+    private let fullTextWindow: FullTextWindowController
     private var cancellables: Set<AnyCancellable> = []
     private var animationTimer: Timer?
     private var phase = 0
@@ -38,6 +39,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
     init(state: AppState) {
         self.state = state
         self.captionPanel = CaptionPanelController(state: state)
+        self.fullTextWindow = FullTextWindowController(state: state)
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
@@ -66,6 +68,11 @@ final class StatusController: NSObject, NSPopoverDelegate {
         state.$captionsEnabled
             .sink { [weak self] _ in
                 Task { @MainActor in self?.captionPanel.updateVisibility() }
+            }
+            .store(in: &cancellables)
+        state.$readingFullText
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.fullTextWindow.update() }
             }
             .store(in: &cancellables)
     }

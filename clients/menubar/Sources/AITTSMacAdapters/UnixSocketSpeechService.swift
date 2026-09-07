@@ -81,6 +81,21 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
             payload = ["op": "settings", "set": ["playback_rate": rate]]
         case .setCaptionsEnabled(let enabled):
             payload = ["op": "settings", "set": ["captions_enabled": enabled]]
+        case .nextSegment:
+            payload = ["op": "next_segment"]
+        case .previousSegment:
+            payload = ["op": "previous_segment"]
+        case .resumeWhenInputIdle:
+            payload = ["op": "resume_when_input_idle"]
+        case .setInputInterruptEnabled(let enabled):
+            payload = ["op": "settings", "set": ["input_interrupt_enabled": enabled]]
+        case .setInputInterruptResume(let policy):
+            payload = ["op": "settings", "set": ["input_interrupt_resume": policy.rawValue]]
+        case .assignVoice(let source, let voice):
+            payload = ["op": "assign_voice", "source": source, "voice": voice]
+        case .releaseVoice(let source):
+            // Omitting the voice is how the protocol spells "forget this one".
+            payload = ["op": "assign_voice", "source": source]
         }
         _ = try request(payload)
     }
@@ -164,6 +179,33 @@ extension ActiveSegment {
     }
 }
 
+extension SpeechInterruption {
+    init?(daemonJSON json: [String: Any]) {
+        guard let reason = json["reason"] as? String else { return nil }
+        // NSNumber, not Double: a whole-numbered timestamp decodes as an
+        // integer and `as? Double` would quietly yield zero.
+        self.init(
+            reason: reason,
+            at: (json["at"] as? NSNumber)?.doubleValue ?? 0,
+            resumeArmed: json["resume_armed"] as? Bool ?? false
+        )
+    }
+}
+
+extension VoiceAssignment {
+    init?(daemonJSON json: [String: Any]) {
+        guard let source = json["source"] as? String,
+            let voice = json["voice"] as? String
+        else { return nil }
+        self.init(
+            source: source,
+            voice: voice,
+            pinned: json["pinned"] as? Bool ?? false,
+            assignedAt: (json["assigned_at"] as? NSNumber)?.doubleValue ?? 0
+        )
+    }
+}
+
 extension Utterance {
     init?(daemonJSON json: [String: Any]) {
         guard let id = json["id"] as? String,
@@ -204,7 +246,10 @@ extension DaemonStatus {
                 .flatMap(Utterance.init(daemonJSON:)),
             counts: json["counts"] as? [String: Int] ?? [:],
             voice: json["voice"] as? String ?? "",
-            engine: json["engine"] as? String ?? ""
+            engine: json["engine"] as? String ?? "",
+            inputActive: json["input_active"] as? Bool ?? false,
+            interruption: (json["interruption"] as? [String: Any])
+                .flatMap(SpeechInterruption.init(daemonJSON:))
         )
     }
 }
@@ -227,12 +272,25 @@ extension Snapshot {
                 as? Bool ?? false,
             captionsEnabledConfigured: (json["settings"] as? [String: Any])?[
                 "captions_enabled_configured"
-            ] as? Bool ?? false
+            ] as? Bool ?? false,
+            voiceAssignments: Self.assignments(json["voice_assignments"]),
+            inputInterruptEnabled: (json["settings"] as? [String: Any])?[
+                "input_interrupt_enabled"
+            ] as? Bool ?? true,
+            inputInterruptResume: InputInterruptResume(
+                rawValue: (json["settings"] as? [String: Any])?["input_interrupt_resume"]
+                    as? String ?? ""
+            ) ?? .manual
         )
     }
 
     private static func items(_ value: Any?) -> [Utterance] {
         guard let rows = value as? [[String: Any]] else { return [] }
         return rows.compactMap(Utterance.init(daemonJSON:))
+    }
+
+    private static func assignments(_ value: Any?) -> [VoiceAssignment] {
+        guard let rows = value as? [[String: Any]] else { return [] }
+        return rows.compactMap(VoiceAssignment.init(daemonJSON:))
     }
 }

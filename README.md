@@ -59,6 +59,21 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   restarting the current clip.
 - **Shows opt-in on-screen captions** for the active spoken segment in a
   click-through panel that does not steal focus.
+- **Steps between the chunks of a long document** — next and previous chunk
+  appear beside Skip when a submission was split, so you can move past a
+  paragraph without abandoning the whole thing.
+- **Reads any clip in full** in its own window, from the current clip or any
+  History row. Captions show one chunk and the popover shows a few lines;
+  this shows all of it, without writing your speech to a file.
+- **Yields the floor when you start speaking.** Playback stops as soon as
+  something starts using the microphone and waits for you, because dictating
+  to an agent only works as a conversation if your own voice outranks the
+  queue. Configurable, including whether it resumes by itself afterwards.
+- **Gives every client its own voice.** The daemon keeps the register, so two
+  agents cannot end up sharing a voice; you can see the mapping and override
+  any of it, and your assignment outranks whatever the client asks for.
+- **Follows your audio output.** Speech moves with the system default output
+  device, mid-clip, instead of continuing to speakers you have left.
 - **Configurable in the app** — voice and voice-generation speed — not as shell flags.
 
 ## Design documents
@@ -209,9 +224,17 @@ should use the current daemon default.
 ```
 
 Use a stable `--source` value such as `codex`, `claude-code`, or
-`release-bot`. It appears in Queue and History provenance. A stable `--voice`
-also gives one agent a consistent audible identity; `ai-tts voices` lists the
-valid ids on the installed engine.
+`release-bot`. It appears in Queue and History provenance, and it is the
+identity the voice register is keyed on.
+
+`--voice` is now a preference rather than a decision. The first time a
+`--source` speaks, the daemon records the voice it ends up with and keeps it
+for that source from then on, so an agent sounds the same across sessions
+without having to remember anything. A voice another source already holds is
+declined in favour of a free one — that is the collision the register exists
+to prevent. Assign or change any of it under **Agent voices** in Settings;
+what you set there wins over `--voice`. `ai-tts voices` lists the valid ids on
+the installed engine.
 
 For Codex, append the policy instead of overwriting existing instructions:
 

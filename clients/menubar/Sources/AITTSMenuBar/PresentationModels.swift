@@ -24,3 +24,19 @@ enum PlaybackRate: Double, CaseIterable, Equatable, Hashable, Sendable {
 
     var label: String { String(format: "%g×", rawValue) }
 }
+
+/// One clip's full text, addressed by the window that reads it.
+///
+/// Captions show a chunk at a time and the popover shows the first few lines;
+/// neither lets the listener read the whole thing, which is what this carries.
+struct FullTextSubject: Identifiable, Equatable {
+    let id: String
+    let text: String
+    let voice: String
+    let source: String?
+    let segmentCount: Int
+    /// The chunk being spoken right now, so the reader can highlight it.
+    let activeSegmentText: String?
+
+    var isChunked: Bool { segmentCount > 1 }
+}

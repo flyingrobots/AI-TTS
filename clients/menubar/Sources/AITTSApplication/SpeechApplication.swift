@@ -127,6 +127,17 @@ public enum SpeechCommand: Equatable, Sendable {
     case setSynthesisSpeed(Double)
     case setPlaybackRate(Double)
     case setCaptionsEnabled(Bool)
+    /// Move one chunk within the document currently playing.
+    case nextSegment
+    case previousSegment
+    /// Release an interrupted hold once the listener's input goes quiet.
+    case resumeWhenInputIdle
+    case setInputInterruptEnabled(Bool)
+    case setInputInterruptResume(InputInterruptResume)
+    /// Assign a voice to one client, outranking whatever it asks for.
+    case assignVoice(source: String, voice: String)
+    /// Forget an assignment, so the client claims a voice again.
+    case releaseVoice(source: String)
 }
 
 /// Outbound port for every speech capability used by a native macOS client.

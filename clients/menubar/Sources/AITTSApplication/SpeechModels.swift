@@ -30,6 +30,58 @@ public struct ActiveSegment: Equatable, Sendable {
     }
 }
 
+/// A playback hold the listener's own voice caused.
+///
+/// The reading behind it is coarse: dictation software holds the input device
+/// open for minutes after a recording, so the hold is raised on the moment the
+/// floor changed hands and then left alone. Nothing releases it but the
+/// listener, unless they asked for it to release itself.
+public struct SpeechInterruption: Equatable, Sendable {
+    public let reason: String
+    public let at: Double
+    /// Whether the hold will release itself once the input goes quiet.
+    public let resumeArmed: Bool
+
+    public init(reason: String, at: Double, resumeArmed: Bool) {
+        self.reason = reason
+        self.at = at
+        self.resumeArmed = resumeArmed
+    }
+}
+
+/// Which voice one speaking client holds, and who decided it.
+public struct VoiceAssignment: Identifiable, Equatable, Sendable {
+    public let source: String
+    public let voice: String
+    /// True when the listener assigned it, which outranks the client's request.
+    public let pinned: Bool
+    public let assignedAt: Double
+
+    public var id: String { source }
+
+    public init(source: String, voice: String, pinned: Bool, assignedAt: Double) {
+        self.source = source
+        self.voice = voice
+        self.pinned = pinned
+        self.assignedAt = assignedAt
+    }
+}
+
+/// What the daemon does by itself when the listener starts speaking.
+public enum InputInterruptResume: String, CaseIterable, Equatable, Sendable {
+    /// Stay held until the listener says otherwise.
+    case manual
+    /// Release the hold once the input goes quiet again.
+    case whenIdle = "when_idle"
+
+    public var label: String {
+        switch self {
+        case .manual: "Stay paused"
+        case .whenIdle: "Resume when the mic goes quiet"
+        }
+    }
+}
+
 /// The application-facing representation of one top-level queue item.
 public struct Utterance: Identifiable, Equatable, Sendable {
     public let id: String
@@ -92,19 +144,26 @@ public struct DaemonStatus: Equatable, Sendable {
     public let counts: [String: Int]
     public let voice: String
     public let engine: String
+    /// Whether some process is capturing audio input right now.
+    public let inputActive: Bool
+    public let interruption: SpeechInterruption?
 
     public init(
         playbackState: String,
         current: Utterance?,
         counts: [String: Int],
         voice: String,
-        engine: String
+        engine: String,
+        inputActive: Bool = false,
+        interruption: SpeechInterruption? = nil
     ) {
         self.playbackState = playbackState
         self.current = current
         self.counts = counts
         self.voice = voice
         self.engine = engine
+        self.inputActive = inputActive
+        self.interruption = interruption
     }
 }
 
@@ -119,6 +178,9 @@ public struct Snapshot: Equatable, Sendable {
     public let playbackRate: Double
     public let captionsEnabled: Bool
     public let captionsEnabledConfigured: Bool
+    public let voiceAssignments: [VoiceAssignment]
+    public let inputInterruptEnabled: Bool
+    public let inputInterruptResume: InputInterruptResume
 
     public init(
         status: DaemonStatus,
@@ -129,7 +191,10 @@ public struct Snapshot: Equatable, Sendable {
         speed: Double,
         playbackRate: Double,
         captionsEnabled: Bool = false,
-        captionsEnabledConfigured: Bool = false
+        captionsEnabledConfigured: Bool = false,
+        voiceAssignments: [VoiceAssignment] = [],
+        inputInterruptEnabled: Bool = true,
+        inputInterruptResume: InputInterruptResume = .manual
     ) {
         self.status = status
         self.plan = plan
@@ -140,5 +205,8 @@ public struct Snapshot: Equatable, Sendable {
         self.playbackRate = playbackRate
         self.captionsEnabled = captionsEnabled
         self.captionsEnabledConfigured = captionsEnabledConfigured
+        self.voiceAssignments = voiceAssignments
+        self.inputInterruptEnabled = inputInterruptEnabled
+        self.inputInterruptResume = inputInterruptResume
     }
 }

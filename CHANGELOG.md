@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The listener's voice takes the floor.** Playback stops when something
+  starts using the microphone and then waits, so dictating to an agent works
+  as a conversation instead of a shouting match. The platform reading is
+  coarse and sticky — dictation software holds the input open for minutes
+  after a recording — so the hold is raised on the cold-to-hot edge and never
+  re-raised, which is what makes Resume stick. The popover explains the hold
+  and offers Resume, resume-when-the-mic-is-cold, and Skip.
+  `input_interrupt_enabled` and `input_interrupt_resume` configure it.
+- **Chunk stepping.** Next and previous chunk join the transport for
+  documents split into a nested clip queue, as `next_segment` and
+  `previous_segment` ops and as buttons that appear beside Skip only when the
+  current clip has chunks. Forwards gives up one chunk; backwards replays the
+  one before from its start.
+- **A window that reads a clip in full.** Captions show one chunk and the
+  popover a few lines; the current clip and every History row now open their
+  untruncated text in a resizable window, rendered from the snapshot rather
+  than written to a file.
+- **A per-client voice register.** Each `source` holds its own voice, recorded
+  on first contact and persisted, so two agents cannot end up sharing one —
+  the store showed three sharing `bm_daniel`. Settings lists the mapping and
+  lets you reassign it; your assignment outranks the client's request.
+  `voice_assignments` and `assign_voice` expose it on the wire.
+- **Thirteen more voices**, for 41 total: Spanish, French, Hindi, Italian and
+  Brazilian Portuguese alongside the English sets, each verified by
+  synthesizing audio with the dependencies already installed. Settings groups
+  the catalog by language. Japanese and Mandarin remain out, pending a
+  deliberate supply-chain decision about `misaki[ja]` and `misaki[zh]`.
 - **Design and project foundation**: feature breakdown, architecture, engine
   evaluation, technology choices, menu-bar UI mockups, consolidated design
   decisions, Apache 2.0 licensing, contribution and security guidance.
