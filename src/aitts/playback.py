@@ -614,7 +614,19 @@ class PlaybackController:
             self._sink_active = False
 
     async def pause(self) -> None:
-        """Hold playback. Synthesis continues; the buffer should fill while paused."""
+        """Hold playback. Synthesis continues; the buffer should fill while paused.
+
+        This is the listener asking for silence, so it revokes any pending
+        automatic resume and any recorded interruption: their newer, explicit
+        request outranks a release armed earlier, and the hold is now theirs
+        rather than something their microphone caused.
+        """
+        await self._hold(reason=None)
+
+    async def _hold(self, *, reason: str | None) -> None:
+        """Take the durable playback hold, recording why it was taken."""
+        if reason is None:
+            self._clear_interruption()
         self.held = True
         self._store.set_setting("playback_held", "true")
         current = self._current()
@@ -648,7 +660,7 @@ class PlaybackController:
         """
         if self.held:
             return False
-        await self.pause()
+        await self._hold(reason=_LISTENER)
         self.interrupted_at = time.time()
         self._store.set_setting("playback_hold_reason", _LISTENER)
         self._store.set_setting("playback_hold_at", str(self.interrupted_at))

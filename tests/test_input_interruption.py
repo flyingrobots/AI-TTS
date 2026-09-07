@@ -530,3 +530,47 @@ async def test_two_chunk_steps_at_once_do_not_wedge_the_document(
         assert sink.overlaps == 0
     finally:
         task.cancel()
+
+
+# -- an explicit Pause supersedes a pending automatic resume ---------------
+
+
+async def test_a_manual_pause_revokes_an_armed_automatic_resume(
+    store: Store, sink: FakeSink
+) -> None:
+    utt = make_ready(store, "an explanation")
+    ctl, task = await controller(store, sink)
+    try:
+        await wait_for(lambda: ctl.current_id == utt.id)
+        await ctl.interrupt()
+        ctl.arm_resume_when_input_idle()
+
+        # The listener then decides they want silence regardless, and says so.
+        await ctl.pause()
+
+        # Their explicit request is the newer one and must win. Leaving the arm
+        # in place meant the next idle input reading released the hold they had
+        # just asked for.
+        assert is_armed(ctl) is False
+        assert is_held(ctl) is True
+        assert ctl.interrupted_at is None
+    finally:
+        task.cancel()
+
+
+async def test_a_manual_pause_stops_describing_the_hold_as_the_listener_speaking(
+    store: Store, sink: FakeSink
+) -> None:
+    utt = make_ready(store, "an explanation")
+    ctl, task = await controller(store, sink)
+    try:
+        await wait_for(lambda: ctl.current_id == utt.id)
+        await ctl.interrupt()
+        await ctl.pause()
+    finally:
+        task.cancel()
+
+    # The reason is durable, so a stale one outlives the daemon and explains
+    # the hold wrongly on the next start.
+    restored = PlaybackController(store, FakeSink(), DeterministicPlaybackSchedule())
+    assert restored.interrupted_at is None
