@@ -35,6 +35,10 @@ log = logging.getLogger(__name__)
 PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
 # Recorded as the cause of a hold the listener's own voice took.
 _LISTENER = "listener_speaking"
+# How long the plan loop waits to be woken. notify() is the real signal; these
+# bound the safety net, and the ceiling is what keeps an idle daemon quiet.
+_PLAN_WAIT_MIN_SECONDS = 0.1
+_PLAN_WAIT_MAX_SECONDS = 2.0
 
 
 @runtime_checkable
@@ -430,6 +434,7 @@ class PlaybackController:
         # loser then settles a chunk the winner has moved past and stops the
         # sink the winner just started. They take turns instead.
         self._transport_lock = asyncio.Lock()
+        self._idle_wait = _PLAN_WAIT_MIN_SECONDS
         # The hold an interrupt causes is durable, so its reason has to be
         # too: a listener returning to a restarted daemon would otherwise find
         # silence with nothing on screen to explain it. Wall clock, because a
@@ -530,7 +535,16 @@ class PlaybackController:
             self._wake.clear()
             await self._schedule.checkpoint(PlaybackCheckpoint.PLAN_IDLE)
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(self._wake.wait(), timeout=0.1)
+                await asyncio.wait_for(self._wake.wait(), timeout=self._idle_wait)
+                # Woken by notify(): whatever changed deserves a prompt look,
+                # and the next quiet spell starts over from the short wait.
+                self._idle_wait = _PLAN_WAIT_MIN_SECONDS
+                continue
+            # The wait expired with nothing to do. Back off, because this loop
+            # is woken by notify() and the timeout is only a safety net; a
+            # fixed short wait meant a store query ten times a second for as
+            # long as the daemon sat in the menu bar.
+            self._idle_wait = min(self._idle_wait * 2, _PLAN_WAIT_MAX_SECONDS)
 
     def _begin(self, utt_id: str, path: Path, *, position_ms: int) -> None:
         self._store.transition(utt_id, State.PLAYING)

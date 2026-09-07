@@ -651,3 +651,37 @@ async def test_playback_rate_changes_active_sink_without_restarting_source(
         }
     finally:
         task.cancel()
+
+
+async def test_an_idle_plan_backs_off_instead_of_polling_the_store(
+    store: Store, sink: FakeSink
+) -> None:
+    queries = {"n": 0}
+    real = store.next_pending
+
+    def counted(*args: object, **kwargs: object) -> Utterance | None:
+        queries["n"] += 1
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    store.next_pending = counted  # type: ignore[method-assign]
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        # Let the loop settle, then measure a quiet second.
+        await wait_for(lambda: schedule.idle_cycles >= 3)
+        before = queries["n"]
+        await asyncio.sleep(1.0)
+        during_idle = queries["n"] - before
+
+        # A fixed 0.1s wake-up meant ten SQLite queries a second, forever, on
+        # a daemon that is meant to sit in the menu bar all day. The loop is
+        # already woken by notify(); the timeout is only a safety net.
+        assert during_idle <= 4, f"{during_idle} store queries in one idle second"
+
+        # And it must still start promptly when something arrives.
+        utt = make_ready(store, "wake up")
+        controller.notify()
+        await wait_for(lambda: state_of(store, utt.id) is State.PLAYING)
+        assert state_of(store, utt.id) is State.PLAYING
+    finally:
+        task.cancel()
