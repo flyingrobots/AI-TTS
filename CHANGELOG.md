@@ -49,8 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `confidential` (fail-closed default `confidential`); non-public text can
   never route to a non-local engine.
 - **CLI** (`ai-tts`): say/wait/list/history/pause/resume/skip/rewind/cancel/
-  clear/status/voices/settings/daemon. Exit 0 means accepted onto the queue;
-  `say --wait` and `wait` exit 0 only for Played.
+  clear/status/voices/settings/daemon, plus next-chunk/prev-chunk,
+  resume-when-idle, voice-map and assign-voice. Exit 0 means accepted onto the
+  queue; `say --wait` and `wait` exit 0 only for Played.
 - **Kokoro-82M engine adapter** via the reference `kokoro` package, one warm
   pipeline per language.
 - **Snapshot protocol**: one daemon request returns status, both queues, the

@@ -108,6 +108,36 @@ def _build_parser() -> argparse.ArgumentParser:
     clear = sub.add_parser("clear", help="drain a named queue")
     clear.add_argument("queue", choices=["input", "playback"])
 
+    sub.add_parser(
+        "next-chunk",
+        help="give up the current chunk of a document and play the next one",
+    )
+    sub.add_parser(
+        "prev-chunk",
+        help="replay the previous chunk of the current document",
+    )
+    sub.add_parser(
+        "resume-when-idle",
+        help="release the playback hold once nothing is using the microphone",
+    )
+    sub.add_parser("voice-map", help="show which voice each speaking client holds")
+
+    assign = sub.add_parser(
+        "assign-voice",
+        help="assign a voice to one client, outranking whatever it asks for",
+    )
+    assign.add_argument("source", help="the client's --source value")
+    assign.add_argument(
+        "voice",
+        nargs="?",
+        help="voice id to assign; omit with --release to forget the assignment",
+    )
+    assign.add_argument(
+        "--release",
+        action="store_true",
+        help="forget the assignment, so the client claims a voice again",
+    )
+
     settings = sub.add_parser("settings", help="read or change settings")
     settings.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="updates")
 
@@ -145,6 +175,19 @@ def _history_payload(args: argparse.Namespace) -> dict[str, Any]:
     return payload
 
 
+def _assign_voice_payload(args: argparse.Namespace) -> dict[str, Any]:
+    if args.release:
+        if args.voice is not None:
+            msg = "--release does not take a voice"
+            raise SystemExit(msg)
+        # Omitting the voice is how the protocol spells "forget this one".
+        return {"op": "assign_voice", "source": args.source}
+    if args.voice is None:
+        msg = "assign-voice needs a voice, or --release to forget the assignment"
+        raise SystemExit(msg)
+    return {"op": "assign_voice", "source": args.source, "voice": args.voice}
+
+
 def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
     updates: dict[str, Any] = {}
     for pair in args.updates:
@@ -154,9 +197,9 @@ def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
             raise SystemExit(msg)
         if key in {"speed", "playback_rate"}:
             updates[key] = float(value)
-        elif key == "captions_enabled":
+        elif key in {"captions_enabled", "input_interrupt_enabled"}:
             if value not in {"true", "false"}:
-                msg = "captions_enabled must be true or false"
+                msg = f"{key} must be true or false"
                 raise SystemExit(msg)
             updates[key] = value == "true"
         else:
@@ -173,6 +216,11 @@ _PAYLOAD_BUILDERS: dict[str, Any] = {
     "cancel": lambda args: {"op": "cancel", "id": args.id},
     "clear": lambda args: {"op": "clear", "queue": args.queue},
     "purge-cache": lambda _args: {"op": "purge_cache"},
+    "next-chunk": lambda _args: {"op": "next_segment"},
+    "prev-chunk": lambda _args: {"op": "previous_segment"},
+    "resume-when-idle": lambda _args: {"op": "resume_when_input_idle"},
+    "voice-map": lambda _args: {"op": "voice_assignments"},
+    "assign-voice": _assign_voice_payload,
 }
 
 
