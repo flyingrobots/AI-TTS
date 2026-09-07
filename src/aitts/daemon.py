@@ -476,8 +476,16 @@ class Daemon:
         client keeps whatever voice it already holds, and a client the daemon
         has not heard from claims one nobody else has.
         """
-        assignment = self._store.voice_assignment(source) if source is not None else None
         catalog = self._engine.list_voices()
+        # Validate the request before the register can record it. Claiming
+        # first and validating afterwards let a misspelled voice be written as
+        # a durable claim, and a held voice outranks later requests, so that
+        # source could never speak again.
+        if requested is not None and requested not in catalog:
+            msg = f"unknown voice {requested!r}"
+            raise ApiError(BAD_REQUEST, msg)
+        assignment = self._store.voice_assignment(source) if source is not None else None
+        assignment = self._reconcile_assignment(assignment, catalog)
         decision = decide_speaking_voice(
             source=source,
             requested=requested,
@@ -495,6 +503,29 @@ class Daemon:
             )
             return claimed.voice
         return decision.voice
+
+    def _reconcile_assignment(
+        self, assignment: VoiceAssignment | None, catalog: list[str]
+    ) -> VoiceAssignment | None:
+        """Drop a held voice this engine no longer offers.
+
+        A catalog can shrink between runs — a voice withdrawn upstream, or a
+        different engine configured. An automatic claim is released so the
+        client claims something speakable; a pin is the listener's own choice,
+        so it is reported for repair rather than silently substituted.
+        """
+        if assignment is None or assignment.voice in catalog:
+            return assignment
+        if assignment.pinned:
+            msg = (
+                f"voice {assignment.voice!r} assigned to {assignment.source!r} is not "
+                f"offered by the {self._engine.name} engine; reassign it with assign_voice"
+            )
+            raise ApiError(ILLEGAL_STATE, msg)
+        self._store.release_voice(assignment.source)
+        log.info("event=voice_claim_released_unavailable")
+        self._server.broadcast({"event": "voice_released", "source": assignment.source})
+        return None
 
     async def _op_voice_assignments(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload

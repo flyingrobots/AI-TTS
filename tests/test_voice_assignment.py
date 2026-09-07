@@ -355,3 +355,65 @@ async def test_an_upgrade_does_not_disturb_assignments_already_held(
     finally:
         await restarted.stop()
         shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+# -- the register must not record a voice that cannot be spoken ------------
+
+
+async def test_a_misspelled_voice_never_reaches_the_register(
+    voice_daemon: Daemon,
+) -> None:
+    with pytest.raises(ApiError):
+        await voice_daemon.dispatch(
+            {"op": "submit", "text": "hello", "source": "an-agent", "voice": "not_a_voice"}
+        )
+
+    # Claiming before validating left the typo held by that source, and a held
+    # voice outranks a later request, so the source could never speak again —
+    # across restarts, because the register is durable.
+    assert voice_daemon.store.voice_assignments() == []
+
+
+async def test_a_source_recovers_after_asking_for_a_misspelled_voice(
+    voice_daemon: Daemon,
+) -> None:
+    with pytest.raises(ApiError):
+        await voice_daemon.dispatch(
+            {"op": "submit", "text": "hello", "source": "an-agent", "voice": "not_a_voice"}
+        )
+
+    reply = await voice_daemon.dispatch(
+        {"op": "submit", "text": "hello", "source": "an-agent", "voice": "af_bella"}
+    )
+
+    assert reply["voice"] == "af_bella"
+
+
+async def test_an_automatic_claim_outside_the_catalog_is_replaced(
+    voice_daemon: Daemon,
+) -> None:
+    # A catalog can shrink: a voice is withdrawn, or an engine is swapped.
+    voice_daemon.store.claim_voice("an-agent", "withdrawn_voice")
+
+    reply = await voice_daemon.dispatch({"op": "submit", "text": "hello", "source": "an-agent"})
+
+    # The client keeps speaking, on something this engine actually offers.
+    assert reply["voice"] in CATALOG
+    held = {item.source: item.voice for item in voice_daemon.store.voice_assignments()}
+    assert held["an-agent"] in CATALOG
+
+
+async def test_a_pinned_voice_outside_the_catalog_is_reported_not_guessed(
+    voice_daemon: Daemon,
+) -> None:
+    voice_daemon.store.pin_voice("an-agent", "withdrawn_voice")
+
+    with pytest.raises(ApiError) as raised:
+        await voice_daemon.dispatch({"op": "submit", "text": "hello", "source": "an-agent"})
+
+    # The listener chose this voice deliberately. Silently substituting another
+    # would hide their assignment; the error names what to repair.
+    message = str(raised.value)
+    assert "withdrawn_voice" in message
+    assert "an-agent" in message
+    assert voice_daemon.store.voice_assignment("an-agent") is not None
