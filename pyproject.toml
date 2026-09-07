@@ -83,8 +83,15 @@ warn_unreachable = true
 warn_return_any = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 
+# Third-party modules that ship no type information. Every one of these is
+# imported lazily inside a function so the dependency stays off import time,
+# and huggingface_hub is not even a declared dependency — it arrives
+# transitively through the kokoro extra. CI type-checks with dev dependencies
+# only, so a module absent from this list fails there while resolving fine in
+# a developer's --all-extras environment. tests/test_optional_imports.py pins
+# the list against the source rather than trusting it to stay complete.
 [[tool.mypy.overrides]]
-module = ["sounddevice", "soundfile", "kokoro", "kokoro.*"]
+module = ["sounddevice", "soundfile", "kokoro", "kokoro.*", "huggingface_hub"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

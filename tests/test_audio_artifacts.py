@@ -16,7 +16,7 @@ from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.application.cache import CacheController
 from aitts.engine import FakeEngine
-from aitts.engines.kokoro import KokoroEngine
+from aitts.engines.kokoro import KokoroAssets, KokoroEngine
 from aitts.model import State
 from aitts.store import Store
 from aitts.synthesis import SynthesisPool
@@ -61,6 +61,26 @@ class OneShotPublishFailureArtifacts(FileAudioArtifacts):
 
 
 class StubKokoroEngine(KokoroEngine):
+    """The real encoder path, with the pipeline and the model host stubbed.
+
+    Both have to be stubbed. ``synthesize`` resolves the voice pack to a file
+    path — the fix that stopped the engine re-resolving each pack through the
+    model host on every load — so an engine given real assets reaches for
+    ``huggingface_hub``, which is not a declared dependency and is absent
+    wherever the kokoro extra is not installed. This test is about the WAV
+    the encoder writes, so neither the network nor that extra belongs in it.
+    """
+
+    def __init__(self, *, root: Path) -> None:
+        def resolve(*, repo_id: str, filename: str, local_files_only: bool) -> str:
+            del repo_id, local_files_only
+            path = root / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"voice pack")
+            return str(path)
+
+        super().__init__(assets=KokoroAssets(download=resolve))
+
     def _pipeline(self, voice: str) -> Any:
         del voice
 
@@ -81,7 +101,8 @@ def test_kokoro_writes_wav_to_atomic_candidate(cache_dir: Path) -> None:
     artifacts.prepare()
     candidate = artifacts.target("format-selection")
 
-    duration_ms = StubKokoroEngine().synthesize("format", "af_aoede", 1.0, candidate)
+    engine = StubKokoroEngine(root=cache_dir / "assets")
+    duration_ms = engine.synthesize("format", "af_aoede", 1.0, candidate)
     published = artifacts.publish("format-selection", candidate)
 
     assert {

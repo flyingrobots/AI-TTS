@@ -318,3 +318,45 @@ def test_wheel_installs_cli_entry_points_outside_checkout(tmp_path: Path) -> Non
         "cli_help": 0,
         "cli_usage": True,
     }, f"wheel build stderr:\n{build.stderr}"
+
+
+# -- a toolchain that cannot package App Intents has to say which part ----
+
+
+def test_app_intents_failure_names_the_toolchain_and_the_missing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.build_app_bundle import generate_app_intents_metadata  # noqa: PLC0415
+
+    # A toolchain laid out like Xcode's, with the metadata tooling absent —
+    # which is what a CI runner on an older default Xcode looks like.
+    toolchain = tmp_path / "Xcode_00.0.app/Contents/Developer/Toolchains/X.xctoolchain"
+    swiftc = toolchain / "usr" / "bin" / "swiftc"
+    swiftc.parent.mkdir(parents=True)
+    swiftc.write_text("#!/bin/sh\n")
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+
+    def find_swiftc(arguments: list[str]) -> str:
+        del arguments
+        return str(swiftc)
+
+    monkeypatch.setattr("scripts.build_app_bundle._checked_output", find_swiftc)
+
+    with pytest.raises(RuntimeError) as raised:
+        generate_app_intents_metadata(
+            repository=tmp_path,
+            binary=tmp_path / "bin",
+            module_search_path=tmp_path,
+            resources=tmp_path / "Resources",
+        )
+
+    message = str(raised.value)
+    # The original message said only "the active Xcode toolchain cannot
+    # extract App Intents metadata", which is true of every cause and points
+    # at none of them. On a CI runner that cost an hour to attribute to the
+    # default Xcode being older than the one that was developed against.
+    assert "appintentsmetadataprocessor" in message
+    assert "AppIntents.json" in message
+    assert str(toolchain) in message
+    assert "xcode-select" in message

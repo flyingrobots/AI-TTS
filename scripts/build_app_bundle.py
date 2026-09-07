@@ -164,8 +164,23 @@ def generate_app_intents_metadata(
     protocol_catalog = (
         toolchain / "usr" / "share" / "swift" / "SwiftConstantValues" / "AppIntents.json"
     )
-    if not processor.is_file() or not protocol_catalog.is_file():
-        msg = "the active Xcode toolchain cannot extract App Intents metadata"
+    missing = [
+        str(path.relative_to(toolchain))
+        for path in (processor, protocol_catalog)
+        if not path.is_file()
+    ]
+    if missing:
+        # "cannot extract App Intents metadata" is true of every cause and
+        # points at none of them. The cause in practice is an Xcode older than
+        # the one this was developed against — a CI runner's default, most
+        # likely — so name the toolchain, name what is absent, and name the
+        # command that changes it.
+        msg = (
+            "the active Xcode toolchain cannot extract App Intents metadata: "
+            f"{', '.join(missing)} missing under {toolchain}. "
+            "Select a newer Xcode with `sudo xcode-select -s /Applications/Xcode_<version>.app` "
+            "and check `xcodebuild -version`."
+        )
         raise RuntimeError(msg)
 
     sdk = Path(_checked_output([xcrun, "--sdk", "macosx", "--show-sdk-path"]))

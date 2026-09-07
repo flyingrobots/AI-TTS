@@ -91,6 +91,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - name: Select the Xcode this project is built against
+        # The runner's default is older than the Xcode this was developed
+        # against and cannot extract App Intents metadata, so a bundle built
+        # on the default would ship without Shortcuts integration. Pinned to
+        # one version for the same reason the actions are pinned to commit
+        # SHAs: a toolchain that drifts changes the artifact.
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
       - name: Build
         working-directory: clients/menubar
         run: swift build
@@ -131,6 +138,13 @@ jobs:
         run: uv run --frozen python scripts/check_release_tag.py "${GITHUB_REF_NAME}"
       - name: Build the Python distributions
         run: uv build --offline --out-dir dist/release
+      - name: Select the Xcode this project is built against
+        # The runner's default is older than the Xcode this was developed
+        # against and cannot extract App Intents metadata, so a bundle built
+        # on the default would ship without Shortcuts integration. Pinned to
+        # one version for the same reason the actions are pinned to commit
+        # SHAs: a toolchain that drifts changes the artifact.
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
       - name: Build the signed app bundle
         run: python3 scripts/build_app_bundle.py --output dist/release/AI-TTS.app
       - name: Verify the app bundle

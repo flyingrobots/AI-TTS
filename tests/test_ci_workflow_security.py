@@ -176,3 +176,34 @@ def _job_body(name: str) -> str:
     )
     assert match is not None, f"no {name} job in the workflow"
     return match.group("body")
+
+
+# -- both bundle-building jobs must select an Xcode explicitly ------------
+
+
+def test_every_job_that_builds_the_bundle_selects_an_xcode() -> None:
+    text = _workflow_text()
+    building = [
+        name for name in ("swift", "release") if "scripts/build_app_bundle.py" in _job_body(name)
+    ]
+
+    assert building == ["swift", "release"]
+    # The runner's default Xcode is older than the one this is developed
+    # against and cannot extract App Intents metadata, so a bundle built on
+    # the default would ship without Shortcuts integration — or, as happened,
+    # fail the job with a message that named no cause.
+    for name in building:
+        assert "xcode-select -s /Applications/Xcode_" in _job_body(name), name
+    del text
+
+
+def test_the_selected_xcode_is_pinned_to_one_version() -> None:
+    selections = set(
+        re.findall(r"xcode-select -s (/Applications/Xcode[^\s]*\.app)", _workflow_text())
+    )
+
+    # Pinned for the same reason the actions are pinned to commit SHAs and uv
+    # to one version: a toolchain that drifts changes the artifact. One
+    # version across both jobs, so the CI bundle and the release bundle are
+    # built by the same compiler.
+    assert len(selections) == 1, selections

@@ -228,6 +228,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error and a non-natural finish — which is what stops a clip being marked
   Played with nothing having been heard. The stream factory the device-follow
   tests already inject was enough to drive all three; no new seam was needed.
+- The first CI run failed three ways, all of them latent rather than new, and
+  all of them invisible locally because a developer's environment is richer
+  than CI's. `huggingface_hub` had no mypy override — it is not a declared
+  dependency at all, arriving transitively through the `kokoro` extra — so
+  type-checking failed wherever the extras are absent. One test reached asset
+  resolution through the same path and needed the extra to pass. And the app
+  bundle needs a newer Xcode than a runner selects by default, which the
+  workflow now pins. Each is now pinned by a test rather than by memory.
 - A rejected settings update no longer applies half of itself. Validation now
   completes for every key before anything is written, so a request that names
   two changes and is refused leaves the client showing an error and its state
