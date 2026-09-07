@@ -186,3 +186,70 @@ async def test_purge_cache_reports_and_removes_orphaned_audio(
         "failed_bytes": 0,
     }
     assert artifact.exists() is False
+
+
+# The tray app and the CLI have the same rights (architecture §4): every op the
+# menu bar can send must be reachable from a terminal too.
+
+
+async def test_chunk_stepping_is_reachable_from_the_cli(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Nothing chunked is playing, so both refuse — but they refuse as the
+    # daemon, which proves the command reached it.
+    assert await run_cli(daemon, "next-chunk") == EXIT_DAEMON_ERROR
+    assert json.loads(capsys.readouterr().out)["error"]["type"] == "illegal_state"
+    assert await run_cli(daemon, "prev-chunk") == EXIT_DAEMON_ERROR
+    assert json.loads(capsys.readouterr().out)["error"]["type"] == "illegal_state"
+
+
+async def test_resume_when_idle_is_reachable_from_the_cli(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "pause") == EXIT_OK
+    capsys.readouterr()
+
+    assert await run_cli(daemon, "resume-when-idle") == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+async def test_the_voice_register_is_readable_and_writable_from_the_cli(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "assign-voice", "an-agent", "bm_daniel") == EXIT_OK
+    assigned = json.loads(capsys.readouterr().out)
+    assert assigned["assignment"]["voice"] == "bm_daniel"
+    assert assigned["assignment"]["pinned"] is True
+
+    assert await run_cli(daemon, "voice-map") == EXIT_OK
+    listed = json.loads(capsys.readouterr().out)
+    # Established agents are seeded, so assert on the one this test made.
+    held = {item["source"]: item["voice"] for item in listed["assignments"]}
+    assert held["an-agent"] == "bm_daniel"
+
+    assert await run_cli(daemon, "assign-voice", "an-agent", "--release") == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["assignment"] is None
+
+
+async def test_releasing_an_unassigned_source_is_reported(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "assign-voice", "nobody", "--release") == EXIT_DAEMON_ERROR
+    assert json.loads(capsys.readouterr().out)["error"]["type"] == "not_found"
+
+
+async def test_interrupt_settings_are_settable_from_the_cli(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = await run_cli(
+        daemon,
+        "settings",
+        "--set",
+        "input_interrupt_enabled=false",
+        "--set",
+        "input_interrupt_resume=when_idle",
+    )
+    assert code == EXIT_OK
+    settings = json.loads(capsys.readouterr().out)["settings"]
+    assert settings["input_interrupt_enabled"] is False
+    assert settings["input_interrupt_resume"] == "when_idle"
