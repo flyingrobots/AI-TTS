@@ -146,14 +146,21 @@ class KokoroAssets:
         return self._repo_id
 
     def path(self, filename: str) -> str:
-        """Return a local path for ``filename``, preferring the cache."""
+        """Return a local path for ``filename``, preferring the cache.
+
+        Resolution happens outside the lock. A first run may have to fetch the
+        file, and holding the lock across that would stall every synthesis
+        worker behind one download. Two workers racing on the same file both
+        resolve it, which is harmless — the answer is the same path — and the
+        first one recorded wins.
+        """
         with self._lock:
             cached = self._resolved.get(filename)
-            if cached is not None:
-                return cached
-            resolved = self._resolve(filename)
-            self._resolved[filename] = resolved
-            return resolved
+        if cached is not None:
+            return cached
+        resolved = self._resolve(filename)
+        with self._lock:
+            return self._resolved.setdefault(filename, resolved)
 
     def voice_path(self, voice: str) -> str:
         """Return a local path for one voice pack.

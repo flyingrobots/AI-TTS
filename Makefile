@@ -23,7 +23,8 @@ APP_BUNDLE     ?= $(HOME)/Applications/AI-TTS.app
 DIST           ?= dist
 MENUBAR        := clients/menubar
 LAUNCH_AGENT   := $(HOME)/Library/LaunchAgents/com.flyingrobots.ai-tts.plist
-SERVICE        := gui/$(shell id -u)/com.flyingrobots.ai-tts
+GUI_DOMAIN     := gui/$(shell id -u)
+SERVICE        := $(GUI_DOMAIN)/com.flyingrobots.ai-tts
 INSTALLER      := scripts/install-integration.sh
 
 # Agent selection for the integration targets, e.g.
@@ -35,7 +36,7 @@ UV := $(shell command -v uv 2>/dev/null)
 
 .DEFAULT_GOAL := build
 .PHONY: build install install-mcp install-skill install-agents install-all \
-        app daemon-restart test test-python test-swift lint clean uninstall \
+        app test test-python test-swift lint clean uninstall \
         doctor help tools
 
 # -- build ----------------------------------------------------------------
@@ -68,11 +69,11 @@ install: tools
 	@uv run python scripts/render_launch_agent.py \
 		--executable "$$(uv tool dir --bin)/ai-tts" --force
 	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
-	@launchctl bootstrap "gui/$(shell id -u)" "$(LAUNCH_AGENT)"
-	@printf '==> opening the menu-bar app\n'
-	@open "$(APP_BUNDLE)"
-	@printf '\nInstalled. Check it with: make doctor\n'
-	@printf 'Then wire up your agents: make install-agents\n'
+	@launchctl bootstrap "$(GUI_DOMAIN)" "$(LAUNCH_AGENT)"
+	@printf '\nInstalled. The daemon is running; the menu-bar app is not.\n'
+	@printf 'Start it when you want it:  open "$(APP_BUNDLE)"\n'
+	@printf 'Check the daemon:           make doctor\n'
+	@printf 'Wire up your agents:        make install-agents\n'
 
 ## install-mcp: register the MCP server with local agents (AGENTS="--claude")
 install-mcp:
@@ -144,10 +145,25 @@ endif
 
 ## help: list these targets
 help:
-	@printf 'AI-TTS — macOS local speech daemon\n\n'
-	@grep -hE '^## ' $(MAKEFILE_LIST) | sed 's/^## /  /' | sort
-	@printf '\nAgent selection:\n'
+	@printf 'AI-TTS — a local speech daemon for macOS\n'
+	@printf '\nBuild\n'
+	@printf '  make                 build the menu-bar app into $(DIST)/\n'
+	@printf '  make app             rebuild the installed app bundle in place\n'
+	@printf '\nInstall\n'
+	@printf '  make install         executables, app bundle, and launchd agent\n'
+	@printf '  make install-mcp     register the MCP server with local agents\n'
+	@printf '  make install-skill   install the speak skill into local agents\n'
+	@printf '  make install-agents  both agent integrations\n'
+	@printf '  make install-all     the application and both integrations\n'
+	@printf '\nCheck\n'
+	@printf '  make test            the Python and Swift suites\n'
+	@printf '  make lint            ruff and mypy\n'
+	@printf '  make doctor          what is running and what is wired in\n'
+	@printf '\nHousekeeping\n'
+	@printf '  make clean           remove build products\n'
+	@printf '  make uninstall       stop and remove the daemon and executables\n'
+	@printf '\nAgent selection\n'
 	@printf '  make install-mcp                      every agent found\n'
 	@printf '  make install-mcp AGENTS="--claude"    just one\n'
 	@printf '  ./scripts/install-integration.sh skill --claude --codex\n'
-	@printf '\nSupported agents: --claude  --codex  --gemini  --all\n'
+	@printf '  agents: --claude  --codex  --gemini  --all   (plus --dry-run)\n'

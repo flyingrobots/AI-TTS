@@ -354,7 +354,9 @@ struct CurrentPlaybackCard: View {
                 Text("Chunk \(active.number) of \(active.count)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
-                ForEach(0..<current.segmentCount, id: \.self) { index in
+                // Array, not a Range: ForEach reads only a Range's initial
+                // count, and this one changes with every clip.
+                ForEach(Array(0..<current.segmentCount), id: \.self) { index in
                     Capsule()
                         .fill(
                             index == active.index

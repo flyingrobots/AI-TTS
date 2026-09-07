@@ -204,6 +204,11 @@ class Daemon:
                 if self._input_detector.observe(reading) and self._input_interrupt_enabled():
                     await self._interrupt_for_listener()
                 elif reading is False:
+                    # Deliberately not gated on the setting. An armed resume
+                    # can only exist because the listener asked for one while
+                    # the feature was on, and it is their request rather than
+                    # the feature acting; dropping it on a later toggle would
+                    # leave playback held with nothing to explain it.
                     await self._resume_if_armed()
             except asyncio.CancelledError:
                 raise

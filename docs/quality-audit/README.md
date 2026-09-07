@@ -39,6 +39,43 @@ mean cyclomatic complexity across 423 Python functions, duplication as
 repeated six-line normalized blocks over significant source lines, and LoC as
 Python plus Swift source excluding tests.
 
+## This is a dated snapshot, and it drifts
+
+Both files name the commit they were produced against, and every `location`
+in the payload is a `path:line` that was correct **at that commit**. Line
+numbers move. Read a citation by checking that commit out:
+
+```sh
+git show <commit>:src/aitts/daemon.py | sed -n '320,330p'
+```
+
+A stale audit was the first thing a review of this repository found: the
+payload cited a commit that a history rewrite had made unreachable, and all
+three of its line references had drifted onto unrelated code. Regenerate
+rather than hand-edit, and re-verify the citations when you do:
+
+```sh
+python3 - <<'CHECK'
+import json, pathlib
+d = json.loads(pathlib.Path("docs/quality-audit/2026-09-06-audit-input.json").read_text())
+for metric, finding in d["findings"].items():
+    location = finding.get("location", "")
+    if ":" not in location:
+        continue
+    path, line = location.rsplit(":", 1)
+    lines = pathlib.Path(path).read_text().splitlines()
+    print(f"{metric:28} {location:56} {lines[int(line) - 1].strip()[:40]}")
+CHECK
+```
+
+There is no CI gate on this, deliberately: the auditor lives in a separate
+repository and is not a dependency of this one.
+
+The report is written by that tool and committed verbatim, so its formatting
+is the tool's rather than this repository's — its fenced blocks carry no
+language, for instance. Do not hand-tidy it; the next regeneration would
+undo the edit.
+
 ## Deliberate low scores
 
 `Statelessness` and `Container-friendliness` score low by design and are not

@@ -112,6 +112,9 @@ class FakeSpeechPort:
             accepted=True,
             id=UTTERANCE_ID,
             state=State.QUEUED,
+            # A real daemon always reports the voice it resolved, which may not
+            # be the one the caller asked for.
+            voice=request.voice or "bm_daniel",
             sensitivity=request.sensitivity,
             eligible_engines=("local",),
             **admission(held=self.held),

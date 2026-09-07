@@ -53,6 +53,9 @@ def enqueue_response(sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL) -> dic
         "accepted": True,
         "id": UTTERANCE_ID,
         "state": State.QUEUED.value,
+        # The register can overrule the requested voice, so the receipt names
+        # the voice that will actually speak.
+        "voice": "bm_daniel",
         "sensitivity": sensitivity.value,
         "eligible_engines": ["local"],
         "accepting_speech": True,

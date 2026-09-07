@@ -69,9 +69,10 @@ class EnqueueSpeechReceipt(SpeechAdmission):
     accepted: Literal[True]
     id: UtteranceId
     state: State
-    # The daemon's voice register can overrule the requested voice; this is
-    # the voice that will actually speak.
-    voice: str = ""
+    # The daemon's voice register can overrule the requested voice, so this
+    # field is required: defaulting it would let a daemon that forgot to send
+    # it pass validation and report an empty voice as though it were real.
+    voice: NonEmptyText
     sensitivity: Sensitivity
     eligible_engines: tuple[str, ...]
     segment_count: SegmentCount = 1

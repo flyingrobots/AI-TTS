@@ -1,6 +1,6 @@
 {
   "repository": "flyingrobots/AI-TTS",
-  "commit": "788f5aa",
+  "commit": "8ecbb7f",
   "profile": "fintech",
   "raw_metrics": {
     "Cyclomatic Complexity": 2.7,
@@ -62,7 +62,7 @@
       "impact": "Medium (each file is a merge-conflict magnet and the daemon's op table is now the widest surface in the codebase)",
       "effort": "Medium (extract cohesive collaborators; the ports already exist to hang them from)",
       "reference": "https://en.wikipedia.org/wiki/Single-responsibility_principle",
-      "location": "src/aitts/daemon.py:245",
+      "location": "src/aitts/daemon.py:324",
       "mitigation_prompt": "Split src/aitts/daemon.py so the Daemon class only routes requests and owns lifecycle. Extract three collaborators into src/aitts/application/: a SettingsService holding _apply_settings and every _apply_*_setting plus _settings_values; a VoiceRegistry holding _resolve_voice and _seed_voice_register; and an InputInterruptWatcher holding _watch_input_activity, _interrupt_for_listener and _resume_if_armed. Inject each into Daemon's constructor alongside the existing engine/sink/input_activity parameters so tests can substitute them. Keep the dispatch table and every wire response byte-identical. Then split clients/menubar/Sources/AITTSMenuBar/Views.swift by surface into CurrentPlaybackView.swift, QueueView.swift, HistoryView.swift and SettingsView.swift, moving views without editing their bodies. Re-run `uv run pytest`, `uv run ruff check`, `uv run mypy` and `swift test --package-path clients/menubar`; all must stay green."
     },
     "Metrics": {
@@ -70,7 +70,7 @@
       "impact": "Medium (the design's central claim, that the queue and not the engine governs responsiveness, is unmeasured in production)",
       "effort": "Low (the store already records every timestamp needed; expose a metrics op that aggregates them)",
       "reference": "https://prometheus.io/docs/practices/instrumentation/",
-      "location": "src/aitts/daemon.py:729",
+      "location": "src/aitts/daemon.py:798",
       "mitigation_prompt": "Add a `metrics` op to src/aitts/daemon.py that returns counters and latency summaries derived from the store: synthesis wait (submitted_at to Ready), playback wait (Ready to Playing), synthesis duration, per-state counts, cache bytes against the configured cap, and a count of playback device failures. Add a matching PublicSchema in src/aitts/application/schemas.py, a `list_speech_metrics` MCP tool, and an `ai-tts metrics` CLI command so the tray, CLI and agents all reach it. Write the tests first in a new tests/test_metrics.py with a size marker and a named oracle, then re-run `uv run pytest`."
     },
     "Tracing": {
@@ -102,7 +102,7 @@
       "impact": "Low (the log deviation is a deliberate confidentiality trade-off; the missing piece is that it is not written down)",
       "effort": "Low (document the deviation; optionally allow stdout logging for foreground development)",
       "reference": "https://12factor.net/logs",
-      "location": "src/aitts/paths.py:12",
+      "location": "src/aitts/paths.py:14",
       "mitigation_prompt": "Document the deliberate deviation from 12-factor logs in docs/design/architecture.md's bounded-diagnostics subsection: state that stdout is not used as the log stream because launchd would route it to an unbounded file, and that the bounded 0600 rotating file is the intended sink. Then confirm the already-supported foreground path (`ai-tts daemon` with no --log-file, which logs to the terminal) is mentioned in README next to the --log-file instructions so a developer knows both modes exist."
     },
     "WCAG Compliance": {
@@ -110,7 +110,7 @@
       "impact": "Medium (a speech-accessibility tool that is itself hard to operate without sight is a pointed failure)",
       "effort": "Low (add explicit labels and values to the transport controls and progress views)",
       "reference": "https://developer.apple.com/documentation/accessibility/",
-      "location": "clients/menubar/Sources/AITTSMenuBar/Views.swift:220",
+      "location": "clients/menubar/Sources/AITTSMenuBar/Views.swift:323",
       "mitigation_prompt": "In clients/menubar/Sources/AITTSMenuBar/Views.swift, add explicit accessibility to every icon-only control in CurrentPlaybackCard: give each Button an .accessibilityLabel matching its .help text (Restart, Skip, Previous chunk, Next chunk, Full text, captions toggle), and give the ProgressView an .accessibilityValue describing elapsed and total time in spoken form. Add .accessibilityLabel to the chunk-progress capsules' container describing the chunk position, and mark the decorative capsules .accessibilityHidden(true). Add a test in clients/menubar/Tests/AITTSMenuBarTests/ asserting the accessibility label strings are non-empty for each transport action, then run `swift test --package-path clients/menubar`."
     },
     "Keyboard Navigability": {
@@ -118,7 +118,7 @@
       "impact": "Medium (a listener interrupted mid-sentence wants a key, not a menu-bar click)",
       "effort": "Low for in-popover shortcuts; Medium for a global hotkey (needs an event tap and its own permission)",
       "reference": "https://developer.apple.com/design/human-interface-guidelines/keyboards",
-      "location": "clients/menubar/Sources/AITTSMenuBar/Views.swift:1",
+      "location": "clients/menubar/Sources/AITTSMenuBar/Views.swift:795",
       "mitigation_prompt": "Add .keyboardShortcut modifiers to the transport controls in CurrentPlaybackCard in clients/menubar/Sources/AITTSMenuBar/Views.swift: space for pause/resume, right/left arrow for next/previous chunk, and cmd-return for Skip. Give the Full text button cmd-shift-T. Confirm each shortcut is only active while the popover is key so it cannot fire from the captions panel. Do not add a global system hotkey in this change; note it as a follow-up because it needs an event tap and a separate Accessibility permission. Run `swift test --package-path clients/menubar`."
     },
     "Screen Reader Friendliness": {
@@ -126,7 +126,7 @@
       "impact": "Medium (the interrupt notice is the one message in the app that must reach the user unprompted)",
       "effort": "Low",
       "reference": "https://developer.apple.com/documentation/swiftui/view-accessibility",
-      "location": "clients/menubar/Sources/AITTSMenuBar/Views.swift:74",
+      "location": "clients/menubar/Sources/AITTSMenuBar/Views.swift:60",
       "mitigation_prompt": "In clients/menubar/Sources/AITTSMenuBar/Views.swift, make the InterruptionNotice announce itself: add .accessibilityElement(children: .combine) plus an .accessibilityLabel that reads the full reason sentence, and post an NSAccessibility announcement when state.interruption transitions from nil to non-nil. Do the same for the chunk counter so a change of chunk is announced. Leave the captions panel silent to VoiceOver, since it duplicates audio the user is already hearing, and add a comment saying so. Run `swift test --package-path clients/menubar`."
     },
     "Versioning": {
@@ -138,7 +138,7 @@
       "mitigation_prompt": "Add a `--version` flag to the ai-tts CLI in src/aitts/cli.py that prints the installed distribution version via importlib.metadata plus the git commit it was built from if available, and cover it with a test asserting the flag exits 0 and prints the pyproject version. Do not create the git tag from an automated session: leave a note in CHANGELOG.md's Unreleased section stating that v0.1.0 must be tagged by the maintainer at the release commit, since tagging is a publishing decision."
     },
     "Automated Deployment": {
-      "description": "CI runs the Python and Swift suites and produces verified supply-chain evidence (.github/workflows/ci.yml), but there is no release job: the wheel, the codesigned app bundle and the launch agent are all built by hand from scripts/, and no workflow publishes or attaches an artifact. Nothing has ever been pushed to the remote, which is empty.",
+      "description": "CI runs both suites and produces verified supply-chain evidence, and a Makefile now wraps the build and install steps, but there is no release job: no workflow builds or attaches the wheel, the codesigned app bundle, or the launch agent to a tag. Nothing has been pushed to the remote, which is empty.",
       "impact": "Medium (every install is a manual, unreproducible ceremony)",
       "effort": "Medium (a tag-triggered release job reusing the existing build scripts)",
       "reference": "https://docs.github.com/en/actions/deployment/about-deployments",
@@ -146,7 +146,7 @@
       "mitigation_prompt": "Add a release job to .github/workflows/ci.yml that triggers on a pushed tag matching v*, runs the existing test suites, builds the wheel with `uv build`, runs scripts/build_app_bundle.py, and uploads both plus the supply-chain evidence directory as release assets. Keep the token read-only for the test jobs and grant contents:write only to the release job. Pin every action by commit SHA, matching the hardening already applied to the existing jobs. Do not enable any step that publishes to PyPI."
     },
     "Bus Factor": {
-      "description": "All 571 commits are by a single author and there is no second contributor, reviewer, or maintainer named anywhere. CONTRIBUTING.md exists but describes no review process, and the remote has no branch protection because the remote has no branches. Substantial architectural reasoning lives in the author's head and in docs/design, which is unusually good but still single-sourced.",
+      "description": "Every commit is by a single author, with no second contributor, reviewer or maintainer named anywhere. CONTRIBUTING.md exists but describes no review process, and the remote has no branch protection because the remote has no branches. Substantial architectural reasoning lives in docs/design, which is unusually thorough but still single-sourced.",
       "impact": "High (the project stops entirely if the author does, and no one else can approve a change)",
       "effort": "High (organisational, not technical)",
       "reference": "https://en.wikipedia.org/wiki/Bus_factor",
@@ -154,11 +154,11 @@
       "mitigation_prompt": "Reduce the knowledge-transfer half of this rather than pretending to fix the staffing half. Add a docs/design/onboarding.md that walks a new maintainer through one utterance end to end, naming the exact files it passes through: cli.py submit, ipc.py dispatch, store.py submit, segmentation.py, synthesis.py claim and finish, playback.py begin_segment, and the sink. Link it from README's design-documents list and from CONTRIBUTING.md. Then extend CONTRIBUTING.md with the review expectation that applies today, even for a single maintainer: which checks must pass before merge and what a reviewer is expected to look at."
     },
     "Issue & Bug Management": {
-      "description": "There is no issue tracking at all. The GitHub remote is empty so no issues exist, .github has no issue or pull-request templates, and the only defect record is an untracked local file, .claude/bad_code.md, which is gitignored and therefore invisible to anyone else. Known open items are prose inside that file and inside docs/standards/testing-profile.md.",
+      "description": "There is no issue tracking. The GitHub remote is empty so no issues exist, .github carries no issue or pull-request templates, and the only running defect record is an agent-local file excluded by .gitignore, so it is invisible to any collaborator. Remaining open items live as prose inside docs/standards/testing-profile.md rather than as tracked work.",
       "impact": "Medium-High (known defects are recorded somewhere no collaborator and no future session can see)",
       "effort": "Low",
       "reference": "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests",
-      "location": ".claude/bad_code.md:1",
+      "location": "docs/standards/testing-profile.md:1",
       "mitigation_prompt": "Move the tracked-defect record into the repository. Create docs/backlog/ containing one Markdown file per known open item, migrating the still-open entries from .claude/bad_code.md (the device-error wedge, history search, cache eviction, retry on failed rows, drag reorder, and the elapsed-time-ignores-abandoned-chunks note) with a title, the evidence path and line, and the reason it is still open. Add .github/ISSUE_TEMPLATE/bug_report.md and feature_request.md, plus .github/pull_request_template.md that requires the test-first pairing and the passing checks this repo already enforces. Leave .claude/ gitignored for session scratch only."
     }
   },
