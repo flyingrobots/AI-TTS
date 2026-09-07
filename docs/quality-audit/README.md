@@ -23,6 +23,41 @@ correctness), Code Maturity and Project Health (`+0.17` each). Maintainability
 went **down** `0.05`: the fixes were added to the four files that were already
 too large, so size concentration got worse.
 
+## Remediation after the second snapshot
+
+Every finding from the `e2c7706` snapshot has since been worked. There is no
+third snapshot here: re-scoring is the auditor's job, not this repository's,
+and a number written by hand would be worth nothing. What the work was is in
+`CHANGELOG.md` and in the commits; briefly:
+
+| Finding | What was done |
+| --- | --- |
+| Observability — Metrics | A `metrics` op, `ai-tts metrics` and a `speech_metrics` tool report the two waits separately, plus queue depth, cache bytes against the cap, and device failures counted apart from cancellations |
+| Observability — Tracing | Lifecycle events carry a `trace=` token derived from the utterance id |
+| Project Health — Bus Factor | [`docs/design/one-utterance.md`](../design/one-utterance.md) walks one utterance end to end |
+| Project Health — Issue & Bug Management | [`docs/backlog/`](../backlog/) tracks known defects; issue and PR templates added |
+| Maintainability — SRP violations | `daemon.py` 1097 → 855 lines (`aitts.settings`, `aitts.voice_registry`, `aitts.input_interrupt`); `Views.swift` 1257 lines → six files by surface |
+| Code Maturity — Automated Deployment | A tag builds and retains the wheel, sdist and signed bundle after every other job passes, and refuses a tag that disagrees with the tree |
+| Accessibility — all three | Transport labels and keys as assertable values, spoken progress, a live-region announcement for the interruption notice, and pause on `p` |
+| Cloud-Native — Statelessness, Container-friendliness, 12-Factor | Recorded as decisions with their reasoning in [`architecture.md`](../design/architecture.md) §9a rather than as gaps |
+
+Two of the audit's recommendations were **not** followed, and the reasoning is
+recorded where the code is:
+
+- It suggested the extracted Python services go under `src/aitts/application/`.
+  They went to the top level instead: that package holds pure logic and ports
+  and deliberately does not import `Store`, while these services hold it.
+- It suggested marking the caption overlay as accessibility-announcing. That
+  would have VoiceOver read aloud, in a second voice, the words already being
+  spoken aloud. The overlay is explicitly hidden from the accessibility tree
+  instead, with the reasoning in `CaptionPanelController.swift`.
+
+One recommendation is **deliberately incomplete**: the release job retains its
+artifacts on the workflow run rather than attaching them to a GitHub Release,
+because attaching needs `contents: write` and this workflow's trust boundary
+is that nothing in it can write to the repository. Creating the release stays a
+human action.
+
 ## Reproducing
 
 ```sh
@@ -104,4 +139,6 @@ undo the edit.
 tracked as defects. The daemon is a stateful singleton because exactly one
 process may own the audio output device, and it cannot be containerized
 because a container has no speakers. Their findings record the deviation
-rather than proposing a fix.
+rather than proposing a fix; the full set of such deviations, including
+twelve-factor logging and the absence of authentication, is in
+[`architecture.md`](../design/architecture.md) §9a.
