@@ -253,3 +253,31 @@ async def test_interrupt_settings_are_settable_from_the_cli(
     settings = json.loads(capsys.readouterr().out)["settings"]
     assert settings["input_interrupt_enabled"] is False
     assert settings["input_interrupt_resume"] == "when_idle"
+
+
+async def test_version_reports_the_installed_distribution(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from aitts import __version__  # noqa: PLC0415
+
+    # argparse's version action exits rather than returning, which is why an
+    # earlier reading of this flag concluded it was missing.
+    with pytest.raises(SystemExit) as raised:
+        main(["--version"])
+
+    assert raised.value.code == 0
+    printed = capsys.readouterr().out
+    assert __version__ in printed
+    assert "ai-tts" in printed
+
+
+async def test_metrics_are_reachable_from_the_cli(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "metrics") == EXIT_OK
+
+    reported = json.loads(capsys.readouterr().out)
+    assert reported["ok"] is True
+    assert "synthesis_wait_ms" in reported
+    assert "playback_wait_ms" in reported
+    assert reported["queue_depth"] == {"input": 0, "playback": 0}

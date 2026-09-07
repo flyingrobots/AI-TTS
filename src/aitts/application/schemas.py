@@ -177,6 +177,47 @@ class VoiceCatalog(PublicSchema):
     voices: tuple[str, ...]
 
 
+class DurationSummary(PublicSchema):
+    """A bounded sample of durations, in milliseconds."""
+
+    count: PositiveLimit
+    p50: float
+    p95: float
+    max: float
+
+
+class QueueDepth(PublicSchema):
+    """How much work is waiting in each queue."""
+
+    input: NonNegativeInt
+    playback: NonNegativeInt
+
+
+class CacheUsage(PublicSchema):
+    """Cached audio measured against its configured cap."""
+
+    bytes: NonNegativeInt
+    max_bytes: NonNegativeInt
+
+
+class SpeechMetrics(PublicSchema):
+    """What the daemon can say about its own responsiveness.
+
+    The two waits are reported separately because they mean different things:
+    synthesis is parallel work, and the queue is a serial resource that no
+    amount of parallelism helps. ``None`` means nothing has been measured yet,
+    which a caller must be able to tell from "it was instant".
+    """
+
+    counts: dict[str, NonNegativeInt]
+    queue_depth: QueueDepth
+    cache: CacheUsage
+    synthesis_wait_ms: DurationSummary | None
+    synthesis_duration_ms: DurationSummary | None
+    playback_wait_ms: DurationSummary | None
+    playback_failures: NonNegativeInt
+
+
 class SegmentStepReceipt(PublicSchema):
     """Playback state after stepping one chunk within a document."""
 

@@ -348,6 +348,7 @@ The server exposes these tools:
 - `speech_status`
 - `list_speech_queue`
 - `list_speech_history`
+- `speech_metrics`
 - `list_speech_voices`
 - `get_caption_settings` and `set_captions_enabled`
 - `pause_speech_playback` and `resume_speech_playback`
@@ -434,6 +435,9 @@ ai-tts rewind
 ai-tts list playback
 ai-tts history
 ai-tts purge-cache
+
+# how long synthesis and the playback queue are actually taking
+ai-tts metrics
 
 # within one chunked document, rather than abandoning the whole entry
 ai-tts next-chunk

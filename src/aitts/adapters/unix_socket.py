@@ -28,6 +28,7 @@ from aitts.application.schemas import (
     RequeueSpeechReceipt,
     SegmentStepReceipt,
     SetCaptionsEnabled,
+    SpeechMetrics,
     SpeechServiceError,
     SpeechStatus,
     VoiceAssignmentView,
@@ -110,6 +111,10 @@ class UnixSocketSpeechAdapter:
     def restart_current(self) -> PlaybackControlReceipt:
         """Restart the current clip from zero."""
         return self._exchange({"op": "rewind"}, PlaybackControlReceipt)
+
+    def speech_metrics(self) -> SpeechMetrics:
+        """Read the daemon's own responsiveness measurements."""
+        return self._exchange({"op": "metrics"}, SpeechMetrics)
 
     def next_segment(self) -> SegmentStepReceipt:
         """Give up the current chunk and move to the next one."""

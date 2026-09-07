@@ -34,7 +34,7 @@ EXIT_DAEMON_ERROR = 1
 EXIT_UNREACHABLE = 2
 EXIT_NOT_PLAYED = 3
 
-_TRANSPORT_OPS = ("pause", "resume", "skip", "status", "voices")
+_TRANSPORT_OPS = ("pause", "resume", "skip", "status", "voices", "metrics")
 
 
 def _emit(payload: dict[str, Any]) -> None:

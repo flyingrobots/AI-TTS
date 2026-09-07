@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the store showed three sharing `bm_daniel`. Settings lists the mapping and
   lets you reassign it; your assignment outranks the client's request.
   `voice_assignments` and `assign_voice` expose it on the wire.
+- **The daemon can now measure the claim it is built around.** A `metrics`
+  op, an `ai-tts metrics` command and a `speech_metrics` MCP tool report the
+  two waits separately: submitted-to-Ready is what synthesis cost and is
+  parallel work, while Ready-to-Playing is what the queue cost and no amount
+  of parallelism helps it. Queue depth, cached bytes against the configured
+  cap, and playback device failures counted apart from ordinary terminal
+  states. A null summary means nothing has been measured, which a caller can
+  tell from zero.
 - **A Makefile as the entry point for a clone.** `make` builds the menu-bar
   app, `make install` installs the executables, the app and the launchd agent,
   and `make install-agents` wires it into every local coding agent found. It

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         RequeueSpeechReceipt,
         SegmentStepReceipt,
         SetCaptionsEnabled,
+        SpeechMetrics,
         SpeechStatus,
         VoiceAssignmentView,
         VoiceCatalog,
@@ -49,6 +50,10 @@ class SpeechServicePort(Protocol):
 
     def list_history(self, query: HistoryQuery) -> HistoryView:
         """Return terminal clips, most recent first."""
+        ...
+
+    def speech_metrics(self) -> SpeechMetrics:
+        """Report synthesis and queue latency, depth, cache use and failures."""
         ...
 
     def list_voices(self) -> VoiceCatalog:

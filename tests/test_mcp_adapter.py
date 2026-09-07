@@ -14,10 +14,12 @@ from aitts.adapters.mcp import create_server
 from aitts.application.schemas import (
     AssignVoice,
     AssignVoiceReceipt,
+    CacheUsage,
     CancelSpeech,
     CancelSpeechReceipt,
     CaptionSettings,
     ClearQueueReceipt,
+    DurationSummary,
     EnqueueSpeech,
     EnqueueSpeechReceipt,
     HistoryQuery,
@@ -25,11 +27,13 @@ from aitts.application.schemas import (
     PlaybackControlReceipt,
     PlaybackState,
     PurgeCachedAudioReceipt,
+    QueueDepth,
     QueueView,
     RequeueSpeech,
     RequeueSpeechReceipt,
     SegmentStepReceipt,
     SetCaptionsEnabled,
+    SpeechMetrics,
     SpeechServiceError,
     SpeechStatus,
     SubmissionDisposition,
@@ -69,6 +73,7 @@ TOOL_NAMES = {
     "resume_speech_when_input_idle",
     "list_speech_voice_assignments",
     "assign_speech_voice",
+    "speech_metrics",
 }
 
 
@@ -141,6 +146,17 @@ class FakeSpeechPort:
     def list_history(self, query: HistoryQuery) -> HistoryView:
         del query
         return HistoryView(items=())
+
+    def speech_metrics(self) -> SpeechMetrics:
+        return SpeechMetrics(
+            counts={"Played": 3},
+            queue_depth=QueueDepth(input=0, playback=1),
+            cache=CacheUsage(bytes=128, max_bytes=4096),
+            synthesis_wait_ms=DurationSummary(count=2, p50=120.0, p95=200.0, max=210.0),
+            synthesis_duration_ms=None,
+            playback_wait_ms=DurationSummary(count=2, p50=5.0, p95=9.0, max=9.0),
+            playback_failures=0,
+        )
 
     def list_voices(self) -> VoiceCatalog:
         return VoiceCatalog(voices=("bm_daniel",))
@@ -374,3 +390,18 @@ async def test_mcp_assigns_and_releases_a_clients_voice() -> None:
     assert released.structured_content is not None
     assert released.structured_content["assignment"] is None
     assert [request.voice for request in port.assign_calls] == ["af_heart", None]
+
+
+async def test_mcp_reports_the_two_latencies_separately() -> None:
+    async with MCPClient(create_server(FakeSpeechPort()), raise_exceptions=True) as client:
+        result = await client.call_tool("speech_metrics", {})
+
+    assert result.structured_content is not None
+    reported = result.structured_content
+    # An agent deciding whether to wait needs to know which queue is slow.
+    assert reported["synthesis_wait_ms"]["p50"] == 120.0
+    assert reported["playback_wait_ms"]["p50"] == 5.0
+    # A null summary is "not measured", which must survive the wire as null
+    # rather than becoming zero.
+    assert reported["synthesis_duration_ms"] is None
+    assert reported["queue_depth"] == {"input": 0, "playback": 1}

@@ -33,6 +33,7 @@ from aitts.application.schemas import (
     RequeueSpeechReceipt,
     SegmentStepReceipt,
     SetCaptionsEnabled,
+    SpeechMetrics,
     SpeechServiceError,
     SpeechStatus,
     UtteranceId,
@@ -170,6 +171,16 @@ def _register_query_tools(server: MCPServer, speech: SpeechServicePort) -> None:
         """List terminal clips from most recent to least recent."""
         query = HistoryQuery(limit=limit, before=before)
         return _invoke(lambda: speech.list_history(query))
+
+    @server.tool(annotations=_READ_ONLY)
+    def speech_metrics() -> SpeechMetrics:
+        """Report how long synthesis and the playback queue are actually taking.
+
+        The two waits are separate on purpose: synthesis is parallel work,
+        while the playback queue is a serial resource. A null summary means
+        nothing has been measured yet rather than zero.
+        """
+        return _invoke(speech.speech_metrics)
 
     @server.tool(annotations=_READ_ONLY)
     def list_speech_voices() -> VoiceCatalog:

@@ -24,6 +24,7 @@ from aitts.application.input_activity import (
     InputInterruptDetector,
     platform_input_activity,
 )
+from aitts.application.metrics import MetricsRecorder
 from aitts.application.voice_assignment import decide_speaking_voice
 from aitts.engine import eligible_engine_names
 from aitts.ipc import (
@@ -124,6 +125,7 @@ class Daemon:
         )
         self._input_poll_seconds = input_poll_seconds
         self._input_detector = InputInterruptDetector()
+        self._metrics = MetricsRecorder()
         self._engines: dict[str, Engine] = {"local": engine}
         self._engine = engine
         self._sink = sink
@@ -258,6 +260,7 @@ class Daemon:
     # -- events ------------------------------------------------------------
 
     def _on_transition(self, utt: Utterance, from_state: State) -> None:
+        self._metrics.observe(utt)
         self._server.broadcast(
             {
                 "event": "state_changed",
@@ -340,6 +343,7 @@ class Daemon:
             "clear": self._op_clear,
             "purge_cache": self._op_purge_cache,
             "status": self._op_status,
+            "metrics": self._op_metrics,
             "snapshot": self._op_snapshot,
             "voices": self._op_voices,
             "voice_assignments": self._op_voice_assignments,
@@ -906,6 +910,27 @@ class Daemon:
             "reason": "listener_speaking",
             "at": controller.interrupted_at,
             "resume_armed": controller.resume_when_input_idle_armed,
+        }
+
+    def _cached_bytes(self) -> int:
+        """Total size of cached audio, so it can be read against its cap."""
+        return sum(entry.size_bytes for entry in FileAudioCache(self._cache_dir).inventory())
+
+    async def _op_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Report what the daemon can say about its own responsiveness."""
+        del payload
+        return {
+            "ok": True,
+            "counts": self._store.counts(),
+            "queue_depth": {
+                "input": len(self._store.input_queue()),
+                "playback": len(self._store.playback_queue()),
+            },
+            "cache": {
+                "bytes": self._cached_bytes(),
+                "max_bytes": self._cache_limit(),
+            },
+            **self._metrics.snapshot(),
         }
 
     async def _op_snapshot(self, payload: dict[str, Any]) -> dict[str, Any]:
