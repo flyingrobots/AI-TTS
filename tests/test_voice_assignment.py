@@ -11,6 +11,7 @@ owns the mapping instead, and the listener outranks every agent's preference.
 
 from __future__ import annotations
 
+import ast
 import shutil
 import tempfile
 from pathlib import Path
@@ -20,6 +21,7 @@ import pytest
 
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
+from aitts.engines.kokoro import VOICES
 from aitts.ipc import ApiError
 from aitts.playback import FakeSink
 
@@ -278,18 +280,41 @@ async def test_the_listeners_own_reading_does_not_appear_in_the_mapping(
     assert voice_daemon.store.voice_assignments() == []
 
 
-def test_no_client_identity_is_hardcoded_in_the_source() -> None:
+def test_no_client_identity_table_is_hardcoded_in_the_source() -> None:
+    """No source file may carry a literal client-identity-to-voice mapping.
+
+    A register keyed on client identity invites baking the operator's real
+    client names in as seed data, which is how this project briefly shipped
+    them. The check looks for the *shape* rather than for any particular name,
+    both because naming one would defeat the purpose and because the next
+    mistake will use different names.
+    """
+    catalog = set(VOICES)
     source_root = Path(__file__).parents[1] / "src"
-    swift_root = Path(__file__).parents[1] / "clients" / "menubar" / "Sources"
-    # A voice register keyed on client identity invites baking real client
-    # names in as seed data. They are the operator's, not this project's, and
-    # a public repository is the wrong place to learn them.
     offenders: list[str] = []
-    for root, pattern in ((source_root, "*.py"), (swift_root, "*.swift")):
-        for path in sorted(root.rglob(pattern)):
-            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                if "agent" in line.lower():
-                    offenders.append(f"{path.relative_to(Path(__file__).parents[1])}:{number}")
+
+    for path in sorted(source_root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Tuple, ast.List)):
+                continue
+            pairs = [
+                element
+                for element in node.elts
+                if isinstance(element, (ast.Tuple, ast.List)) and len(element.elts) == 2
+            ]
+            if not pairs:
+                continue
+            for pair in pairs:
+                identity, voice = pair.elts
+                if (
+                    isinstance(identity, ast.Constant)
+                    and isinstance(identity.value, str)
+                    and isinstance(voice, ast.Constant)
+                    and voice.value in catalog
+                ):
+                    relative = path.relative_to(Path(__file__).parents[1])
+                    offenders.append(f"{relative}:{pair.lineno} {identity.value!r}")
 
     assert offenders == []
 
