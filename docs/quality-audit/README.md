@@ -135,10 +135,18 @@ another describes the Makefile that had just landed.
 
 **The payloads publish a file that is deliberately untracked.** The
 `mitigation_prompt` fields are instructions addressed to a coding assistant
-rather than findings, and one of them enumerates the contents of
+rather than findings, and one of them enumerated the contents of
 `.claude/bad_code.md` — a gitignored working journal — to justify a
-recommendation that was in the end not followed. Four of the items it lists had
-already shipped when it was written.
+recommendation that was in the end not followed. Four of the items it listed
+had already shipped when it was written.
+
+That one enumeration **is** edited out of all four files, in both payloads and
+both rendered reports, and replaced with a pointer here. It is the single
+exception to the do-not-hand-tidy rule below, and it is deliberate: everything
+else in these documents is the tool's own output and worth keeping verbatim,
+while publishing a private journal to support a rejected recommendation has no
+upside at all. **A regeneration will bring it back** — whoever regenerates
+these should scrub it again, or stop feeding the journal to the auditor.
 
 Read the reports with that in mind, and with one more thing: the **PRODUCTION
 READY** banner at the top of each is self-administered. The tool, the weight

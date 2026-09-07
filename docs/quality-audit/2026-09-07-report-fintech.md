@@ -243,7 +243,7 @@ No code change. Record the deviation instead: add a short subsection to docs/des
 
 ### 🚨 Project Health - Issue & Bug Management (Score: `2.00 / 5.0`)
 ```
-Move the tracked-defect record into the repository. Create docs/backlog/ containing one Markdown file per known open item, migrating the still-open entries from .claude/bad_code.md (the device-error wedge, history search, cache eviction, retry on failed rows, drag reorder, and the elapsed-time-ignores-abandoned-chunks note) with a title, the evidence path and line, and the reason it is still open. Add .github/ISSUE_TEMPLATE/bug_report.md and feature_request.md, plus .github/pull_request_template.md that requires the test-first pairing and the passing checks this repo already enforces. Leave .claude/ gitignored for session scratch only.
+Move the tracked-defect record into the repository. Create docs/backlog/ containing one Markdown file per known open item, migrating the still-open entries from .claude/bad_code.md (its still-open entries; contents omitted, see the errata in docs/quality-audit/README.md) with a title, the evidence path and line, and the reason it is still open. Add .github/ISSUE_TEMPLATE/bug_report.md and feature_request.md, plus .github/pull_request_template.md that requires the test-first pairing and the passing checks this repo already enforces. Leave .claude/ gitignored for session scratch only.
 ```
 
 ### ⚠️ Maintainability - SRP Violations (Score: `2.50 / 5.0`)
