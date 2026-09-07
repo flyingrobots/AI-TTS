@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap, and playback device failures counted apart from ordinary terminal
   states. A null summary means nothing has been measured, which a caller can
   tell from zero.
+- **Pause is reachable from the keyboard**, as `p` while the popover is
+  focused. It is the most-pressed control in the app — it is what you reach for
+  when speech starts during a call — and it was the one transport control with
+  a tooltip and no key. It is now a `TransportAction` like the rest, so its
+  label and its key are values a test can check rather than modifiers at a
+  call site.
 - **A walkthrough of one utterance**, at
   [`docs/design/one-utterance.md`](docs/design/one-utterance.md): what actually
   runs, in order, from an agent's `say` to the state change that ends it,

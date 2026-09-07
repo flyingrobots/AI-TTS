@@ -42,6 +42,8 @@ struct CurrentPlaybackCard: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .keyboardShortcut(TransportAction.playPause.shortcut, modifiers: [])
+                .accessibilityLabel(isPaused ? "Resume playback" : "Pause playback")
                 .help(
                     isPaused
                         ? "Resume all playback"
@@ -64,7 +66,8 @@ struct CurrentPlaybackCard: View {
                 chunkProgress(for: current)
                 progress(for: current)
                 HStack(spacing: 14) {
-                    ForEach(TransportAction.allCases, id: \.self) { action in
+                    ForEach(TransportAction.allCases.filter { !$0.isPrimary }, id: \.self) {
+                        action in
                         if !action.needsChunks || current.segmentCount > 1 {
                             transportButton(action, current: current)
                         }
@@ -117,6 +120,7 @@ struct CurrentPlaybackCard: View {
     private func transportButton(_ action: TransportAction, current: Utterance) -> some View {
         Button {
             switch action {
+            case .playPause: isPaused ? state.resume() : state.pause()
             case .restart: state.rewind()
             case .previousChunk: state.previousChunk()
             case .nextChunk: state.nextChunk()
@@ -134,7 +138,7 @@ struct CurrentPlaybackCard: View {
 
     private func isDisabled(_ action: TransportAction, current: Utterance) -> Bool {
         switch action {
-        case .fullText, .skip:
+        case .playPause, .fullText, .skip:
             return false
         case .restart:
             return isPaused

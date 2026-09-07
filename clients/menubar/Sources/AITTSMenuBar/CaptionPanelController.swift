@@ -83,6 +83,19 @@ final class CaptionPanelController {
     }
 }
 
+/// The caption overlay is deliberately invisible to assistive technology.
+///
+/// An audit recommended marking it as accessibility-announcing, on the general
+/// principle that a region changing on screen should be announced. Here that
+/// would be actively harmful: this panel shows the text a speech synthesizer
+/// is reading aloud *right now*, so announcing it makes VoiceOver read, in a
+/// second voice, the words already being spoken.
+///
+/// Captions exist for someone who wants to *see* what is being said. The
+/// audible channel is the product. So the panel is hidden from the
+/// accessibility tree rather than announced, and it is non-activating and
+/// mouse-transparent so it never takes focus from whatever the listener is
+/// actually working in.
 struct CaptionOverlayView: View {
     @EnvironmentObject var state: AppState
 
@@ -100,6 +113,9 @@ struct CaptionOverlayView: View {
         }
         .padding(6)
         .allowsHitTesting(false)
+        // See the note above this view: announcing captions would have
+        // VoiceOver read aloud the words already being spoken aloud.
+        .accessibilityHidden(true)
     }
 }
 

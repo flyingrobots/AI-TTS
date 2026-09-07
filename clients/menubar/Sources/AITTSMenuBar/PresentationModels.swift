@@ -51,6 +51,7 @@ struct FullTextSubject: Identifiable, Equatable {
 /// listening rather than looking; an unlabelled transport is a pointed
 /// failure here rather than a cosmetic one.
 enum TransportAction: String, CaseIterable {
+    case playPause
     case restart
     case previousChunk
     case nextChunk
@@ -60,6 +61,7 @@ enum TransportAction: String, CaseIterable {
     /// Spoken by VoiceOver, and shown as the tooltip.
     var label: String {
         switch self {
+        case .playPause: "Pause or resume playback"
         case .restart: "Restart this clip"
         case .previousChunk: "Previous chunk"
         case .nextChunk: "Next chunk"
@@ -70,6 +72,7 @@ enum TransportAction: String, CaseIterable {
 
     var systemImage: String {
         switch self {
+        case .playPause: "pause.fill"
         case .restart: "backward.end.fill"
         case .previousChunk: "backward.fill"
         case .nextChunk: "forward.fill"
@@ -81,6 +84,9 @@ enum TransportAction: String, CaseIterable {
     /// The key that operates it while the popover is focused.
     var shortcut: KeyEquivalent {
         switch self {
+        // The most-pressed control in the app: it is what you reach for when
+        // speech starts during a call. It had a tooltip and no key.
+        case .playPause: "p"
         case .restart: "r"
         case .previousChunk: .leftArrow
         case .nextChunk: .rightArrow
@@ -92,6 +98,18 @@ enum TransportAction: String, CaseIterable {
     /// Whether the control only makes sense for a clip split into chunks.
     var needsChunks: Bool {
         self == .previousChunk || self == .nextChunk
+    }
+
+    /// Whether this is the one control rendered prominently rather than as an
+    /// icon in the transport row.
+    ///
+    /// Pause is the most-pressed control in the app and reads as a decision
+    /// rather than a nudge, so it keeps its own labelled button. It is in this
+    /// enum anyway so that its label and its key are assertable like the rest;
+    /// a control whose accessibility lives only at its call site is a control
+    /// nothing can check.
+    var isPrimary: Bool {
+        self == .playPause
     }
 }
 

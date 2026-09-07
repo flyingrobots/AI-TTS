@@ -300,7 +300,7 @@ extension ListenerTransportTests {
         // An icon-only button discards its text label from the accessibility
         // tree, and this is a tool for people who are listening. A missing
         // label here is a control that cannot be found by voice.
-        XCTAssertEqual(TransportAction.allCases.count, 5)
+        XCTAssertEqual(TransportAction.allCases.count, 6)
         var seenKeys: Set<String> = []
         for action in TransportAction.allCases {
             XCTAssertFalse(action.label.isEmpty, "\(action.rawValue) has no label")

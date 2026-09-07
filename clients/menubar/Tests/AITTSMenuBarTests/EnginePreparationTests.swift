@@ -118,3 +118,45 @@ private final class PreparationTransport: DaemonTransport, @unchecked Sendable {
         _ = onEvent
     }
 }
+
+/// The controls a listener reaches for most, reachable without a trackpad.
+///
+/// The audit that prompted these found no key path to pause while the popover
+/// was open, which is the single most-pressed control in the app: it is what
+/// you press when speech starts during a call.
+final class TransportKeyboardTests: XCTestCase {
+    func testPauseIsATransportActionLikeTheRest() {
+        // Pause was a separately-built button with a tooltip and no key. Being
+        // in the enum is what makes its label and key assertable at all.
+        XCTAssertTrue(TransportAction.allCases.contains(.playPause))
+        XCTAssertFalse(TransportAction.playPause.label.isEmpty)
+    }
+
+    func testEveryTransportActionKeyIsUnique() {
+        var seen: Set<String> = []
+        for action in TransportAction.allCases {
+            let key = String(describing: action.shortcut.character)
+            XCTAssertFalse(seen.contains(key), "\(action.rawValue) reuses \(key)")
+            seen.insert(key)
+        }
+
+        // A duplicate key means one of two controls silently never fires, and
+        // which one is a SwiftUI implementation detail.
+        XCTAssertEqual(seen.count, TransportAction.allCases.count)
+    }
+
+    func testPauseIsTheOnlyPrimaryControl() {
+        let primary = TransportAction.allCases.filter(\.isPrimary)
+
+        // The icon row renders everything that is not primary. Two primaries
+        // would mean one control silently missing from the row, and none would
+        // put a second pause button beside the prominent one, sharing its key.
+        XCTAssertEqual(primary, [.playPause])
+    }
+
+    func testPauseDoesNotRequireAChunkedClip() {
+        // Only the chunk controls are conditional. A pause that appeared and
+        // disappeared with the shape of the current clip would be unusable.
+        XCTAssertFalse(TransportAction.playPause.needsChunks)
+    }
+}

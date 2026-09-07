@@ -641,6 +641,18 @@ directory, so the operating system's permission check *is* the authentication,
 and it is a stronger one than anything this daemon could implement. A single
 user on a single machine has nobody to authenticate against.
 
+**Its logs are a file, not an event stream on stdout.** Twelve-factor says
+logs are an event stream the process writes to stdout and never manages. This
+daemon manages them: the launch agent routes stdout and stderr to
+`/dev/null` and the diagnostics adapter owns one bounded, owner-only rotating
+file (§9). That is the opposite choice, and it follows from the same
+requirement as everything else here — the text is client-confidential, and an
+unmanaged stdout stream is collected by whatever is watching the process, kept
+for as long as that thing keeps it, with no ceiling on its size. Owning the
+file is how the ceiling and the `0600` mode exist at all. A log aggregator is
+the reason twelve-factor says otherwise, and there is no aggregator on one
+laptop.
+
 **Its configuration is not environment-driven.** Settings live in the store so
 the menu bar, the CLI and the MCP adapter cannot disagree about them, and so a
 change made in one is visible in the others immediately. The two exceptions are
