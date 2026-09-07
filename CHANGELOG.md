@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap, and playback device failures counted apart from ordinary terminal
   states. A null summary means nothing has been measured, which a caller can
   tell from zero.
+- **A quiet model load.** Building the engine's model raised ninety-two
+  warnings from inside torch, about torch APIs this project does not call. The
+  known ones are now silenced for the duration of the load and by subject
+  rather than by category, so a warning that actually concerns this project —
+  including a future deprecation of its own — is still heard.
 - **One clip is followable through the log.** Lifecycle events now carry a
   short `trace=` token derived from the utterance identifier, so a stuck clip
   can be diagnosed by reading the log instead of reading state out of SQLite.

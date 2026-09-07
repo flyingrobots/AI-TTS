@@ -20,13 +20,17 @@ fetches a genuinely absent file.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import re
 import threading
+import warnings
 from typing import TYPE_CHECKING, Any, Protocol
 
 from aitts.engine import SynthesisError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -39,6 +43,32 @@ _WEIGHTS_FILE = "kokoro-v1_0.pth"
 # LocalEntryNotFoundError subclasses FileNotFoundError, which PermissionError
 # and UnicodeDecodeError deliberately do not.
 _CACHE_MISS = (FileNotFoundError,)
+
+# Warnings the upstream model definition raises while building itself: about
+# torch APIs this project does not call, from code it does not own. One load
+# raises ninety of them. Silencing exactly these, by subject and not by
+# category, is the only way to hold the repository's zero-warnings rule over
+# third-party code without also going deaf to a warning that matters.
+_UPSTREAM_LOAD_WARNINGS = (
+    ("`torch.nn.utils.weight_norm` is deprecated", FutureWarning),
+    ("`torch.jit.script` is deprecated", DeprecationWarning),
+    ("dropout option adds dropout after all but last recurrent layer", UserWarning),
+)
+
+
+@contextlib.contextmanager
+def quiet_upstream_model_load() -> Iterator[None]:
+    """Silence the known upstream warnings raised while the model builds.
+
+    Scoped to the load and installed nowhere else: a process-wide
+    ``filterwarnings`` call would change what the rest of the program — and
+    the test suite — is able to hear.
+    """
+    with warnings.catch_warnings():
+        for subject, category in _UPSTREAM_LOAD_WARNINGS:
+            warnings.filterwarnings("ignore", message=re.escape(subject), category=category)
+        yield
+
 
 _MISSING_PACKAGE = "the 'kokoro' package is not installed; install ai-tts with the [kokoro] extra"
 
@@ -219,11 +249,12 @@ class KokoroEngine:
                 from kokoro import KModel  # noqa: PLC0415 - import on first use
             except ImportError as exc:  # pragma: no cover - install-time problem
                 raise SynthesisError(_MISSING_PACKAGE) from exc
-            self._model = KModel(
-                repo_id=self._assets.repo_id,
-                config=self._assets.path(_CONFIG_FILE),
-                model=self._assets.path(_WEIGHTS_FILE),
-            )
+            with quiet_upstream_model_load():
+                self._model = KModel(
+                    repo_id=self._assets.repo_id,
+                    config=self._assets.path(_CONFIG_FILE),
+                    model=self._assets.path(_WEIGHTS_FILE),
+                )
         return self._model
 
     def _pipeline(self, voice: str) -> Any:  # noqa: ANN401 - kokoro ships no type stubs
@@ -235,11 +266,12 @@ class KokoroEngine:
                     from kokoro import KPipeline  # noqa: PLC0415 - import on first use
                 except ImportError as exc:  # pragma: no cover - install-time problem
                     raise SynthesisError(_MISSING_PACKAGE) from exc
-                pipeline = KPipeline(
-                    lang_code=lang_code,
-                    repo_id=self._assets.repo_id,
-                    model=self._shared_model(),
-                )
+                with quiet_upstream_model_load():
+                    pipeline = KPipeline(
+                        lang_code=lang_code,
+                        repo_id=self._assets.repo_id,
+                        model=self._shared_model(),
+                    )
                 self._pipelines[lang_code] = pipeline
         return pipeline
 
