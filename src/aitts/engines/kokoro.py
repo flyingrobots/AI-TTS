@@ -339,11 +339,21 @@ class KokoroEngine:
             except ImportError as exc:  # pragma: no cover - install-time problem
                 raise SynthesisError(_MISSING_PACKAGE) from exc
             with quiet_upstream_model_load():
+                # .eval() is not optional and is not implied by anything else
+                # here. A torch module defaults to training mode, where dropout
+                # randomly zeroes activations; upstream's pipeline calls eval()
+                # when it builds its own model, and this adapter builds the
+                # model itself so that voice packs resolve from the local cache
+                # rather than through the model host on every load. Without
+                # this line nine dropout layers in the pitch and duration
+                # predictor stay live and perturb prosody on every clip.
+                # The @torch.no_grad() upstream does not cover it: gradients
+                # and module mode are different things.
                 self._model = KModel(
                     repo_id=self._assets.repo_id,
                     config=self._assets.path(_CONFIG_FILE),
                     model=self._assets.path(_WEIGHTS_FILE),
-                )
+                ).eval()
         return self._model
 
     def _pipeline(self, voice: str) -> Any:  # noqa: ANN401 - kokoro ships no type stubs

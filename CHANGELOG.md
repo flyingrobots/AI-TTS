@@ -244,6 +244,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolution through the same path and needed the extra to pass. And the app
   bundle needs a newer Xcode than a runner selects by default, which the
   workflow now pins. Each is now pinned by a test rather than by memory.
+- **The model was speaking in training mode.** A PyTorch module defaults to
+  training mode, where dropout randomly zeroes activations. Upstream's pipeline
+  calls `.eval()` when it builds its own model, and this adapter builds the
+  model itself so voice packs resolve from the local cache instead of through
+  the model host on every load — which bypassed the `.eval()` too. Nine dropout
+  layers in the pitch and duration predictor were live on every clip, randomly
+  perturbing prosody. Fixed, and pinned by a test that inspects the module tree
+  rather than trusting the construction. The `@torch.no_grad()` upstream does
+  not cover this: gradients and module mode are different things.
 - A rejected settings update no longer applies half of itself. Validation now
   completes for every key before anything is written, so a request that names
   two changes and is refused leaves the client showing an error and its state
