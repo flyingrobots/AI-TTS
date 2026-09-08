@@ -15,6 +15,11 @@ way in.** It follows one utterance from an agent's `say` to the state change
 that ends it, naming the module at each step. `architecture.md` says what the
 parts are and why; that one says what actually runs.
 
+**[`ROADMAP.md`](ROADMAP.md) says what order the work goes in and why.** If
+you want something substantial to pick up, start there — it marks which issues
+unblock the most and which are deliberately gated behind others. Three issues
+are labelled *good first issue*.
+
 **Check [the open issues](https://github.com/flyingrobots/AI-TTS/issues)
 before starting on a defect.** Several known ones are open on purpose, with
 the reasoning written into the issue. Disagreeing with that reasoning is

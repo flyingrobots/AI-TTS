@@ -585,7 +585,8 @@ are tracked in
 
 Known defects and deliberately deferred work are tracked as
 [GitHub Issues](https://github.com/flyingrobots/AI-TTS/issues) rather than
-left implicit; several are open on purpose and say why in the issue. Where this daemon
+left implicit; several are open on purpose and say why in the issue. [`ROADMAP.md`](ROADMAP.md) sequences
+that work by the dependencies recorded on the issues themselves. Where this daemon
 departs from general-purpose service practice — it is stateful, single
 instance, unauthenticated, and cannot run in a container — those are decisions
 rather than gaps, and each is recorded with its reasoning in
