@@ -184,6 +184,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Simplified the internal speech store by removing an unused queue lookup and
+  making its pending-queue helper private. Playback and queue controls are
+  unchanged.
+
 - The Python suite's latency budget is now per class rather than one number
   for the whole suite, charged on measured test time including fixtures, and
   each run prints the count, charged total and p95 call latency per class. The
@@ -221,6 +225,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decisions, or open questions changed.
 
 ### Fixed
+
+- The internal Store API check now discovers only Store methods, includes
+  async definitions and callback references, and ignores comments and strings.
+  Repository scans are charged to the medium test tier; duplicate assertions
+  were consolidated and the guard has controlled falsification cases.
 
 - The sink's failure path is now tested rather than marked unreachable. A
   device that cannot be opened, a device that fails part-way through a clip,

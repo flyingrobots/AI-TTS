@@ -169,15 +169,6 @@ def test_playback_queue_holds_ready_playing_paused(store: Store) -> None:
     assert c.id in [u.id for u in store.input_queue()]
 
 
-def test_head_of_plan_is_earliest_nonterminal(store: Store) -> None:
-    a = submit(store, "a")
-    submit(store, "b")
-    store.transition(a.id, State.CANCELLED)
-    head = store.head_of_plan()
-    assert head is not None
-    assert head.text == "b"
-
-
 def test_claim_for_synthesis_is_fifo_and_exclusive(store: Store) -> None:
     a = submit(store, "a")
     b = submit(store, "b")
@@ -231,9 +222,8 @@ def test_move_to_head_reorders_plan(store: Store) -> None:
     a = submit(store, "a")
     b = submit(store, "b")
     store.move_to_head(b.id)
-    head = store.head_of_plan()
-    assert head is not None
-    assert head.id == b.id
+
+    # Plan order is what reordering means, and input_queue reads it directly.
     assert [u.id for u in store.input_queue()] == [b.id, a.id]
 
 
