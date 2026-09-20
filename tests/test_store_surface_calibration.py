@@ -82,3 +82,13 @@ def test_empty_discovery_is_rejected(source_tree: Path) -> None:
 
     with pytest.raises(AssertionError, match="Store should define public methods"):
         surface.test_no_public_store_method_is_without_a_caller()
+
+
+def test_single_gate_identifies_internal_only_methods(source_tree: Path) -> None:
+    (source_tree / "store.py").write_text(
+        "class Store:\n    def send(self): pass\n    def _work(self): self.send()\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssertionError, match=r"internal-only:.*send"):
+        surface.test_no_public_store_method_is_without_a_caller()

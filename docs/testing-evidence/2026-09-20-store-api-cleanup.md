@@ -16,9 +16,10 @@ when only the store calls it. Source inspection confirms `rewind --to` uses
 `move_to_head`, not the removed method. The updated queue-order assertion
 continues to exercise `move_to_head` through `input_queue`.
 
-The two existing tests in `test_store_surface.py` are explicitly medium and
-name the source-consumer contract as their oracle. They inspect production
-call sites by method name. This is a heuristic, not a semantic call graph:
+The medium repository gate in `test_store_surface.py` names the source-consumer
+contract as its oracle. It inspects production references by method name.
+The audit consolidated the original two assertions into one gate with separate
+unused and internal-only diagnostics; see `2026-09-20-store-audit.md`. This is a heuristic, not a semantic call graph:
 name collisions can hide an unused Store method. These checks do not prove
 behavioral equivalence. Retire them if Store gains an external API or a
 stronger semantic analysis replaces this internal-only convention.

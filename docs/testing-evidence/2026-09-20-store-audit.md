@@ -67,3 +67,21 @@ The controlled source is `class Store: pass`. With the real gate this raises
 Temporarily deleting only that assertion makes the retained calibration fail
 with `DID NOT RAISE AssertionError`. Restoring the assertion makes it pass.
 No production code changed for this evidence correction.
+
+## 5. Consolidate the subsumed assertion
+
+```text
+=== [5] [P1] ===================================
+Source: PR
+File: tests/test_store_surface.py
+Lines: L79-L95 at de5121c
+Issue: The internal-only test duplicated a subset of the orphan assertion.
+```
+
+The new regression enters the surviving gate with an internal-only public
+method. Before correction it failed because the gate did not identify that
+classification. The corrected gate reports unused and internal-only methods
+in one diagnostic. The second test was deleted under the subsumption criterion:
+every name it rejected was already rejected by the surviving gate. The
+calibration verifies the internal-only diagnostic without a second repository
+scan asserting the same condition.
