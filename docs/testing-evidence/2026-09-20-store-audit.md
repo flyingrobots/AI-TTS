@@ -20,3 +20,18 @@ pytest collection against the actual module and medium-tier selector.
 Red before correction: exit 5, zero selected tests and two deselected.
 Green after changing the module marker: exit 0. This is a medium subprocess
 test, not a check that a particular source string exists.
+
+## 2. Restrict discovery to Store
+
+```text
+=== [2] [P1] ===================================
+Source: PR
+File: tests/test_store_surface.py
+Lines: L43-L47
+Issue: Unrelated definitions below Store were reported as Store methods.
+```
+
+Regression: two controlled source cases append another class or a function
+with a nested definition. Both failed before correction, reporting
+`{'send', 'unrelated'}` instead of `{'send'}`. Parsing the actual top-level
+Store class and selecting its direct function definitions makes both pass.

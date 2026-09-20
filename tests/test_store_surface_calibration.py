@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests import test_store_surface as surface
+
 pytestmark = [
     pytest.mark.medium,
     pytest.mark.oracle(
@@ -41,3 +43,28 @@ def test_repository_gate_is_selected_in_the_medium_tier() -> None:
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.fixture
+def source_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    source = tmp_path / "src"
+    source.mkdir()
+    store = source / "store.py"
+    store.write_text("class Store:\n    def send(self): pass\n", encoding="utf-8")
+    monkeypatch.setattr(surface, "REPOSITORY", tmp_path)
+    monkeypatch.setattr(surface, "STORE", store)
+    return source
+
+
+@pytest.mark.parametrize(
+    "unrelated",
+    [
+        "\nclass Helper:\n    def unrelated(self): pass\n",
+        "\ndef factory():\n    def unrelated(): pass\n",
+    ],
+)
+def test_discovery_excludes_definitions_outside_store(source_tree: Path, unrelated: str) -> None:
+    store = source_tree / "store.py"
+    store.write_text(store.read_text(encoding="utf-8") + unrelated, encoding="utf-8")
+
+    assert surface.public_methods() == {"send"}

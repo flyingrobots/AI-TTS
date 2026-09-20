@@ -22,6 +22,7 @@ invent one.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -43,8 +44,15 @@ KEPT_FOR_EXTERNAL_CALLERS: frozenset[str] = frozenset()
 def public_methods() -> set[str]:
     """Every public method defined on ``Store``."""
     source = STORE.read_text(encoding="utf-8")
-    body = source[source.index("class Store") :]
-    return set(re.findall(r"^    def ([a-z][a-z_0-9]*)", body, re.MULTILINE))
+    module = ast.parse(source)
+    store = next(
+        node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "Store"
+    )
+    return {
+        node.name
+        for node in store.body
+        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
+    }
 
 
 def callers_outside_the_store() -> dict[str, set[str]]:
