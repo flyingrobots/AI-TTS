@@ -75,3 +75,10 @@ def test_bound_method_references_count_as_uses(source_tree: Path, reference: str
     (source_tree / "client.py").write_text(reference, encoding="utf-8")
 
     surface.test_no_public_store_method_is_without_a_caller()
+
+
+def test_empty_discovery_is_rejected(source_tree: Path) -> None:
+    (source_tree / "store.py").write_text("class Store:\n    pass\n", encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="Store should define public methods"):
+        surface.test_no_public_store_method_is_without_a_caller()

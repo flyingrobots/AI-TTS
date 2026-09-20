@@ -51,3 +51,19 @@ Both failed red with orphan `send`. Counting attribute-name references rather
 than requiring a directly following call makes both pass. The gate's module
 comment now states its name-collision limitation and the explicit exception
 mechanism for dynamic callers instead of claiming false positives impossible.
+
+## 4. Non-vacuity evidence
+
+```text
+=== [4] [P1] ===================================
+Source: PR
+File: tests/test_store_surface.py
+Lines: L68 at de5121c
+Issue: The nonempty-discovery assertion had no falsification receipt.
+```
+
+The controlled source is `class Store: pass`. With the real gate this raises
+`Store should define public methods`, proving the guard rejects empty discovery.
+Temporarily deleting only that assertion makes the retained calibration fail
+with `DID NOT RAISE AssertionError`. Restoring the assertion makes it pass.
+No production code changed for this evidence correction.
