@@ -54,6 +54,15 @@ where their complete responses include the deliberately corrected default.
   evidence of agent compliance. Actual future agent choices remain a manual
   acceptance check.
 
+## Isolated PR branch validation
+
+The fix was cherry-picked onto `origin/main` at `7e78913` in
+`/Users/james/git/ai-tts-microphone-resume`, excluding the unrelated local
+store refactor `e61e6d8`. Its own frozen development environment passed all
+558 Python tests in 13.67 seconds. The test-count difference is due to the
+excluded store refactor. Ruff lint and formatting and mypy were also run on
+this checkout. No Swift source changed.
+
 ## Installed acceptance
 
 The running checkout-backed daemon's policy was set to `when_idle` and its
