@@ -226,6 +226,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The internal Store API check now discovers only Store methods, includes
+  async definitions and callback references, and ignores comments and strings.
+  Repository scans are charged to the medium test tier; duplicate assertions
+  were consolidated and the guard has controlled falsification cases.
+
 - The sink's failure path is now tested rather than marked unreachable. A
   device that cannot be opened, a device that fails part-way through a clip,
   and cached audio evicted before the sink opened it all end that clip with an

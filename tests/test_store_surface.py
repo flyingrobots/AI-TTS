@@ -8,8 +8,8 @@ can see all of it. A public method with no caller is worse than unused code:
 it is a commitment nobody asked for, and it inflates the port surfaces that
 each service is being narrowed down to (see the ISP work).
 
-One gate classifies two kinds of unused public API. A method with no caller anywhere in ``src`` is
-dead. A method whose only caller is the store itself is an implementation
+One gate classifies two kinds of unused public API. A method with no caller
+anywhere in ``src`` is dead. A method whose only caller is the store itself is an implementation
 detail that was left public, which is the same problem wearing a different
 hat.
 

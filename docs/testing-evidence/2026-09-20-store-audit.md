@@ -117,3 +117,29 @@ incorrectly accepted the method. Caller discovery now uses Python attribute
 read nodes. Comments and string constants cannot satisfy it; direct calls,
 saved methods, and callback arguments remain recognized. Internal-only
 diagnostics use the same syntax-based distinction instead of matching prose.
+
+## Commit ledger and final validation
+
+| Item | Severity | Commit | Outcome |
+| --- | --- | --- | --- |
+| 1: resource class | P1 | ab003b2 | Medium-tier selection calibrated; thread resolved. |
+| 2: class scope | P1 | 8f6123d | Unrelated class and nested-function cases rejected; thread resolved. |
+| 3: indirect use | P1 | c302313 | Callback and saved-method cases accepted; thread resolved. |
+| 4: non-vacuity | P1 | 1b93ea0 | Empty discovery rejected; assertion-deletion mutation killed; thread resolved. |
+| 5: duplication | P1 | 1c7594f | One repository assertion with classified diagnostics; thread resolved. |
+| 6: async methods, Self S2 | P2 | 1dc2780 | Unused async method rejected. |
+| 7: prose references, Self S1 | P2 | 8df1238 | Comment and string pseudo-callers rejected. |
+
+The complete local Swift suite passed under the required 60-second process
+deadline: 97 tests, zero failures. Ruff lint and formatting and mypy passed
+for the audited code. Full Python validation also runs in the mandatory
+pre-push hook; its result is reported in the PR activity summary.
+
+### Hosted CI observation, Self S3
+
+The earlier published `de5121c` Swift job failed with signal 11 at
+`WireProtocolTests.testCaptionPreferenceFollowsDaemonAndPushesChangesWithoutChangingWatchdog`.
+Job: https://github.com/flyingrobots/AI-TTS/actions/runs/35527334186/job/106121677110
+No Swift files change in this PR. This failure was posted separately with
+local counterevidence; the root cause is not established. The new head must
+be judged on its own CI receipt. No failed-job rerun was requested.

@@ -50,5 +50,7 @@ Checkout: `/Users/james/git/ai-tts-store-cleanup`, branch
 `refactor/store-api-cleanup`, its own `.venv`, CPython 3.13.11, dependencies
 installed with `uv sync --frozen --dev`. Ruff lint and format checks and mypy
 passed. The mandatory pre-push hook passed all 557 Python tests in
-13.21 seconds and the Swift build. No Swift source changed. This branch excludes the separate
-microphone-resume fix in PR #23.
+13.21 seconds and the Swift build. No Swift source changed. This branch
+excludes the separate microphone-resume fix in PR #23. These are the original
+publication receipts; subsequent audit corrections are recorded in
+`2026-09-20-store-audit.md`.
