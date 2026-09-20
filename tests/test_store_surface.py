@@ -13,11 +13,10 @@ dead. A method whose only caller is the store itself is an implementation
 detail that was left public, which is the same problem wearing a different
 hat.
 
-Note the direction of the imprecision: the scan looks for ``.name(`` across
-the source, so a method sharing a name with a dict or file method — ``get``,
-``close`` — will read as used whether or not the store's own version is. That
-weakens the test rather than breaking it: it can miss a dead method, never
-invent one.
+Method-name references include saved bound methods and callback arguments.
+This is not type resolution: another object's same-named method can hide an
+unused Store method. Dynamic attribute lookup is outside the scan; justified
+exceptions belong in KEPT_FOR_EXTERNAL_CALLERS.
 """
 
 from __future__ import annotations
@@ -36,8 +35,8 @@ pytestmark = [
 REPOSITORY = Path(__file__).resolve().parents[1]
 STORE = REPOSITORY / "src" / "aitts" / "store.py"
 
-# Public methods kept for callers outside this repository's own source. Empty
-# on purpose: the store is internal, so anything here needs a stated reason.
+# Public methods kept for external or dynamic callers the scan cannot see.
+# Every exception requires a concrete call-site explanation.
 KEPT_FOR_EXTERNAL_CALLERS: frozenset[str] = frozenset()
 
 
@@ -64,7 +63,7 @@ def callers_outside_the_store() -> dict[str, set[str]]:
             continue
         text = path.read_text(encoding="utf-8")
         for name in names:
-            if re.search(rf"\.{re.escape(name)}\s*\(", text):
+            if re.search(rf"\.{re.escape(name)}\b", text):
                 found.setdefault(name, set()).add(str(path.relative_to(REPOSITORY)))
     return found
 

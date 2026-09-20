@@ -35,3 +35,19 @@ Regression: two controlled source cases append another class or a function
 with a nested definition. Both failed before correction, reporting
 `{'send', 'unrelated'}` instead of `{'send'}`. Parsing the actual top-level
 Store class and selecting its direct function definitions makes both pass.
+
+## 3. Indirect callers
+
+```text
+=== [3] [P1] ===================================
+Source: PR
+File: tests/test_store_surface.py
+Lines: L50-L61 at de5121c
+Issue: Bound methods passed as callbacks were reported as unused.
+```
+
+Two end-to-end gate regressions use a callback argument or saved bound method.
+Both failed red with orphan `send`. Counting attribute-name references rather
+than requiring a directly following call makes both pass. The gate's module
+comment now states its name-collision limitation and the explicit exception
+mechanism for dynamic callers instead of claiming false positives impossible.

@@ -68,3 +68,10 @@ def test_discovery_excludes_definitions_outside_store(source_tree: Path, unrelat
     store.write_text(store.read_text(encoding="utf-8") + unrelated, encoding="utf-8")
 
     assert surface.public_methods() == {"send"}
+
+
+@pytest.mark.parametrize("reference", ["register(store.send)", "callback = store.send\ncallback()"])
+def test_bound_method_references_count_as_uses(source_tree: Path, reference: str) -> None:
+    (source_tree / "client.py").write_text(reference, encoding="utf-8")
+
+    surface.test_no_public_store_method_is_without_a_caller()
