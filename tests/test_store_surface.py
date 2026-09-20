@@ -50,7 +50,8 @@ def public_methods() -> set[str]:
     return {
         node.name
         for node in store.body
-        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and not node.name.startswith("_")
     }
 
 

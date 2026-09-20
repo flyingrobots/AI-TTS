@@ -92,3 +92,14 @@ def test_single_gate_identifies_internal_only_methods(source_tree: Path) -> None
 
     with pytest.raises(AssertionError, match=r"internal-only:.*send"):
         surface.test_no_public_store_method_is_without_a_caller()
+
+
+def test_async_methods_cannot_escape_the_gate(source_tree: Path) -> None:
+    (source_tree / "store.py").write_text(
+        "class Store:\n    def send(self): pass\n    async def fetch(self): pass\n",
+        encoding="utf-8",
+    )
+    (source_tree / "client.py").write_text("store.send()", encoding="utf-8")
+
+    with pytest.raises(AssertionError, match=r"unused:.*fetch"):
+        surface.test_no_public_store_method_is_without_a_caller()

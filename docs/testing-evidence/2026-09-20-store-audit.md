@@ -85,3 +85,18 @@ in one diagnostic. The second test was deleted under the subsumption criterion:
 every name it rejected was already rejected by the surviving gate. The
 calibration verifies the internal-only diagnostic without a second repository
 scan asserting the same condition.
+
+## 6. Async method discovery
+
+```text
+=== [6] [P2] ===================================
+Source: Self S2
+File: tests/test_store_surface.py
+Lines: L43-L47 at de5121c
+Issue: Async public methods were omitted from discovery.
+```
+
+Regression: a controlled Store has a used synchronous method and an unused
+async method. Before correction, the gate accepted it and the regression
+failed `DID NOT RAISE AssertionError`. Including `AsyncFunctionDef` in the
+Store class discovery makes the gate reject `fetch` as unused.
