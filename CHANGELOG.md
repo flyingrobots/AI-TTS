@@ -184,6 +184,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Simplified the internal speech store by removing an unused queue lookup and
+  making its pending-queue helper private. Playback and queue controls are
+  unchanged.
+
 - The Python suite's latency budget is now per class rather than one number
   for the whole suite, charged on measured test time including fixtures, and
   each run prints the count, charged total and p95 call latency per class. The
