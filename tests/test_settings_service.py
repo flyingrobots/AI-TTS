@@ -89,7 +89,7 @@ def test_defaults_are_reported_before_anything_is_written(
     assert values["captions_enabled"] is False
     assert values["captions_enabled_configured"] is False
     assert values["input_interrupt_enabled"] is True
-    assert values["input_interrupt_resume"] == "manual"
+    assert values["input_interrupt_resume"] == "when_idle"
 
 
 def test_an_unknown_setting_is_refused_rather_than_ignored(
@@ -288,7 +288,7 @@ def test_an_unoffered_resume_policy_is_refused(settings: SettingsService, policy
         settings.apply({"input_interrupt_resume": policy})
 
     assert "manual" in str(raised.value)
-    assert settings.input_interrupt_resume() == "manual"
+    assert settings.input_interrupt_resume() == "when_idle"
 
 
 # -- the parsers, at their edges ------------------------------------------
