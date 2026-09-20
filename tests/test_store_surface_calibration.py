@@ -103,3 +103,11 @@ def test_async_methods_cannot_escape_the_gate(source_tree: Path) -> None:
 
     with pytest.raises(AssertionError, match=r"unused:.*fetch"):
         surface.test_no_public_store_method_is_without_a_caller()
+
+
+@pytest.mark.parametrize("prose", ["# store.send()", '"store.send()"'])
+def test_comments_and_strings_do_not_count_as_callers(source_tree: Path, prose: str) -> None:
+    (source_tree / "client.py").write_text(prose, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match=r"unused:.*send"):
+        surface.test_no_public_store_method_is_without_a_caller()

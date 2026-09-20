@@ -22,7 +22,6 @@ exceptions belong in KEPT_FOR_EXTERNAL_CALLERS.
 from __future__ import annotations
 
 import ast
-import re
 from pathlib import Path
 
 import pytest
@@ -63,9 +62,13 @@ def callers_outside_the_store() -> dict[str, set[str]]:
         if path == STORE:
             continue
         text = path.read_text(encoding="utf-8")
-        for name in names:
-            if re.search(rf"\.{re.escape(name)}\b", text):
-                found.setdefault(name, set()).add(str(path.relative_to(REPOSITORY)))
+        references = {
+            node.attr
+            for node in ast.walk(ast.parse(text))
+            if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load)
+        }
+        for name in names & references:
+            found.setdefault(name, set()).add(str(path.relative_to(REPOSITORY)))
     return found
 
 
@@ -77,9 +80,15 @@ def test_no_public_store_method_is_without_a_caller() -> None:
     orphans = sorted(methods - set(callers) - KEPT_FOR_EXTERNAL_CALLERS)
 
     source = STORE.read_text(encoding="utf-8")
-    internal_only = {
-        name for name in orphans if re.search(rf"self\.{re.escape(name)}\s*\(", source)
+    internal_references = {
+        node.attr
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.ctx, ast.Load)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
     }
+    internal_only = set(orphans) & internal_references
     unused = sorted(set(orphans) - internal_only)
     assert orphans == [], (
         f"public Store methods without an external caller; unused: {unused}; "

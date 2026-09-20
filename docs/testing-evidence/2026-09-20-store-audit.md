@@ -100,3 +100,20 @@ Regression: a controlled Store has a used synchronous method and an unused
 async method. Before correction, the gate accepted it and the regression
 failed `DID NOT RAISE AssertionError`. Including `AsyncFunctionDef` in the
 Store class discovery makes the gate reject `fetch` as unused.
+
+## 7. Ignore prose masquerading as callers
+
+```text
+=== [7] [P2] ===================================
+Source: Self S1
+File: tests/test_store_surface.py
+Lines: L57-L60 at de5121c
+Issue: Comments and strings could satisfy the caller requirement.
+```
+
+Both controlled cases (a comment and a string literal containing
+`store.send()`) failed red with `DID NOT RAISE AssertionError`: the gate
+incorrectly accepted the method. Caller discovery now uses Python attribute
+read nodes. Comments and string constants cannot satisfy it; direct calls,
+saved methods, and callback arguments remain recognized. Internal-only
+diagnostics use the same syntax-based distinction instead of matching prose.
