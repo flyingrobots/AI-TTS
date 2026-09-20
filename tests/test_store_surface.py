@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 pytestmark = [
-    pytest.mark.small,
+    pytest.mark.medium,
     pytest.mark.oracle("the store's public surface as its consumers actually use it"),
 ]
 

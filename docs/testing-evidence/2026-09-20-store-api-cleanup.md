@@ -16,7 +16,7 @@ when only the store calls it. Source inspection confirms `rewind --to` uses
 `move_to_head`, not the removed method. The updated queue-order assertion
 continues to exercise `move_to_head` through `input_queue`.
 
-The two existing tests in `test_store_surface.py` are explicitly small and
+The two existing tests in `test_store_surface.py` are explicitly medium and
 name the source-consumer contract as their oracle. They inspect production
 call sites by method name. This is a heuristic, not a semantic call graph:
 name collisions can hide an unused Store method. These checks do not prove
