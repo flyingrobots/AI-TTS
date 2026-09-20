@@ -319,7 +319,10 @@ class Daemon:
             "playback_held": held,
             "submission_disposition": ("spooled_until_resume" if held else "queued_for_playback"),
             "submission_guidance": (
-                "Speak freely: playback is paused, but speech is accepted and spooled until Resume."
+                "Speak freely: enqueue requested speech now, even while playback is paused. "
+                "Speech is accepted and saved for playback when the hold is released. "
+                "A microphone hold resumes automatically when input is idle if configured; "
+                "a manual pause waits for the listener. Report queued, not played, until Played."
                 if held
                 else "Speak freely: speech is accepted into the playback queue."
             ),
