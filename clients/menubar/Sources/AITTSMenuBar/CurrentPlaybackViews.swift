@@ -68,9 +68,7 @@ struct CurrentPlaybackCard: View {
                 HStack(spacing: 14) {
                     ForEach(TransportAction.allCases.filter { !$0.isPrimary }, id: \.self) {
                         action in
-                        if !action.needsChunks || current.segmentCount > 1 {
-                            transportButton(action, current: current)
-                        }
+                        transportButton(action, current: current)
                     }
                     Spacer()
                     Button {
@@ -132,7 +130,7 @@ struct CurrentPlaybackCard: View {
         }
         .disabled(isDisabled(action, current: current))
         .keyboardShortcut(action.shortcut, modifiers: [])
-        .help(helpText(action))
+        .help(helpText(action, current: current))
         .accessibilityLabel(action.label)
     }
 
@@ -143,15 +141,18 @@ struct CurrentPlaybackCard: View {
         case .restart:
             return isPaused
         case .previousChunk:
-            return isPaused || (current.activeSegment?.index ?? 0) == 0
+            return isPaused || current.segmentCount <= 1 || (current.activeSegment?.index ?? 0) == 0
         case .nextChunk:
-            return isPaused || isOnLastChunk(current)
+            return isPaused || current.segmentCount <= 1 || isOnLastChunk(current)
         }
     }
 
-    private func helpText(_ action: TransportAction) -> String {
+    private func helpText(_ action: TransportAction, current: Utterance) -> String {
         if isPaused, action == .restart || action.needsChunks {
             return "Resume playback before using \(action.label.lowercased())"
+        }
+        if action.needsChunks && current.segmentCount <= 1 {
+            return "\(action.label) (clip has only 1 chunk)"
         }
         return action.label
     }
