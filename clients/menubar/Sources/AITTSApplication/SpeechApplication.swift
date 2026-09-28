@@ -198,7 +198,7 @@ public struct EnqueueSelection: SelectionEnqueueing, Sendable {
         try speech.submit(
             SpeechSubmission(
                 text: text,
-                contentFormat: .plainText,
+                contentFormat: .markdown,
                 voice: nil,
                 speed: nil,
                 sensitivity: .confidential,

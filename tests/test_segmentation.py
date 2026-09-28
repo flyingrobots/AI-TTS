@@ -138,3 +138,11 @@ This body should be heard.
     assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (
         "Spoken title.\n\nThis body should be heard.",
     )
+
+
+def test_markdown_speech_plan_strips_loose_formatting_asterisks() -> None:
+    text = "Here is * bold * text and ** spaced ** emphasis."
+
+    assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (
+        "Here is bold text and spaced emphasis.",
+    )

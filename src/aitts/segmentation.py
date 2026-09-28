@@ -26,6 +26,12 @@ _CODE_NODES = frozenset({"code_block", "fence"})
 _TABLE_CELL_NODES = frozenset({"th", "td"})
 _TERMINAL_PUNCTUATION = (".", "!", "?", ":", ";")
 _TASK_MARKER = re.compile(r"^\[[ xX]\][ \t]+")
+_FORMATTING_STARS = re.compile(r"(?<!\S)\*+\s*([^*\n]+?)\s*\*+(?!\S)")
+
+
+def _clean_spoken_text(text: str) -> str:
+    """Strip loose formatting asterisks left unparsed by Markdown AST rules."""
+    return _FORMATTING_STARS.sub(r"\1", text)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +67,7 @@ def prepare_speech_segments(
     body = _without_front_matter(text)
     tree = SyntaxTreeNode(MarkdownIt("gfm-like", {"html": False, "linkify": False}).parse(body))
     if _is_plain_text_tree(tree):
-        return segment_text(body)
+        return segment_text(_clean_spoken_text(body))
 
     sections: list[list[str]] = []
     current: list[str] = []
@@ -162,7 +168,7 @@ def _inline_text(node: SyntaxTreeNode) -> str:
             pieces.append(_inline_text(child))
         elif child.type != "html_inline":
             pieces.append(child.content)
-    return re.sub(r"\s+", " ", "".join(pieces)).strip()
+    return _clean_spoken_text(re.sub(r"\s+", " ", "".join(pieces)).strip())
 
 
 def _with_terminal_punctuation(text: str) -> str:
