@@ -95,6 +95,9 @@ class VoiceRegistry:
             raise ApiError(BAD_REQUEST, msg)
         assignment = self._store.voice_assignment(source) if source is not None else None
         assignment = self._reconcile(assignment, catalog)
+        other_taken = self._store.claimed_voices() - (
+            {assignment.voice} if assignment is not None else set()
+        )
         decision = decide_speaking_voice(
             source=source,
             requested=requested,
@@ -102,7 +105,7 @@ class VoiceRegistry:
             catalog=catalog,
             pinned=assignment.voice if assignment is not None and assignment.pinned else None,
             claimed=assignment.voice if assignment is not None else None,
-            taken=self._store.claimed_voices(),
+            taken=other_taken,
         )
         if decision.claim and source is not None:
             claimed = self._store.claim_voice(source, decision.voice)

@@ -887,10 +887,11 @@ class Store:
         return frozenset(row["voice"] for row in rows)
 
     def claim_voice(self, source: str, voice: str) -> VoiceAssignment:
-        """Record an automatic claim, leaving any existing assignment alone."""
+        """Record an automatic claim, updating unpinned existing assignments."""
         self._db.execute(
             "INSERT INTO voice_assignments (source, voice, pinned, assigned_at) "
-            "VALUES (?, ?, 0, ?) ON CONFLICT(source) DO NOTHING",
+            "VALUES (?, ?, 0, ?) ON CONFLICT(source) DO UPDATE SET "
+            "voice = excluded.voice, assigned_at = excluded.assigned_at WHERE pinned = 0",
             (source, voice, time.time()),
         )
         self._commit_or_rollback()
