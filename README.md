@@ -181,6 +181,10 @@ Supported: `--claude`, `--codex`, `--gemini`, `--all`. An agent whose CLI is
 not installed is skipped rather than failing the run, and `--dry-run` prints
 each host's own `mcp add` command so an unsupported agent can be wired up by
 hand.
+A failed registration does not trigger automatic removal of an existing entry.
+Other selected agents are still attempted, but any registration failure makes
+the command exit nonzero. If a host refuses to update an existing entry, inspect
+and reconcile it using that host's CLI before rerunning the installer.
 
 ### Doing it by hand
 

@@ -26,6 +26,7 @@ WANT_CLAUDE=0
 WANT_CODEX=0
 WANT_GEMINI=0
 SELECTED=0
+STATUS=0
 
 usage() {
     cat <<'USAGE'
@@ -184,20 +185,14 @@ install_mcp_for() {
         printf '  %-7s mcp    -> skipped, no %s on PATH\n' "$agent" "$agent"
         return 0
     fi
-    # Add first. Re-registering after an upgrade moved the binary is the normal
-    # case, and only then is the existing entry removed — removing first would
-    # leave the caller with no registration at all if the add went on to fail.
+    # Let the host perform its native add/update. A refusal is not permission
+    # to delete a working registration: the next add may fail for the same reason.
     if run_mcp_add "$agent" "$server" >/dev/null 2>&1; then
         printf '  %-7s mcp    -> registered %s\n' "$agent" "$SERVER_NAME"
         return 0
     fi
-    "$agent" mcp remove "$SERVER_NAME" >/dev/null 2>&1 || true
-    if run_mcp_add "$agent" "$server" >/dev/null 2>&1; then
-        printf '  %-7s mcp    -> re-registered %s\n' "$agent" "$SERVER_NAME"
-        return 0
-    fi
-    printf '  %-7s mcp    -> FAILED; run by hand: %s\n' "$agent" "$command_line"
-    return 0
+    printf '  %-7s mcp    -> FAILED; existing registration was not removed; inspect with the host CLI: %s\n' "$agent" "$command_line" >&2
+    return 1
 }
 
 # -- arguments ------------------------------------------------------------
@@ -278,10 +273,12 @@ for agent in claude codex gemini; do
     if [ "$SUBCOMMAND" = "skill" ]; then
         install_skill_for "$agent"
     else
-        install_mcp_for "$agent"
+        install_mcp_for "$agent" || STATUS=1
     fi
 done
 
 if [ "$DRY_RUN" -eq 0 ] && [ "$SUBCOMMAND" = "skill" ]; then
     printf 'Start a new agent session; skills are discovered at startup.\n'
 fi
+
+exit "$STATUS"

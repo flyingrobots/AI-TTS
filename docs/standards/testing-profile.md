@@ -615,3 +615,21 @@ the build boundary for these small publication tests; real signed-bundle
 validation is separate. These tests establish namespace publication and
 pre-publication failure preservation, not an exhaustive power-loss durability
 campaign. Retire only with a stronger calibrated installation contract.
+
+
+## Installation audit: failed MCP registration
+
+Change-kind: bug fix. A failed native MCP add caused the installer to remove
+the existing entry and retry; another failure still returned success. Three
+medium CLI-boundary cases own Claude/Codex/Gemini doubles and their registration
+files. All observed exit zero and a deleted incumbent on unfixed code. The
+installer now leaves removal to the user/native host, reports failure, and
+continues other selected agents before returning an aggregate nonzero status.
+
+A fourth case combines one refusing host with two successful hosts. Removing
+the aggregate-failure handling makes it exit before those registrations and
+fails the exact resulting registration projection; restoration passes. These
+checks never execute a real agent CLI or change user configuration. Native
+add/update behavior remains the host's responsibility; the installer no longer
+performs destructive recovery after an arbitrary refusal. Retire only with a
+stronger calibrated registration-preservation and exit-status contract.

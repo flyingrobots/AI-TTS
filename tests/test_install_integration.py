@@ -315,3 +315,63 @@ def test_the_rendered_mcp_command_survives_an_apostrophe(tmp_path: Path) -> None
     # Wrapping in single quotes without escaping embedded apostrophes makes the
     # printed command unpasteable.
     assert shell_words(command)[-1] == str(server)
+
+
+@pytest.mark.parametrize("agent", AGENTS)
+def test_failed_mcp_registration_preserves_incumbent_and_reports_failure(
+    tmp_path: Path, sandbox: dict[str, str], agent: str
+) -> None:
+    # Own the agent CLI and its registration; never invoke an installed agent.
+    incumbent = tmp_path / "registration"
+    incumbent.write_bytes(b"working registration")
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    host = commands / agent
+    host.write_text(
+        "#!/bin/sh\n"
+        'case "$2" in\n'
+        "  add) exit 9 ;;\n"
+        '  remove) /bin/rm -- "$AITTS_TEST_REGISTRATION"; exit 0 ;;\n'
+        "esac\n"
+        "exit 2\n"
+    )
+    host.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+    env["AITTS_TEST_REGISTRATION"] = str(incumbent)
+
+    result = run(env, "mcp", f"--{agent}")
+
+    assert {
+        "failed": result.returncode != 0,
+        "registration": incumbent.read_bytes() if incumbent.exists() else None,
+    } == {"failed": True, "registration": b"working registration"}
+
+
+def test_mcp_failure_still_attempts_other_selected_agents(
+    tmp_path: Path, sandbox: dict[str, str]
+) -> None:
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    registrations = tmp_path / "registrations"
+    registrations.mkdir()
+    for agent in AGENTS:
+        host = commands / agent
+        body = "#!/bin/sh\n"
+        if agent == "claude":
+            body += "exit 9\n"
+        else:
+            body += f'printf "%s" "$AITTS_MCP_BIN" > "$AITTS_TEST_REGISTRATIONS/{agent}"\n'
+        host.write_text(body)
+        host.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+    env["AITTS_TEST_REGISTRATIONS"] = str(registrations)
+
+    result = run(env, "mcp", "--all")
+
+    assert {
+        "failed": result.returncode != 0,
+        "registrations": {path.name: path.read_text() for path in registrations.iterdir()},
+    } == {
+        "failed": True,
+        "registrations": {"codex": env["AITTS_MCP_BIN"], "gemini": env["AITTS_MCP_BIN"]},
+    }
