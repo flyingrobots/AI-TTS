@@ -413,3 +413,20 @@ Recovery now propagates committed child failures to active parents before
 considering Ready promotion, using legal state transitions. The two medium
 Store-boundary regressions pass with the fix and retain the exact failure
 message as their oracle. This also repairs prefixes written by older versions.
+
+
+## Crash recovery audit: atomic document Skip
+
+Change-kind: bug fix. Strict local agy identified separate commits for active
+child Skip, sibling cancellation, and parent Skip. A medium playback-controller
+regression seeds a paused document, resumes through a fake sink, and crashes
+at the first Skip state commit (after the separate interruption-metadata write).
+On unfixed code, reopening recovers the parent Paused with a Ready next child.
+The new Store.skip_utterance boundary writes the active child and terminal
+parent together; the existing parent transition cancels remaining siblings in
+that same transaction. Both transport Skip and clearing suspended speech use
+this boundary. Observers run after commit. The regression now observes parent
+Skipped, active child Skipped, and remaining child Cancelled after reopening.
+Retire only if a stronger calibrated atomic transport contract supersedes it.
+Old partial skips cannot be inferred safely from a skipped child alone, because
+Next Chunk uses that state too; this fix prevents new partial Skip commits.

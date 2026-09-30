@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Skipping a document now commits the parent, active child, and unfinished siblings together, preventing later chunks from returning after an interrupted Skip.
+
 - Recovery carries a committed child synthesis failure to its still-active parent instead of leaving the document stranded in the queue.
 
 - Recovery repairs a document whose first child audio committed before its parent became Ready, including another crash during that repair.

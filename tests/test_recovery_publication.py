@@ -10,7 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.model import State
+from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from tests.test_store import CrashAfterCommit, SeededRecoveryError
 
@@ -93,6 +95,43 @@ def test_child_failure_crash_recovers_failed_parent(tmp_path: Path, *, playing: 
         assert (restored.state, restored.error) == (
             State.FAILED,
             "segment failed: controlled failure",
+        )
+    finally:
+        restarted.close()
+
+
+async def test_document_skip_crash_cannot_resume_later_children(tmp_path: Path) -> None:
+    connections: list[CrashAfterCommit] = []
+
+    def connect(path: str) -> sqlite3.Connection:
+        connection = sqlite3.connect(path, factory=CrashAfterCommit)
+        connections.append(connection)
+        return connection
+
+    database = tmp_path / "state.db"
+    store = Store(database, connect=connect)
+    parent = store.submit("document", voice="v", speed=1, spoken_segments=("first", "second"))
+    while work := store.claim_for_synthesis():
+        store.finish_synthesis(work, audio_path=f"{work.id}.wav", duration_ms=10)
+    store.transition(parent.id, State.PLAYING)
+    store.transition_segment(parent.id, 0, State.PLAYING)
+    store.transition_segment(parent.id, 0, State.PAUSED)
+    store.transition(parent.id, State.PAUSED)
+    controller = PlaybackController(store, FakeSink(), ImmediatePlaybackSchedule(), held=True)
+    await controller.resume()
+    # Skip first clears interruption metadata; crash at its next durable write.
+    connections[-1].crash_after = 2
+    with pytest.raises(SeededRecoveryError):
+        await controller.skip()
+    store.close()
+    restarted = Store(database)
+    try:
+        restarted.recover()
+        restored = restarted.get(parent.id)
+        assert restored is not None
+        assert (restored.state, [child.state for child in restarted.segments(parent.id)]) == (
+            State.SKIPPED,
+            [State.SKIPPED, State.CANCELLED],
         )
     finally:
         restarted.close()
