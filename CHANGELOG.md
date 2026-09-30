@@ -85,6 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Measured architecture review with Mermaid diagrams, reproducible controller/PCM/MLX benchmarks, retained baseline evidence, and scheduled CI guards for gross performance regressions.
+
 - Paragraph-level chunk navigation for ordinary responses of at least 60 words. Substantial paragraphs become separate clips, small blocks stay attached to neighbors, and short single clips retain their identity.
 
 - `ai-tts tui` provides an optional Textual dashboard with live progress and measured output level, chunk controls, Vim-style queue editing, and one-key history replay. It reconnects to the daemon and can close without stopping speech.

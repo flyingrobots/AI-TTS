@@ -1,0 +1,2 @@
+................                                                         [100%]medium: 16 tests, 0.39s including fixtures, p95 call 49ms, budget 45s
+wall clock 0.69s

@@ -1,0 +1,65 @@
+FF                                                                       [100%]medium: 2 tests, 0.01s including fixtures, p95 call 3ms, budget 45s
+wall clock 0.08s
+
+=================================== FAILURES ===================================
+__________ test_stream_publication_retains_generation_identity[False] __________
+
+tmp_path = PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-540/test_stream_publication_retain0')
+composite = False
+
+    @pytest.mark.parametrize("composite", [False, True])
+    def test_stream_publication_retains_generation_identity(tmp_path: Path, *, composite: bool) -> None:
+        """The publication contract includes durable provenance, even after audio eviction."""
+        # Retire only when a stronger generation-identity publication contract replaces this.
+        store = Store(tmp_path / "state.db")
+        try:
+            clip = store.submit("source", voice="v", speed=1,
+                                spoken_segments=("first", "second") if composite else None)
+            work = store.claim_for_synthesis()
+            assert work is not None
+            store.start_streaming(work)
+            audio = tmp_path / f"{work.id}.wav"
+            store.finish_synthesis(work, audio_path=str(audio), duration_ms=10)
+            store.transition(clip.id, State.CANCELLED)
+            store.forget_terminal_audio(audio)
+            item = store.get_segment(clip.id, 0) if composite else store.get(clip.id)
+            assert item is not None
+>           assert (item.audio_path, item.generation_artifact_id) == (None, work.id)
+E           AssertionError: assert (None, None) == (None, 'utt_a...b60c1790df5b')
+E
+E             At index 1 diff: None != 'utt_a8248975ff1b47d3a356b60c1790df5b'
+E             Use -v to get more diff
+
+tests/test_streaming_lifecycle.py:340: AssertionError
+__________ test_stream_publication_retains_generation_identity[True] ___________
+
+tmp_path = PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-540/test_stream_publication_retain1')
+composite = True
+
+    @pytest.mark.parametrize("composite", [False, True])
+    def test_stream_publication_retains_generation_identity(tmp_path: Path, *, composite: bool) -> None:
+        """The publication contract includes durable provenance, even after audio eviction."""
+        # Retire only when a stronger generation-identity publication contract replaces this.
+        store = Store(tmp_path / "state.db")
+        try:
+            clip = store.submit("source", voice="v", speed=1,
+                                spoken_segments=("first", "second") if composite else None)
+            work = store.claim_for_synthesis()
+            assert work is not None
+            store.start_streaming(work)
+            audio = tmp_path / f"{work.id}.wav"
+            store.finish_synthesis(work, audio_path=str(audio), duration_ms=10)
+            store.transition(clip.id, State.CANCELLED)
+            store.forget_terminal_audio(audio)
+            item = store.get_segment(clip.id, 0) if composite else store.get(clip.id)
+            assert item is not None
+>           assert (item.audio_path, item.generation_artifact_id) == (None, work.id)
+E           AssertionError: assert (None, None) == (None, 'utt_c...segment_0000')
+E
+E             At index 1 diff: None != 'utt_c96dd218fb104d5f980fa17076dcd7df_segment_0000'
+E             Use -v to get more diff
+
+tests/test_streaming_lifecycle.py:340: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_streaming_lifecycle.py::test_stream_publication_retains_generation_identity[False]
+FAILED tests/test_streaming_lifecycle.py::test_stream_publication_retains_generation_identity[True]

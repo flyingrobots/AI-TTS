@@ -1,0 +1,62 @@
+[
+  {
+    "head": "7558eef91361e3f99990264a73e4e4d7ff321324",
+    "seconds": 15.404803207959048,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ]
+  },
+  {
+    "head": "2abae3ea1c1939c3e560905fa352a7bfa1dbc3e5",
+    "seconds": 14.533230374974664,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ]
+  },
+  {
+    "head": "a33ce35473cf517e6b076d888006ba3c41b6bf6a",
+    "seconds": 20.03771758399671,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ]
+  },
+  {
+    "head": "e5d06e0d5b2d30c1c80937e464b6f6b162c4dee1",
+    "seconds": 18.95660145796137,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ]
+  },
+  {
+    "head": "9f0b45bf1e2ec13db16056e6d8d9f7d6f5cbc3f5",
+    "seconds": 18.85051412502071,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ]
+  }
+]

@@ -557,6 +557,11 @@ Resume; the paused records reconstruct the remaining resumption order.
 
 ---
 
+The [accepted delivery decision](2026-09-30-architecture-acceptance.md) retains
+controller ownership of interruption orchestration and Store ownership of
+atomic durable position updates. Queue-rank recovery ancestry remains a
+separate follow-up; approval is not proof for every operation history.
+
 ## 8. The engine interface
 
 The daemon registers concrete backends by name and keeps prepared models resident.

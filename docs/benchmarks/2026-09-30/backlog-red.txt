@@ -1,0 +1,19 @@
+F                                                                        [100%]medium: 1 tests, 0.01s including fixtures, p95 call 4ms, budget 45s
+wall clock 0.02s
+
+=================================== FAILURES ===================================
+________________ test_benchmark_backlog_is_ready_playback_work _________________
+
+tmp_path = PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-419/test_benchmark_backlog_is_read0')
+
+    async def test_benchmark_backlog_is_ready_playback_work(tmp_path: Path) -> None:
+        async with session(tmp_path, backlog=3) as run:
+>           assert [item.state for item in run.store.playback_queue()].count(State.READY) == 3
+E           AssertionError: assert 0 == 3
+E            +  where 0 = <built-in method count of list object at 0x10be86840>(<State.READY: 'Ready'>)
+E            +    where <built-in method count of list object at 0x10be86840> = [<State.PLAYING: 'Playing'>].count
+E            +    and   <State.READY: 'Ready'> = State.READY
+
+tests/test_benchmark_cases.py:22: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_benchmark_cases.py::test_benchmark_backlog_is_ready_playback_work

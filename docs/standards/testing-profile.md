@@ -838,3 +838,33 @@ observed-red examples are recorded in the
 [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
 The established word-count policy and explicit Markdown section behavior remain;
 this change does not claim language-independent semantic paragraph detection.
+
+## September 30 architecture performance baseline
+
+Change-kind: feature. The controller/SQLite and real PCM spool benchmarks in
+`scripts/benchmarks/` have exact semantic witnesses, deterministic scheduler
+boundaries, owned fixtures, raw distributions and a same-run pinned reference.
+Their gauge tests remain in the normal small/medium suite. The separate
+`Architecture benchmarks` workflow runs weekly or on manual dispatch: at most
+240 seconds for five paired golden blocks and 100 seconds for a 60-second soak,
+inside a 12-minute job including setup. Each comparison worker has a 60-second
+ceiling. No retry is configured. These CLI experiment budgets do not expand the
+pytest size ceilings above. Manual five-minute soaks use a 360-second deadline;
+optional native MLX inference uses a 180-second deadline and never gates CI.
+
+Only repeated, gross (>3x in all but one of at least five paired block medians)
+controller latency regressions gate the scheduled lane. RSS, CPU, SQL work,
+tails, native MLX and acoustic behavior remain inspection signals. The initial
+local identical-source comparison raised no alarms; an intentionally delayed
+source copy raised 24 of 26. This is a calibrated coarse guard, not an estimated
+long-term flake rate. Review the guard's noise behavior by 2026-10-30; maintainers
+own re-baselining and the existing same-day quarantine policy.
+
+The [architecture report](../reports/2026-09-30-architecture-review.md) defines
+workloads, exclusions, source identity, the planned/written comparison and
+reproduction. The [receipt](../testing-evidence/2026-09-30-architecture-benchmarks.md)
+records falsification and suite cost. Delete or redesign each benchmark when its
+named public behavior is intentionally removed; changing internal class layout
+alone is not a reason to change the oracle. Hardware callback, multi-hour
+microphone holds, real power loss, and evidence-directory growth are explicit
+blind spots, not claims inferred from this suite.

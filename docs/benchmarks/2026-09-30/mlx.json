@@ -1,0 +1,512 @@
+{
+  "schema_version": 1,
+  "size": "large",
+  "change_kind": "feature",
+  "oracle": "real adapter produces nonempty mono 24kHz WAV and PCM; no network or speakers",
+  "environment": {
+    "source_root": "/Users/j/git/ai-tts",
+    "source_sha256": {
+      "src/aitts/playback.py": "d5ee55e5e9d38743472c04c3af1da8234a2e5474ef797e51778bee190c00989e",
+      "src/aitts/store.py": "39dc50ec39193fdbd3580308b5115af4519f3eaff5b03c06fa50c01708e5dd4b",
+      "src/aitts/streaming.py": "f29a4ae7dcee79c3a617c95e258544d6c53a9f92650368851a60940c964656c8"
+    },
+    "python": "3.12.14 (main, Sep 24 2026, 17:46:32) [Clang 22.1.3 ]",
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "machine": "arm64",
+    "cpu_count": 18,
+    "clock": "perf_counter_ns; process_time_ns",
+    "sqlite": "file-backed WAL, production defaults, no filesystem cache flush",
+    "boundary": "real PlaybackController + real Store + contract FakeSink; no model or speaker"
+  },
+  "text": "This is a controlled streaming speech latency test.",
+  "voice": "bm_daniel",
+  "speed": 1.0,
+  "iterations": 30,
+  "idle_seconds": 10,
+  "startup_rss_bytes": 30621696,
+  "packages": {
+    "kokoro-mlx": "0.1.2",
+    "mlx": "0.32.3",
+    "mlx-metal": "0.32.3",
+    "numpy": "2.5.2",
+    "misaki": "0.9.4",
+    "en-core-web-sm": "3.8.0"
+  },
+  "phases": [
+    {
+      "name": "imports",
+      "rss_bytes": 56606720,
+      "mlx_active_bytes": 0,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 0
+    },
+    {
+      "name": "warmup_complete",
+      "rss_bytes": 1042563072,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 1013246681,
+      "mlx_peak_bytes": 725274172
+    },
+    {
+      "name": "loaded_idle",
+      "rss_bytes": 1042563072,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 1013246681,
+      "mlx_peak_bytes": 725274172
+    },
+    {
+      "name": "synthesis_1",
+      "rss_bytes": 1048395776,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 2627937305,
+      "mlx_peak_bytes": 1364664728
+    },
+    {
+      "name": "synthesis_11",
+      "rss_bytes": 1052246016,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 2677882145,
+      "mlx_peak_bytes": 1364664728
+    },
+    {
+      "name": "synthesis_21",
+      "rss_bytes": 1052639232,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 2678196513,
+      "mlx_peak_bytes": 1364664728
+    },
+    {
+      "name": "synthesis_30",
+      "rss_bytes": 1052950528,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 2678198561,
+      "mlx_peak_bytes": 1364664728
+    },
+    {
+      "name": "after_streaming",
+      "rss_bytes": 1053999104,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 2678522145,
+      "mlx_peak_bytes": 1364664728
+    },
+    {
+      "name": "post_work_idle",
+      "rss_bytes": 1053999104,
+      "mlx_active_bytes": 327729024,
+      "mlx_cache_bytes": 2678522145,
+      "mlx_peak_bytes": 1364664728
+    }
+  ],
+  "trials": [
+    {
+      "trial": 0,
+      "wall_ms": 142.3267499776557,
+      "audio_ms": 3650,
+      "rtf": 0.03899363013086458
+    },
+    {
+      "trial": 1,
+      "wall_ms": 98.31000003032386,
+      "audio_ms": 3650,
+      "rtf": 0.026934246583650373
+    },
+    {
+      "trial": 2,
+      "wall_ms": 96.63266700226814,
+      "audio_ms": 3650,
+      "rtf": 0.02647470328829264
+    },
+    {
+      "trial": 3,
+      "wall_ms": 95.17170797334984,
+      "audio_ms": 3650,
+      "rtf": 0.02607444054064379
+    },
+    {
+      "trial": 4,
+      "wall_ms": 95.01679096138105,
+      "audio_ms": 3650,
+      "rtf": 0.026031997523666042
+    },
+    {
+      "trial": 5,
+      "wall_ms": 95.16958298627287,
+      "audio_ms": 3650,
+      "rtf": 0.026073858352403525
+    },
+    {
+      "trial": 6,
+      "wall_ms": 94.46441702311859,
+      "audio_ms": 3650,
+      "rtf": 0.02588066219811468
+    },
+    {
+      "trial": 7,
+      "wall_ms": 94.64595798635855,
+      "audio_ms": 3650,
+      "rtf": 0.02593039944831741
+    },
+    {
+      "trial": 8,
+      "wall_ms": 94.4189159781672,
+      "audio_ms": 3650,
+      "rtf": 0.025868196158401975
+    },
+    {
+      "trial": 9,
+      "wall_ms": 94.28575000492856,
+      "audio_ms": 3650,
+      "rtf": 0.025831712330117412
+    },
+    {
+      "trial": 10,
+      "wall_ms": 94.58674996858463,
+      "audio_ms": 3650,
+      "rtf": 0.02591417807358483
+    },
+    {
+      "trial": 11,
+      "wall_ms": 96.45075001753867,
+      "audio_ms": 3650,
+      "rtf": 0.026424863018503744
+    },
+    {
+      "trial": 12,
+      "wall_ms": 94.19137501390651,
+      "audio_ms": 3650,
+      "rtf": 0.025805856168193565
+    },
+    {
+      "trial": 13,
+      "wall_ms": 93.76291697844863,
+      "audio_ms": 3650,
+      "rtf": 0.02568847040505442
+    },
+    {
+      "trial": 14,
+      "wall_ms": 94.32029200252146,
+      "audio_ms": 3650,
+      "rtf": 0.02584117589110177
+    },
+    {
+      "trial": 15,
+      "wall_ms": 93.7666249810718,
+      "audio_ms": 3650,
+      "rtf": 0.025689486296184054
+    },
+    {
+      "trial": 16,
+      "wall_ms": 93.63224997650832,
+      "audio_ms": 3650,
+      "rtf": 0.025652671226440635
+    },
+    {
+      "trial": 17,
+      "wall_ms": 94.21750000910833,
+      "audio_ms": 3650,
+      "rtf": 0.02581301370112557
+    },
+    {
+      "trial": 18,
+      "wall_ms": 94.21750000910833,
+      "audio_ms": 3650,
+      "rtf": 0.02581301370112557
+    },
+    {
+      "trial": 19,
+      "wall_ms": 93.63937500165775,
+      "audio_ms": 3650,
+      "rtf": 0.025654623288125414
+    },
+    {
+      "trial": 20,
+      "wall_ms": 94.28924997337162,
+      "audio_ms": 3650,
+      "rtf": 0.025832671225581267
+    },
+    {
+      "trial": 21,
+      "wall_ms": 95.10433400282636,
+      "audio_ms": 3650,
+      "rtf": 0.026055981918582567
+    },
+    {
+      "trial": 22,
+      "wall_ms": 94.25224998267367,
+      "audio_ms": 3650,
+      "rtf": 0.025822534241828406
+    },
+    {
+      "trial": 23,
+      "wall_ms": 95.10029200464487,
+      "audio_ms": 3650,
+      "rtf": 0.026054874521820513
+    },
+    {
+      "trial": 24,
+      "wall_ms": 96.3057919871062,
+      "audio_ms": 3650,
+      "rtf": 0.02638514848961814
+    },
+    {
+      "trial": 25,
+      "wall_ms": 94.52350001083687,
+      "audio_ms": 3650,
+      "rtf": 0.0258968493180375
+    },
+    {
+      "trial": 26,
+      "wall_ms": 94.85174994915724,
+      "audio_ms": 3650,
+      "rtf": 0.025986780807988285
+    },
+    {
+      "trial": 27,
+      "wall_ms": 94.57516699330881,
+      "audio_ms": 3650,
+      "rtf": 0.025911004655701043
+    },
+    {
+      "trial": 28,
+      "wall_ms": 94.7841249871999,
+      "audio_ms": 3650,
+      "rtf": 0.02596825342115066
+    },
+    {
+      "trial": 29,
+      "wall_ms": 94.54166598152369,
+      "audio_ms": 3650,
+      "rtf": 0.02590182629630786
+    }
+  ],
+  "warmup_seconds": 3.9407571249757893,
+  "stream_trials": [
+    {
+      "trial": 0,
+      "first_pcm_ms": 95.0779999839142,
+      "wall_ms": 95.20954103209078,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 1,
+      "first_pcm_ms": 93.87375001097098,
+      "wall_ms": 93.9950420288369,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 2,
+      "first_pcm_ms": 94.3321249797009,
+      "wall_ms": 94.45608302485198,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 3,
+      "first_pcm_ms": 93.99470803327858,
+      "wall_ms": 94.12070800317451,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 4,
+      "first_pcm_ms": 94.87837500637397,
+      "wall_ms": 95.00208398094401,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 5,
+      "first_pcm_ms": 94.17204197961837,
+      "wall_ms": 94.29600002476946,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 6,
+      "first_pcm_ms": 94.39870802452788,
+      "wall_ms": 94.52195803169161,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 7,
+      "first_pcm_ms": 93.70475000469014,
+      "wall_ms": 93.82979199290276,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 8,
+      "first_pcm_ms": 94.45045900065452,
+      "wall_ms": 94.57337501225993,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 9,
+      "first_pcm_ms": 93.29904202604666,
+      "wall_ms": 93.42458401806653,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 10,
+      "first_pcm_ms": 94.03329197084531,
+      "wall_ms": 94.15887499926612,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 11,
+      "first_pcm_ms": 94.25491699948907,
+      "wall_ms": 94.37774994876236,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 12,
+      "first_pcm_ms": 94.02095800032839,
+      "wall_ms": 94.14524998283014,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 13,
+      "first_pcm_ms": 94.78895901702344,
+      "wall_ms": 94.90787499817088,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 14,
+      "first_pcm_ms": 93.88541697990149,
+      "wall_ms": 94.00708298198879,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 15,
+      "first_pcm_ms": 93.33062497898936,
+      "wall_ms": 93.44529098598287,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 16,
+      "first_pcm_ms": 93.4779160306789,
+      "wall_ms": 93.59337500063702,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 17,
+      "first_pcm_ms": 93.5204999987036,
+      "wall_ms": 93.64504198310897,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 18,
+      "first_pcm_ms": 93.5443330090493,
+      "wall_ms": 93.65875000366941,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 19,
+      "first_pcm_ms": 93.38666702387854,
+      "wall_ms": 93.50033302325755,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 20,
+      "first_pcm_ms": 92.48937497613952,
+      "wall_ms": 92.60516701033339,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 21,
+      "first_pcm_ms": 93.34037499502301,
+      "wall_ms": 93.45504199154675,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 22,
+      "first_pcm_ms": 93.48412498366088,
+      "wall_ms": 93.59783300897107,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 23,
+      "first_pcm_ms": 95.36300000036135,
+      "wall_ms": 95.52208299282938,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 24,
+      "first_pcm_ms": 96.63762501440942,
+      "wall_ms": 96.77962504792958,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 25,
+      "first_pcm_ms": 95.48633295344189,
+      "wall_ms": 95.64487496390939,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 26,
+      "first_pcm_ms": 96.15245799068362,
+      "wall_ms": 96.26879100687802,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 27,
+      "first_pcm_ms": 93.91258301911876,
+      "wall_ms": 94.02887499891222,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 28,
+      "first_pcm_ms": 93.31591700902209,
+      "wall_ms": 93.44237501500174,
+      "pcm_bytes": 175200
+    },
+    {
+      "trial": 29,
+      "first_pcm_ms": 94.2149999900721,
+      "wall_ms": 94.34799995506182,
+      "pcm_bytes": 175200
+    }
+  ],
+  "model": {
+    "repository": "mlx-community/Kokoro-82M-bf16",
+    "device": "Metal",
+    "files": {
+      "config.json": {
+        "sha256": "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f",
+        "bytes": 2351
+      },
+      "kokoro-v1_0.safetensors": {
+        "sha256": "4e9ecdf03b8b6cf906070390237feda473dc13327cb8d56a43deaa374c02acd8",
+        "bytes": 327115152
+      },
+      "voices/bm_daniel.safetensors": {
+        "sha256": "b195dec592ee024f57ddc5bf481464596082ba60998a2a295eba90bfc1064f4b",
+        "bytes": 522320
+      }
+    }
+  },
+  "distributions": {
+    "synthesis_ms": {
+      "n": 30.0,
+      "mean": 96.38519999183093,
+      "max": 142.3267499776557,
+      "p50": 94.54166598152369,
+      "p90": 96.45075001753867,
+      "p95": 98.31000003032386,
+      "p99": 142.3267499776557
+    },
+    "rtf": {
+      "n": 30.0,
+      "mean": 0.026406904107350943,
+      "max": 0.03899363013086458,
+      "p50": 0.02590182629630786,
+      "p90": 0.026424863018503744,
+      "p95": 0.026934246583650373,
+      "p99": 0.03899363013086458
+    },
+    "first_pcm_ms": {
+      "n": 30.0,
+      "mean": 94.16074446635321,
+      "max": 96.63762501440942,
+      "p50": 93.99470803327858,
+      "p90": 95.36300000036135,
+      "p95": 96.15245799068362,
+      "p99": 96.63762501440942
+    }
+  }
+}

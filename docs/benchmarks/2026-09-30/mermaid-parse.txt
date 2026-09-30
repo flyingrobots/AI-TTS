@@ -1,0 +1,10 @@
+Parsed diagram 1: classDiagram
+Parsed diagram 2: erDiagram
+Parsed diagram 3: sequenceDiagram
+Parsed diagram 4: flowchart LR
+Parsed diagram 5: stateDiagram-v2
+Parsed diagram 6: classDiagram
+Parsed diagram 7: erDiagram
+Parsed diagram 8: sequenceDiagram
+Parsed diagram 9: flowchart LR
+Parsed diagram 10: stateDiagram-v2

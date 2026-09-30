@@ -1,0 +1,51 @@
+name: Architecture benchmarks
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 9 * * 1"
+
+jobs:
+  controller-and-pcm:
+    name: paired controller regression and bounded PCM soak
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check out immutable reference implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: 0290f3cf3a0c3930256f42f31500bda59c1eabeb
+          path: .benchmark-reference
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.9.18"
+          enable-cache: true
+      - run: uv sync --frozen --dev --python 3.14
+      - name: Validate the measurement gauge
+        run: uv run --frozen pytest tests/test_benchmark_cases.py tests/test_benchmark_metrics.py tests/test_benchmark_report.py tests/test_benchmark_mlx.py
+      - name: Compare five randomized pairs using the same harness and environment
+        run: >-
+          uv run --frozen python scripts/run_with_deadline.py 240
+          .venv/bin/python -m scripts.benchmarks.compare
+          --baseline-root .benchmark-reference --output dist/benchmarks/paired
+      - name: Exercise long-lived ownership, holds and PCM spool integrity
+        if: success() || failure()
+        run: >-
+          uv run --frozen python scripts/run_with_deadline.py 100
+          .venv/bin/python -m scripts.benchmarks.run --suite soak
+          --seconds 60 --interval 0.05 --output dist/benchmarks/soak.json
+      - name: Preserve raw observations and decisions
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: architecture-benchmarks-${{ github.sha }}
+          path: dist/benchmarks/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,130 @@
+   Building ai-tts @ file:///Users/j/git/ai-tts-stack-validation
+      Built ai-tts @ file:///Users/j/git/ai-tts-stack-validation
+Uninstalled 1 package in 0.62ms
+Installed 1 package in 1ms
+FFF                                                                      [100%]medium: 3 tests, 2.02s including fixtures, p95 call 1810ms, budget 45s
+wall clock 2.09s
+
+=================================== FAILURES ===================================
+___ test_rewind_uses_published_path_when_generation_finishes_during_release ____
+
+tmp_path = PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-548/test_rewind_uses_published_pat0')
+
+    async def test_rewind_uses_published_path_when_generation_finishes_during_release(tmp_path: Path) -> None:
+        # Retire only with an equivalent controlled publication/transport schedule.
+        store = Store(tmp_path / "state.db")
+        clip = store.submit("source", voice="v", speed=1)
+        work = store.claim_for_synthesis()
+        assert work is not None
+        candidate = tmp_path / "candidate.part"
+        published = tmp_path / f"{work.id}.wav"
+        source = SpoolingPCMStream(candidate)
+        source.append(b"\x00\x20" * 480)
+        streams = StreamingRegistry()
+        streams.add(work.id, source)
+        store.start_streaming(work)
+        sink = ControlledReleaseSink()
+        schedule = DeterministicPlaybackSchedule()
+        controller = PlaybackController(store, sink, schedule, streams=streams)
+        task = await start(controller, schedule)
+        rewind = asyncio.create_task(controller.restart_current())
+        try:
+            await asyncio.wait_for(sink.stop_requested.wait(), timeout=1)
+            source.seal()
+            candidate.rename(published)
+            store.finish_synthesis(work, audio_path=str(published), duration_ms=20)
+            streams.finish(work.id)
+            sink.release_stop()
+            await asyncio.wait_for(rewind, timeout=1)
+            assert controller.current_id == clip.id
+>           assert (sink.started[-1], sink.start_positions[-1]) == (published, 0)
+E           AssertionError: assert (PosixPath('u...61a572d5'), 0) == (PosixPath('/...72d5.wav'), 0)
+E
+E             At index 0 diff: PosixPath('utt_c8daad3637b4418ebefb956661a572d5') != PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-548/test_rewind_uses_published_pat0/utt_c8daad3637b4418ebefb956661a572d5.wav')
+E             Use -v to get more diff
+
+tests/test_streaming_review.py:72: AssertionError
+_________ test_streaming_underflow_evidence_starts_fresh_for_each_clip _________
+
+tmp_path = PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-548/test_streaming_underflow_evide0')
+
+    async def test_streaming_underflow_evidence_starts_fresh_for_each_clip(tmp_path: Path) -> None:
+        # Retire with a stronger per-hearing output-evidence contract.
+        callback = ManualCallbackDevice()
+        evidence = ClipEvidence(tmp_path / "evidence")
+        sink = SoundDeviceSink(device=FakeAudioDevice(), open_callback_stream=callback.open, evidence=evidence)
+        counts = []
+        for index in range(2):
+            identity = f"clip_{index}"
+            source = SpoolingPCMStream(tmp_path / f"{identity}.wav")
+            source.append(b"\x00\x20" * 240)
+            source.seal()
+            source.finish()
+            callback.opened.clear()
+            try:
+                sink.start_stream(source, artifact_id=identity)
+                assert await asyncio.to_thread(callback.opened.wait, 1)
+                output = np.empty((240, 1), dtype=np.float32)
+                running = callback.render(output, 240, index == 0)
+                if not running:
+                    callback.finished()
+                await asyncio.wait_for(sink.wait(), timeout=1)
+                rows = [json.loads(line) for line in
+                        (evidence.root / identity / "playback.jsonl").read_text().splitlines()]
+                counts.append([row["output_underflows"] for row in rows if row["event"] == "stream_buffering"])
+            finally:
+                sink.stop()
+                callback.block()
+                await asyncio.wait_for(sink.wait(), timeout=1)
+                source.release()
+>       assert counts == [[1], [0]]
+E       assert [[1], [1]] == [[1], [0]]
+E
+E         At index 1 diff: [1] != [0]
+E         Use -v to get more diff
+
+tests/test_streaming_review.py:113: AssertionError
+________ test_streaming_follows_route_after_initial_identity_read_fails ________
+
+tmp_path = PosixPath('/private/var/folders/g7/h_9lmyb14gs68tfzv88dklt00000gn/T/pytest-of-j/pytest-548/test_streaming_follows_route_a0')
+
+    async def test_streaming_follows_route_after_initial_identity_read_fails(tmp_path: Path) -> None:
+        # Scripted identity sequence supplies the ordering; timeout bounds liveness only.
+        callback = ManualCallbackDevice()
+        openings = []
+
+        @contextlib.contextmanager
+        def open_stream(**kwargs: Any) -> Iterator[object]:
+            with callback.open(**kwargs) as stream:
+                openings.append(stream)
+                yield stream
+
+        source = SpoolingPCMStream(tmp_path / "candidate.wav")
+        source.append(b"\x00\x20" * 24000)
+        sink = SoundDeviceSink(device=InitiallyUnreadableDevice(), open_callback_stream=open_stream)
+        try:
+            sink.start_stream(source, artifact_id="route-clip")
+            assert await asyncio.to_thread(callback.opened.wait, 1)
+>           await wait_for(lambda: not callback.block()[1], timeout=2)
+
+tests/test_streaming_review.py:142:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+predicate = <function test_streaming_follows_route_after_initial_identity_read_fails.<locals>.<lambda> at 0x109106f00>
+timeout = 2
+
+    async def wait_for(predicate: object, timeout: float = 5.0) -> None:
+        """Poll a zero-arg callable until it returns truthy or the timeout expires."""
+        assert callable(predicate)
+        deadline = asyncio.get_running_loop().time() + timeout
+        while not predicate():
+            if asyncio.get_running_loop().time() > deadline:
+                msg = "condition not met before timeout"
+>               raise AssertionError(msg)
+E               AssertionError: condition not met before timeout
+
+tests/conftest.py:170: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_streaming_review.py::test_rewind_uses_published_path_when_generation_finishes_during_release
+FAILED tests/test_streaming_review.py::test_streaming_underflow_evidence_starts_fresh_for_each_clip
+FAILED tests/test_streaming_review.py::test_streaming_follows_route_after_initial_identity_read_fails
