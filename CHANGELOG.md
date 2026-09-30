@@ -232,6 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update locked PyJWT to 2.14.0 to clear the dependency audit’s reported advisories.
+
 - Concurrent document segments no longer overwrite shared phonemizer state and fail with an input/output line-count mismatch. Neural inference remains parallel.
 
 - Pausing closes the audio output stream; resuming reopens it at the saved frame and current device. Driver underruns are recorded without replaying audio.
