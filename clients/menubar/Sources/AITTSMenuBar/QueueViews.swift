@@ -94,7 +94,11 @@ struct QueueView: View {
         let count = state.upcoming.count
         let urgent = state.upcoming.filter { $0.priority == .urgent }.count
         let noun = count == 1 ? "clip" : "clips"
-        return urgent == 0 ? "\(count) upcoming \(noun)" : "\(count) upcoming · \(urgent) urgent"
+        let preempt = state.upcoming.filter { $0.priority == .preempt }.count
+        var parts = ["\(count) upcoming \(noun)"]
+        if urgent > 0 { parts.append("\(urgent) urgent") }
+        if preempt > 0 { parts.append("\(preempt) preempt") }
+        return parts.joined(separator: " · ")
     }
 
     private func move(from offsets: IndexSet, to destination: Int) {
@@ -120,8 +124,8 @@ struct QueueRow: View {
                     .lineLimit(2)
                 HStack(spacing: 6) {
                     StatePill(state: item.state)
-                    if item.priority == .urgent {
-                        PriorityBadge()
+                    if item.priority != .normal {
+                        PriorityBadge(priority: item.priority)
                     }
                     Text(item.voice)
                         .font(.system(size: 9, design: .monospaced))
@@ -168,8 +172,10 @@ struct StatePill: View {
 }
 
 struct PriorityBadge: View {
+    let priority: RequeuePriority
+
     var body: some View {
-        Text("↑ Urgent")
+        Text(priority.badgeLabel ?? "")
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

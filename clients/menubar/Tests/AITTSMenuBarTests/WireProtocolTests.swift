@@ -16,6 +16,14 @@ final class WireProtocolTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testPriorityPresentationIncludesPreemption() {
+        let priorities = RequeuePriority.allCases
+        XCTAssertEqual(priorities.map(\.badgeLabel), [nil, "↑ Urgent", "⚡ Preempt"])
+        XCTAssertEqual(priorities.map(\.actionDescription), [
+            "Add to end of Queue", "Play next after current", "Interrupt current, then resume it"
+        ])
+    }
+
     func testOnlyOneMenuBarInstanceCanHoldLock() throws {
         let lockURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("ai-tts-single-instance-\(UUID().uuidString).lock")

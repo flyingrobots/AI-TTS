@@ -6,10 +6,19 @@ import Foundation
 import SwiftUI
 
 extension RequeuePriority {
+    var badgeLabel: String? {
+        switch self {
+        case .normal: return nil
+        case .urgent: return "↑ Urgent"
+        case .preempt: return "⚡ Preempt"
+        }
+    }
+
     var actionDescription: String {
         switch self {
         case .normal: return "Add to end of Queue"
         case .urgent: return "Play next after current"
+        case .preempt: return "Interrupt current, then resume it"
         }
     }
 }
