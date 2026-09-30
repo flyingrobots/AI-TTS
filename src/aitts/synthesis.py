@@ -17,6 +17,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from aitts.adapters.diagnostic_logging import utterance_trace
+from aitts.engine import StreamingEngine
+from aitts.streaming import SpoolingPCMStream, StreamingRegistry
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -33,7 +35,7 @@ log = logging.getLogger(__name__)
 class SynthesisPool:
     """Drains the input queue into rendered, cached audio."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - injected synthesis boundaries
         self,
         store: Store,
         engine: Engine,
@@ -41,8 +43,12 @@ class SynthesisPool:
         *,
         workers: int = 2,
         evidence: ClipEvidence | None = None,
+        streams: StreamingRegistry | None = None,
     ) -> None:
         """Create a pool of ``workers`` synthesis workers over ``engine``."""
+        self._streams = streams
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._running = False
         self._evidence = evidence
         self._store = store
         self._engine = engine
@@ -64,10 +70,17 @@ class SynthesisPool:
 
     async def run(self) -> None:
         """Run the workers until cancelled."""
+        self._loop = asyncio.get_running_loop()
         self._artifacts.prepare()
-        async with asyncio.TaskGroup() as group:
-            for _ in range(self._workers):
-                group.create_task(self._worker())
+        self._running = True
+        try:
+            async with asyncio.TaskGroup() as group:
+                for _ in range(self._workers):
+                    group.create_task(self._worker())
+        finally:
+            self._running = False
+            if self._streams is not None:
+                self._streams.close()
 
     async def _worker(self) -> None:
         while True:
@@ -99,14 +112,48 @@ class SynthesisPool:
             )
         except Exception as exc:  # noqa: BLE001 - any engine failure is Failed, not fatal
             self._finish(work, error=str(exc), out_path=out_path)
+            self._finish_stream(work, error=str(exc))
             return
-        self._finish(work, duration_ms=duration_ms, out_path=out_path)
+        published = self._finish(work, duration_ms=duration_ms, out_path=out_path)
+        self._finish_stream(work, error=None if published else "stream publication failed")
+
+    def _finish_stream(self, work: SynthesisWork, *, error: str | None) -> None:
+        if self._streams is not None:
+            self._store.discard_streaming_job(work.id)
+            self._streams.finish(work.id, error=error)
+
+    def _stream_ready(self, work: SynthesisWork) -> None:
+        if self._running:
+            self._store.start_streaming(work)
+
+    def _render_stream(self, work: SynthesisWork, out_path: Path) -> int:
+        assert self._streams is not None  # noqa: S101 - streaming admission checked
+        assert self._loop is not None  # noqa: S101 - worker started by run
+        assert isinstance(self._engine, StreamingEngine)  # noqa: S101
+        source = SpoolingPCMStream(out_path)
+        self._streams.add(work.id, source)
+        first = True
+        for pcm in self._engine.stream_synthesize(work.text, work.voice, work.speed):
+            if not pcm:
+                continue
+            source.append(pcm)
+            if first:
+                self._loop.call_soon_threadsafe(self._stream_ready, work)
+                first = False
+        if first:
+            msg = "streaming engine produced no audio"
+            raise ValueError(msg)
+        return source.seal()
 
     def _render(self, work: SynthesisWork, out_path: Path) -> int:
         if self._evidence is not None:
             self._evidence.prepare(work, self._engine.name)
         try:
-            duration = self._engine.synthesize(work.text, work.voice, work.speed, out_path)
+            duration = (
+                self._render_stream(work, out_path)
+                if self._streams is not None and isinstance(self._engine, StreamingEngine)
+                else self._engine.synthesize(work.text, work.voice, work.speed, out_path)
+            )
         except Exception as exc:
             if self._evidence is not None:
                 self._evidence.record(work.id, "synthesis", "failed", error=str(exc))
@@ -133,12 +180,12 @@ class SynthesisPool:
         duration_ms: int | None = None,
         error: str | None = None,
         out_path: Path,
-    ) -> None:
+    ) -> bool:
         if not self._store.synthesis_work_is_active(work):
             # Cancelled underneath us: the engine could not abort, so the
             # result is discarded on completion (architecture §7).
             self._discard(out_path)
-            return
+            return False
         failure = error
         if failure is None:
             try:
@@ -157,21 +204,28 @@ class SynthesisPool:
         if failure is not None:
             self._discard(out_path)
             self._record_failure(work, failure)
-            return
+            return False
         if published_path is None:  # pragma: no cover - guarded by failure handling
             self._record_failure(work, "artifact publication returned no path")
-            return
+            return False
         # Keep final publication and its durable owner record in one event-loop
         # turn. Cache purge also runs synchronously on that loop, so it can see
         # either an invisible candidate or a protected published artifact,
         # never an unowned final WAV between these two calls.
         if self._evidence is not None:
             self._evidence.record(work.id, "synthesis", "published", duration_ms=duration_ms)
-        self._store.finish_synthesis(
-            work,
-            audio_path=str(published_path),
-            duration_ms=duration_ms,
-        )
+        try:
+            self._store.finish_synthesis(
+                work,
+                audio_path=str(published_path),
+                duration_ms=duration_ms,
+            )
+        except Exception as exc:  # noqa: BLE001 - failed durable ownership cannot publish success
+            self._discard(published_path)
+            self._record_failure(work, f"artifact metadata failed: {exc}")
+            return False
+
+        return True
 
     def _discard(self, out_path: Path) -> None:
         try:

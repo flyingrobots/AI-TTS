@@ -35,6 +35,25 @@ and hashes of the actual config, weights, and selected voice. The one-machine
 [acceptance receipt](docs/testing-evidence/2026-09-30-kokoro-mlx.md) records
 measured latency and memory; neither is a universal performance guarantee.
 
+## Streaming playback
+
+Kokoro and Kokoro MLX start playback from available PCM while synthesis continues.
+Pausing playback leaves generation running; its WAV spool supports later resume,
+rewind and replay. The audio callback reads a bounded memory buffer and fades to
+silence if generation briefly falls behind. Other engines keep the file-based
+path until they expose streaming support.
+
+The daemon prepares silent audio output during startup and retains it between
+clips. Playback skips leading digital zeros while preserving the original WAV
+and pauses within speech. History evidence includes buffer underruns, device
+underflows and skipped leading frames alongside synthesis and transport logs.
+
+On the measured M5 Pro with Studio Display Speakers, the eight-word MLX workload
+reached first nonzero scheduled device output in **194–205 ms** after warmup.
+This remains above the 150 ms optimization target; see the
+[streaming acceptance receipt](docs/testing-evidence/2026-09-30-streaming-audio.md).
+The measurements used silent hardware callbacks, not an acoustic recording.
+
 ## Interrupting and resuming speech
 
 `ai-tts say "Build failed" --preempt` (or `--priority preempt`) interrupts

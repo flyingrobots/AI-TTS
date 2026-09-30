@@ -1,0 +1,283 @@
+# Streaming audio acceptance
+
+Change-kind: feature
+
+The user approved shipping prompt 3 with measured 194–205 ms startup and tracking
+the original under-150-ms target separately in
+[issue #33](https://github.com/flyingrobots/AI-TTS/issues/33). The agreed benchmark
+is an eight-word sentence on this Mac using the fastest supported local backend.
+This acceptance does not claim that 150 ms was achieved. The installed application
+remains on the earlier committed release; this change has not been installed.
+
+## Contract and validation
+
+The callback consumes only memory. Synthesis spools private PCM to a WAV and
+feeds a bounded ring; overflow and backward seeks use a separate file feeder.
+Publication and durable metadata release EOF. Pauses do not block generation,
+and inserted underrun silence does not advance the source playhead.
+
+The prepared physical output emits silence between logical speech sessions,
+including long pauses, and closes on route changes or daemon shutdown. Existing
+compatible cached WAVs use the same callback path without rewriting them. The
+reference Kokoro and MLX adapters yield bounded 100 ms PCM buffers. MLX uses its
+upstream `generate_stream` API under the engine lock: phoneme chunks can become
+playable before later chunks finish; individual model chunks still require a
+complete forward pass.
+
+Validation: **638 Python tests passed**, 228 small / 410 medium. Measured class
+costs including fixtures: 0.51 s / 7.37 s, within 10 s / 45 s budgets. Full wall
+clock 8.32 s. Ruff, format checks, mypy (110 files), and diff checks passed.
+The full run is `/tmp/streaming-release-suite.log`.
+
+New boundary coverage includes:
+
+- bounded ring wraparound and sample order; early playback with the final engine
+  block behind a controlled gate; complete cached WAV bytes;
+- starvation versus EOF, bounded sample-to-sample fade, source-clock preservation,
+  resume fade, failure-to-silence, and native pause/resume while the producer
+  exceeds ring capacity;
+- native callback EOF only after publication; generation, publication and
+  durable-metadata failures remove candidates and terminate playback;
+- nested preemption and exact saved offsets before files are published; rewind;
+  shutdown while native inference remains gated;
+- standalone and later-child composite crash recovery, preserving completed
+  children and holding playback; repeated recovery and seeded commit failures
+  during admission, publication and recovery;
+- prepared output reuse, idle silence, route changes, unexpected device closure,
+  callback exceptions, and late preparation after shutdown;
+- cached-file read-only seeking and invalid-file rejection; bounded/lazy local
+  Kokoro and MLX PCM, including exact quantization and offline asset resolution.
+
+These are contractual boundary tests with explicit size/oracle declarations.
+Delete or rewrite them when the corresponding behavior changes, not when the
+private implementation moves. No automated test uses real speakers or weights.
+Swift has no changes in this draft; its latest 112-test and hosted receipt is
+[the XCTest invocation change](2026-09-30-xctest-invocation.md).
+
+## Observed red and assertion calibration
+
+The original daemon test timed out waiting for playback despite witnessing the
+first engine yield (`/tmp/streaming-pipeline-red.log`). The same gated scenario
+passes with streaming admission. Generation/publication fault tests initially
+observed a last sample of 0.25 instead of silence
+(`/tmp/streaming-failure-red.log`); the renderer now fades on error. A metadata
+publication failure initially left the clip outside Failed and killed worker
+progress (`/tmp/streaming-metadata-red.log`); it now discards the unowned WAV,
+records failure and terminates the live source. The upstream MLX lazy-chunk test
+first failed while the adapter still used whole-result generation
+(`/tmp/mlx-lazy-stream-red.log`).
+
+Seeded mutations were applied one at a time and restored in `finally`. The
+following faults produced assertion failures, not collection or syntax errors:
+
+| Fault | Contract witness |
+|---|---|
+| Drop first ring sample | bounded sample order |
+| Signal EOF before publication | sealed stream remains unfinished |
+| Zero the disk spool | cached WAV exactly matches generated PCM |
+| Ignore backward seek | spool resumes at requested samples |
+| Remove starvation decay | bounded difference between adjacent output samples |
+| Advance clock during inserted silence | source-only playhead |
+| Skip persisted streaming recovery | queued, retained standalone source |
+| Forget recovery hold | completed child retained, unfinished child held |
+| Skip early admission | first-yield witness before playback deadline |
+| Route live source as a file | nested unpublished preemption |
+| Drop saved live offset | exact nested resumption offsets |
+| Remove error fade | final callback ends at zero |
+| Open cached WAV for writing | existing bytes preserved and playable |
+| Omit idle silence | every idle output sample zero |
+| Remove prepared-device reuse | one refresh for successive sessions |
+| Hide device closure | active session reports physical failure |
+| Permit preparation after shutdown | no device opened after shutdown |
+| Emit unbounded/drop MLX chunks | exact chunk lengths and concatenated samples |
+| Ignore native pause | held playhead and silent callbacks |
+| Propagate callback exception | owned failure, silence, released session |
+| Drop source error | publication failure ends logical playback |
+
+One important initial survivor was **removing the starvation fade**: checking
+only the first and last samples missed an abrupt drop in the middle of the
+block. The assertion was strengthened to bound every adjacent-sample change.
+The same mutation then failed with a 0.5 jump against a 0.5/119 bound. This is
+recorded explicitly rather than reporting the original calibration as green.
+
+Local raw receipts: `/tmp/streaming-calibration.json`,
+`/tmp/streaming-calibration-extra.log`, `/tmp/stream-fade-calibrated-red.log`.
+The seeded SQLite fault adapter and rollback mechanism also retain their
+existing Store test coverage; new cases exercise streaming-specific writes.
+
+## Controlled hardware experiment
+
+[Raw baseline and current readings, with environment](2026-09-30-streaming-latency.json).
+Apple M5 Pro, 64 GiB, macOS 27.0; Python 3.12.14, kokoro-mlx 0.1.2, MLX 0.32.3.
+The eight-word workload is “This is a controlled streaming speech latency test.”
+Voice bm_daniel, speed 1.0, cached `mlx-community/Kokoro-82M-bf16` weights. The
+reference CPU backend was slower: a prior five-run first-PCM median was 404.26 ms.
+
+Model warmup and a priming inference precede timing. Submission traverses an
+owned Unix socket and the daemon's actual synthesis/playback paths. The native
+PortAudio callback records source progress and nonzero output separately, then
+**zeros the hardware output**. Completion uses a state event. No generated speech
+was played, no download was allowed, and no automated suite ran concurrently
+with the five baseline trials below.
+
+| Trial | First source PCM scheduled at device (ms) | First nonzero audio scheduled at device (ms) |
+|---|---:|---:|
+| 1 | 152.09 | 332.06 |
+| 2 | 147.84 | 327.84 |
+| 3 | 147.86 | 327.88 |
+| 4 | 194.56 | 374.50 |
+| 5 | 196.01 | 375.95 |
+
+All five reached Played with no reported driver underflow. Scheduled device time
+uses PortAudio's output timestamp, not an acoustic recording. Approximately
+180 ms of model-generated leading digital silence separates the two readings;
+that silence was preserved. Neither these observations nor earlier inference-only
+numbers demonstrate the requested under-150-ms end-to-end target.
+
+Earlier phase measurements found about 620 ms opening the device, while device
+refresh itself cost about 2 ms. Preparing the physical stream removes that startup
+cost from warmed submissions. Direct model-only measurements around 94–97 ms
+were insufficient predictors: full-path inference varied roughly 113–154 ms.
+An exploratory sentence-stream run overlapped test-suite setup and is excluded
+from acceptance evidence. A preliminary first-PCM probe also observed a stale
+previous-session playhead; it was replaced by a session-gated probe before these
+final readings. No favorable retry was substituted for this baseline distribution.
+
+## Leading-zero playback optimization
+
+Playback now skips only an initial run of exact PCM zeros. The scan is bounded
+to at most one second of buffered PCM per callback and never performs disk I/O.
+The original WAV remains byte-for-byte unchanged; the source playhead reflects
+skipped frames and playback evidence records `skipped_silence_frames`. An explicit
+nonzero seek retains silence at the selected position. Pauses within speech,
+including silence arriving in a later engine chunk, are retained.
+
+The new boundary test was observed red before the option existed
+(`/tmp/stream-leading-silence-red.log`). Mutations disabling skip or applying it
+to a nonzero seek failed their assertions. A mutation that also trimmed later
+engine chunks initially survived a single-buffer example; the later-chunk
+schedule was added and observed red (`/tmp/stream-trim-later-red.log`). All
+restored tests passed in the 634-test full run.
+
+Five new isolated hardware trials with this optimization reached first nonzero
+scheduled device output at **200.37, 205.36, 196.15, 196.01, 193.85 ms**. All
+reached Played without a reported driver underflow. The raw JSON retains the
+previous measurements as `baseline_trials`; `trials` holds this newer run.
+This removes the leading-zero delay but still does not meet 150 ms.
+
+The remaining inference slowdown reproduces in a process with no audio device:
+consecutive calls took about 93–94 ms, while calls after 3.65 seconds idle took
+160–165 ms. Smaller Python scheduling intervals, lower device latency, changing
+thread QoS, a small GPU wakeup operation, and temporary float16 weights did not
+give a reliable improvement. None of those experimental changes were adopted.
+The QoS experiment followed Apple's
+[pthread task-priority API](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/PrioritizeWorkAtTheTaskLevel.html).
+No system power settings were changed. Compiling ALBERT and its projection layers
+also did not reliably improve idle latency and added initial compilation cost;
+that experiment was not adopted. A profile of identical calls without an audio
+device measured 98 ms immediately warm and 155 ms after idle, with increases in
+both Python-side preparation and native model evaluation. This narrows the next
+investigation to model execution after idle rather than callback thread scheduling.
+The physical output for these trials was Studio Display Speakers (48 kHz native,
+23.625 ms suggested low output latency); the transport used 24 kHz mono PCM.
+
+## Final lifecycle review
+
+Output preparation and model warmup now report independent outcomes. A seeded
+output failure originally reported the model as failed; the corrected test uses
+the snapshot contract and observes `ready` after the output attempt. The first
+harness mistakenly queried `status`, which does not contain `runtime`; that
+KeyError is not counted as regression evidence. The valid observed red is
+`/tmp/stream-output-readiness-red.log` (`failed` versus `ready`).
+
+Streaming document publication now commits child metadata, aggregate duration
+and producer ownership together. A seeded parent-duration write failure initially
+left the child pointing at an uncommitted artifact; it now rolls back both live
+and durable state (`/tmp/stream-composite-atomic-red.log`). Similarly, a failed
+readiness write originally stranded completed standalone and composite clips in
+Synthesizing. Readiness, child/parent state and the unfinished-generation record
+now commit together, with notifications only after commit. Both observed-red
+cases are in `/tmp/stream-readiness-transaction-red.log`.
+
+## Follow-ups and limits
+
+- Resolve remaining inference latency and variability in issue #33, without
+  substituting transport-only latency. This is explicitly deferred by the user.
+- README and architecture documentation describe automatic capability-based
+  streaming, provisional readiness, recovery and measured limitations.
+- Real long-pause/microphone-interruption, physical route-change, and acoustic
+  acceptance remain outside the controlled callback tests. Issue #25 is not
+  claimed fixed or closed.
+
+## Main reconciliation and dependency gate
+
+The streaming feature was replayed onto reviewed main `6482b49`, preserving
+export draining before Store shutdown and platform composition boundaries.
+Its integrated stage passed 689 Python tests. The subsequent combined stack
+passed 793 Python tests and 142 Swift tests with warnings as errors.
+
+Hosted run `36734083447` then failed the strict dependency audit: locked
+`urllib3 2.7.0` had CVE-2026-97687 and CVE-2026-97689, both listing 2.8.0 as
+the fixed release. The pin and archive hashes were updated only for urllib3.
+No advisory was ignored and the failed run was not retried unchanged.
+The updated combined all-extras graph passed strict PyPI and pinned-source
+auditing: 164 dependencies, 189 SBOM components, 164 license records, zero
+known findings; the existing espeakng-loader license classification stays open.
+The combined 793 Python tests passed again (14.43 seconds wall clock).
+Raw audit receipts are retained locally under `.git/codex-scratch/integration-audit`;
+the failed hosted artifact retains the original advisory evidence.
+
+## Integration with the subsequent mainline lifecycle/replay audit
+
+The stack was refreshed onto `954807b` after benchmark PR #47 exposed the old
+stack's PyJWT audit failure. Mainline already supplies patched PyJWT 2.15.1,
+exclusive daemon ownership, request-independent reload, silent Ready recovery,
+final-playhead shutdown capture and durable generation identity. Integration
+retains those contracts rather than restoring the pre-audit versions.
+
+Streaming shutdown holds transport and delegates final device retirement to the
+mainline controller stop boundary before closing spools. The duplicate later
+stop call is removed. Model registry integration retains daemon-owned reload
+and synthesis exclusion even when the waiting request is cancelled.
+
+A compatibility regression in the provisional merge was observed red in both
+single-clip and document publication: after streaming publication and audio
+forgetting, the public stored item returned `(None, None)` for audio path and
+generation identity instead of `(None, work.id)`. The streaming publication
+transaction now saves the generation identity alongside path/duration, before
+removing the unfinished-job record. `test_stream_publication_retains_generation_identity`
+passes both cases. This extends the feature to preserve mainline's durable
+provenance contract; it changes no measured historical baseline.
+
+Focused integration validation: 16 streaming-lifecycle, delayed-release shutdown
+and cancelled-reload tests passed. The two identity failures above are the
+red-before-fix and falsification evidence for the new public-data assertion.
+
+## Streaming review regressions
+
+Change kind: bug fixes within the streaming feature. Three medium boundary
+tests in `tests/test_streaming_review.py` were observed red on `e00bfb1` before
+production edits, then passed with the fixes:
+
+- Rewind while synthesis publishes during device retirement used the old
+  pathless row and tried to open the artifact ID as a filename. A controlled
+  release gate demonstrates the interleaving; rewind now rereads the durable
+  row after retirement and opens the published WAV at zero.
+- An initially unreadable route identity was adopted but discarded by the
+  streaming poll loop. A scripted device identity sequence failed to reopen
+  before its liveness deadline; polling now uses the adopted identity.
+- Reusing a sink carried the first clip's underflow count into the next clip's
+  playback evidence: observed `[[1], [1]]`, expected `[[1], [0]]`. Each stream
+  now resets its route debounce state and underflow counter.
+
+The oracles observe the playback port's selected artifact, route reopening,
+and actual per-clip JSONL evidence. Owned callback/device doubles avoid audio
+hardware. These red results calibrate the added assertions; deletion criteria
+are recorded beside the tests. The broader proposed synchronous registry
+lookup/retain race was not reproduced: publication and lookup currently run
+on the same event loop without an intervening await. No new registry
+concurrency contract is claimed. These fixes do not establish the cause of
+the reported acoustic popping.
+
+Validation after review fixes: Ruff check/format and mypy passed; all 771
+Python tests passed (260 small, 511 medium; 12.75 seconds wall clock).

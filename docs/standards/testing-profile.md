@@ -782,3 +782,14 @@ oracle after successful bootstrap followed by interruption. Bytecode was
 invalidated before mutation and restoration; restored eight-case suite passes.
 Full validation: 730 Python tests (258 small, 472 medium), 127 Swift tests,
 frozen lock, Ruff and mypy pass.
+
+## September 30 streaming PCM extension
+
+Streaming coverage includes controlled first-frame admission, bounded callbacks,
+cache equivalence, native pause/resume and failures, nested live preemption,
+atomic readiness/publication and restart recovery. Seeded-fault calibration and
+silent hardware measurements are in the
+[streaming receipt](../testing-evidence/2026-09-30-streaming-audio.md). The user
+accepted measured startup latency and deferred the original 150 ms optimization
+target to issue #33. Physical route changes and long-session acoustic acceptance
+remain outside the hermetic suite.

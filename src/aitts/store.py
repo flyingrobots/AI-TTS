@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS utterance_segments (
     PRIMARY KEY (utterance_id, segment_index)
 );
 CREATE INDEX IF NOT EXISTS idx_utterance_segments_state ON utterance_segments(state);
+CREATE TABLE IF NOT EXISTS streaming_jobs (
+    artifact_id TEXT PRIMARY KEY,
+    utterance_id TEXT NOT NULL REFERENCES utterances(id) ON DELETE CASCADE,
+    segment_index INTEGER
+);
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -623,11 +628,72 @@ class Store:
             speed=row["speed"],
         )
 
+    def start_streaming(self, work: SynthesisWork) -> None:  # noqa: C901 - atomic readiness and post-commit parent/child events
+        """Atomically advertise playable PCM and durable unfinished-generation ownership."""
+        if not self.synthesis_work_is_active(work) or self._streaming_job(work):
+            return
+        parent = self.get(work.utterance_id)
+        if parent is None:
+            return
+        ready_parent = work.segment_index is None or (
+            work.segment_index == 0 and parent.state is State.SYNTHESIZING
+        )
+        try:
+            self._db.execute(
+                "INSERT INTO streaming_jobs VALUES (?, ?, ?)",
+                (work.id, work.utterance_id, work.segment_index),
+            )
+            if work.segment_index is not None:
+                self._db.execute(
+                    "UPDATE utterance_segments SET state = ? "
+                    "WHERE utterance_id = ? AND segment_index = ?",
+                    (State.READY.value, work.utterance_id, work.segment_index),
+                )
+            if ready_parent:
+                self._db.execute(
+                    "UPDATE utterances SET state = ?, state_changed_at = ? WHERE id = ?",
+                    (State.READY.value, time.time(), work.utterance_id),
+                )
+            self._commit_or_rollback()
+        except Exception:
+            self._db.rollback()
+            raise
+        if work.segment_index is not None:
+            segment = self.get_segment(work.utterance_id, work.segment_index)
+            if segment is not None:
+                for callback in self.on_segment_transition:
+                    callback(segment, State.SYNTHESIZING)
+        if ready_parent:
+            after = self.get(work.utterance_id)
+            if after is not None:
+                for parent_callback in self.on_transition:
+                    parent_callback(after, parent.state)
+
+    def discard_streaming_job(self, artifact_id: str) -> None:
+        """Forget a producer whose clip was cancelled while native inference finished."""
+        self._db.execute("DELETE FROM streaming_jobs WHERE artifact_id = ?", (artifact_id,))
+        self._commit_or_rollback()
+
+    def _streaming_job(self, work: SynthesisWork) -> bool:
+        return (
+            self._db.execute(
+                "SELECT 1 FROM streaming_jobs WHERE artifact_id = ?", (work.id,)
+            ).fetchone()
+            is not None
+        )
+
     def synthesis_work_is_active(self, work: SynthesisWork) -> bool:
         """Return whether a claimed engine job may still publish its result."""
         parent = self.get(work.utterance_id)
         if parent is None or parent.is_terminal:
             return False
+        if self._streaming_job(work):
+            segment = (
+                self.get_segment(work.utterance_id, work.segment_index)
+                if work.segment_index is not None
+                else None
+            )
+            return segment is None or segment.state not in TERMINAL
         if work.segment_index is None:
             return parent.state is State.SYNTHESIZING
         segment = self.get_segment(work.utterance_id, work.segment_index)
@@ -641,6 +707,27 @@ class Store:
         duration_ms: int | None,
     ) -> None:
         """Publish lifecycle metadata for one successfully rendered work item."""
+        if self._streaming_job(work):
+            try:
+                if work.segment_index is None:
+                    self._db.execute(
+                        "UPDATE utterances SET audio_path = ?, duration_ms = ?, "
+                        "generation_artifact_id = ? WHERE id = ?",
+                        (audio_path, duration_ms, work.id, work.utterance_id),
+                    )
+                else:
+                    self._db.execute(
+                        "UPDATE utterance_segments SET audio_path = ?, duration_ms = ?, "
+                        "generation_artifact_id = ? WHERE utterance_id = ? AND segment_index = ?",
+                        (audio_path, duration_ms, work.id, work.utterance_id, work.segment_index),
+                    )
+                    self._refresh_composite_duration(work.utterance_id, commit=False)
+                self._db.execute("DELETE FROM streaming_jobs WHERE artifact_id = ?", (work.id,))
+            except Exception:
+                self._db.rollback()
+                raise
+            self._commit_or_rollback()
+            return
         if work.segment_index is None:
             self.transition(
                 work.utterance_id,
@@ -694,7 +781,7 @@ class Store:
         if parent is not None and not parent.is_terminal:
             self.transition(parent.id, State.FAILED, error=f"segment failed: {error}")
 
-    def _refresh_composite_duration(self, utt_id: str) -> None:
+    def _refresh_composite_duration(self, utt_id: str, *, commit: bool = True) -> None:
         row = self._db.execute(
             "SELECT COUNT(*) AS total, COUNT(duration_ms) AS measured, "
             "SUM(duration_ms) AS duration FROM utterance_segments WHERE utterance_id = ?",
@@ -705,7 +792,8 @@ class Store:
                 "UPDATE utterances SET duration_ms = ? WHERE id = ?",
                 (row["duration"], utt_id),
             )
-            self._commit_or_rollback()
+            if commit:
+                self._commit_or_rollback()
 
     def restart_segments(self, utt_id: str) -> bool:
         """Reset every cached child of an active document for replay from zero.
@@ -722,7 +810,10 @@ class Store:
         placeholders = ",".join("?" * len(resettable))
         self._db.execute(
             f"UPDATE utterance_segments SET state = ?, played_ms = 0 "  # noqa: S608
-            f"WHERE utterance_id = ? AND audio_path IS NOT NULL AND state IN ({placeholders})",
+            f"WHERE utterance_id = ? AND (audio_path IS NOT NULL OR EXISTS ("
+            "SELECT 1 FROM streaming_jobs j WHERE j.utterance_id = utterance_segments.utterance_id "
+            "AND j.segment_index = utterance_segments.segment_index)) "
+            f"AND state IN ({placeholders})",
             (State.READY.value, utt_id, *(state.value for state in resettable)),
         )
         self._db.execute("UPDATE utterances SET played_ms = 0 WHERE id = ?", (utt_id,))
@@ -738,13 +829,21 @@ class Store:
         disturbed when it has been evicted.
         """
         target = self.get_segment(utt_id, index)
-        if target is None or target.audio_path is None:
+        if target is None:
+            return False
+        live = self._db.execute(
+            "SELECT 1 FROM streaming_jobs WHERE artifact_id = ?", (target.artifact_id,)
+        ).fetchone()
+        if target.audio_path is None and live is None:
             return False
         resettable = _REPLAYABLE_STATES
         placeholders = ",".join("?" * len(resettable))
         self._db.execute(
             f"UPDATE utterance_segments SET state = ?, played_ms = 0 "  # noqa: S608
-            f"WHERE utterance_id = ? AND segment_index >= ? AND audio_path IS NOT NULL "
+            f"WHERE utterance_id = ? AND segment_index >= ? "
+            "AND (audio_path IS NOT NULL OR EXISTS (SELECT 1 FROM streaming_jobs j "
+            "WHERE j.utterance_id = utterance_segments.utterance_id "
+            "AND j.segment_index = utterance_segments.segment_index)) "
             f"AND state IN ({placeholders})",
             (State.READY.value, utt_id, index, *(state.value for state in resettable)),
         )
@@ -907,6 +1006,7 @@ class Store:
         anything that was playing comes back paused: a daemon that restarts
         and immediately begins speaking talks when nobody expects it.
         """
+        self._recover_streaming_jobs()
         synthesizing_segments = self._segments_by_states((State.SYNTHESIZING,))
         for segment in synthesizing_segments:
             self.transition_segment(segment.utterance_id, segment.index, State.QUEUED)
@@ -937,6 +1037,34 @@ class Store:
             elif utt.state is State.QUEUED and segments and segments[0].state is State.READY:
                 self.transition(utt.id, State.SYNTHESIZING)
                 self.transition(utt.id, State.READY)
+
+    def _recover_streaming_jobs(self) -> None:
+        interrupted = self._db.execute("SELECT * FROM streaming_jobs").fetchall()
+        for job in interrupted:
+            parent = self.get(job["utterance_id"])
+            if parent is None or parent.is_terminal:
+                continue
+            if parent.state in (State.PLAYING, State.PAUSED):
+                self._db.execute("INSERT OR REPLACE INTO settings VALUES ('playback_held', 'true')")
+            if job["segment_index"] is not None:
+                self._db.execute(
+                    "UPDATE utterance_segments SET state = ?, audio_path = NULL, played_ms = NULL "
+                    "WHERE utterance_id = ? AND segment_index = ?",
+                    (State.QUEUED.value, parent.id, job["segment_index"]),
+                )
+            if job["segment_index"] is None:
+                self._db.execute(
+                    "UPDATE utterances SET state = ?, audio_path = NULL, "
+                    "played_ms = NULL WHERE id = ?",
+                    (State.QUEUED.value, parent.id),
+                )
+            elif parent.state is State.PLAYING:
+                self._db.execute(
+                    "UPDATE utterances SET state = ? WHERE id = ?",
+                    (State.PAUSED.value, parent.id),
+                )
+        self._db.execute("DELETE FROM streaming_jobs")
+        self._commit_or_rollback()
 
     def _segments_by_states(self, states: tuple[State, ...]) -> list[UtteranceSegment]:
         placeholders = ",".join("?" * len(states))
