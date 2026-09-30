@@ -26,7 +26,7 @@ _CODE_NODES = frozenset({"code_block", "fence"})
 _TABLE_CELL_NODES = frozenset({"th", "td"})
 _TERMINAL_PUNCTUATION = (".", "!", "?", ":", ";")
 _TASK_MARKER = re.compile(r"^\[[ xX]\][ \t]+")
-_FORMATTING_STARS = re.compile(r"(?<!\S)\*+\s*([^*\n]+?)\s*\*+(?!\S)")
+_FORMATTING_STARS = re.compile(r"(?<!\S)\*+\s*([^*]+?)\s*\*+(?!\S)")
 
 
 def _clean_spoken_text(text: str) -> str:

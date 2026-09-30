@@ -157,3 +157,10 @@ def test_markdown_speech_plan_strips_loose_formatting_asterisks() -> None:
 )
 def test_loose_emphasis_cleanup_preserves_literal_asterisks(text: str, spoken: str) -> None:
     assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (spoken,)
+
+
+@pytest.mark.oracle("loose prose emphasis is removed across line breaks after front matter")
+def test_multiline_loose_emphasis_is_removed_after_front_matter() -> None:
+    assert prepare_speech_segments(
+        "---\ntitle: ignored\n---\n** first\nsecond **", content_format=ContentFormat.MARKDOWN
+    ) == ("first\nsecond",)
