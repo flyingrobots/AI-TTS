@@ -430,3 +430,21 @@ Skipped, active child Skipped, and remaining child Cancelled after reopening.
 Retire only if a stronger calibrated atomic transport contract supersedes it.
 Old partial skips cannot be inferred safely from a skipped child alone, because
 Next Chunk uses that state too; this fix prevents new partial Skip commits.
+
+
+## Crash audit CI follow-up: PyJWT parser containment
+
+Change-kind: bug fix. Required dependency CI run 36741915464 failed for
+PyJWT 2.14.0, CVE-2026-101918 / GHSA-42vr-xj54-vc7v. The frozen transitive
+package is now 2.15.1 (upstream's first patched version is 2.15.0).
+
+The small public `jwt.decode` regression injects RecursionError through a
+scoped replacement of the payload module's JSON decoder reference. Header
+parsing remains real, and the process-wide json module is unchanged. The
+unfixed 2.14.0 run leaked RecursionError; 2.15.1 raises the expected DecodeError.
+Exploratory 2,000/20,000-level payloads did not exhaust this Python 3.14 parser
+and were discarded rather than claimed as red-to-green evidence. This is a
+calibrated error-boundary contract, not a claim that AI-TTS exposes remote JWT
+authentication or that every runtime has the same recursion threshold.
+[Upstream advisory](https://github.com/jpadilla/pyjwt/security/advisories/GHSA-42vr-xj54-vc7v).
+Retire if the dependency leaves the graph or stronger conformance replaces it.
