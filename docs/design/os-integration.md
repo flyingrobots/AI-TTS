@@ -30,9 +30,10 @@ AI-TTS will integrate with macOS through several narrow, user-invoked entry
 points rather than one privileged mechanism that tries to observe every app.
 The primary entry point is a macOS Service for selected text. A second Service
 accepts one selected text, Markdown, or text-bearing PDF file. The menu-bar app
-also offers **Read Current Selection…** through the Accessibility API for
-applications that do not participate correctly in Services, and **Read
-Clipboard** as an explicit low-permission fallback. Six App Intent actions
+also offers **Speak… → Import Selection** through the Accessibility API for
+applications that do not participate correctly in Services, and **Paste
+Clipboard** as an explicit low-permission fallback. Both append to an editable
+draft; the user presses **Speak** to submit it. Six App Intent actions
 extend the same application boundaries into custom Shortcuts automation.
 
 A **Service** is an action AI-TTS exports so another application can hand it a
@@ -120,21 +121,24 @@ have different interpretation rules before that point.
 ```mermaid
 flowchart TD
     TEXT["Selected text"] --> TEXTSERVICE["Text Service adapter"]
-    MENU["Read Current Selection action"]
+    MENU["Composer: Import Selection"]
     AX["Accessibility selection adapter"]
-    CLIPBOARD["Read Clipboard action"]
+    CLIPBOARD["Composer: Paste Clipboard"]
     CLIPBOARDADAPTER["Clipboard adapter"]
     FILE["One selected file"] --> FILESERVICE["File Service adapter"]
     AUTOMATION["Custom Shortcut"] --> INTENTS["App Intents adapter"]
 
     TEXTSERVICE --> SELECTION["EnqueueSelection"]
-    MENU --> CURRENTUSE["EnqueueCurrentSelection"]
-    CURRENTUSE --> SELECTEDPORT["SelectedTextReaderPort"]
+    MENU --> SELECTEDPORT["SelectedTextReaderPort"]
     SELECTEDPORT --> AX
-    CURRENTUSE --> SELECTION
-    CLIPBOARD --> CLIPUSE["EnqueueClipboard"]
-    CLIPUSE --> CLIPBOARDADAPTER
-    CLIPUSE --> SELECTION
+    AX --> DRAFT["SpeechDraft: editable imports"]
+    CLIPBOARD --> CLIPPORT["ClipboardTextReaderPort"]
+    CLIPPORT --> CLIPBOARDADAPTER
+    CLIPBOARDADAPTER --> DRAFT
+    ATTACH["Composer: Attach File"] --> READER
+    READER --> DRAFT
+    DRAFT --> SUBMIT["Explicit Speak action"]
+    SUBMIT --> SPEECH
     FILESERVICE --> DOCUMENT["EnqueueDocument"]
     DOCUMENT --> READER["SpeechDocumentReaderPort"]
     INTENTS --> SELECTION
@@ -157,25 +161,26 @@ flowchart TD
     style FILESERVICE fill:#d4edda,stroke:#2e7d32
     style SELECTION fill:#d4edda,stroke:#2e7d32
     style SELECTEDPORT fill:#d4edda,stroke:#2e7d32
-    style CURRENTUSE fill:#d4edda,stroke:#2e7d32
-    style CLIPUSE fill:#d4edda,stroke:#2e7d32
+
     style INTENTS fill:#d4edda,stroke:#2e7d32
 ```
 
 <details>
 <summary>Figure 1 - Native OS input adapters converge on existing speech admission</summary>
 
-Selected text is normalized only by `EnqueueSelection`; selected files retain
-the existing `EnqueueDocument` and document-reader path. Every route eventually
-uses the same typed speech port and local daemon socket.
+Services and App Intents retain the direct `EnqueueSelection` and
+`EnqueueDocument` paths. Composer imports use the same reader ports but accumulate
+in `SpeechDraft` until the user submits. Every route eventually uses the same
+typed speech port and local daemon socket.
 
 </details>
 
 | External trigger | Inbound adapter | Application boundary | Interpretation |
 |---|---|---|---|
 | Selected text Service | Services provider | `SelectionEnqueueing` | Always literal `plain_text` |
-| Menu-bar selection action | Accessibility reader | `SelectedTextReaderPort`, then `SelectionEnqueueing` | Always literal `plain_text` |
-| Explicit clipboard action | Pasteboard reader | `SelectionEnqueueing` | Always literal `plain_text` |
+| Composer Import Selection | Accessibility reader | `SelectedTextReaderPort`, then `SpeechDraft` and explicit submission | Imported as plain text; whole-draft format remains user-selectable |
+| Composer Paste Clipboard | Pasteboard reader | `ClipboardTextReaderPort`, then `SpeechDraft` and explicit submission | Imported as plain text; whole-draft format remains user-selectable |
+| Composer Attach File | Native document reader | `SpeechDocumentReaderPort`, then `SpeechDraft` and explicit submission | Markdown import selects Markdown for the whole draft |
 | Selected Finder file | Services provider | Existing `DocumentEnqueueing` | Extension or extractor chooses Markdown versus plain text |
 | Custom Shortcut | App Intent | The same selection, document, or speech-command boundary | Explicit intent parameter type chooses the path |
 
@@ -308,19 +313,22 @@ or socket translation.
 
 The menu-bar action can improve coverage for applications whose selections do
 not reach Services, but it must be treated as a privileged, best-effort
-fallback. The user invokes **Read Current Selection…** first; only then may
+fallback. The user invokes **Import Selection** first; only then may
 AI-TTS request Accessibility trust and inspect one application once.
 
 Focus timing is the subtle part. The status controller captures the previous
 frontmost application’s process identifier before it shows the popover or
 makes its window key. The action later creates an accessibility element for
 that stored process, asks for its focused UI element, and reads
-`kAXSelectedTextAttribute`. Querying the current frontmost process after the
-popover activates would target AI-TTS itself.
+`kAXSelectedTextAttribute`. While the composer exists, workspace activation
+notifications also update the remembered process for other applications;
+activating AI-TTS itself does not replace it. These notifications identify the
+application only: they do not read its selection. Querying the current frontmost
+process after the popover activates would target AI-TTS itself.
 
 If TextEdit did not surface the canonical sentence through Services, the user
-could invoke this fallback. The same sentence would still reach
-`EnqueueSelection`; only the acquisition adapter would change.
+could invoke this fallback. The sentence enters the composer draft for review
+and editing, then reaches `SpeechServicePort` only after Speak is pressed.
 
 Apple defines
 [`kAXSelectedTextAttribute`](https://developer.apple.com/documentation/applicationservices/kaxselectedtextattribute)
@@ -350,15 +358,15 @@ implementation preferences.
 
 | Rejected approach | Why it is rejected | Accepted alternative |
 |---|---|---|
-| Continuously poll Accessibility for highlighted text | Observes unrelated activity, consumes resources, and makes the enqueue moment ambiguous | Query once after **Read Current Selection…** |
+| Continuously poll Accessibility for highlighted text | Observes unrelated activity, consumes resources, and makes the enqueue moment ambiguous | Query once after **Import Selection** |
 | Synthesize Command-C | Depends on focus timing and causes behavior in another app | Receive the Service selection or ask the user to copy explicitly |
-| Save, overwrite, and restore the clipboard | Races other clipboard users and can lose delayed or multi-format data | Read the existing clipboard without mutation only after **Read Clipboard** |
+| Save, overwrite, and restore the clipboard | Races other clipboard users and can lose delayed or multi-format data | Read the existing clipboard without mutation only after **Paste Clipboard** |
 | Automatically infer Markdown from selected characters | A selection has no reliable source-format provenance | Treat selections as literal; classify selected files by document type |
 | Send file paths through daemon IPC | Expands filesystem authority and forks client-side extraction policy | Read the selected URL locally and submit text plus format |
 | Add a Finder Sync extension only for a context item | Adds a privileged extension and duplicates what a file Service already provides | Use **Read File with AI-TTS** as a Service |
 | Claim a top-level context-menu item everywhere | Host applications own their contextual menus | Guarantee the Services-menu command and document the optional contextual placement |
 
-**Read Clipboard** remains acceptable only as an explicit action. It reads the
+**Paste Clipboard** remains acceptable only as an explicit action. It reads the
 current string representation, never changes the pasteboard, submits through
 `EnqueueSelection`, and tells the user when no string is present. It is a
 fallback for inaccessible renderers, not a hidden implementation of selection
@@ -419,7 +427,7 @@ and which remain future work.
 | Selected-text application policy exists | `SpeechApplication.swift` defines `SelectionEnqueueing` and `EnqueueSelection`; focused application tests record falsification | Implemented |
 | The app advertises Services | Generated metadata and installed `pbs` discovery contain exact text and file `NSServices` entries | Implemented; installed discovery verified |
 | Service requests delegate to shared use cases | Focused adapter tests plus installed `NSPerformService` text/file invocations reached exact daemon submissions without changing the general pasteboard | Implemented; TextEdit menu verified, remaining host matrix pending |
-| Explicit acquisition paths share selection admission | `EnqueueCurrentSelection` and `EnqueueClipboard` delegate exact reader output through `SelectionEnqueueing`; Queue's **Read…** menu calls those ports | Implemented and contract-tested |
+| Composer acquisition shares reader ports and typed submission | `SpeechComposer` imports through selection, clipboard, and document reader ports into `SpeechDraft`, then explicitly submits through `SpeechServicePort`; legacy direct use cases remain available | Implemented and contract-tested |
 | The app can read another app’s selection | `AccessibilitySelectionReader` queries one explicit PID and distinguishes trust, focus, support, empty, and AX failures | Implemented; live permission/host acceptance pending |
 | The prior foreground application survives popover activation | `PopoverOpenSequence` stores an external PID before its activation closure; focused tests falsify the event order | Implemented and contract-tested |
 | App Intents are packaged for system discovery | Six typed intents delegate through injected application ports; the release builder validates generated `Metadata.appintents` before signing; macOS `linkd` indexed the installed URL, all six action identifiers, and six provider records | Implemented; installed system indexing verified, real custom-Shortcut invocation pending |

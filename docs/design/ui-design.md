@@ -24,9 +24,10 @@ They carry light and dark themes in the same file. The earlier Now Playing,
 Up Next, synthesis Queue, and History SVGs remain in mockups/ as design
 history; they are superseded where they conflict with the unified proposals.
 [`mockups/settings.svg`](mockups/settings.svg) is also an early exploration,
-not the implemented contract: its output-device, autoplay, age-retention, and
-storage-meter controls remain unimplemented. The current Settings behavior is
-specified below.
+not the implemented contract: output-device and autoplay controls remain
+unimplemented. Generated-file usage and age retention are now available in
+**Manage Files…**, rather than in that mockup. The current behavior is specified
+below.
 
 ## The user-facing model
 
@@ -42,17 +43,25 @@ row, not a reason to move the clip into another view:
 - Ready — synthesized and waiting for its turn.
 - Synthesizing… — audio generation is in progress.
 - Queued — waiting for a synthesis worker.
+- Paused — a suspended clip waiting to resume after preemption.
 
 The plan is serialized, but not globally FIFO. Normal submissions retain
 acceptance order. Urgent submissions and explicit drag reordering can change
-the pending order. None of those operations interrupts the clip already
-playing.
+the pending order without interrupting the current clip. Preempt is a third
+priority: once ready, it suspends the current clip and later resumes it. User
+and microphone holds still take precedence. Nested preemptions resume in stack
+order; see the [playback contract](architecture.md).
 
 ## Popover shell
 
-The popover is 368 × 500 points. Its stable vertical structure is:
+The popover starts at 368 × 500 points with fixed width and resizable height.
+The bottom grip accepts dragging, focused Up/Down keys in 20-point steps, and
+accessibility slider adjustments. The normal minimum is 360 points; a smaller
+display can require a lower effective height. Each opening fits the current
+display while retaining the user's preferred height for larger displays. Its
+stable vertical structure is:
 
-- app identity, daemon status, a global Pause / Resume control, and a Settings gear;
+- app identity, **Speak…**, daemon status, a global Pause / Resume control, and a Settings gear;
 - the current-playback card;
 - a two-way Queue / History segmented control;
 - the selected list;
@@ -75,22 +84,31 @@ that menu.
 The selected-text Service has no confirmation step. It enqueues the exact
 nonempty selection as confidential, Normal, literal text, returns after daemon
 acknowledgement, and lets the existing Queue provide visible feedback. The file
-Service likewise delegates to the same document admission used by **Read
-File…**. Errors are local and actionable; unsupported or multiple files are
+Service delegates to `EnqueueDocument` for immediate submission; the composer
+uses the same document reader but lets the user edit before submitting. Errors are local and actionable; unsupported or multiple files are
 rejected before anything is enqueued.
 
-Queue's **Read…** menu includes **Read Current Selection…**. The
-ellipsis is intentional: its first use may need the macOS Accessibility prompt,
-and any use may report that the previous application does not expose selected
-text. Opening the popover must preserve the previously frontmost application
-before the popover makes itself key. Invoking the action performs one read of
-that application; it never enables selection polling.
+The header's **Speak…** opens an editable composer. **Import Selection** is an
+explicit Accessibility fallback; its first use may need permission, and some
+applications do not expose selected text. The app remembers the last other
+application activated, including switches made while the composer is open.
+Only clicking Import Selection reads that application's selection.
 
-If Accessibility cannot obtain the selection, the error identifies the
-boundary and offers two next actions: use the macOS Service, or copy explicitly
-and choose **Read Clipboard**. **Read
-Clipboard** reads but never replaces the pasteboard. Neither fallback silently
-synthesizes Command-C.
+**Paste Clipboard** reads the current text without replacing the pasteboard or
+issuing Command-C. **Attach File…** reads one supported text/Markdown/PDF file.
+Each import appends to the draft rather than submitting. **Speak** (⌘Return)
+submits the edited draft through `SpeechServicePort`, confidential and Normal.
+
+The Voice and Model pickers offer the daemon default or an explicit choice;
+the only explicit model is the currently active backend. A backend pin is
+validated at submission, not a request to switch or install engines. The Text
+picker applies Plain text or Markdown to the entire draft. Markdown imports
+select Markdown; plain imports preserve the existing choice. Closing preserves
+the draft in memory, while quitting loses it. Clear and successful submission
+remove text and import labels but retain voice, model, and format. Failed
+imports or admission preserve the draft and show an error. Imports and final
+submissions enforce a combined 512 KiB UTF-8 limit; the visible character count
+is not that byte count. Import labels record acquisition, not subsequent edits.
 
 These entry points are specified in
 [`os-integration.md`](os-integration.md). The menu actions are implemented;
@@ -128,8 +146,8 @@ Captions are off by default and persist as a shared daemon setting. The caption
 bubble beside playback rate pushes that setting through the same application
 port used by other native controls. MCP can read or update the identical value,
 and a daemon settings event causes the menu app to refresh immediately. The
-bubble toggles a borderless, non-activating panel near the bottom center of the
-active display. The panel floats across Spaces, ignores mouse events, and
+bubble toggles a borderless, non-activating panel on the active display.
+Settings selects Top or Bottom placement; Bottom is the default. The panel floats across Spaces, ignores mouse events, and
 disappears whenever captions are disabled, the daemon is unreachable, or no
 clip is active. If LaunchServices started the accessory app hidden, the native
 adapter unhides it without activation immediately before ordering the caption
@@ -166,19 +184,16 @@ remains only a liveness watchdog.
 
 Queue is the complete pending plan:
 
-- **Read…** contains current-selection, clipboard, and file entry points;
-- **Read File…** opens a single-selection picker for UTF-8 plain text,
-  Markdown, or PDF;
 - rows stay in the order they will be heard;
-- a visible word pill carries Ready, Synthesizing…, or Queued;
-- Urgent is a separate blue badge because scheduling intent and processing
-  state are orthogonal;
-- the grip reorders pending rows;
-- the visible remove control cancels one row;
+- a visible word pill carries Ready, Synthesizing…, Queued, or Paused;
+- Urgent and Preempt have separate priority badges;
+- the grip reorders pending rows unless suspended Paused rows are present;
+- the visible remove control cancels one row, but is disabled for suspended
+  Paused rows; use Clear Queue to discard suspended speech;
 - **Clear queue…** asks for confirmation, then cancels every upcoming row,
-  including work currently synthesizing.
+  including work currently synthesizing and suspended preempted clips.
 
-The menu app—not the daemon—opens and reads the selected URL. Text and Markdown
+The composer—not the daemon—opens and reads the selected URL. Text and Markdown
 retain their source exactly. `.md` and `.markdown` are marked for Markdown AST
 projection; other supported text and the extractable PDF text layer are marked
 literal plain text. A PDF contributes pages in order, separated by paragraph
@@ -200,7 +215,7 @@ from silently dropping, duplicating, or hiding a clip.
 ## History
 
 History is durable, searchable, and newest-first. Rows show completion time,
-final state, source when present, and the original Urgent badge when
+final state, source when present, and the original Urgent or Preempt badge when
 applicable. That priority is provenance: it records how the original hearing
 was scheduled.
 
@@ -210,16 +225,28 @@ Each row has:
 - a chevron menu with:
   - **Normal — Add to end of Queue**
   - **Urgent — Play next after current**
-- a visible remove control.
+  - Preempt, to interrupt once ready;
+- a visible remove control;
+- **Provenance**, which loads caller/import/replay attribution on demand;
+- **Report…**, which saves a local ZIP with source, audio, and available evidence.
 
 Re-queue creates a new utterance and leaves the historical row unchanged. The
 fresh urgency selection applies only to the new copy. Cached audio is reused
 when it still exists; otherwise synthesis runs again.
 
-**Clear history…** confirms before deleting all terminal records. Removing one
-record or clearing History does not cancel active work and does not implicitly
-delete cached audio. Cache retention remains a separate storage concern in
-Settings.
+**Clear history…** offers **Clear History Only** or **Clear History and Generated
+Files**. Removing one row or choosing history-only leaves generated files.
+Combined deletion removes eligible generated files while protecting active work.
+Report archives stay local and explicitly identify missing legacy evidence.
+
+**Manage Files…**, available from History and the footer, lists generated clip
+directories, byte usage, and protected entries. Confirmed deletion can remove
+one eligible clip or all eligible files, including audio, source copies, and
+evidence; history remains for requeueing. Automatic age retention is opt-in:
+Never (default), 1, 7, 30, or 90 days since audio access or evidence activity,
+checked once a minute. Current, queued, suspended, and unfinished synthesis
+artifacts are protected. The independent cache size cap can evict WAVs earlier
+without removing evidence sidecars.
 
 ## Settings and voice previews
 
@@ -230,7 +257,7 @@ after the current clip and is visible in Queue like every other submission.
 
 Voice-generation speed is continuous from 0.5× to 2.0× and applies to future submissions.
 On-screen captions can also be enabled or disabled here, against the same
-daemon setting exposed to MCP.
+daemon setting exposed to MCP. Caption position is a local Top/Bottom choice.
 Storage exposes **Purge Cached Audio…** as a separately confirmed destructive
 action. Its confirmation says that history text remains and audio needed by
 current or queued speech is protected. While the request is running the action
@@ -263,10 +290,10 @@ flight; paused and error remain visually stable.
 ## Deliberate boundaries for v0.1.0
 
 The current implementation does not claim waveform scrubbing, word-synchronized
-karaoke highlighting, mute-without-pause, output-device selection, cache
-retention-policy controls beyond the existing size cap and one-shot purge,
-history export, or a detachable History window. Text/file
-Services, explicit Accessibility/clipboard admission, and App Intents are now
+karaoke highlighting, mute-without-pause, output-device selection, a bulk
+export of the entire history, or a detachable History window. Per-clip reports,
+generated-file age retention, and the existing audio cache size cap are
+implemented. Text/file Services, explicit Accessibility/clipboard admission, and App Intents are now
 part of the implemented surface. Their compatibility claims remain bounded by
 the installed evidence in [`os-integration.md`](os-integration.md): Services
 dispatch and App Intent indexing are proved locally, while the representative
