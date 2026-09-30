@@ -57,6 +57,8 @@ from aitts.synthesis import SynthesisPool
 from aitts.voice_registry import VoiceRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from aitts.application.input_activity import InputActivityPort
     from aitts.engine import Engine
     from aitts.playback import AudioSink
@@ -151,6 +153,7 @@ class Daemon:
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._model_reload: asyncio.Task[dict[str, Any]] | None = None
         self._exports: dict[asyncio.Task[dict[str, Any]], tuple[set[str], set[str]]] = {}
 
     @property
@@ -218,9 +221,12 @@ class Daemon:
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""
         await self._server.stop()
-        for task in self._tasks:
+        tasks: list[asyncio.Task[Any]] = list(self._tasks)
+        if self._model_reload is not None:
+            tasks.append(self._model_reload)
+        for task in tasks:
             task.cancel()
-        for task in self._tasks:
+        for task in tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks = []
@@ -556,6 +562,19 @@ class Daemon:
             raise ApiError(ILLEGAL_STATE, "wait for active synthesis or model loading to finish")
         self._pool.enabled.clear()
         self._model_state = "reloading"
+        worker = asyncio.create_task(self._reload_model(restart), name="aitts-model-reload")
+        self._model_reload = worker
+        worker.add_done_callback(self._model_reload_finished)
+        # The daemon owns restart and synthesis exclusion, not the waiting request.
+        return await asyncio.shield(worker)
+
+    def _model_reload_finished(self, worker: asyncio.Task[dict[str, Any]]) -> None:
+        if self._model_reload is worker:
+            self._model_reload = None
+        if not worker.cancelled():
+            worker.exception()  # Observe failures after the request stops awaiting.
+
+    async def _reload_model(self, restart: Callable[[], None]) -> dict[str, Any]:
         try:
             await asyncio.to_thread(restart)
             self._model_state = "ready"
@@ -566,7 +585,8 @@ class Daemon:
         else:
             return {"ok": True}
         finally:
-            self._pool.enabled.set()
+            if self._pool is not None:
+                self._pool.enabled.set()
             self._server.broadcast({"event": "model_readiness_changed"})
 
     async def _op_provenance(self, payload: dict[str, Any]) -> dict[str, Any]:

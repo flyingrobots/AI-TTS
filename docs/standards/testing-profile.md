@@ -238,3 +238,20 @@ behavior cannot certify this tree. The installed app and daemon were not replace
 or restarted. Real selection-permission/host, VoiceOver traversal, cross-display
 resize, and acoustic playback acceptance remain open; controlled native and daemon
 boundary suites do not substitute for those checks.
+
+## Daemon lifecycle audit: cancelled model reload
+
+Change-kind: bug fix. Cancelling the awaiting reload request previously ran its
+cleanup while the native restart thread was still active, re-enabling synthesis
+and leaving model readiness permanently `reloading`. The daemon now owns a
+shielded reload task; it records success/failure and releases synthesis exclusion
+when that operation completes. Shutdown still cancels daemon-owned work and
+retains the existing bounded process-termination policy for native threads.
+
+`test_model_reload_lifecycle.py` enters through daemon dispatch, uses an owned
+fake engine and event-gated restart thread, and checks both successful and failed
+restart completion after request cancellation. Both cases failed on the original
+code because readiness never left `reloading`; both pass with daemon ownership.
+The existing IPC reload recovery contract remains green. This is a medium test;
+its deadline bounds a readiness liveness observation, not an inferred scheduling
+order. Retire it only with a replacement ownership contract or removal of reload.
