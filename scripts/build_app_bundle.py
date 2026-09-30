@@ -520,7 +520,10 @@ def main(argv: list[str] | None = None) -> int:
             sign=not args.unsigned,
             allow_missing_app_intents=args.allow_missing_app_intents,
         )
-        publish_app_bundle(candidate, output, force=args.force)
+        try:
+            publish_app_bundle(candidate, output, force=args.force)
+        except FileExistsError:
+            parser.error(f"output already exists: {output}; retry to replace it deliberately")
     sys.stdout.write(f"{output}\n")
     return 0
 

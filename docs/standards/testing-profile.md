@@ -724,3 +724,15 @@ command argument list; removing the MCP resolution sentinel fails the trailing-
 newline argument check. Existing apostrophe, ampersand and space cases stay green.
 No command from the generated skill is executed. Retire only with an equivalent
 calibrated path-to-command argument preservation contract.
+
+
+## Installation audit: concurrent CLI refusal diagnostics
+
+Change-kind: bug fix. Existing exclusive publication preserved a concurrent
+installation, but both CLIs leaked FileExistsError instead of their normal
+destination-conflict diagnostic. Two small owned CLI-boundary cases observed
+the raw exception where exit 2 and an explicit output-conflict message were
+required. They now receive that diagnostic and still verify the winning
+artifact's exact bytes. The direct renderer continues exposing FileExistsError
+to library callers; unrelated forced-render validation errors remain unchanged.
+Retire only with an equivalent calibrated CLI refusal contract.

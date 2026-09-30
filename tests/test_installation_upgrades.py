@@ -84,8 +84,13 @@ def test_forced_launch_agent_success_publishes_complete_replacement(tmp_path: Pa
     assert output.stat().st_mode & 0o777 == 0o644
 
 
+@pytest.mark.parametrize("through_cli", [False, True])
 def test_unforced_launch_agent_preserves_concurrent_install(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    through_cli: bool,
 ) -> None:
     output = tmp_path / "agent.plist"
     dump = plistlib.dump
@@ -96,10 +101,27 @@ def test_unforced_launch_agent_preserves_concurrent_install(
         output.write_bytes(incumbent)
 
     monkeypatch.setattr("scripts.render_launch_agent.plistlib.dump", racing_dump)
-    with pytest.raises(FileExistsError):
-        launch_agent.render_launch_agent(
-            executable=tmp_path / "ai-tts", output=output, log_path=tmp_path / "logs" / "daemon.log"
-        )
+    if through_cli:
+        with pytest.raises(SystemExit) as failure:
+            launch_agent.main(
+                [
+                    "--executable",
+                    str(tmp_path / "ai-tts"),
+                    "--output",
+                    str(output),
+                    "--log-path",
+                    str(tmp_path / "logs" / "daemon.log"),
+                ]
+            )
+        assert failure.value.code == 2
+        assert "output already exists" in capsys.readouterr().err
+    else:
+        with pytest.raises(FileExistsError):
+            launch_agent.render_launch_agent(
+                executable=tmp_path / "ai-tts",
+                output=output,
+                log_path=tmp_path / "logs" / "daemon.log",
+            )
     assert output.read_bytes() == incumbent
 
 
@@ -154,7 +176,7 @@ def test_app_publication_installs_complete_candidate(
 
 
 def test_unforced_app_publication_preserves_concurrent_install(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     destination = tmp_path / "AI-TTS.app"
 
@@ -167,8 +189,10 @@ def test_unforced_app_publication_preserves_concurrent_install(
         return output
 
     monkeypatch.setattr(app_bundle, "build_app_bundle", racing_build)
-    with pytest.raises(FileExistsError):
+    with pytest.raises(SystemExit) as failure:
         app_bundle.main(["--output", str(destination)])
+    assert failure.value.code == 2
+    assert "output already exists" in capsys.readouterr().err
 
     assert {path.name: path.read_bytes() for path in destination.iterdir()} == {
         "incumbent": b"concurrent installation"

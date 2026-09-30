@@ -86,7 +86,14 @@ def main(argv: list[str] | None = None) -> int:
     log_path = args.log_path.expanduser().absolute()
     if output.exists() and not args.force:
         parser.error(f"output already exists: {output}; pass --force to replace it")
-    render_launch_agent(executable=executable, output=output, log_path=log_path, force=args.force)
+    try:
+        render_launch_agent(
+            executable=executable, output=output, log_path=log_path, force=args.force
+        )
+    except FileExistsError:
+        if not args.force and output.exists():
+            parser.error(f"output already exists: {output}; pass --force to replace it")
+        raise
     sys.stdout.write(f"{output}\n")
     return 0
 

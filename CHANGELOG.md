@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.
+
 - Agent integration preserves embedded and trailing newlines in executable paths instead of failing skill rendering or silently changing the path.
 
 - Installation reports launchd registration without claiming the daemon is healthy or running; `make doctor` remains the explicit status check.
