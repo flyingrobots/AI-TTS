@@ -22,6 +22,19 @@ final class PopoverResizeTests: XCTestCase {
         XCTAssertEqual(PopoverSizing(defaults: defaults).height, 650)
     }
 
+    // Test-Oracle: a height accepted on a tall display survives reconstruction unchanged.
+    @MainActor
+    func testTallDisplayHeightSurvivesRelaunch() throws {
+        let name = "resize-tall-display-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let sizing = PopoverSizing(defaults: defaults)
+        sizing.maximumHeight = 1800
+        sizing.resize(to: 1500)
+        XCTAssertEqual(sizing.height, 1500)
+        XCTAssertEqual(PopoverSizing(defaults: defaults).height, 1500)
+    }
+
     // Test-Oracle: ordinary displays clamp requested heights to 360...available height.
     @MainActor
     func testRequestedHeightIsClampedToUsableBounds() throws {

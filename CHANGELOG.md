@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Menu heights above 1200 points remain intact across relaunches on tall displays.
+
 - The menu resize grip supports keyboard arrows and accessibility increment/decrement, and exposes its current height and bounds.
 
 - History removal prunes cached provenance, and late requests cannot restore details for removed clips.

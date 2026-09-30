@@ -13,7 +13,7 @@ final class PopoverSizing: ObservableObject {
     init(defaults: UserDefaults) {
         self.defaults = defaults
         let stored = defaults.double(forKey: "menuCardHeight")
-        self.height = stored.isFinite && stored >= 360 ? min(stored, 1200) : 500
+        self.height = stored.isFinite && stored >= 360 ? stored : 500
     }
 
     func resize(to proposed: CGFloat) {
