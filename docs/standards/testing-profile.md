@@ -499,3 +499,16 @@ The deadline bounds completion, not scheduling or an absence-of-events safety
 claim. No FIFO peer exists. Existing permissive-umask, sidecar, candidate and
 symlink privacy checks remain relevant. Retire only with an equivalent
 nonblocking descriptor-validation contract.
+
+
+## Admission audit CI follow-up: generated schema test sizing
+
+Change-kind: behavior change (test classification only). Required CI run
+36745318625 failed when the generated schema round-trip test exceeded the
+two-second small ceiling while Hypothesis lazily initialized NumPy's random
+state. Hypothesis reported a FlakyFailure after the timeout; the failed run
+was not retried into green. This generated check now uses the existing
+fifteen-second medium ceiling. The three example-based functions remain
+explicitly small. Strategies, example count, seed policy, oracle and assertions
+are unchanged; no new assertion or runtime behavior is introduced.
+Failure evidence: [Python job](https://github.com/flyingrobots/AI-TTS/actions/runs/36745318625/job/109989908799).

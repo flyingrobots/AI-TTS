@@ -14,7 +14,6 @@ from aitts.application.schemas import EnqueueSpeech
 from aitts.model import ContentFormat, Priority, Sensitivity
 
 pytestmark = [
-    pytest.mark.small,
     pytest.mark.oracle("approved public speech-schema contract"),
 ]
 
@@ -30,6 +29,7 @@ enqueue_requests = st.builds(
 )
 
 
+@pytest.mark.medium
 @settings(max_examples=100, derandomize=True, database=None)
 @given(request=enqueue_requests)
 def test_enqueue_schema_round_trips_generated_json(request: EnqueueSpeech) -> None:
@@ -39,6 +39,7 @@ def test_enqueue_schema_round_trips_generated_json(request: EnqueueSpeech) -> No
     assert decoded == request
 
 
+@pytest.mark.small
 @pytest.mark.parametrize("text", ["", " ", "\t\n"])
 def test_enqueue_schema_rejects_text_without_speech(text: str) -> None:
     """Oracle: approved requirement that enqueue text be non-empty after trimming."""
@@ -46,12 +47,14 @@ def test_enqueue_schema_rejects_text_without_speech(text: str) -> None:
         EnqueueSpeech(text=text)
 
 
+@pytest.mark.small
 def test_enqueue_schema_defaults_agent_speech_to_plain_text() -> None:
     request = EnqueueSpeech(text="# Say **this** literally")
 
     assert request.content_format is ContentFormat.PLAIN_TEXT
 
 
+@pytest.mark.small
 def test_public_schema_rejects_unknown_fields() -> None:
     """Oracle: public schemas are closed so adapter drift fails loudly."""
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
