@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- History reports export per-clip audio, source, BLAKE3 identities, generation/model provenance, and synthesis/playback logs including pause causes. Open Data Folder reveals the local files; reports stay local and identify missing legacy evidence.
+
 - Captions can be placed at the top or bottom of the screen; the preference persists and takes effect immediately.
 
 - **The listener's voice takes the floor.** Playback stops when something

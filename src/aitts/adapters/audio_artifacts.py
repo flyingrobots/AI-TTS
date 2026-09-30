@@ -6,16 +6,13 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from aitts.adapters.private_files import (
     create_private_file,
     ensure_private_directory,
     secure_existing_file,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +28,14 @@ class FileAudioArtifacts:
         """Create the artifact directory and sweep unpublished crash debris."""
         ensure_private_directory(self._root)
         for member in self._root.iterdir():
+            if member.is_dir() and not member.is_symlink():
+                ensure_private_directory(member)
+                for child in member.iterdir():
+                    if self._is_candidate(child):
+                        self.discard(child)
+                    elif child.is_file() and not child.is_symlink():
+                        secure_existing_file(child)
+                continue
             if self._is_candidate(member):
                 if not self.discard(member):
                     log.warning("event=stale_synthesis_candidate_discard_failed")
@@ -42,6 +47,7 @@ class FileAudioArtifacts:
     def target(self, utterance_id: str) -> Path:
         """Return a cache-invisible candidate path for ``utterance_id``."""
         candidate = self._candidate_path(utterance_id)
+        ensure_private_directory(candidate.parent)
         if not self.discard(candidate):
             msg = f"could not prepare synthesis candidate {candidate}"
             raise OSError(msg)
@@ -77,18 +83,28 @@ class FileAudioArtifacts:
         return True
 
     def _candidate_path(self, utterance_id: str) -> Path:
-        candidate = self._root / f".{utterance_id}.wav.part"
-        if candidate.parent != self._root:
+        candidate = self._directory(utterance_id) / f".{utterance_id}.wav.part"
+        if candidate.parent != self._root / utterance_id:
             msg = "utterance id must not contain a path separator"
             raise ValueError(msg)
         return candidate
 
     def _published_path(self, utterance_id: str) -> Path:
-        published = self._root / f"{utterance_id}.wav"
-        if published.parent != self._root:
+        published = self._directory(utterance_id) / f"{utterance_id}.wav"
+        if published.parent != self._root / utterance_id:
             msg = "utterance id must not contain a path separator"
             raise ValueError(msg)
         return published
+
+    def _directory(self, utterance_id: str) -> Path:
+        if (
+            not utterance_id
+            or Path(utterance_id).name != utterance_id
+            or utterance_id in {".", ".."}
+        ):
+            msg = "invalid artifact identity"
+            raise ValueError(msg)
+        return self._root / utterance_id
 
     @staticmethod
     def _is_candidate(path: Path) -> bool:

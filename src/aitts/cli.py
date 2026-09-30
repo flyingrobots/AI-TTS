@@ -158,6 +158,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _say_payload(args: argparse.Namespace) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "op": "submit",
+        "origin": "CLI",
         "text": args.text,
         "content_format": args.content_format,
     }

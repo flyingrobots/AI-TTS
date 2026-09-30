@@ -15,7 +15,10 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from blake3 import blake3
+
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
+from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
@@ -43,7 +46,7 @@ from aitts.model import (
     Utterance,
     UtteranceSegment,
 )
-from aitts.playback import PlaybackController
+from aitts.playback import PlaybackController, SoundDeviceSink
 from aitts.segmentation import prepare_speech_segments
 from aitts.settings import SPEED_MESSAGE, SettingsService, parse_speed
 from aitts.store import Store, TransitionError
@@ -119,6 +122,9 @@ class Daemon:
         self._workers = workers
         self._store = Store(home / "state.db")
         self._cache_dir = home / "cache"
+        self._evidence = ClipEvidence(self._cache_dir)
+        if isinstance(sink, SoundDeviceSink):
+            sink.evidence = self._evidence
         self._cache = CacheController(self._store, FileAudioCache(self._cache_dir))
         self._settings = SettingsService(self._store, self)
         self._voices = VoiceRegistry(
@@ -159,12 +165,14 @@ class Daemon:
             self._sink,
             ImmediatePlaybackSchedule(),
             held=held,
+            evidence=self._evidence,
         )
         self._pool = SynthesisPool(
             self._store,
             self._engine,
             FileAudioArtifacts(self._cache_dir),
             workers=self._workers,
+            evidence=self._evidence,
         )
         self._store.on_transition.append(self._on_transition)
         self._store.on_segment_transition.append(self._on_segment_transition)
@@ -256,6 +264,8 @@ class Daemon:
             "get": self._op_get,
             "list": self._op_list,
             "history": self._op_history,
+            "export_evidence": self._op_export_evidence,
+            "provenance": self._op_provenance,
             "pause": self._op_pause,
             "resume": self._op_resume,
             "resume_when_input_idle": self._op_resume_when_input_idle,
@@ -368,6 +378,7 @@ class Daemon:
             at_head=priority is Priority.URGENT,
             spoken_segments=spoken_segments if composite else None,
         )
+        self._evidence.submitted(utt.id, text, payload)
         if self._pool is not None:
             self._pool.notify()
         return {
@@ -445,14 +456,110 @@ class Daemon:
             "items": [self._serialize_utterance(u, history=True) for u in items],
         }
 
+    async def _op_provenance(self, payload: dict[str, Any]) -> dict[str, Any]:
+        item = self._get_utterance(payload)
+        return {
+            "ok": True,
+            "provenance": await asyncio.to_thread(
+                self._provenance, item, self._store.segments(item.id)
+            ),
+        }
+
+    def _provenance(self, item: Utterance, segments: list[UtteranceSegment]) -> dict[str, Any]:
+        request = self._evidence.read_metadata(item.id, "request.json")
+        arguments = request.get("arguments", {}) if request else None
+        sources = {
+            "menubar-file": "User read file",
+            "macos-accessibility": "User read selection",
+            "macos-clipboard": "User read clipboard",
+            "macos-service": "macOS Service",
+            "macos-intent": "Shortcut",
+        }
+        origin = (
+            str(arguments.get("origin", "Unknown"))
+            if isinstance(arguments, dict)
+            else "Unknown (legacy clip)"
+        )
+        for prefix, label in sources.items():
+            if item.source and item.source.startswith(prefix):
+                origin = label
+                break
+        artifacts = [(Path(x.audio_path).stem if x.audio_path else x.artifact_id) for x in segments]
+        if not artifacts:
+            artifacts = [Path(item.audio_path).stem if item.audio_path else item.id]
+        return {
+            "origin": origin,
+            "caller_source": item.source,
+            "arguments": arguments,
+            "source_blake3": blake3(item.text.encode("utf-8")).hexdigest(),
+            "resolved_voice": item.voice,
+            "resolved_speed": item.speed,
+            "replay_of": item.replay_of,
+            "submitted_at": item.submitted_at,
+            "clips": [
+                {
+                    "artifact_id": key,
+                    "generation": self._evidence.read_metadata(key, "generation.json"),
+                    "model": self._evidence.read_metadata(key, "model.json"),
+                    "audio": self._evidence.read_metadata(key, "audio.json"),
+                }
+                for key in artifacts
+            ],
+        }
+
+    async def _op_export_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
+        item = self._get_utterance(payload)
+        if not item.is_terminal:
+            raise ApiError(ILLEGAL_STATE, "report is available for completed History items")
+        destination = payload.get("destination")
+        if not isinstance(destination, str):
+            raise ApiError(BAD_REQUEST, "report requires a destination .zip path")
+        segments = self._store.segments(item.id)
+        clips = [
+            {
+                "artifact_id": Path(segment.audio_path).stem
+                if segment.audio_path
+                else segment.artifact_id,
+                "segment_index": segment.index,
+                "text": segment.text,
+                "state": segment.state.value,
+                "audio_path": segment.audio_path,
+            }
+            for segment in segments
+        ]
+        if not clips:
+            clips = [
+                {
+                    "artifact_id": Path(item.audio_path).stem if item.audio_path else item.id,
+                    "segment_index": None,
+                    "text": item.text,
+                    "state": item.state.value,
+                    "audio_path": item.audio_path,
+                }
+            ]
+        try:
+            return await asyncio.to_thread(
+                self._evidence.export,
+                Path(destination),
+                {
+                    **self._serialize_utterance(item, history=True),
+                    "provenance": self._provenance(item, segments),
+                },
+                clips,
+            )
+        except (OSError, ValueError) as exc:
+            raise ApiError(BAD_REQUEST, str(exc)) from exc
+
     async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
-        del payload
-        await self._require_controller().pause()
+        await self._require_controller().pause(
+            cause="menu_button" if payload.get("origin") == "menubar" else "explicit_control"
+        )
         return self._transport_reply()
 
     async def _op_resume(self, payload: dict[str, Any]) -> dict[str, Any]:
-        del payload
-        await self._require_controller().resume()
+        await self._require_controller().resume(
+            cause="menu_button" if payload.get("origin") == "menubar" else "explicit_control"
+        )
         return self._transport_reply()
 
     async def _op_resume_when_input_idle(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -530,6 +637,17 @@ class Daemon:
             replay_of=target.id,
             at_head=at_head,
             spoken_segments=tuple(segment.text for segment in source_segments) or None,
+        )
+        self._evidence.submitted(
+            replay.id,
+            target.text,
+            {
+                "origin": "History replay",
+                "replay_of": target.id,
+                "voice": target.voice,
+                "speed": target.speed,
+                "priority": priority.value,
+            },
         )
         if source_segments:
             cached_segments: list[tuple[UtteranceSegment, Path]] = []

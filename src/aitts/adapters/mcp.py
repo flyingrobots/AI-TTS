@@ -317,7 +317,7 @@ def _register_storage_tools(server: MCPServer, speech: SpeechServicePort) -> Non
 
 def main() -> None:
     """Run the MCP adapter exclusively as newline-delimited JSON over stdio."""
-    speech = UnixSocketSpeechAdapter.connect(default_socket())
+    speech = UnixSocketSpeechAdapter.connect(default_socket(), origin="MCP")
     create_server(speech).run(transport="stdio")
 
 

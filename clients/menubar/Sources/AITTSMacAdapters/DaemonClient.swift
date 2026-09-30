@@ -20,6 +20,10 @@ final class DaemonClient: Sendable {
     func request(_ payload: [String: Any]) throws -> [String: Any] {
         let fd = try connect()
         defer { close(fd) }
+        if ["export_evidence"].contains(payload["op"] as? String ?? "") {
+            var timeout = timeval(tv_sec: 120, tv_usec: 0)
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        }
         let data = try WireProtocol.encode(payload)
         try writeAll(fd, data)
         let line = try readLine(fd)

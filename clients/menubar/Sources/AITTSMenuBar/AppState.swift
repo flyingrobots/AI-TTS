@@ -6,6 +6,9 @@
 // while the popover is open (it carries the live playback position).
 
 import AITTSApplication
+import AITTSMacAdapters
+import AppKit
+import UniformTypeIdentifiers
 import Foundation
 
 /// A lock-guarded bool shared between the main actor and the event thread.
@@ -38,6 +41,9 @@ final class AppState: ObservableObject {
     @Published var captionsEnabled: Bool
     @Published var cachePurgeReceipt: CachePurgeReceipt? = nil
     @Published var purgingCachedAudio = false
+    @Published var provenanceDetails: [String: String] = [:]
+    @Published var reportingID: String?
+    @Published var reportMessage: String?
     @Published var reachable = false
     @Published var lastError: String?
     @Published var voiceAssignments: [VoiceAssignment] = []
@@ -63,6 +69,7 @@ final class AppState: ObservableObject {
     /// Whether the current clip has chunks to step between.
     var currentIsChunked: Bool { (status?.current?.segmentCount ?? 1) > 1 }
 
+    private let evidenceExporter: any EvidenceExporting
     private let speech: any SpeechServicePort
     private let documentEnqueuer: any DocumentEnqueueing
     private let currentSelectionEnqueuer: any CurrentSelectionEnqueueing
@@ -80,8 +87,10 @@ final class AppState: ObservableObject {
         documentEnqueuer: any DocumentEnqueueing,
         currentSelectionEnqueuer: any CurrentSelectionEnqueueing,
         clipboardEnqueuer: any ClipboardEnqueueing,
-        defaults: UserDefaults
+        defaults: UserDefaults,
+        evidenceExporter: any EvidenceExporting = UnixSocketSpeechService()
     ) {
+        self.evidenceExporter = evidenceExporter
         self.speech = speech
         self.documentEnqueuer = documentEnqueuer
         self.currentSelectionEnqueuer = currentSelectionEnqueuer
@@ -94,6 +103,56 @@ final class AppState: ObservableObject {
     func setCaptionPosition(_ position: CaptionPosition) {
         defaults.set(position.rawValue, forKey: "captionPosition")
         captionPosition = position
+    }
+
+    func loadProvenance(_ id: String) {
+        guard provenanceDetails[id] == nil else { return }
+        provenanceDetails[id] = "Loading…"
+        let exporter = evidenceExporter
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let text: String
+            do { text = try exporter.provenance(id: id) }
+            catch { text = "Provenance is unavailable. Close and reopen these details to retry." }
+            Task { @MainActor [weak self] in self?.provenanceDetails[id] = text }
+        }
+    }
+
+    func openDataFolder() {
+        NSWorkspace.shared.open(UnixSocketSpeechService.dataDirectory)
+    }
+
+    func report(_ item: Utterance) {
+        guard reportingID == nil else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.zip]
+        panel.nameFieldStringValue = "AI-TTS-report-\(item.id)-\(Int(Date().timeIntervalSince1970)).zip"
+        panel.title = "Save audio evidence"
+        panel.message = "Includes this item's audio, source text, generation details, and playback logs. Saved locally for you to share."
+        panel.prompt = "Save Report"
+        panel.begin { [weak self] result in
+            guard result == .OK, let destination = panel.url, let self else { return }
+            self.reportingID = item.id
+            self.reportMessage = nil
+            let exporter = self.evidenceExporter
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let warnings = try exporter.exportEvidence(id: item.id, destination: destination)
+                    Task { @MainActor [weak self] in
+                        self?.reportingID = nil
+                        self?.reportMessage = warnings.isEmpty ? "Report saved." : "Report saved. Some older evidence or cached audio was unavailable; see manifest.json."
+                        NSWorkspace.shared.activateFileViewerSelecting([destination])
+                    }
+                } catch {
+                    let message: String
+                    if case SpeechServiceError.rejected(_, let detail) = error { message = detail }
+                    else { message = "Could not save the report. Check the daemon and try again." }
+                    Task { @MainActor [weak self] in
+                        self?.reportingID = nil
+                        self?.reportMessage = message
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Refresh

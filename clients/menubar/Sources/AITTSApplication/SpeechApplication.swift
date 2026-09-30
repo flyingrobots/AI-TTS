@@ -284,3 +284,9 @@ public struct EnqueueDocument: DocumentEnqueueing, Sendable {
         )
     }
 }
+
+/// Explicit local evidence export, separate from speech/transport controls.
+public protocol EvidenceExporting: Sendable {
+    func exportEvidence(id: String, destination: URL) throws -> [String]
+    func provenance(id: String) throws -> String
+}

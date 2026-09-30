@@ -32,6 +32,7 @@ struct ModelHealthFooter: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
+        VStack(alignment: .leading) {
         HStack(spacing: 6) {
             Circle()
                 .fill(state.lastError == nil ? Color.green : Color.red)
@@ -43,6 +44,9 @@ struct ModelHealthFooter: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+        }
+            Button("Open Data Folder", systemImage: "folder") { state.openDataFolder() }
+                .buttonStyle(.borderless)
         }
         .font(.caption2)
         .lineLimit(1)

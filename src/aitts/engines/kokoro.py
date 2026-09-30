@@ -27,13 +27,13 @@ import re
 import threading
 import time
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from aitts.engine import SynthesisError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -396,6 +396,31 @@ class KokoroEngine:
         samples = np.concatenate(chunks)
         sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
         return int(len(samples) / _SAMPLE_RATE * 1000)
+
+    def evidence(self, voice: str) -> dict[str, Any]:
+        """Fingerprint the actual locally resolved weights, config, and voice pack."""
+        import torch  # noqa: PLC0415
+
+        from aitts.adapters.clip_evidence import file_sha256  # noqa: PLC0415
+
+        files = {
+            "config": self._assets.path(_CONFIG_FILE),
+            "weights": self._assets.path(_WEIGHTS_FILE),
+            "voice": self._assets.voice_path(voice),
+        }
+        return {
+            "repository": self._assets.repo_id,
+            "files": {
+                name: {"sha256": file_sha256(Path(path)), "bytes": Path(path).stat().st_size}
+                for name, path in files.items()
+            },
+            "torch_threads": torch.get_num_threads(),
+            "torch_interop_threads": torch.get_num_interop_threads(),
+            "model_training": bool(self._model.training) if self._model is not None else None,
+            "device": str(next(self._model.parameters()).device)
+            if self._model is not None
+            else None,
+        }
 
     def list_voices(self) -> list[str]:
         """Enumerate the verified Kokoro voices plus any declared extras."""

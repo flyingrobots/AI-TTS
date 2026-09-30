@@ -128,6 +128,6 @@ class InputInterruptWatcher:
         """Release a hold the listener asked to have released for them."""
         controller = self._controller()
         if controller.resume_when_input_idle_armed:
-            await controller.resume()
+            await controller.resume(cause="input_idle")
             log.info("event=playback_resumed_after_listener")
             self._announce({"event": "playback_resumed", "reason": "input_idle"})
