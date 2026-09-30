@@ -22,6 +22,7 @@ from blake3 import blake3
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
+from aitts.adapters.exclusive_lease import ExclusiveFileLease
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.generated_storage import GeneratedStorage
 from aitts.adapters.platform_audio import platform_input_activity
@@ -57,6 +58,8 @@ from aitts.synthesis import SynthesisPool
 from aitts.voice_registry import VoiceRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from aitts.application.input_activity import InputActivityPort
     from aitts.engine import Engine
     from aitts.playback import AudioSink
@@ -114,6 +117,7 @@ class Daemon:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
         secure_private_state(home)
         self._home = home
+        self._state_lease = ExclusiveFileLease(home / "daemon.lock")
         self._started_at = time.monotonic()
         self._model_state = "loading"
         self._warmup_finished = asyncio.Event()
@@ -151,6 +155,7 @@ class Daemon:
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._model_reload: asyncio.Task[dict[str, Any]] | None = None
         self._exports: dict[asyncio.Task[dict[str, Any]], tuple[set[str], set[str]]] = {}
 
     @property
@@ -165,34 +170,40 @@ class Daemon:
 
     async def start(self) -> None:
         """Recover state, start the workers, and begin serving."""
-        self._store.recover()
-        self.enforce_cache_limit()
-        held = any(u.state is State.PAUSED for u in self._store.playback_queue())
-        self._controller = PlaybackController(
-            self._store,
-            self._sink,
-            ImmediatePlaybackSchedule(),
-            held=held,
-            evidence=self._evidence,
-        )
-        self._pool = SynthesisPool(
-            self._store,
-            self._engine,
-            FileAudioArtifacts(self._cache_dir),
-            workers=self._workers,
-            evidence=self._evidence,
-        )
-        self._store.on_transition.append(self._on_transition)
-        self._store.on_segment_transition.append(self._on_segment_transition)
-        loop = asyncio.get_running_loop()
-        self._tasks = [
-            loop.create_task(self._run_synthesis(), name="aitts-synthesis"),
-            loop.create_task(self._supervise_playback(), name="aitts-playback"),
-            loop.create_task(self._warm_model(), name="aitts-warmup"),
-            loop.create_task(self._listener.run(), name="aitts-input"),
-            loop.create_task(self._expire_files_loop(), name="aitts-retention"),
-        ]
-        await self._server.start()
+        self._state_lease.acquire()
+        try:
+            # Own the endpoint before recovering queues or starting engine work.
+            await self._server.start()
+            self._store.recover()
+            self.enforce_cache_limit()
+            held = any(u.state is State.PAUSED for u in self._store.playback_queue())
+            self._controller = PlaybackController(
+                self._store,
+                self._sink,
+                ImmediatePlaybackSchedule(),
+                held=held,
+                evidence=self._evidence,
+            )
+            self._pool = SynthesisPool(
+                self._store,
+                self._engine,
+                FileAudioArtifacts(self._cache_dir),
+                workers=self._workers,
+                evidence=self._evidence,
+            )
+            self._store.on_transition.append(self._on_transition)
+            self._store.on_segment_transition.append(self._on_segment_transition)
+            loop = asyncio.get_running_loop()
+            self._tasks = [
+                loop.create_task(self._run_synthesis(), name="aitts-synthesis"),
+                loop.create_task(self._supervise_playback(), name="aitts-playback"),
+                loop.create_task(self._warm_model(), name="aitts-warmup"),
+                loop.create_task(self._listener.run(), name="aitts-input"),
+                loop.create_task(self._expire_files_loop(), name="aitts-retention"),
+            ]
+        except BaseException:
+            await self.stop()
+            raise
 
     async def _run_synthesis(self) -> None:
         """Keep user text queued while first-run assets and inference are prepared."""
@@ -218,14 +229,18 @@ class Daemon:
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""
         await self._server.stop()
-        for task in self._tasks:
+        tasks: list[asyncio.Task[Any]] = list(self._tasks)
+        if self._model_reload is not None:
+            tasks.append(self._model_reload)
+        for task in tasks:
             task.cancel()
-        for task in self._tasks:
+        for task in tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks = []
         await asyncio.gather(*self._exports, return_exceptions=True)
         self._store.close()
+        self._state_lease.release()
 
     # -- events ------------------------------------------------------------
 
@@ -556,6 +571,19 @@ class Daemon:
             raise ApiError(ILLEGAL_STATE, "wait for active synthesis or model loading to finish")
         self._pool.enabled.clear()
         self._model_state = "reloading"
+        worker = asyncio.create_task(self._reload_model(restart), name="aitts-model-reload")
+        self._model_reload = worker
+        worker.add_done_callback(self._model_reload_finished)
+        # The daemon owns restart and synthesis exclusion, not the waiting request.
+        return await asyncio.shield(worker)
+
+    def _model_reload_finished(self, worker: asyncio.Task[dict[str, Any]]) -> None:
+        if self._model_reload is worker:
+            self._model_reload = None
+        if not worker.cancelled():
+            worker.exception()  # Observe failures after the request stops awaiting.
+
+    async def _reload_model(self, restart: Callable[[], None]) -> dict[str, Any]:
         try:
             await asyncio.to_thread(restart)
             self._model_state = "ready"
@@ -566,7 +594,8 @@ class Daemon:
         else:
             return {"ok": True}
         finally:
-            self._pool.enabled.set()
+            if self._pool is not None:
+                self._pool.enabled.set()
             self._server.broadcast({"event": "model_readiness_changed"})
 
     async def _op_provenance(self, payload: dict[str, Any]) -> dict[str, Any]:

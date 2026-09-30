@@ -238,3 +238,94 @@ behavior cannot certify this tree. The installed app and daemon were not replace
 or restarted. Real selection-permission/host, VoiceOver traversal, cross-display
 resize, and acoustic playback acceptance remain open; controlled native and daemon
 boundary suites do not substitute for those checks.
+
+## Daemon lifecycle audit: cancelled model reload
+
+Change-kind: bug fix. Cancelling the awaiting reload request previously ran its
+cleanup while the native restart thread was still active, re-enabling synthesis
+and leaving model readiness permanently `reloading`. The daemon now owns a
+shielded reload task; it records success/failure and releases synthesis exclusion
+when that operation completes. Shutdown still cancels daemon-owned work and
+retains the existing bounded process-termination policy for native threads.
+
+`test_model_reload_lifecycle.py` enters through daemon dispatch, uses an owned
+fake engine and event-gated restart thread, and checks both successful and failed
+restart completion after request cancellation. Both cases failed on the original
+code because readiness never left `reloading`; both pass with daemon ownership.
+The existing IPC reload recovery contract remains green. This is a medium test;
+its deadline bounds a readiness liveness observation, not an inferred scheduling
+order. Retire it only with a replacement ownership contract or removal of reload.
+
+## Daemon lifecycle audit: IPC shutdown quiescence
+
+Change-kind: bug fix. Closing client streams did not retire active dispatch
+coroutines, so daemon shutdown could close SQLite while a request still ran.
+IPC shutdown now stops admission, cancels and awaits owned request handlers,
+then finishes closing streams. Late accepted callbacks and buffered lines cannot
+start new application dispatch after serving stops. Independently owned exports
+remain shielded and are joined by the daemon before store closure.
+
+`test_ipc_lifecycle.py` is medium and enters through a real owned Unix socket
+with an event-gated application port. It pipelines two requests, waits until the
+first enters dispatch, and invokes stop. The unfixed server returned with the
+application's retirement event unset; the fixed server retires it before return
+and never dispatches the buffered request. No sleep establishes ordering. The
+IPC, reload, export ownership, and bounded process-shutdown suites pass 59 tests.
+Retire this check only when a calibrated replacement enforces request quiescence.
+
+## Daemon lifecycle audit: exclusive startup ownership
+
+Change-kind: bug fix. A second server previously unlinked a live socket, and a
+second daemon could recover the same state directory using a different socket.
+OS-backed leases now guard the state directory and socket independently before
+recovery or worker startup. Shutdown removes only an owned endpoint. Persistent
+lock files are never unlinked; the operating system releases their leases when
+a process exits. Failed startup closes resources and releases acquired leases.
+
+Medium real-socket and daemon-boundary regressions observed both competing starts
+succeed on the unfixed code when refusal was required. They now prove refusal,
+continued service by the incumbent, endpoint transfer after shutdown, harmless
+repeated stop, and state-lease release after endpoint acquisition failure. These
+are owned temporary directories and fake engines, without model downloads or
+real audio. Retire only if stronger calibrated lifecycle checks replace them.
+
+A legacy-listener regression also failed when the lease-only implementation
+replaced an active socket whose older server held no lease. A bounded connection
+probe now refuses that endpoint; failed start never unlinks an unowned socket.
+Positive recovery checks cover an abandoned socket, and a refusal check preserves
+an unrelated regular file. A missing-release mutant makes both endpoint transfer
+and failed-start successor tests fail; restoration returns them to green.
+
+## Daemon lifecycle audit: control the history-deletion test schedule
+
+Change-kind: behavior change (test setup only). The first full ownership-audit
+run exposed `test_clear_history_and_files_preserves_pending_artifacts` racing
+against synthesis: the engine legitimately replaced the test's source sentinel
+with the submitted text. No retry was used to accept that run. The setup now
+holds playback and seeds a Ready artifact, so neither synthesis nor playback
+can invalidate the file-preservation oracle. The existing assertions are intact.
+Removing clear-history's protected-artifact set makes the test fail because the
+pending source is deleted; restoring protection makes it pass. This medium
+contract remains about deletion preserving pending speech, not worker timing.
+
+## Daemon audit CI follow-up: urllib3 security update
+
+Change-kind: bug fix. Required supply-chain CI rejected frozen urllib3 2.7.0
+for CVE-2026-97687, CVE-2026-97688, and CVE-2026-97689. The frozen graph now uses
+2.8.0, the patched version listed by all three advisories. urllib3 is included
+in the development group so the optional model-download HTTP dependency has a
+mandatory deterministic regression; it is not a new core runtime dependency.
+
+`test_http_dependency_security.py` is small, with an owned in-memory socket
+interface feeding the real standard-library HTTP parser and urllib3 streaming
+response API. Its oracle is
+[GHSA-vxq7-64xx-v4gw](https://github.com/urllib3/urllib3/security/advisories/GHSA-vxq7-64xx-v4gw):
+chunk-size lines above 65,536 bytes must be rejected. With isolated urllib3 2.7.0,
+the 65,537-byte case failed because no ProtocolError was raised; with 2.8.0 both
+oversized rejection and exact-bound acceptance pass. Initial exploratory probes
+omitted the HTTP request method and failed in fixture setup on both versions;
+those were discarded, not counted as regression evidence. No network, threads,
+wall-clock timing, or live server participates in this test. The full dependency
+audit separately verifies all three advisory fixes; this regression does not
+claim to exercise the proxy-TLS or Deflate-loop defects. Retire it only when the
+dependency leaves the frozen graph or calibrated conformance supersedes it.

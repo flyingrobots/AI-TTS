@@ -39,6 +39,8 @@ dev = [
     "pytest-asyncio>=0.25",
     "pytest-timeout>=2.3",
     "ruff>=0.9",
+    # Exercise the optional model-download HTTP stack in security regressions.
+    "urllib3>=2.8.0,<3",
 ]
 supply-chain = [
     "pip-audit==2.10.1",

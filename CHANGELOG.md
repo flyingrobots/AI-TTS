@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The frozen urllib3 dependency is updated to 2.8.0 for proxy-TLS isolation, Deflate streaming, and oversized chunk-header vulnerabilities, with an in-memory chunk-header regression.
+
+- Competing daemon starts now refuse an already-owned state directory or socket instead of recovering a live queue or replacing its endpoint; failed startup releases acquired resources.
+
+- Daemon shutdown now retires active IPC handlers before closing application state and refuses buffered requests after serving stops.
+
+- Cancelling a model-reload request no longer releases synthesis exclusion early or leaves model readiness stuck; the daemon owns reload completion.
+
 - Python application modules no longer select concrete CoreAudio adapters; platform factories live outside the application boundary, with a static-import regression gate.
 
 - Clearing or successfully submitting a composer draft retains its chosen text interpretation, voice, and model.
