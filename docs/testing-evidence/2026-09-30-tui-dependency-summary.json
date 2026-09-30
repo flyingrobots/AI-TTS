@@ -1,0 +1,12 @@
+{
+  "dependency_count": 164,
+  "license_record_count": 164,
+  "lock_sha256": "510e50228bbac23f4f37478acce9a8354dec6520c956f1290374ed983b1a022f",
+  "sbom_component_count": 189,
+  "schema_version": 1,
+  "unknown_license_count": 1,
+  "unknown_licenses": [
+    "espeakng-loader"
+  ],
+  "vulnerability_count": 0
+}

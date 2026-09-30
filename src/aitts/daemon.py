@@ -211,10 +211,32 @@ class Daemon:
                 loop.create_task(self._warm_model(), name="aitts-warmup"),
                 loop.create_task(self._listener.run(), name="aitts-input"),
                 loop.create_task(self._expire_files_loop(), name="aitts-retention"),
+                loop.create_task(self._playback_progress_loop(), name="aitts-progress"),
             ]
         except BaseException:
             await self.stop()
             raise
+
+    async def _playback_progress_loop(self) -> None:
+        """Publish opt-in transient output levels and source positions at 10 Hz."""
+        while True:
+            await asyncio.sleep(0.1)
+            if not self._server.has_progress_subscribers or self._controller is None:
+                continue
+            controller = self._controller
+            current = self._store.get(controller.current_id) if controller.current_id else None
+            playing = current is not None and current.state is State.PLAYING and not controller.held
+            measure = getattr(self._sink, "audio_peak", None)
+            peak = measure() if playing and callable(measure) else (None if playing else 0.0)
+            self._server.broadcast_progress(
+                {
+                    "event": "playback_progress",
+                    "playback_held": controller.held,
+                    "id": controller.current_id,
+                    "position_ms": controller.current_position_ms(),
+                    "audio_peak": peak,
+                }
+            )
 
     async def _run_synthesis(self) -> None:
         """Keep user text queued while first-run assets and inference are prepared."""

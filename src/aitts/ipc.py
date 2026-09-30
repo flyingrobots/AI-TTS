@@ -33,6 +33,7 @@ BAD_REQUEST = "bad_request"
 NOT_FOUND = "not_found"
 ILLEGAL_STATE = "illegal_state"
 INTERNAL = "internal"
+_PROGRESS_BACKLOG_BYTES = 65536
 
 
 class ApiError(Exception):
@@ -65,6 +66,7 @@ class IPCServer:
         self._handlers: set[asyncio.Task[None]] = set()
         self._clients: set[asyncio.StreamWriter] = set()
         self._subscribers: set[asyncio.StreamWriter] = set()
+        self._progress_subscribers: set[asyncio.StreamWriter] = set()
 
     @property
     def socket_path(self) -> Path:
@@ -124,6 +126,7 @@ class IPCServer:
                 await writer.wait_closed()
         self._clients.clear()
         self._subscribers.clear()
+        self._progress_subscribers.clear()
         if server is not None:
             await server.wait_closed()
         if self._lease.held:
@@ -142,6 +145,22 @@ class IPCServer:
                 writer.write(line)
             except (ConnectionError, RuntimeError):  # pragma: no cover
                 self._subscribers.discard(writer)
+
+    @property
+    def has_progress_subscribers(self) -> bool:
+        """Avoid sampling when no client requested transient playback telemetry."""
+        return bool(self._progress_subscribers)
+
+    def broadcast_progress(self, event: dict[str, Any]) -> None:
+        """Drop transient samples for slow readers rather than queueing stale meters."""
+        line = encode_json_object(event)
+        for writer in list(self._progress_subscribers):
+            if writer.transport.get_write_buffer_size() > _PROGRESS_BACKLOG_BYTES:
+                continue
+            try:
+                writer.write(line)
+            except (ConnectionError, RuntimeError):
+                self._progress_subscribers.discard(writer)
 
     async def _serve_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -173,6 +192,7 @@ class IPCServer:
                 self._handlers.discard(handler)
             self._clients.discard(writer)
             self._subscribers.discard(writer)
+            self._progress_subscribers.discard(writer)
             writer.close()
             with contextlib.suppress(ConnectionError):
                 await writer.wait_closed()
@@ -185,6 +205,8 @@ class IPCServer:
             return
         if payload.get("op") == "subscribe":
             self._subscribers.add(writer)
+            if payload.get("playback_progress") is True:
+                self._progress_subscribers.add(writer)
             await self._reply(writer, {"ok": True, "subscribed": True})
             return
         try:
