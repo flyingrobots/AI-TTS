@@ -31,6 +31,8 @@ final class AtomicFlag: @unchecked Sendable {
 
 @MainActor
 final class AppState: ObservableObject {
+    @Published var showingComposer = false
+    let composer: SpeechComposer
     @Published var status: DaemonStatus?
     @Published var plan: [Utterance] = []
     @Published var history: [Utterance] = []
@@ -104,6 +106,7 @@ final class AppState: ObservableObject {
         evidenceExporter: any EvidenceExporting = UnixSocketSpeechService(),
         storageManager: any GeneratedStorageManaging = UnixSocketSpeechService()
     ) {
+        self.composer = SpeechComposer(speech: speech)
         self.storageManager = storageManager
         self.evidenceExporter = evidenceExporter
         self.speech = speech
@@ -482,6 +485,7 @@ final class AppState: ObservableObject {
 
     func capturePriorApplication(processIdentifier: Int32?) {
         priorApplicationProcessIdentifier = processIdentifier
+        if let processIdentifier { composer.priorApplication = processIdentifier }
     }
 
     func enqueueCurrentSelection() {

@@ -1,0 +1,199 @@
+// Copyright 2026 James Ross
+// SPDX-License-Identifier: Apache-2.0
+
+import AITTSApplication
+import AITTSMacAdapters
+import AITTSMacEntryPoints
+import AppKit
+import SwiftUI
+
+@MainActor
+final class SpeechComposer: ObservableObject {
+    @Published var draft = SpeechDraft()
+    @Published private(set) var busy = false
+    @Published var error: String?
+    @Published private(set) var notice: String?
+    var priorApplication: Int32?
+    private let speech: any SpeechServicePort
+    private let documents: any SpeechDocumentReaderPort
+    private let clipboard: any ClipboardTextReaderPort
+    private let selection: any SelectedTextReaderPort
+
+    init(speech: any SpeechServicePort,
+         documents: any SpeechDocumentReaderPort = LocalSpeechDocumentReader(),
+         clipboard: any ClipboardTextReaderPort = MacClipboardTextReader(),
+         selection: any SelectedTextReaderPort = AccessibilitySelectionReader()) {
+        self.speech = speech
+        self.documents = documents
+        self.clipboard = clipboard
+        self.selection = selection
+    }
+
+    func clear() {
+        draft.text = ""
+        let voice = draft.voice
+        let engine = draft.engine
+        draft = SpeechDraft()
+        draft.voice = voice
+        draft.engine = engine
+        notice = nil
+        error = nil
+    }
+
+    func attach(_ url: URL) async {
+        await importText { [documents] in
+            let document = try documents.read(url)
+            return (document.text, "file:\(document.filename)", document.contentFormat)
+        }
+    }
+
+    func pasteClipboard() async {
+        await importText { [clipboard] in
+            (try clipboard.readClipboardText(), "clipboard", .plainText)
+        }
+    }
+
+    func importSelection() async {
+        let process = priorApplication
+        await importText { [selection] in
+            guard let process else { throw CurrentSelectionError.noPriorApplication }
+            return (try selection.readSelectedText(from: process), "selection", .plainText)
+        }
+    }
+
+    private func importText(_ read: @escaping @Sendable () throws -> (String, String, SpeechContentFormat)) async {
+        guard !busy else { return }
+        busy = true
+        error = nil
+        notice = nil
+        defer { busy = false }
+        do {
+            let (text, origin, format) = try await Task.detached(operation: read).value
+            try draft.append(text, origin: origin, format: format)
+        } catch { self.error = error.localizedDescription }
+    }
+
+    func submit(playbackHeld: Bool) async {
+        guard !busy else { return }
+        error = nil
+        notice = nil
+        do {
+            let submission = try draft.submission()
+            busy = true
+            defer { busy = false }
+            try await Task.detached { [speech] in try speech.submit(submission) }.value
+            clear()
+            notice = playbackHeld
+                ? "Queued. Playback is paused; use Resume when you’re ready."
+                : "Queued for speech."
+        } catch let SpeechServiceError.rejected(_, message) {
+            error = message
+        } catch { self.error = error.localizedDescription }
+    }
+}
+
+@MainActor
+final class SpeechComposerWindowController: NSObject, NSWindowDelegate {
+    private let state: AppState
+    private var window: NSWindow?
+    init(state: AppState) { self.state = state; super.init() }
+
+    func update() {
+        guard state.showingComposer else { window?.orderOut(nil); return }
+        if window == nil {
+            let created = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 560),
+                                   styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                                   backing: .buffered, defer: false)
+            created.title = "Speak — AI-TTS"
+            created.isReleasedWhenClosed = false
+            created.minSize = NSSize(width: 500, height: 400)
+            created.delegate = self
+            created.contentViewController = NSHostingController(
+                rootView: SpeechComposerView(composer: state.composer).environmentObject(state))
+            created.center()
+            window = created
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+    func windowWillClose(_ notification: Notification) { state.showingComposer = false }
+}
+
+struct SpeechComposerView: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var composer: SpeechComposer
+    @State private var importingFile = false
+    @FocusState private var editorFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("What would you like to hear?").font(.headline)
+                Spacer()
+                Text("\(composer.draft.text.count) characters").foregroundStyle(.secondary)
+            }
+            TextEditor(text: $composer.draft.text)
+                .font(.body)
+                .padding(6)
+                .background(.background)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                .accessibilityLabel("Text to speak")
+                .focused($editorFocused)
+                .disabled(composer.busy)
+            HStack {
+                Button("Attach File…", systemImage: "paperclip") { importingFile = true }
+                Button("Paste Clipboard") { Task { await composer.pasteClipboard() } }
+                Button("Import Selection") { Task { await composer.importSelection() } }
+                Spacer()
+                Button("Clear") { composer.clear() }
+            }.disabled(composer.busy)
+            if !composer.draft.origins.isEmpty {
+                Text("Imported: " + composer.draft.origins.joined(separator: ", "))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .help(composer.draft.origins.joined(separator: "\n"))
+            }
+            HStack(alignment: .top) {
+                Picker("Voice", selection: $composer.draft.voice) {
+                    Text("Daemon default").tag(String?.none)
+                    ForEach(state.voices, id: \.self) { Text($0).tag(Optional($0)) }
+                }
+                Picker("Model", selection: $composer.draft.engine) {
+                    Text("Daemon default").tag(String?.none)
+                    if let engine = state.status?.engine { Text(engine).tag(Optional(engine)) }
+                }
+                Picker("Text", selection: $composer.draft.contentFormat) {
+                    Text("Plain text").tag(SpeechContentFormat.plainText)
+                    Text("Markdown").tag(SpeechContentFormat.markdown)
+                }
+            }.disabled(composer.busy)
+            Text("Attach .txt, .md, or a PDF with selectable text. Imports are added to the editor. Model choices reflect the running daemon.")
+                .font(.caption).foregroundStyle(.secondary)
+            if let error = composer.error {
+                Text(error).foregroundStyle(.red).textSelection(.enabled)
+            }
+            if let notice = composer.notice {
+                Text(notice).foregroundStyle(.secondary)
+            }
+            HStack {
+                if !state.reachable { Text("Connect to the daemon to submit.").foregroundStyle(.secondary) }
+                if composer.busy { ProgressView().controlSize(.small) }
+                Spacer()
+                Button("Speak", systemImage: "speaker.wave.2.fill") {
+                    Task { await composer.submit(playbackHeld: state.status?.playbackState == "paused") }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(composer.busy || !state.reachable || composer.draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(16)
+        .onAppear { editorFocused = true }
+        .fileImporter(isPresented: $importingFile,
+                      allowedContentTypes: LocalSpeechDocumentReader.allowedContentTypes) { result in
+            switch result {
+            case .success(let url): Task { await composer.attach(url) }
+            case .failure(let error): composer.error = error.localizedDescription
+            }
+        }
+    }
+}

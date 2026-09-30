@@ -75,9 +75,10 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   caller or file type marks it as `markdown`. Its syntax tree removes markup,
   preserves human labels and code content, and turns headings into spoken
   section cues without changing the stored source.
-- **Enqueues text and documents from the menu bar.** Queue's **Read…** menu can
-  acquire one current Accessibility selection, read explicitly copied text
-  without changing the clipboard, or choose a file. Its file picker accepts
+- **Compose speech from the menu bar.** **Speak…** opens an editable text area
+  with voice/model choices and a Speak button (⌘Return). Type or paste directly,
+  import the clipboard or current selection, or attach a file. Imports append
+  to the draft for review before submission. The file picker accepts
   UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
   paths stay in the app; only the selected document's text and interpretation
   are submitted. Text and Markdown are limited to 512 KiB. PDFs are limited to
@@ -450,12 +451,12 @@ AI-TTS**. macOS can assign a keyboard shortcut to either command in System
 Settings → Keyboard → Keyboard Shortcuts → Services.
 
 For a host whose selection does not reach Services, open the AI-TTS popover
-while that host is still frontmost, then choose **Queue → Read… → Read
-Current Selection…**. This is an explicit Accessibility fallback: macOS may ask
+while that host is still frontmost, then choose **Speak… → Import Selection**. This is an explicit Accessibility fallback: macOS may ask
 for permission, and custom renderers may not expose selected text even after a
-grant. Choose **Read Clipboard** only after copying text yourself; AI-TTS reads
-the current string without issuing ⌘C or changing the clipboard. **Read File…**
-opens the existing text/Markdown/PDF picker.
+grant. Choose **Paste Clipboard** after copying text yourself; AI-TTS reads
+the current string without issuing ⌘C or changing the clipboard. **Attach File…**
+opens the text/Markdown/PDF picker. All imports enter the editor; press **Speak**
+when the draft is ready.
 
 For automation, create a shortcut in Apple Shortcuts and search its action
 library for **AI-TTS**. The installed app contributes **Read Text**, **Read
@@ -559,13 +560,21 @@ cd clients/menubar
 swift run
 ```
 
-In the menu-bar app, open **Queue → Read…** and choose **Read File…**. Source
-text is submitted byte-for-byte together with an explicit interpretation: `.md` and
+In the menu-bar app, open **Speak… → Attach File…**, review or edit the imported
+text, then press **Speak**. The final draft is submitted with its interpretation: `.md` and
 `.markdown` use Markdown projection, while other UTF-8 text files and PDF text
 layers remain literal plain text. PDF pages are submitted in the order returned
 by the native macOS text extractor. Password-locked PDFs are refused; image-only
 PDFs need OCR first because AI-TTS does not perform OCR or promise PDF layout
 reconstruction.
+
+The composer keeps an unsent draft in memory when closed. A rejected submission
+preserves the draft and shows the error; successful admission clears the editor
+and confirms queueing, including a reminder if playback is paused. Imports and
+final submitted text are attributed in clip provenance. The Model picker offers
+the daemon default or pins the current active backend; pinning fails visibly if
+that backend changes. Additional simultaneous model choices require the planned
+multi-engine registry. It does not install or switch models behind your back.
 
 **Purge Cached Audio…** is also available in Settings, and `ai-tts
 purge-cache` exposes the same operation to scripts. It removes reusable and

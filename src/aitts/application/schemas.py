@@ -48,6 +48,7 @@ class EnqueueSpeech(PublicSchema):
     text: NonEmptyText
     content_format: ContentFormat = ContentFormat.PLAIN_TEXT
     voice: NonEmptyText | None = None
+    engine: NonEmptyText | None = None
     speed: PlaybackSpeed | None = None
     sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL
     priority: Priority = Priority.NORMAL

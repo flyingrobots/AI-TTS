@@ -351,7 +351,13 @@ class Daemon:
             ),
         }
 
+    def _validate_submission_engine(self, requested_engine: object) -> None:
+        """Reject explicit models that would silently use a different backend."""
+        if requested_engine is not None and requested_engine != self._engine.name:
+            raise ApiError(BAD_REQUEST, "selected model is not available in this daemon")
+
     async def _op_submit(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._validate_submission_engine(payload.get("engine"))
         text = payload.get("text")
         if not isinstance(text, str) or not text.strip():
             msg = "submit requires non-empty 'text'"

@@ -55,6 +55,7 @@ public struct SpeechSubmission: Equatable, Sendable {
     public let sensitivity: SpeechSensitivity
     public let priority: RequeuePriority
     public let source: String?
+    public let engine: String?
 
     public init(
         text: String,
@@ -63,7 +64,8 @@ public struct SpeechSubmission: Equatable, Sendable {
         speed: Double?,
         sensitivity: SpeechSensitivity,
         priority: RequeuePriority,
-        source: String?
+        source: String?,
+        engine: String? = nil
     ) {
         self.text = text
         self.contentFormat = contentFormat
@@ -72,6 +74,7 @@ public struct SpeechSubmission: Equatable, Sendable {
         self.sensitivity = sensitivity
         self.priority = priority
         self.source = source
+        self.engine = engine
     }
 }
 

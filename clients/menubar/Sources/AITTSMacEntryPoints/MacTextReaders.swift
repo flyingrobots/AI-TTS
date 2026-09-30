@@ -20,7 +20,7 @@ public enum MacSelectedTextError: Error, Equatable, LocalizedError, Sendable {
         case .noFocusedElement:
             "The previous application has no focused element to read."
         case .unsupportedSelection:
-            "The focused item does not expose selected text. Copy it and use Read Clipboard instead."
+            "The focused item does not expose selected text. Copy it and use Speak → Paste Clipboard instead."
         case .emptySelection:
             "The focused item has no selected text."
         case .systemFailure(let code):
