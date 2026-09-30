@@ -678,3 +678,22 @@ and plist rendering remain real. No launchctl or installed tool is invoked.
 This does not claim full-system rollback of uv's environment after a later
 publication or service failure. Retire only with a stronger staged-install
 contract and equivalent failure evidence.
+
+
+## Installation audit: launch-agent activation recovery
+
+Change-kind: bug fix. After bootout, a failed bootstrap left the previous
+service unloaded and its plist replaced. Two medium real-Make cases own a
+stateful launchctl double that rejects the replacement but accepts the original
+configuration. Both observed the new plist retained on unfixed code; the
+previously loaded case also lost its service. Installation now snapshots the
+prior plist and loaded state, restores the file on activation failure, and
+attempts reload only when the old service had been loaded and removed.
+
+Removing the loaded-state condition makes the deliberately unloaded case
+start a service and fail its oracle. Restored tests pass. An already-loaded
+service without its prior plist is refused before bootout. Recovery failure
+remains an error and is reported, not treated as health or successful rollback
+of the uv environment. All commands and state are owned fixtures; no system
+launchd service participates. Retire only with an equivalent calibrated
+activation-failure and prior-service-state contract.

@@ -22,6 +22,56 @@ SPACY_MODEL = (
 )
 
 
+def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> None:
+    """Restore the previous configuration if launchd rejects its replacement."""
+    domain = f"gui/{os.getuid()}"
+    loaded = (
+        subprocess.run(  # noqa: S603 - resolved launchctl and fixed service label
+            [launchctl, "print", f"{domain}/com.flyingrobots.ai-tts"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
+        == 0
+    )
+    backup = candidate.with_name(f".previous-{candidate.name}")
+    if output.exists():
+        shutil.copy2(output, backup)
+    elif loaded:
+        message = "cannot replace a loaded launch agent without its previous plist"
+        raise RuntimeError(message)
+    candidate.replace(output)
+    removed = False
+    try:
+        result = subprocess.run(  # noqa: S603 - resolved launchctl and fixed service label
+            [launchctl, "bootout", f"{domain}/com.flyingrobots.ai-tts"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if loaded:
+            result.check_returncode()
+        removed = result.returncode == 0
+        subprocess.run(  # noqa: S603 - explicit installed plist
+            [launchctl, "bootstrap", domain, str(output)], check=True
+        )
+    except (OSError, subprocess.CalledProcessError):
+        if backup.exists():
+            backup.replace(output)
+        else:
+            output.unlink()
+        if loaded and removed:
+            recovery = subprocess.run(  # noqa: S603 - the restored incumbent plist
+                [launchctl, "bootstrap", domain, str(output)], check=False
+            )
+            if recovery.returncode != 0:
+                sys.stderr.write(
+                    "Previous plist restored, but launchd could not reload it; "
+                    "inspect the service before retrying.\n"
+                )
+        raise
+
+
 def install_application(
     *, app: Path, launch_agent: Path, log_path: Path, python_version: str
 ) -> None:
@@ -77,17 +127,7 @@ def install_application(
             check=True,
         )
         publish_app_bundle(candidate_app, app, force=True)
-        candidate_agent.replace(launch_agent)
-        domain = f"gui/{os.getuid()}"
-        subprocess.run(  # noqa: S603 - fixed per-user launch-agent label
-            [launchctl, "bootout", f"{domain}/com.flyingrobots.ai-tts"],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        subprocess.run(  # noqa: S603 - explicit installed plist
-            [launchctl, "bootstrap", domain, str(launch_agent)], check=True
-        )
+        activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
     sys.stdout.write(
         "Installed. The daemon is running; the menu-bar app is not.\n"
         f"Start the app: open {app}\n"

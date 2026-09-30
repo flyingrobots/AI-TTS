@@ -76,8 +76,28 @@ else:
 """
     )
     launchctl = commands / "launchctl"
-    launchctl.write_text('#!/bin/sh\nexit "${AITTS_TEST_LAUNCHCTL_EXIT:-8}"\n')
+    launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
+    launchctl.with_suffix(".py").write_text(
+        """import os, sys, plistlib
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+loaded = root / "service-loaded"
+args = sys.argv[1:]
+if args[0] == "print":
+    sys.exit(0 if loaded.exists() else 3)
+if args[0] == "bootout":
+    loaded.unlink(missing_ok=True)
+elif args[0] == "bootstrap":
+    payload = plistlib.loads(Path(args[-1]).read_bytes())
+    refuse = os.environ.get("AITTS_TEST_BOOTSTRAP_FAILURE") == "1"
+    if refuse and payload["ProgramArguments"][0] != "/old/ai-tts":
+        sys.exit(9)
+    loaded.write_text("running")
+else:
+    sys.exit(8)
+"""
+    )
     (tmp_path / "cli-version").write_text("old cli")
     env = dict(os.environ, PATH=f"{commands}:/usr/bin:/bin")
     env["AITTS_TEST_ROOT"] = str(tmp_path)
@@ -110,7 +130,7 @@ def test_install_build_failure_does_not_replace_cli(
 def test_install_publishes_prepared_artifacts_to_explicit_destinations(
     tmp_path: Path, install_environment: dict[str, str]
 ) -> None:
-    env = dict(install_environment, AITTS_TEST_LAUNCHCTL_EXIT="0")
+    env = dict(install_environment)
     app = tmp_path / "AI-TTS.app"
     agent = tmp_path / "agent.plist"
     log_path = tmp_path / "logs" / "daemon.log"
@@ -139,3 +159,38 @@ def test_install_publishes_prepared_artifacts_to_explicit_destinations(
         "app": "new app",
         "daemon": [str(tmp_path / "bin" / "ai-tts"), "daemon", "--log-file", str(log_path)],
     }
+
+
+@pytest.mark.parametrize("loaded", [False, True])
+def test_failed_service_activation_restores_previous_configuration(
+    tmp_path: Path, install_environment: dict[str, str], *, loaded: bool
+) -> None:
+    app = tmp_path / "AI-TTS.app"
+    agent = tmp_path / "agent.plist"
+    previous = plistlib.dumps(
+        {"Label": "com.flyingrobots.ai-tts", "ProgramArguments": ["/old/ai-tts", "daemon"]}
+    )
+    agent.write_bytes(previous)
+    if loaded:
+        (tmp_path / "service-loaded").write_text("running")
+    env = dict(install_environment, AITTS_TEST_BOOTSTRAP_FAILURE="1")
+    result = subprocess.run(  # noqa: S603 - only owned installation tools and destinations
+        [
+            "/usr/bin/make",
+            "--no-print-directory",
+            "install",
+            f"APP_BUNDLE={app}",
+            f"LAUNCH_AGENT={agent}",
+            f"LOG_PATH={tmp_path / 'logs' / 'daemon.log'}",
+        ],
+        cwd=REPOSITORY,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert {
+        "failed": result.returncode != 0,
+        "configuration": agent.read_bytes(),
+        "loaded": (tmp_path / "service-loaded").exists(),
+    } == {"failed": True, "configuration": previous, "loaded": loaded}
