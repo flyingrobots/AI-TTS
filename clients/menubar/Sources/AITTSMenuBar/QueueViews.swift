@@ -16,7 +16,6 @@ import SwiftUI
 struct QueueView: View {
     @EnvironmentObject var state: AppState
     @State private var confirmingClear = false
-    @State private var showingFileImporter = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,22 +24,6 @@ struct QueueView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Menu {
-                    Button("Read Current Selection…") {
-                        state.enqueueCurrentSelection()
-                    }
-                    Button("Read Clipboard") {
-                        state.enqueueClipboard()
-                    }
-                    Divider()
-                    Button("Read File…") {
-                        showingFileImporter = true
-                    }
-                } label: {
-                    Label("Read…", systemImage: "text.badge.plus")
-                }
-                .menuStyle(.borderlessButton)
-                .help("Read selected text, clipboard text, or a document")
                 Button("Clear queue…") { confirmingClear = true }
                     .buttonStyle(.borderless)
                     .disabled(state.upcoming.isEmpty)
@@ -77,18 +60,7 @@ struct QueueView: View {
         } message: {
             Text("Every upcoming clip, including clips being synthesized, will be cancelled. The current clip will keep playing.")
         }
-        .fileImporter(
-            isPresented: $showingFileImporter,
-            allowedContentTypes: LocalSpeechDocumentReader.allowedContentTypes,
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first { state.enqueueFile(url) }
-            case .failure(let error):
-                state.reportFilePickerFailure(error)
-            }
-        }
+
     }
 
     private var queueSummary: String {

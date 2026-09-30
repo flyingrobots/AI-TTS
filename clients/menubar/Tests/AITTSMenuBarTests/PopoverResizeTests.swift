@@ -152,7 +152,8 @@ final class PopoverResizeTests: XCTestCase {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         defer { NSStatusBar.system.removeStatusItem(statusItem) }
         let controller = StatusController(state: state, defaults: defaults,
-                                          popover: popover, statusItem: statusItem)
+                                          popover: popover, statusItem: statusItem,
+                                          applicationNotifications: NotificationCenter())
         let content = try XCTUnwrap(popover.contentViewController?.view)
         let window = NSWindow(contentRect: NSRect(x: 100, y: 300, width: 368, height: 500),
                               styleMask: [.borderless], backing: .buffered, defer: false)

@@ -40,6 +40,7 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Gen
             "sensitivity": submission.sensitivity.rawValue,
             "priority": submission.priority.rawValue,
         ]
+        if let engine = submission.engine { payload["engine"] = engine }
         if let voice = submission.voice { payload["voice"] = voice }
         if let speed = submission.speed { payload["speed"] = speed }
         if let source = submission.source { payload["source"] = source }

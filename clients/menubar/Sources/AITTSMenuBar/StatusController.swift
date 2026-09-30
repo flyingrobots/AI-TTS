@@ -32,6 +32,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private let state: AppState
     private let captionPanel: CaptionPanelController
     private let fullTextWindow: FullTextWindowController
+    private let composerWindow: SpeechComposerWindowController
     private lazy var failureToast = SpeechFailureToastController(state: state) { [weak self] in
         guard let self else { return }
         self.state.selectedTab = .history
@@ -43,9 +44,12 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private var trayState: TrayState = .error
 
     init(state: AppState, defaults: UserDefaults = .standard,
-         popover: NSPopover? = nil, statusItem: NSStatusItem? = nil) {
+         popover: NSPopover? = nil, statusItem: NSStatusItem? = nil,
+         applicationNotifications: NotificationCenter? = nil) {
         self.popover = popover ?? NSPopover()
         self.sizing = PopoverSizing(defaults: defaults)
+        self.composerWindow = SpeechComposerWindowController(
+            state: state, applicationNotifications: applicationNotifications)
         self.state = state
         self.captionPanel = CaptionPanelController(state: state)
         self.fullTextWindow = FullTextWindowController(state: state)
@@ -96,6 +100,11 @@ final class StatusController: NSObject, NSPopoverDelegate {
         state.$captionsEnabled
             .sink { [weak self] _ in
                 Task { @MainActor in self?.captionPanel.updateVisibility() }
+            }
+            .store(in: &cancellables)
+        state.$showingComposer
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.composerWindow.update() }
             }
             .store(in: &cancellables)
         state.$readingFullText

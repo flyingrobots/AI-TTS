@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clearing or successfully submitting a composer draft retains its chosen text interpretation, voice, and model.
+
+- Composer selection imports follow the latest external application activation; unavailable targets are cleared instead of reusing an older app.
+
+- Speech-composer provenance now identifies user composition while preserving import attribution and replay origin.
+
 - Automatic screen fitting no longer overwrites the preferred menu height; returning to a larger display restores it.
 
 - Menu heights above 1200 points remain intact across relaunches on tall displays.
@@ -22,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MLX startup now falls back to reference Kokoro when required English language assets are missing.
 
 ### Added
+
+- Speak… replaces the menu’s immediate Read actions with an editable composer, voice and active-model choice, text/Markdown interpretation, and text/Markdown/PDF attachment. Clipboard and selection imports append to the draft; submission errors preserve it.
 
 - Drag the menu card’s bottom grip to resize its height. The height persists across launches and is bounded to the current screen.
 

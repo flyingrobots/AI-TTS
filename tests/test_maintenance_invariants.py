@@ -53,7 +53,14 @@ async def test_rejected_storage_request_cannot_enable_retention(
 
 @pytest.mark.parametrize(
     "source",
-    ["menubar-file", "macos-accessibility", "macos-clipboard", "macos-service", "macos-intent"],
+    [
+        "menubar-file",
+        "macos-accessibility",
+        "macos-clipboard",
+        "macos-service",
+        "macos-intent",
+        "menubar-composer:file:notes.md+clipboard",
+    ],
 )
 @pytest.mark.oracle("a History replay reports its own origin and retains the original caller")
 async def test_replay_origin_is_not_overwritten_by_the_original_native_entry_point(
@@ -68,4 +75,20 @@ async def test_replay_origin_is_not_overwritten_by_the_original_native_entry_poi
         "origin": "History replay",
         "caller_source": source,
         "replay_of": original.id,
+    }
+
+
+@pytest.mark.parametrize("source", ["menubar-composer", "menubar-composer:file:notes.md+clipboard"])
+@pytest.mark.oracle(
+    "composer provenance identifies user composition and retains import attribution"
+)
+async def test_composer_provenance_names_its_native_origin(
+    idle_daemon: Daemon, source: str
+) -> None:
+    submitted = idle_daemon.store.submit("Edited draft", voice="v", speed=1.0, source=source)
+    response = await idle_daemon.dispatch({"op": "provenance", "id": submitted.id})
+    provenance = response["provenance"]
+    assert {key: provenance[key] for key in ("origin", "caller_source")} == {
+        "origin": "User composed speech",
+        "caller_source": source,
     }

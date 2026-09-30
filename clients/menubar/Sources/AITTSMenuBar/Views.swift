@@ -197,6 +197,8 @@ struct PopoverHeader: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Button("Speak…", systemImage: "square.and.pencil") { state.showingComposer = true }
+                .help("Type, paste, or attach text to speak")
             Button {
                 showingSettings = true
             } label: {
