@@ -176,3 +176,11 @@ seeded-fault receipts in
 [`2026-09-30-clip-evidence-and-storage.md`](../testing-evidence/2026-09-30-clip-evidence-and-storage.md).
 Legacy artifacts have explicit capture gaps; real long-session audio diagnosis
 and automated native sheet interaction remain blind spots.
+
+## September 30 preemption extension
+
+Playback now includes explicit nested preemption, a saved chunk/offset stack,
+hold/cancellation races during device handoff, queue clearing, and paused
+restart recovery. The deterministic schedule and PCM-boundary calibration
+receipt is [playback preemption](../testing-evidence/2026-09-30-playback-preemption.md).
+Real hardware acoustic acceptance remains separate from the measured stop ramp.

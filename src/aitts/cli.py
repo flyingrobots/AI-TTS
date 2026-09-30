@@ -71,7 +71,10 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["public", "internal", "confidential"],
         help="who may speak this text (omitted = confidential; fail closed)",
     )
-    say.add_argument("--priority", choices=["normal", "urgent"])
+    say.add_argument("--priority", choices=["normal", "urgent", "preempt"])
+    say.add_argument(
+        "--preempt", action="store_true", help="interrupt and later resume current speech"
+    )
     say.add_argument("--source", help="client identity recorded with the utterance")
     say.add_argument(
         "--wait",
@@ -162,6 +165,8 @@ def _say_payload(args: argparse.Namespace) -> dict[str, Any]:
         "text": args.text,
         "content_format": args.content_format,
     }
+    if args.preempt:
+        payload["preempt"] = True
     for key in ("voice", "speed", "sensitivity", "priority", "source"):
         value = getattr(args, key)
         if value is not None:

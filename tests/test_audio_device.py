@@ -465,3 +465,21 @@ async def test_repeated_pauses_release_output_and_resume_without_changing_sample
         np.concatenate([block for stream in streams.opened for block in stream.blocks]),
         source_samples(tone),
     )
+
+
+async def test_stop_ramps_to_silence_without_consuming_more_source(tone: Path) -> None:
+    import numpy as np  # noqa: PLC0415
+
+    device = FakeAudioDevice(identity="controlled-output")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    streams.on_write = sink.stop
+    sink.start(tone)
+    assert await sink.wait() is False
+    blocks = streams.opened[0].blocks
+    assert len(blocks) == 2
+    assert len(blocks[-1]) == 120  # 5 ms at this fixture's 24 kHz
+    assert blocks[-1][0, 0] == blocks[0][-1, 0]
+    assert blocks[-1][-1, 0] == 0
+    assert np.all(np.diff(blocks[-1][:, 0]) <= 0)
+    assert sink.position_ms() == int(2048 / 24000 * 1000)

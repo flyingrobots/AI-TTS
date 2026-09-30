@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `say --preempt`, `priority: preempt`, and MCP `preempt: true` interrupt playback when alert audio is ready, then resume the interrupted chunk and offset. Nested alerts unwind in reverse order; holds remain authoritative, queue clearing drains suspended clips, and device stops fade to silence.
+
 - Manage Files lists generated storage and deletes individual or all eligible clips with their source and evidence. Opt-in 1/7/30/90-day retention defaults to Never. Clear History can also remove generated files while protecting active and queued work.
 
 - The menu shows model readiness and daemon PID/uptime, offers safe model reload and daemon restart, and provides Launch daemon, View Logs, and Quit when disconnected.

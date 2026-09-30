@@ -257,7 +257,7 @@ async def test_mcp_publishes_typed_tool_schemas() -> None:
     assert enqueue_schema["properties"]["content_format"]["default"] == "plain_text"
     assert enqueue_schema["$defs"]["ContentFormat"]["enum"] == ["plain_text", "markdown"]
     assert enqueue_schema["properties"]["sensitivity"]["default"] == "confidential"
-    assert enqueue_schema["$defs"]["Priority"]["enum"] == ["normal", "urgent"]
+    assert enqueue_schema["$defs"]["Priority"]["enum"] == ["normal", "urgent", "preempt"]
     purge_annotations = tools["purge_cached_audio"].annotations
     assert purge_annotations is not None
     assert purge_annotations.destructive_hint is True
@@ -405,3 +405,11 @@ async def test_mcp_reports_the_two_latencies_separately() -> None:
     # rather than becoming zero.
     assert reported["synthesis_duration_ms"] is None
     assert reported["queue_depth"] == {"input": 0, "playback": 1}
+
+
+async def test_mcp_preempt_reaches_submission_port() -> None:
+    port = FakeSpeechPort()
+    async with MCPClient(create_server(port), raise_exceptions=True) as client:
+        result = await client.call_tool("enqueue_speech", {"text": "alert", "preempt": True})
+    assert result.is_error is False
+    assert [request.preempt for request in port.enqueued] == [True]
