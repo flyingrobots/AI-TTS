@@ -80,7 +80,7 @@ async def test_submit_fails_closed_to_confidential(daemon: Daemon) -> None:
     assert res["ok"] is True
     assert res["state"] == "Queued"
     assert res["sensitivity"] == "confidential"
-    assert res["eligible_engines"] == ["local"]
+    assert res["eligible_engines"] == ["fake"]
     assert res["id"].startswith("utt_")
 
 
@@ -717,7 +717,7 @@ async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
         "response": {
             "ok": True,
             "settings": {
-                "engine": "kokoro",
+                "engine": "fake",
                 "voice": "bm_daniel",
                 "speed": 1.0,
                 "playback_rate": 1.0,

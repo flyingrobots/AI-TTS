@@ -37,6 +37,7 @@ final class AppState: ObservableObject {
     @Published var plan: [Utterance] = []
     @Published var history: [Utterance] = []
     @Published var voices: [String] = []
+    @Published var engines: [SpeechEngine] = []
     @Published var speed: Double = 1.0
     @Published var playbackRate: Double = 1.0
     @Published var captionPosition: CaptionPosition
@@ -317,6 +318,7 @@ final class AppState: ObservableObject {
         self.observedPlaybackRate = snapshot.playbackRate
         self.status = snapshot.status
         self.plan = snapshot.plan
+        self.engines = snapshot.engines
         self.history = snapshot.history
         let historyIDs = Set(snapshot.history.map(\.id))
         self.provenanceDetails = self.provenanceDetails.filter { historyIDs.contains($0.key) }

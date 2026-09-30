@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from aitts.ipc import ApiError
+from aitts.ipc import BAD_REQUEST, ApiError
 from aitts.settings import (
     SPEED_MAX,
     SPEED_MIN,
@@ -46,9 +46,21 @@ class FakeEnvironment:
 
     def __init__(self, *, voices: tuple[str, ...] = ("bm_daniel", "af_heart")) -> None:
         self.voices = voices
+        self.engine = "kokoro"
         self.rate = 1.0
         self.rates_set: list[float] = []
         self.cache_enforcements = 0
+
+    def engine_name(self) -> str:
+        return self.engine
+
+    def engine_voices(self, name: str) -> list[str]:
+        if name not in ("kokoro", "kokoro-mlx"):
+            raise ApiError(BAD_REQUEST, "engine must be kokoro or kokoro-mlx")
+        return list(self.voices)
+
+    def select_engine(self, name: str) -> None:
+        self.engine = name
 
     def available_voices(self) -> list[str]:
         return list(self.voices)

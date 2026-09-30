@@ -17,6 +17,7 @@ from aitts.adapters.jsonl import (
     decode_json_object,
     encode_json_object,
 )
+from tests.strategies import scalar_text
 
 # Medium, not small. The standard budgets small tests in milliseconds, and a
 # 200-example generative sweep over recursive JSON costs about a second and a
@@ -30,7 +31,7 @@ pytestmark = [
     pytest.mark.oracle("RFC 8259 UTF-8 object grammar and JSONL one-line framing"),
 ]
 
-unicode_text = st.text(max_size=80)
+unicode_text = scalar_text(max_size=80)
 json_scalars = (
     st.none()
     | st.booleans()

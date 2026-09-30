@@ -1,0 +1,231 @@
+[
+  {
+    "fault": "pool-routes-wrong-engine",
+    "test": "tests/test_engine_registry.py::test_durable_engine_routes_every_segment_after_reopen",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "pool-allows-private-remote",
+    "test": "tests/test_engine_registry.py::test_remote_backend_only_receives_explicitly_public_work",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "child-loses-engine",
+    "test": "tests/test_engine_registry.py::test_durable_engine_routes_every_segment_after_reopen[True]",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "legacy-overwrites-choice",
+    "test": "tests/test_engine_registry.py::test_legacy_engine_binding_is_durable_and_never_overwrites_an_existing_choice",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "binding-does-not-rollback",
+    "test": "tests/test_engine_registry.py::test_failed_legacy_binding_commit_rolls_back_before_retry",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "admission-ignores-override",
+    "test": "tests/test_engine_registry.py::test_live_default_switch_only_changes_later_admissions",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "admission-allows-private-remote",
+    "test": "tests/test_engine_registry.py::test_daemon_refuses_private_remote_submission_before_persisting",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "settings-does-not-switch",
+    "test": "tests/test_cli.py::test_engine_selection_forms_report_the_selected_backend",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "settings-validates-old-voices",
+    "test": "tests/test_engine_registry.py::test_model_and_voice_update_validates_the_target_before_changing_either",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "registry-rewarms-ready",
+    "test": "tests/test_engine_registry.py::test_each_backend_prepares_once_and_restart_only_reloads_its_target",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "registry-forgets-failure",
+    "test": "tests/test_engine_registry.py::test_failed_backend_requires_explicit_retry_without_poisoning_other_engines",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "http-wrong-payload",
+    "test": "tests/test_engine_openai_compatible.py::test_local_speech_request_preserves_arguments_and_wav",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "http-leaves-partial",
+    "test": "tests/test_engine_openai_compatible.py::test_failed_response_never_leaves_a_usable_artifact[bad_audio]",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "http-allows-remote",
+    "test": "tests/test_engine_openai_compatible.py::test_adapter_rejects_nonloopback_or_ambiguous_urls",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "http-ignores-byte-cap",
+    "test": "tests/test_engine_openai_compatible.py::test_failed_response_never_leaves_a_usable_artifact[too_large]",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "http-wrong-duration",
+    "test": "tests/test_engine_openai_compatible.py::test_local_speech_request_preserves_arguments_and_wav",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "native-alters-samples",
+    "test": "tests/test_engine_chatterbox.py::test_local_model_is_primed_once_and_native_samples_are_preserved",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "native-ignores-speed",
+    "test": "tests/test_engine_chatterbox.py::test_unsupported_voice_or_speed_is_not_silently_ignored",
+    "exit": 1,
+    "assertion_failed": true
+  },
+  {
+    "fault": "legacy-overwrites-explicit",
+    "exit": 1,
+    "failures": [
+      "E           AssertionError: assert 'original' == 'selected'",
+      "E             ",
+      "E             - selected",
+      "E             + original"
+    ]
+  },
+  {
+    "fault": "http-unframed-overflow",
+    "exit": 1,
+    "failures": [
+      "E           Failed: DID NOT RAISE SynthesisError"
+    ]
+  },
+  {
+    "fault": "http-loses-localhost-pin",
+    "exit": 1,
+    "failures": [
+      "E       AssertionError: only the literal loopback destination may be resolved",
+      "E       assert 'localhost' == '127.0.0.1'",
+      "E         ",
+      "E         - 127.0.0.1"
+    ]
+  },
+  {
+    "fault": "server-claimed-ready",
+    "exit": 1,
+    "failures": [
+      "E               AssertionError: assert 'ready' == 'server managed'",
+      "E                 ",
+      "E                 - server managed",
+      "E                 + ready"
+    ]
+  },
+  {
+    "fault": "native-allows-invalid-rate",
+    "exit": 1,
+    "failures": [
+      "E       Failed: DID NOT RAISE SynthesisError"
+    ]
+  },
+  {
+    "fault": "native-allows-nan",
+    "exit": 1,
+    "failures": [
+      "E       Failed: DID NOT RAISE SynthesisError"
+    ]
+  },
+  {
+    "fault": "native-allows-empty",
+    "exit": 1,
+    "failures": [
+      "E       Failed: DID NOT RAISE SynthesisError"
+    ]
+  },
+  {
+    "fault": "native-ignores-missing-assets",
+    "exit": 1,
+    "failures": [
+      "E       Failed: DID NOT RAISE SynthesisError"
+    ]
+  },
+  {
+    "fault": "native-does-not-reload",
+    "exit": 1,
+    "failures": [
+      "E         ",
+      "E         Use -v to get more diff"
+    ]
+  },
+  {
+    "fault": "swift-missing-engine-catalog",
+    "exit": 1,
+    "failures": [
+      "clients/menubar/Tests/AITTSMenuBarTests/SpeechDraftTests.swift:23: error: -[AITTSMenuBarTests.SpeechDraftTests testModelCatalogPreservesBackendSpecificVoicesAndLocality] : XCTAssertEqual failed: (\"[]\") is not equal to (\"[AITTSApplication.SpeechEngine(name: \"kokoro\", isLocal: true, voices: [\"bm_daniel\"], state: \"ready\"), AITTSApplication.SpeechEngine(name: \"openai-audio\", isLocal: true, voices: [\"server-voice\"], state: \"cold\"), AITTSApplication.SpeechEngine(name: \"remote\", isLocal: false, voices: [\"cloud-voice\"], state: \"ready\")]\")"
+    ]
+  },
+  {
+    "fault": "swift-keeps-incompatible-voice",
+    "exit": 1,
+    "failures": [
+      "clients/menubar/Tests/AITTSMenuBarTests/SpeechDraftTests.swift:33: error: -[AITTSMenuBarTests.SpeechDraftTests testModelCatalogPreservesBackendSpecificVoicesAndLocality] : XCTAssertNil failed: \"bm_daniel\"",
+      "clients/menubar/Tests/AITTSMenuBarTests/SpeechDraftTests.swift:36: error: -[AITTSMenuBarTests.SpeechDraftTests testModelCatalogPreservesBackendSpecificVoicesAndLocality] : XCTAssertEqual failed: (\"nil\") is not equal to (\"Optional(\"server-voice\")\")"
+    ]
+  },
+  {
+    "fault": "schema-loses-voice",
+    "exit": 1,
+    "failures": [
+      "E       assert EnqueueSpeech..., source=None) == EnqueueSpeech..., source=None)",
+      "E         ",
+      "E         Use -v to get more diff",
+      "E       Failing test case: test_enqueue_schema_round_trips_generated_json(",
+      "E           # The test always failed when commented parts were varied together."
+    ]
+  },
+  {
+    "fault": "codec-loses-newline",
+    "exit": 1,
+    "failures": [
+      "E       AssertionError: assert {'decoded': {...ine_count': 0} == {'decoded': {...ine_count': 1}",
+      "E         ",
+      "E         Omitting 1 identical items, use -vv to show",
+      "E         Differing items:",
+      "E         {'line_count': 0} != {'line_count': 1}"
+    ]
+  },
+  {
+    "fault": "wire-loses-arguments",
+    "exit": 1,
+    "failures": [
+      "E       AssertionError: assert {'op': 'submit'} == {'op': 'submi...'public', ...}",
+      "E         ",
+      "E         Omitting 1 identical items, use -vv to show",
+      "E         Right contains 6 more items:",
+      "E         {'content_format': 'plain_text',"
+    ]
+  }
+]

@@ -1,0 +1,69 @@
+[
+  {
+    "fault": "source_set",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_changed_or_unlisted_source_fails_before_query[[[package]]\\nname = \"native\"\\nversion = \"1.0\"\\nsource = { url = \"https://github.com/owner/native/archive/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.tar.gz\" }\\nsdist = { hash = \"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\" }\\n\\n[[package]]\\nname=\"other\"\\nversion=\"1\"\\nsource={git=\"unexpected\"}\\n]"
+    ]
+  },
+  {
+    "fault": "source_identity",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_changed_or_unlisted_source_fails_before_query[[[package]]\\nname = \"native\"\\nversion = \"2.0\"\\nsource = { url = \"https://github.com/owner/native/archive/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.tar.gz\" }\\nsdist = { hash = \"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\" }\\n]"
+    ]
+  },
+  {
+    "fault": "source_url",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_changed_or_unlisted_source_fails_before_query[[[package]]\\nname = \"native\"\\nversion = \"1.0\"\\nsource = { url = \"https://github.com/owner/native/archive/cccccccccccccccccccccccccccccccccccccccc.tar.gz\" }\\nsdist = { hash = \"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\" }\\n]"
+    ]
+  },
+  {
+    "fault": "source_hash",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_changed_or_unlisted_source_fails_before_query[[[package]]\\nname = \"native\"\\nversion = \"1.0\"\\nsource = { url = \"https://github.com/owner/native/archive/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.tar.gz\" }\\nsdist = { hash = \"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\" }\\n]"
+    ]
+  },
+  {
+    "fault": "source_findings",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_either_source_query_finding_fails_existing_evidence_gate[0]",
+      "FAILED tests/test_source_dependency_audit.py::test_either_source_query_finding_fails_existing_evidence_gate[1]"
+    ]
+  },
+  {
+    "fault": "source_inventory",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_source_evidence_contains_identity_and_both_queries",
+      "FAILED tests/test_source_dependency_audit.py::test_either_source_query_finding_fails_existing_evidence_gate[0]",
+      "FAILED tests/test_source_dependency_audit.py::test_either_source_query_finding_fails_existing_evidence_gate[1]",
+      "FAILED tests/test_source_dependency_audit.py::test_source_packages_participate_in_sbom_and_license_checks"
+    ]
+  },
+  {
+    "fault": "commit_query",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_source_evidence_contains_identity_and_both_queries"
+    ]
+  },
+  {
+    "fault": "source_label",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_source_evidence_contains_identity_and_both_queries"
+    ]
+  },
+  {
+    "fault": "source_overlap",
+    "exit_code": 1,
+    "assertion_failures": [
+      "FAILED tests/test_source_dependency_audit.py::test_missing_pypi_evidence_or_overlapping_source_is_rejected[audit1]"
+    ]
+  }
+]

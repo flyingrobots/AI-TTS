@@ -12,21 +12,25 @@ from pydantic import ValidationError
 
 from aitts.application.schemas import EnqueueSpeech
 from aitts.model import ContentFormat, Priority, Sensitivity
+from tests.strategies import scalar_text
 
 pytestmark = [
     pytest.mark.small,
     pytest.mark.oracle("approved public speech-schema contract"),
 ]
 
+
 enqueue_requests = st.builds(
     EnqueueSpeech,
-    text=st.text(min_size=1, max_size=200).filter(lambda value: bool(value.strip())),
+    text=scalar_text(min_size=1, max_size=200).filter(lambda value: bool(value.strip())),
     content_format=st.sampled_from(list(ContentFormat)),
-    voice=st.none() | st.text(min_size=1, max_size=40).filter(lambda value: bool(value.strip())),
+    voice=st.none()
+    | scalar_text(min_size=1, max_size=40).filter(lambda value: bool(value.strip())),
     speed=st.none() | st.floats(min_value=0.5, max_value=2.0, allow_nan=False),
     sensitivity=st.sampled_from(list(Sensitivity)),
     priority=st.sampled_from(list(Priority)),
-    source=st.none() | st.text(min_size=1, max_size=40).filter(lambda value: bool(value.strip())),
+    source=st.none()
+    | scalar_text(min_size=1, max_size=40).filter(lambda value: bool(value.strip())),
 )
 
 

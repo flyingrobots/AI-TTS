@@ -58,12 +58,14 @@ jobs:
         run: uv sync --frozen --python 3.12 --all-extras --no-dev --group supply-chain
       - name: Prepare evidence directory
         run: mkdir -p dist/supply-chain
-      - name: Export the frozen all-extras graph
-        run: uv export --quiet --frozen --python 3.12 --all-extras --no-dev --no-emit-project --output-file dist/supply-chain/requirements.txt
+      - name: Export the frozen PyPI graph (source pins audited separately)
+        run: uv export --quiet --frozen --python 3.12 --all-extras --no-dev --no-emit-project --no-emit-package chatterbox-tts --no-emit-package resemble-perth --output-file dist/supply-chain/requirements.txt
       - name: Export the CycloneDX SBOM
         run: uv export --quiet --frozen --python 3.12 --all-extras --no-dev --format cyclonedx1.5 --preview-features sbom-export --output-file dist/supply-chain/sbom.cdx.json
       - name: Audit every applicable locked dependency
-        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-audit --strict --progress-spinner off --vulnerability-service pypi --disable-pip --require-hashes --requirement dist/supply-chain/requirements.txt --format json --output dist/supply-chain/audit.json
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-audit --strict --progress-spinner off --vulnerability-service pypi --disable-pip --require-hashes --requirement dist/supply-chain/requirements.txt --format json --output dist/supply-chain/pypi-audit.json
+      - name: Audit pinned source revisions and merge evidence
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain python scripts/audit_source_dependencies.py --pypi-audit dist/supply-chain/pypi-audit.json --lock uv.lock --output dist/supply-chain/audit.json
       - name: Inventory installed dependency licenses
         run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-licenses --python .venv/bin/python --from mixed --format json --with-system --with-urls --output-file dist/supply-chain/licenses.raw.json
       - name: Record uv version

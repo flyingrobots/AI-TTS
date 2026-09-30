@@ -108,6 +108,7 @@ class Utterance:
     played_ms: int | None = None
     audio_path: str | None = None
     replay_of: str | None = None
+    engine: str | None = None
 
     @property
     def is_terminal(self) -> bool:
@@ -159,6 +160,8 @@ class SynthesisWork:
     voice: str
     speed: float
     state: State = State.SYNTHESIZING
+    engine: str | None = None
+    sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL
 
     @property
     def is_segment(self) -> bool:

@@ -205,6 +205,22 @@ public struct DaemonRuntime: Equatable, Sendable {
     }
 }
 
+/// A registered backend and the voices it can use for the next clip.
+public struct SpeechEngine: Equatable, Sendable, Identifiable {
+    public var id: String { name }
+    public let name: String
+    public let isLocal: Bool
+    public let voices: [String]
+    public let state: String
+
+    public init(name: String, isLocal: Bool, voices: [String], state: String) {
+        self.name = name
+        self.isLocal = isLocal
+        self.voices = voices
+        self.state = state
+    }
+}
+
 /// Everything a presentation adapter needs to render current speech state.
 public struct Snapshot: Equatable, Sendable {
     public let runtime: DaemonRuntime?
@@ -213,6 +229,7 @@ public struct Snapshot: Equatable, Sendable {
     public let input: [Utterance]
     public let history: [Utterance]
     public let voices: [String]
+    public let engines: [SpeechEngine]
     public let speed: Double
     public let playbackRate: Double
     public let captionsEnabled: Bool
@@ -234,9 +251,11 @@ public struct Snapshot: Equatable, Sendable {
         voiceAssignments: [VoiceAssignment] = [],
         inputInterruptEnabled: Bool = true,
         inputInterruptResume: InputInterruptResume = .manual,
-        runtime: DaemonRuntime? = nil
+        runtime: DaemonRuntime? = nil,
+        engines: [SpeechEngine] = []
     ) {
         self.runtime = runtime
+        self.engines = engines
         self.status = status
         self.plan = plan
         self.input = input
