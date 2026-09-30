@@ -902,11 +902,16 @@ class Store:
             self.transition(utt.id, State.QUEUED)
         for utt in self._by_states((State.PLAYING,)):
             self.transition(utt.id, State.PAUSED)
-        # Child publication may commit before the first-child Ready promotion.
-        # Reconcile that durable prefix, including an interrupted earlier recovery.
-        for utt in self._by_states((State.QUEUED,)):
-            first = self.get_segment(utt.id, 0)
-            if first is not None and first.state is State.READY:
+        # Child completion may commit before its parent promotion or failure.
+        # Reconcile durable prefixes, including interrupted earlier recovery.
+        for utt in self.input_queue() + self.playback_queue():
+            segments = self.segments(utt.id)
+            failed = next((child for child in segments if child.state is State.FAILED), None)
+            if failed is not None:
+                if utt.state is State.QUEUED:
+                    self.transition(utt.id, State.SYNTHESIZING)
+                self.transition(utt.id, State.FAILED, error=f"segment failed: {failed.error}")
+            elif utt.state is State.QUEUED and segments and segments[0].state is State.READY:
                 self.transition(utt.id, State.SYNTHESIZING)
                 self.transition(utt.id, State.READY)
 

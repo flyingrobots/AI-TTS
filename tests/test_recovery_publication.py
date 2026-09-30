@@ -59,3 +59,40 @@ def test_first_child_publication_crash_recovers_playable_parent(
         assert restored.state is State.READY
     finally:
         restarted.close()
+
+
+@pytest.mark.parametrize("playing", [False, True])
+def test_child_failure_crash_recovers_failed_parent(tmp_path: Path, *, playing: bool) -> None:
+    connections: list[CrashAfterCommit] = []
+
+    def connect(path: str) -> sqlite3.Connection:
+        connection = sqlite3.connect(path, factory=CrashAfterCommit)
+        connections.append(connection)
+        return connection
+
+    database = tmp_path / "state.db"
+    store = Store(database, connect=connect)
+    parent = store.submit("document", voice="v", speed=1, spoken_segments=("first", "second"))
+    work = store.claim_for_synthesis()
+    assert work is not None
+    if playing:
+        store.finish_synthesis(work, audio_path="first.wav", duration_ms=10)
+        store.transition(parent.id, State.PLAYING)
+        store.transition_segment(parent.id, 0, State.PLAYING)
+        work = store.claim_for_synthesis()
+        assert work is not None
+    connections[-1].crash_after = 1
+    with pytest.raises(SeededRecoveryError):
+        store.fail_synthesis(work, "controlled failure")
+    store.close()
+    restarted = Store(database)
+    try:
+        restarted.recover()
+        restored = restarted.get(parent.id)
+        assert restored is not None
+        assert (restored.state, restored.error) == (
+            State.FAILED,
+            "segment failed: controlled failure",
+        )
+    finally:
+        restarted.close()

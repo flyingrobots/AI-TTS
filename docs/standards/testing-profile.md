@@ -401,3 +401,15 @@ A seeded cancellation handler that prematurely sets the pool gate fails both
 success/failure cases at the new assertion; restoration passes both. This is
 additional calibration of an existing fixed runtime invariant, not a newly
 claimed production defect.
+
+
+## Crash recovery audit: interrupted child failure
+
+Change-kind: bug fix. Strict local agy found that child failure and parent
+failure commit separately. Seeded crashes after the child commit left parents
+Queued (first-child failure) or Paused (failure during playback) on restart,
+instead of terminal with their recorded error. Both cases were observed red.
+Recovery now propagates committed child failures to active parents before
+considering Ready promotion, using legal state transitions. The two medium
+Store-boundary regressions pass with the fix and retain the exact failure
+message as their oracle. This also repairs prefixes written by older versions.
