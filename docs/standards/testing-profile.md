@@ -255,3 +255,20 @@ code because readiness never left `reloading`; both pass with daemon ownership.
 The existing IPC reload recovery contract remains green. This is a medium test;
 its deadline bounds a readiness liveness observation, not an inferred scheduling
 order. Retire it only with a replacement ownership contract or removal of reload.
+
+## Daemon lifecycle audit: IPC shutdown quiescence
+
+Change-kind: bug fix. Closing client streams did not retire active dispatch
+coroutines, so daemon shutdown could close SQLite while a request still ran.
+IPC shutdown now stops admission, cancels and awaits owned request handlers,
+then finishes closing streams. Late accepted callbacks and buffered lines cannot
+start new application dispatch after serving stops. Independently owned exports
+remain shielded and are joined by the daemon before store closure.
+
+`test_ipc_lifecycle.py` is medium and enters through a real owned Unix socket
+with an event-gated application port. It pipelines two requests, waits until the
+first enters dispatch, and invokes stop. The unfixed server returned with the
+application's retirement event unset; the fixed server retires it before return
+and never dispatches the buffered request. No sleep establishes ordering. The
+IPC, reload, export ownership, and bounded process-shutdown suites pass 59 tests.
+Retire this check only when a calibrated replacement enforces request quiescence.

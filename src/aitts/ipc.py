@@ -59,6 +59,7 @@ class IPCServer:
         self._socket_path = socket_path
         self._api = api
         self._server: asyncio.Server | None = None
+        self._handlers: set[asyncio.Task[None]] = set()
         self._clients: set[asyncio.StreamWriter] = set()
         self._subscribers: set[asyncio.StreamWriter] = set()
 
@@ -86,6 +87,10 @@ class IPCServer:
         clients = list(self._clients)
         for writer in clients:
             writer.close()
+        handlers = tuple(self._handlers)
+        for handler in handlers:
+            handler.cancel()
+        await asyncio.gather(*handlers, return_exceptions=True)
         for writer in clients:
             with contextlib.suppress(ConnectionError):
                 await writer.wait_closed()
@@ -107,9 +112,15 @@ class IPCServer:
     async def _serve_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
+        handler = asyncio.current_task()
+        if handler is not None:
+            self._handlers.add(handler)
         self._clients.add(writer)
         try:
-            while True:
+            # A connection callback accepted just before stop may start afterward.
+            if self._server is None:
+                return
+            while self._server is not None:
                 try:
                     line = await reader.readline()
                 except ConnectionError:  # pragma: no cover
@@ -124,6 +135,8 @@ class IPCServer:
                     continue
                 await self._handle_line(line, writer)
         finally:
+            if handler is not None:
+                self._handlers.discard(handler)
             self._clients.discard(writer)
             self._subscribers.discard(writer)
             writer.close()
