@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Installation reports launchd registration without claiming the daemon is healthy or running; `make doctor` remains the explicit status check.
+
 - If launchd rejects an updated service configuration, installation restores the prior plist and attempts to reload it only when the service was previously loaded. A loaded service without a recoverable plist is not stopped.
 
 - `make install` prepares the signed app and launch-agent plist before replacing the CLI, so build or preparation failures cannot partially upgrade the executable installation. Explicit app, plist, and log destinations are passed through consistently.

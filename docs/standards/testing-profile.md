@@ -697,3 +697,14 @@ remains an error and is reported, not treated as health or successful rollback
 of the uv environment. All commands and state are owned fixtures; no system
 launchd service participates. Retire only with an equivalent calibrated
 activation-failure and prior-service-state contract.
+
+
+## Installation audit: registration is not daemon health
+
+Change-kind: bug fix. Installation claimed the daemon was running immediately
+after launchctl accepted its registration. A medium real-Make check uses an
+owned launchctl that accepts configuration without starting any daemon. The
+unfixed output asserted running; it now reports registration and directs the
+user to make doctor for status. Existing Make cases share one owned invocation
+helper, with their result oracles unchanged. Retire only with a calibrated
+health check or equally truthful registration receipt.

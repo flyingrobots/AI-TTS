@@ -105,11 +105,9 @@ else:
     return env
 
 
-def test_install_build_failure_does_not_replace_cli(
-    tmp_path: Path, install_environment: dict[str, str]
-) -> None:
-    env = dict(install_environment, AITTS_TEST_BUILD_FAILURE="1")
-    result = subprocess.run(  # noqa: S603 - owned tool commands and artifact destinations
+def run_installation(tmp_path: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """Run the real Make entrypoint with owned tools and installation paths."""
+    return subprocess.run(  # noqa: S603 - only owned tools and artifact destinations
         [
             "/usr/bin/make",
             "--no-print-directory",
@@ -124,6 +122,13 @@ def test_install_build_failure_does_not_replace_cli(
         text=True,
         check=False,
     )
+
+
+def test_install_build_failure_does_not_replace_cli(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    env = dict(install_environment, AITTS_TEST_BUILD_FAILURE="1")
+    result = run_installation(tmp_path, env)
     assert (result.returncode != 0, (tmp_path / "cli-version").read_text()) == (True, "old cli")
 
 
@@ -134,21 +139,7 @@ def test_install_publishes_prepared_artifacts_to_explicit_destinations(
     app = tmp_path / "AI-TTS.app"
     agent = tmp_path / "agent.plist"
     log_path = tmp_path / "logs" / "daemon.log"
-    result = subprocess.run(  # noqa: S603 - owned command implementations and destinations
-        [
-            "/usr/bin/make",
-            "--no-print-directory",
-            "install",
-            f"APP_BUNDLE={app}",
-            f"LAUNCH_AGENT={agent}",
-            f"LOG_PATH={log_path}",
-        ],
-        cwd=REPOSITORY,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = run_installation(tmp_path, env)
     assert result.returncode == 0, result.stderr
     assert {
         "cli": (tmp_path / "cli-version").read_text(),
@@ -165,7 +156,6 @@ def test_install_publishes_prepared_artifacts_to_explicit_destinations(
 def test_failed_service_activation_restores_previous_configuration(
     tmp_path: Path, install_environment: dict[str, str], *, loaded: bool
 ) -> None:
-    app = tmp_path / "AI-TTS.app"
     agent = tmp_path / "agent.plist"
     previous = plistlib.dumps(
         {"Label": "com.flyingrobots.ai-tts", "ProgramArguments": ["/old/ai-tts", "daemon"]}
@@ -174,23 +164,20 @@ def test_failed_service_activation_restores_previous_configuration(
     if loaded:
         (tmp_path / "service-loaded").write_text("running")
     env = dict(install_environment, AITTS_TEST_BOOTSTRAP_FAILURE="1")
-    result = subprocess.run(  # noqa: S603 - only owned installation tools and destinations
-        [
-            "/usr/bin/make",
-            "--no-print-directory",
-            "install",
-            f"APP_BUNDLE={app}",
-            f"LAUNCH_AGENT={agent}",
-            f"LOG_PATH={tmp_path / 'logs' / 'daemon.log'}",
-        ],
-        cwd=REPOSITORY,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = run_installation(tmp_path, env)
     assert {
         "failed": result.returncode != 0,
         "configuration": agent.read_bytes(),
         "loaded": (tmp_path / "service-loaded").exists(),
     } == {"failed": True, "configuration": previous, "loaded": loaded}
+
+
+def test_install_reports_registration_without_claiming_daemon_health(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    # The owned launchctl accepts registration; no daemon process is running.
+    result = run_installation(tmp_path, install_environment)
+
+    assert result.returncode == 0, result.stderr
+    assert "daemon is registered" in result.stdout
+    assert "daemon is running" not in result.stdout
