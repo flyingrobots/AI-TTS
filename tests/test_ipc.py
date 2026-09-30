@@ -1101,6 +1101,8 @@ async def test_a_line_just_past_the_boundary_is_refused(daemon: Daemon) -> None:
 async def test_clear_history_and_files_preserves_pending_artifacts(
     daemon: Daemon, tmp_path: Path
 ) -> None:
+    # Hold playback and seed Ready work so synthesis cannot rewrite our source oracle.
+    await rpc(daemon.socket_path, {"op": "pause"})
     finished = daemon.store.submit("finished", voice="bm_daniel", speed=1.0)
     daemon.store.transition(finished.id, State.CANCELLED)
     active = daemon.store.submit("pending", voice="bm_daniel", speed=1.0)
@@ -1108,6 +1110,10 @@ async def test_clear_history_and_files_preserves_pending_artifacts(
         directory = tmp_path / "cache" / identity
         directory.mkdir(parents=True, exist_ok=True)
         (directory / "source.txt").write_text("retained source")
+    audio = tmp_path / "cache" / active.id / f"{active.id}.wav"
+    audio.write_bytes(b"owned audio")
+    daemon.store.transition(active.id, State.SYNTHESIZING)
+    daemon.store.transition(active.id, State.READY, audio_path=str(audio))
     response = await rpc(
         daemon.socket_path, {"op": "clear", "queue": "history", "delete_files": True}
     )

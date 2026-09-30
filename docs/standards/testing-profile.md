@@ -295,3 +295,15 @@ probe now refuses that endpoint; failed start never unlinks an unowned socket.
 Positive recovery checks cover an abandoned socket, and a refusal check preserves
 an unrelated regular file. A missing-release mutant makes both endpoint transfer
 and failed-start successor tests fail; restoration returns them to green.
+
+## Daemon lifecycle audit: control the history-deletion test schedule
+
+Change-kind: behavior change (test setup only). The first full ownership-audit
+run exposed `test_clear_history_and_files_preserves_pending_artifacts` racing
+against synthesis: the engine legitimately replaced the test's source sentinel
+with the submitted text. No retry was used to accept that run. The setup now
+holds playback and seeds a Ready artifact, so neither synthesis nor playback
+can invalidate the file-preservation oracle. The existing assertions are intact.
+Removing clear-history's protected-artifact set makes the test fail because the
+pending source is deleted; restoring protection makes it pass. This medium
+contract remains about deletion preserving pending speech, not worker timing.
