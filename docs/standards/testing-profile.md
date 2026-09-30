@@ -307,3 +307,25 @@ can invalidate the file-preservation oracle. The existing assertions are intact.
 Removing clear-history's protected-artifact set makes the test fail because the
 pending source is deleted; restoring protection makes it pass. This medium
 contract remains about deletion preserving pending speech, not worker timing.
+
+## Daemon audit CI follow-up: urllib3 security update
+
+Change-kind: bug fix. Required supply-chain CI rejected frozen urllib3 2.7.0
+for CVE-2026-97687, CVE-2026-97688, and CVE-2026-97689. The frozen graph now uses
+2.8.0, the patched version listed by all three advisories. urllib3 is included
+in the development group so the optional model-download HTTP dependency has a
+mandatory deterministic regression; it is not a new core runtime dependency.
+
+`test_http_dependency_security.py` is small, with an owned in-memory socket
+interface feeding the real standard-library HTTP parser and urllib3 streaming
+response API. Its oracle is
+[GHSA-vxq7-64xx-v4gw](https://github.com/urllib3/urllib3/security/advisories/GHSA-vxq7-64xx-v4gw):
+chunk-size lines above 65,536 bytes must be rejected. With isolated urllib3 2.7.0,
+the 65,537-byte case failed because no ProtocolError was raised; with 2.8.0 both
+oversized rejection and exact-bound acceptance pass. Initial exploratory probes
+omitted the HTTP request method and failed in fixture setup on both versions;
+those were discarded, not counted as regression evidence. No network, threads,
+wall-clock timing, or live server participates in this test. The full dependency
+audit separately verifies all three advisory fixes; this regression does not
+claim to exercise the proxy-TLS or Deflate-loop defects. Retire it only when the
+dependency leaves the frozen graph or calibrated conformance supersedes it.
