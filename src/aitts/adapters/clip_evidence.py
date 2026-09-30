@@ -87,12 +87,20 @@ class ClipEvidence:
         self.runtime = runtime_metadata()
         self._lock = threading.RLock()
 
-    def directory(self, artifact_id: str) -> Path:
-        """Resolve one flat artifact identity, never an arbitrary filesystem path."""
+    def _directory_path(self, artifact_id: str) -> Path:
+        """Resolve an owned flat identity without creating or modifying storage."""
         if not artifact_id or artifact_id in {".", ".."} or Path(artifact_id).name != artifact_id:
             msg = "invalid artifact identity"
             raise ValueError(msg)
         directory = self.root / artifact_id
+        if self.root.is_symlink() or directory.is_symlink():
+            msg = "evidence directories must not be symlinks"
+            raise ValueError(msg)
+        return directory
+
+    def directory(self, artifact_id: str) -> Path:
+        """Create or validate an owned directory for writing evidence."""
+        directory = self._directory_path(artifact_id)
         ensure_private_directory(self.root)
         ensure_private_directory(directory)
         return directory
@@ -133,7 +141,7 @@ class ClipEvidence:
     def read_metadata(self, artifact_id: str, name: str) -> dict[str, Any] | None:
         """Read an owned metadata record, with missing legacy evidence left explicit."""
         try:
-            path = self.directory(artifact_id) / name
+            path = self._directory_path(artifact_id) / name
             if path.is_symlink():
                 return None
             result = json.loads(path.read_text())
@@ -285,7 +293,7 @@ class ClipEvidence:
                     entry = {key: value for key, value in clip.items() if key != "audio_path"}
                     manifest["clips"].append(entry)
                     folder = f"clips/{artifact_id}"
-                    directory = self.directory(artifact_id)
+                    directory = self._directory_path(artifact_id)
                     with self._lock:
                         for name in (
                             "source.txt",

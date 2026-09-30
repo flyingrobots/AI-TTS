@@ -634,7 +634,7 @@ class PlaybackController:
         candidate = next(
             (
                 item
-                for item in self._store.pending_queue()
+                for item in self._store.playback_queue()
                 if item.priority is Priority.PREEMPT and item.state is State.READY
             ),
             None,
