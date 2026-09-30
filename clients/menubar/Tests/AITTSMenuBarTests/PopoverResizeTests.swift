@@ -29,8 +29,29 @@ final class PopoverResizeTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let sizing = PopoverSizing(defaults: defaults)
-        sizing.maximumHeight = 1800
+        sizing.fit(to: 1800)
         sizing.resize(to: 1500)
+        XCTAssertEqual(sizing.height, 1500)
+        XCTAssertEqual(PopoverSizing(defaults: defaults).height, 1500)
+    }
+
+    // Test-Oracle: automatic screen fitting never replaces the user's durable preference.
+    @MainActor
+    func testScreenFittingPreservesPreferenceAndRestoresItOnLargerDisplay() throws {
+        let name = "resize-screen-preference-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let sizing = PopoverSizing(defaults: defaults)
+        func fit(_ maximum: CGFloat) {
+            sizing.fit(to: maximum)
+        }
+        fit(1800)
+        XCTAssertNil(defaults.object(forKey: "menuCardHeight"))
+        sizing.resize(to: 1500)
+        fit(700)
+        XCTAssertEqual(sizing.height, 700)
+        XCTAssertEqual(defaults.double(forKey: "menuCardHeight"), 1500)
+        fit(1800)
         XCTAssertEqual(sizing.height, 1500)
         XCTAssertEqual(PopoverSizing(defaults: defaults).height, 1500)
     }
@@ -42,7 +63,7 @@ final class PopoverResizeTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let sizing = PopoverSizing(defaults: defaults)
-        sizing.maximumHeight = 700
+        sizing.fit(to: 700)
         sizing.resize(to: 900)
         XCTAssertEqual(sizing.height, 700)
         sizing.resize(to: 10)
@@ -56,9 +77,11 @@ final class PopoverResizeTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let sizing = PopoverSizing(defaults: defaults)
-        sizing.maximumHeight = 300
+        sizing.fit(to: 300)
         sizing.resize(to: 600)
         XCTAssertEqual(sizing.height, 300)
+        XCTAssertEqual(PopoverSizing(defaults: defaults).height, 360,
+                       "An explicit short-screen choice retains the normal minimum on relaunch")
     }
 
     @MainActor

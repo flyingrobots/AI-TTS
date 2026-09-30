@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic screen fitting no longer overwrites the preferred menu height; returning to a larger display restores it.
+
 - Menu heights above 1200 points remain intact across relaunches on tall displays.
 
 - The menu resize grip supports keyboard arrows and accessibility increment/decrement, and exposes its current height and bounds.

@@ -54,6 +54,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
         let popover = self.popover
         let statusItem = self.statusItem
+        sizing.fit(to: sizing.maximumHeight)
         popover.contentSize = NSSize(width: 368, height: sizing.height)
         popover.behavior = .transient
         popover.delegate = self
@@ -142,8 +143,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
                 ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
                 store: { state.capturePriorApplication(processIdentifier: $0) },
                 activate: {
-                    sizing.maximumHeight = max(200, (button.window?.screen?.visibleFrame.height ?? 800) - 32)
-                    sizing.resize(to: sizing.height)
+                    sizing.fit(to: max(200, (button.window?.screen?.visibleFrame.height ?? 800) - 32))
                     state.startPolling(interval: 0.5)
                     popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
                     popover.contentViewController?.view.window?.makeKey()
