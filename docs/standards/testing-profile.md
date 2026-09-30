@@ -355,3 +355,16 @@ while fresh-schema cases pass. Seeds were removed and all four cases pass.
 Retire only when a replacement calibrated evidence-retention contract subsumes
 these cases. Explicit generated-file deletion remains allowed to remove
 sidecars; retaining history does not promise indefinite evidence retention.
+
+
+## Crash recovery audit: Ready queue admission
+
+Change-kind: bug fix. Startup inferred a recovery hold only from Paused rows,
+so a queue containing only Ready clips could speak immediately after restart.
+It now holds every restored playback queue; fresh empty startup is unchanged.
+The medium daemon-status regression seeds durable Ready, Playing, and Paused
+states, then starts a new daemon with owned fake device/input ports. The Ready
+case observed `playback_held == false` on the unfixed code; all three now report
+true. An initial probe read the field at the wrong snapshot level and was
+corrected before recording red evidence. No sleep or absence of events is used
+to infer safety. Retire only with a stronger restart-admission contract.

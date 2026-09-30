@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restarting with Ready playback now engages the durable global hold, requiring explicit resume even if the process stopped before any clip began playing.
+
 - Cached replays retain generation-artifact identity after audio eviction, so provenance and reports can still find retained evidence. Existing audio references are migrated on database open; previously lost links cannot be reconstructed.
 
 - The frozen urllib3 dependency is updated to 2.8.0 for proxy-TLS isolation, Deflate streaming, and oversized chunk-header vulnerabilities, with an in-memory chunk-header regression.

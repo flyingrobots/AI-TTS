@@ -176,7 +176,7 @@ class Daemon:
             await self._server.start()
             self._store.recover()
             self.enforce_cache_limit()
-            held = any(u.state is State.PAUSED for u in self._store.playback_queue())
+            held = bool(self._store.playback_queue())
             self._controller = PlaybackController(
                 self._store,
                 self._sink,
