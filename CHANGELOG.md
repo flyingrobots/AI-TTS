@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Speech-composer provenance now identifies user composition while preserving import attribution and replay origin.
+
 - Automatic screen fitting no longer overwrites the preferred menu height; returning to a larger display restores it.
 
 - Menu heights above 1200 points remain intact across relaunches on tall displays.

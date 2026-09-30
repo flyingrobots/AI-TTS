@@ -582,6 +582,7 @@ class Daemon:
         request = self._evidence.read_metadata(item.id, "request.json")
         arguments = request.get("arguments", {}) if request else None
         sources = {
+            "menubar-composer": "User composed speech",
             "menubar-file": "User read file",
             "macos-accessibility": "User read selection",
             "macos-clipboard": "User read clipboard",
