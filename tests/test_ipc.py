@@ -1137,12 +1137,19 @@ async def test_model_reload_reports_readiness_and_recovers_from_failure(
         raise RuntimeError(msg)
 
     monkeypatch.setattr(FakeEngine, "restart", fail_reload, raising=False)
+
+    async def model_is_ready() -> bool:
+        snapshot = await rpc(daemon.socket_path, {"op": "snapshot"})
+        return bool(snapshot["runtime"]["model_state"] == "ready")
+
+    await wait_for_async(model_is_ready)
     failed = await rpc(daemon.socket_path, {"op": "restart_model"})
     failed_status = await rpc(daemon.socket_path, {"op": "snapshot"})
     monkeypatch.setattr(FakeEngine, "restart", lambda _: None)
     recovered = await rpc(daemon.socket_path, {"op": "restart_model"})
     ready = await rpc(daemon.socket_path, {"op": "snapshot"})
     assert failed["ok"] is False
+    assert failed["error"]["type"] == "internal"
     assert failed_status["runtime"]["model_state"] == "failed"
     assert recovered == {"ok": True}
     assert ready["runtime"]["model_state"] == "ready"
