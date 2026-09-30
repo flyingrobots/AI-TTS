@@ -29,7 +29,7 @@ from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
 from aitts.application.metrics import MetricsRecorder
-from aitts.engine import eligible_engine_names, engine_preparation
+from aitts.engine import StreamingEngine, eligible_engine_names, engine_preparation
 from aitts.input_interrupt import DEFAULT_POLL_SECONDS, InputInterruptWatcher
 from aitts.ipc import (
     BAD_REQUEST,
@@ -53,6 +53,7 @@ from aitts.playback import PlaybackController, SoundDeviceSink
 from aitts.segmentation import prepare_speech_segments
 from aitts.settings import SPEED_MESSAGE, SettingsService, parse_speed
 from aitts.store import Store, TransitionError
+from aitts.streaming import StreamingRegistry
 from aitts.synthesis import SynthesisPool
 from aitts.voice_registry import VoiceRegistry
 
@@ -70,6 +71,7 @@ _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 _TRACED_STATES = (State.READY, State.PLAYING, State.PLAYED, State.FAILED)
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
+
 
 log = logging.getLogger(__name__)
 
@@ -124,6 +126,9 @@ class Daemon:
         self._metrics = MetricsRecorder()
         self._engines: dict[str, Engine] = {"local": engine}
         self._engine = engine
+        self._streams = (
+            StreamingRegistry() if callable(getattr(sink, "start_stream", None)) else None
+        )
         self._sink = sink
         self._workers = workers
         self._store = Store(home / "state.db")
@@ -174,6 +179,7 @@ class Daemon:
             ImmediatePlaybackSchedule(),
             held=held,
             evidence=self._evidence,
+            streams=self._streams,
         )
         self._pool = SynthesisPool(
             self._store,
@@ -181,6 +187,7 @@ class Daemon:
             FileAudioArtifacts(self._cache_dir),
             workers=self._workers,
             evidence=self._evidence,
+            streams=self._streams,
         )
         self._store.on_transition.append(self._on_transition)
         self._store.on_segment_transition.append(self._on_segment_transition)
@@ -218,6 +225,9 @@ class Daemon:
     async def stop(self) -> None:
         """Stop serving, cancel the workers, and close the store."""
         await self._server.stop()
+        if self._controller is not None:
+            await self._controller.shutdown()
+            self._controller = None
         for task in self._tasks:
             task.cancel()
         for task in self._tasks:
@@ -225,6 +235,9 @@ class Daemon:
                 await task
         self._tasks = []
         await asyncio.gather(*self._exports, return_exceptions=True)
+        close_output = getattr(self._sink, "close_output", None)
+        if callable(close_output):
+            await asyncio.to_thread(close_output)
         self._store.close()
 
     # -- events ------------------------------------------------------------
@@ -540,6 +553,15 @@ class Daemon:
         except Exception:  # noqa: BLE001 - readiness must report warmup failure
             self._model_state = "failed"
             log.warning("event=model_warmup_failed")
+        else:
+            prepare_output = getattr(self._sink, "prepare_output", None)
+            if isinstance(self._engine, StreamingEngine) and callable(prepare_output):
+                try:
+                    await asyncio.to_thread(prepare_output)
+                except Exception:  # noqa: BLE001 - device startup is independent of model readiness
+                    # Playback retries opening the device and reports any
+                    # continuing failure on the affected clip.
+                    log.warning("event=audio_output_prepare_failed")
         finally:
             self._warmup_finished.set()
 

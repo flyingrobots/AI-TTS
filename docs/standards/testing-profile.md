@@ -238,3 +238,14 @@ behavior cannot certify this tree. The installed app and daemon were not replace
 or restarted. Real selection-permission/host, VoiceOver traversal, cross-display
 resize, and acoustic playback acceptance remain open; controlled native and daemon
 boundary suites do not substitute for those checks.
+
+## September 30 streaming PCM extension
+
+Streaming coverage includes controlled first-frame admission, bounded callbacks,
+cache equivalence, native pause/resume and failures, nested live preemption,
+atomic readiness/publication and restart recovery. Seeded-fault calibration and
+silent hardware measurements are in the
+[streaming receipt](../testing-evidence/2026-09-30-streaming-audio.md). The user
+accepted measured startup latency and deferred the original 150 ms optimization
+target to issue #33. Physical route changes and long-session acoustic acceptance
+remain outside the hermetic suite.

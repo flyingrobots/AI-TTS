@@ -14,7 +14,10 @@ from aitts.engine import SynthesisError
 from aitts.engines.kokoro import VOICES, KokoroAssets
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
+
+    import numpy as np
+    from numpy.typing import NDArray
 
 
 _SAMPLE_RATE = 24000
@@ -76,32 +79,63 @@ class KokoroMlxEngine:
 
     def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
         """Write a WAV and report its source duration in milliseconds."""
-        import numpy as np  # noqa: PLC0415
         import soundfile as sf  # noqa: PLC0415
 
+        samples = self._generate_samples(text, voice, speed)
+        sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
+        return int(len(samples) / _SAMPLE_RATE * 1000)
+
+    def stream_synthesize(
+        self, text: str, voice: str, speed: float
+    ) -> Generator[bytes, None, None]:
+        """Yield bounded PCM as upstream phoneme chunks finish, under one model lock."""
+        import numpy as np  # noqa: PLC0415
+
+        with self._lock:
+            model = self._prepared_model(voice)
+            try:
+                for audio in model.generate_stream(
+                    text, voice=voice, speed=speed, sample_rate=_SAMPLE_RATE
+                ):
+                    samples = self._validated_samples(audio, _SAMPLE_RATE)
+                    for offset in range(0, len(samples), 2400):
+                        frame = np.clip(samples[offset : offset + 2400], -1, 1 - 1 / 32768)
+                        yield (frame * 32768).astype("<i2").tobytes()
+            except Exception as exc:
+                msg = "MLX streaming synthesis failed"
+                raise SynthesisError(msg) from exc
+
+    def _prepared_model(self, voice: str) -> Any:  # noqa: ANN401 - untyped optional upstream
         if voice not in VOICES:
             msg = f"unknown MLX voice {voice!r}"
             raise SynthesisError(msg)
+        if self._model is None:
+            msg = "MLX model is not prepared; warmup must finish before synthesis"
+            raise SynthesisError(msg)
+        return self._model
+
+    def _generate_samples(self, text: str, voice: str, speed: float) -> NDArray[np.float32]:
         with self._lock:
-            if self._model is None:
-                msg = "MLX model is not prepared; warmup must finish before synthesis"
-                raise SynthesisError(msg)
+            model = self._prepared_model(voice)
             try:
-                result = self._model.generate(
-                    text, voice=voice, speed=speed, sample_rate=_SAMPLE_RATE
-                )
+                result = model.generate(text, voice=voice, speed=speed, sample_rate=_SAMPLE_RATE)
             except Exception as exc:
                 msg = "MLX synthesis failed"
                 raise SynthesisError(msg) from exc
-            samples = np.asarray(result.audio, dtype=np.float32)
-            if result.sample_rate != _SAMPLE_RATE or samples.ndim != 1 or not samples.size:
-                msg = "MLX returned invalid audio format"
-                raise SynthesisError(msg)
-            if not np.isfinite(samples).all():
-                msg = "MLX returned non-finite audio"
-                raise SynthesisError(msg)
-            sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
-            return int(len(samples) / _SAMPLE_RATE * 1000)
+            return self._validated_samples(result.audio, result.sample_rate)
+
+    @staticmethod
+    def _validated_samples(audio: Any, sample_rate: int) -> NDArray[np.float32]:  # noqa: ANN401 - untyped upstream arrays
+        import numpy as np  # noqa: PLC0415
+
+        samples = np.asarray(audio, dtype=np.float32)
+        if sample_rate != _SAMPLE_RATE or samples.ndim != 1 or not samples.size:
+            msg = "MLX returned invalid audio format"
+            raise SynthesisError(msg)
+        if not np.isfinite(samples).all():
+            msg = "MLX returned non-finite audio"
+            raise SynthesisError(msg)
+        return samples
 
     def restart(self) -> None:
         """Release and reload after the daemon drains in-flight synthesis."""

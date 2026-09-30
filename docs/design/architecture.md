@@ -135,7 +135,7 @@ stateDiagram-v2
     [*] --> Submitted : client submits text
     Submitted --> Queued : accepted, id assigned
     Queued --> Synthesizing : worker picks it up
-    Synthesizing --> Ready : audio rendered and cached
+    Synthesizing --> Ready : usable cached audio or live PCM available
     Synthesizing --> Failed : engine error
     Ready --> Failed : later document segment or playback preparation fails
     Ready --> Playing : playback controller acquires the device
@@ -156,8 +156,8 @@ stateDiagram-v2
 **Notes on the states that carry weight:**
 
 - **`Queued` vs `Ready`** is the whole reason for two queues. `Queued` is on the *input* queue; `Ready` is on the *playback* queue. An utterance is on exactly one at a time.
-- **`Ready` means usable audio exists.** An engine return is not enough: the
-  artifact boundary must observe a regular, non-empty output file. Engines
+- **`Ready` means usable audio exists.** For file-only engines, an engine return
+  is not enough: the artifact boundary must observe a regular, non-empty output file. Engines
   write to cache-invisible `.part` candidates; only a verified candidate is
   renamed atomically, within the same directory, to the canonical `.wav` path.
   Final rename and the SQLite ownership transition execute synchronously in
@@ -169,6 +169,30 @@ stateDiagram-v2
   `Failed`, and a partial artifact is discarded on a best-effort basis.
   Artifact target, validation, publication, and cleanup faults stay attached
   to the item and cannot stop another worker from draining the queue.
+- **Streaming readiness is provisional playback readiness, not cache publication.**
+  A streaming engine yields mono PCM16 at 24 kHz to a bounded ring while writing
+  the same samples to a private WAV spool. `Ready` may therefore have no
+  `audio_path` yet. A durable `streaming_jobs` row identifies unfinished
+  generation. The playback callback reads memory only; a separate feeder handles
+  overflow and seeks, so even an hours-long pause cannot block the producer.
+  Generation completion, atomic WAV publication, and SQLite ownership must all
+  succeed before the consumer receives final EOF and may report `Played`.
+  Document-child publication updates its path, duration, parent duration and
+  unfinished-job record in one transaction. A failed write rolls the whole
+  transaction back and the synthesis worker discards the unowned published file.
+  Recovery requeues unfinished sources and holds clips that had already started;
+  completed earlier document children remain intact.
+- **The physical callback device may outlive a logical playback session.**
+  The daemon prepares silent output after model warmup. Exactly one logical
+  renderer owns it at a time; idle and held output is silence. Starvation and
+  stop use a 5 ms decay, with a fade on resumption. Inserted silence never moves
+  the source playhead. An initial run of exact digital zeros can be skipped in
+  bounded memory reads; intentional pauses and nonzero seek positions are
+  preserved, and the original cached WAV is unchanged. Evidence records skipped
+  frames, source underruns and driver underflows. Route changes and shutdown
+  release the physical stream; an output-preparation failure does not misreport
+  the model as failed. File-only engines and unsupported cached WAV formats use
+  the existing file-output path.
 - **`Failed` is terminal and observable.** F1 and F2 exist because failure was indistinguishable from success. A failed utterance stays in history with its error.
 - **`Skipped` and `Played` are different terminal states** and history must preserve which. "What did you tell me?" and "what did I actually hear?" are different questions.
 - **Sensitivity is assigned at `Submitted` and never changes.** It travels with the utterance through every state and is what §9's routing check reads. An utterance cannot be reclassified after submission. Reclassification would mean the same id meant two different things at two times, and history would not be able to say which.

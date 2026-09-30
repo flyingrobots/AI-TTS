@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from aitts.model import Sensitivity
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
     from pathlib import Path
 
 
@@ -43,6 +43,15 @@ class Engine(Protocol):
 
     def warmup(self) -> None:
         """Load whatever must be resident so first synthesis is not cold."""
+        ...
+
+
+@runtime_checkable
+class StreamingEngine(Protocol):
+    """Optional incremental 24 kHz mono signed little-endian 16-bit PCM output."""
+
+    def stream_synthesize(self, text: str, voice: str, speed: float) -> Iterator[bytes]:
+        """Yield PCM chunks before the complete source has been generated."""
         ...
 
 
