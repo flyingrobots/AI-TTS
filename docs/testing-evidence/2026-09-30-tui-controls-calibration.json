@@ -1,0 +1,68 @@
+[
+  {
+    "fault": "next-key",
+    "test": "tests/test_tui_app.py::test_chunk_restart_skip_and_history_replay_keys",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-next-key.log"
+  },
+  {
+    "fault": "previous-key",
+    "test": "tests/test_tui_app.py::test_chunk_restart_skip_and_history_replay_keys",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-previous-key.log"
+  },
+  {
+    "fault": "restart-key",
+    "test": "tests/test_tui_app.py::test_chunk_restart_skip_and_history_replay_keys",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-restart-key.log"
+  },
+  {
+    "fault": "skip-key",
+    "test": "tests/test_tui_app.py::test_chunk_restart_skip_and_history_replay_keys",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-skip-key.log"
+  },
+  {
+    "fault": "replay-key",
+    "test": "tests/test_tui_app.py::test_chunk_restart_skip_and_history_replay_keys",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-replay-key.log"
+  },
+  {
+    "fault": "reconnect",
+    "test": "tests/test_tui_app.py::test_dashboard_reconnects_when_daemon_appears",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-reconnect.log"
+  },
+  {
+    "fault": "selected-socket",
+    "test": "tests/test_cli.py::test_tui_cli_uses_selected_socket_without_starting_daemon",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-selected-socket.log"
+  },
+  {
+    "fault": "missing-extra-guidance",
+    "test": "tests/test_cli.py::test_tui_missing_extra_explains_installation",
+    "result": "named assertion or owned completion witness failed",
+    "receipt": ".git/codex-scratch/tui-control-missing-extra-guidance.log"
+  },
+  {
+    "fault": "move-down",
+    "test": "tests/test_tui_app.py::test_vim_selection_reorder_and_double_delete_use_clip_identity",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-control-move-down.log"
+  },
+  {
+    "fault": "select-up",
+    "test": "tests/test_tui_app.py::test_vim_selection_reorder_and_double_delete_use_clip_identity",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-control-select-up.log"
+  },
+  {
+    "fault": "dd-intervening-key",
+    "test": "tests/test_tui_app.py::test_vim_selection_reorder_and_double_delete_use_clip_identity",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-control-dd-intervening-key.log"
+  }
+]

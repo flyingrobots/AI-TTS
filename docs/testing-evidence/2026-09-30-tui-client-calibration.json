@@ -1,0 +1,20 @@
+[
+  {
+    "fault": "mutation-not-dispatched",
+    "test": "test_terminal_client_subscribes_before_mutation_and_can_control_daemon",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-mutation-not-dispatched.log"
+  },
+  {
+    "fault": "partial-line-accepted",
+    "test": "test_broken_reply_is_a_transport_error",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-partial-line-accepted.log"
+  },
+  {
+    "fault": "first-event-dropped",
+    "test": "test_subscription_keeps_coalesced_events_and_closes_on_context_exit",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-first-event-dropped.log"
+  }
+]

@@ -6,9 +6,12 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import json
 import shutil
+import sys
 import tempfile
+import types
 from pathlib import Path
 from typing import Any
 
@@ -347,3 +350,38 @@ async def test_audio_effect_setting_aliases(
     assert json.loads(capsys.readouterr().out)["settings"][key] is expected
     assert await run_cli(daemon, "settings") == EXIT_OK
     assert json.loads(capsys.readouterr().out)["settings"][key] is expected
+
+
+def test_tui_cli_uses_selected_socket_without_starting_daemon(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    launched: list[Path] = []
+
+    class Terminal:
+        def __init__(self, socket_path: Path) -> None:
+            self.path = socket_path
+
+        def run(self) -> None:
+            launched.append(self.path)
+
+    module = types.ModuleType("aitts.tui.app")
+    module.SpeechTUI = Terminal  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "aitts.tui.app", module)
+    assert main(["--socket", "/owned/terminal.sock", "tui"]) == EXIT_OK
+    assert launched == [Path("/owned/terminal.sock")]
+
+
+def test_tui_missing_extra_explains_installation(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    original_import = builtins.__import__
+
+    def without_textual(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "aitts.tui.app":
+            message = "No module named textual"
+            raise ModuleNotFoundError(message, name="textual")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_textual)
+    assert main(["tui"]) == EXIT_DAEMON_ERROR
+    assert "ai-tts[tui]" in capsys.readouterr().err

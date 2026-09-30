@@ -851,3 +851,26 @@ macOS may request system-audio permission; Settings provides the route status,
 not recorded. Pause, completion, disconnection, disabling the preference, and
 quitting restore other apps. An idle source stays unmuted until audio arrives.
 Headless daemon playback does not perform this native menu-bar routing.
+
+### Terminal dashboard
+
+Install the optional terminal interface from this checkout:
+
+```bash
+uv tool install --force '.[tui]'
+ai-tts tui
+# Or connect to a particular daemon:
+ai-tts --socket /path/to/ai-tts.sock tui
+```
+
+The dashboard shows current text, voice, playback speed, elapsed/total time and
+chunk position, with separate queue and history tables. Its dBFS bar measures
+samples sent to the audio device; sinks that cannot measure output show
+“Audio level unavailable.” Playback telemetry is opt-in on the subscription
+connection and does not change the event stream for existing clients.
+
+Use **Space** to pause/resume, **j/k** to select rows, **dd** to cancel a queued
+clip, and **J/K** to move it up/down. **n/p** step chunks, **r** restarts the clip,
+and **s** skips. **Tab** switches tables and **Enter** replays selected history.
+**q** closes the dashboard while the daemon keeps running. Disconnections and
+command failures appear in the status line; the dashboard reconnects automatically.
