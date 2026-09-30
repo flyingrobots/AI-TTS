@@ -598,7 +598,12 @@ warmup() -> None                                 # optional; called once at daem
 
 **A user-editable pronunciation lexicon, applied by the daemon before text reaches any engine**, corrects more perceived quality than swapping models. It belongs in the daemon rather than the adapter for the same reason chunking does: it must work identically across engines, and it must survive an engine change.
 
-**Chunking is the daemon's job.** Long text is split at structural, paragraph,
+**Chunking is the daemon's job.** Sections with at least 60 words first group
+blank-line paragraphs into chunks of at least 20 words; a short trailing block
+joins its predecessor. This makes two- and three-paragraph responses navigable
+below the older length threshold. Ordinary shorter text and single paragraphs
+remain atomic, while explicit Markdown section boundaries retain their existing
+behavior. Long text is split at structural, paragraph,
 sentence, then bounded word boundaries into separately cacheable children.
 Markdown projection happens first only when the submission explicitly selects
 it; literal plain text is segmented without removing syntax. That gives
