@@ -368,3 +368,23 @@ case observed `playback_held == false` on the unfixed code; all three now report
 true. An initial probe read the field at the wrong snapshot level and was
 corrected before recording red evidence. No sleep or absence of events is used
 to infer safety. Retire only with a stronger restart-admission contract.
+
+
+## Crash recovery audit: interrupted composite publication
+
+Change-kind: bug fix. `finish_synthesis` commits child Ready before promoting
+its parent. A crash between those commits left a durable Ready first child
+under a Synthesizing parent; old recovery requeued the parent permanently,
+because subsequent child synthesis never performs the first-child promotion.
+Recovery now reconciles Queued parents whose first child is already Ready,
+using legal Synthesizing/Ready transitions. Repeating recovery is safe across
+both additional commits.
+
+The medium Store-boundary publication test injects crashes after each of the
+two actual publication commits. The first seed observed a Queued parent on
+unfixed code; both now restore Ready. Three additional seeds interrupt recovery
+after requeue, Synthesizing, and Ready commits and prove convergence on reopen.
+An exploratory third publication seed was removed because the two-child setup
+has only two publication commits; it is not counted as red evidence. Oracle:
+architecture section 6's durable queued-work recovery. Retire when atomic
+publication or a stronger calibrated crash matrix subsumes these cases.

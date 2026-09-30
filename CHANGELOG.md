@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recovery repairs a document whose first child audio committed before its parent became Ready, including another crash during that repair.
+
 - Restarting with Ready playback now engages the durable global hold, requiring explicit resume even if the process stopped before any clip began playing.
 
 - Cached replays retain generation-artifact identity after audio eviction, so provenance and reports can still find retained evidence. Existing audio references are migrated on database open; previously lost links cannot be reconstructed.

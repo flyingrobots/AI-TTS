@@ -902,6 +902,13 @@ class Store:
             self.transition(utt.id, State.QUEUED)
         for utt in self._by_states((State.PLAYING,)):
             self.transition(utt.id, State.PAUSED)
+        # Child publication may commit before the first-child Ready promotion.
+        # Reconcile that durable prefix, including an interrupted earlier recovery.
+        for utt in self._by_states((State.QUEUED,)):
+            first = self.get_segment(utt.id, 0)
+            if first is not None and first.state is State.READY:
+                self.transition(utt.id, State.SYNTHESIZING)
+                self.transition(utt.id, State.READY)
 
     def _segments_by_states(self, states: tuple[State, ...]) -> list[UtteranceSegment]:
         placeholders = ",".join("?" * len(states))
