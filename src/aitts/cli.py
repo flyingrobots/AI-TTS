@@ -168,6 +168,8 @@ def _settings_parser(settings: argparse.ArgumentParser) -> None:
     settings.add_argument("key", nargs="?")
     settings.add_argument("value", nargs="?")
     settings.add_argument("--engine", help="change the backend for the next clip")
+    settings.add_argument("--earcon", choices=["on", "off"], help="pre-speech chime")
+    settings.add_argument("--ducking", choices=["on", "off"], help="lower other apps during speech")
     settings.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="updates")
 
 
@@ -216,14 +218,27 @@ def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
         pairs.append(f"{args.key}={args.value}")
     if args.engine is not None:
         pairs.append(f"engine={args.engine}")
+    pairs.extend(
+        f"{key}={getattr(args, key)}"
+        for key in ("earcon", "ducking")
+        if getattr(args, key) is not None
+    )
     for pair in pairs:
         key, sep, value = pair.partition("=")
         if not sep:
             msg = f"--set expects KEY=VALUE, got {pair!r}"
             raise SystemExit(msg)
+        key = {"earcon": "earcon_enabled", "ducking": "ducking_enabled"}.get(key, key)
+        if key in {"earcon_enabled", "ducking_enabled"}:
+            value = {"on": "true", "off": "false"}.get(value, value)
         if key in {"speed", "playback_rate"}:
             updates[key] = float(value)
-        elif key in {"captions_enabled", "input_interrupt_enabled"}:
+        elif key in {
+            "captions_enabled",
+            "input_interrupt_enabled",
+            "earcon_enabled",
+            "ducking_enabled",
+        }:
             if value not in {"true", "false"}:
                 msg = f"{key} must be true or false"
                 raise SystemExit(msg)

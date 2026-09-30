@@ -261,6 +261,7 @@ class SoundDeviceSink:
     ) -> None:
         """Create the sink; nothing is opened until :meth:`start`."""
         self._open_callback_stream = open_callback_stream or _open_pcm_callback_stream
+        self._prefix_pcm = b""
         self._live_pcm: SpoolingPCMStream | None = None
         self.evidence = evidence
         self.playback_session = ""
@@ -286,6 +287,10 @@ class SoundDeviceSink:
         self._opened_on: str | None = None
         self._pending_device: str | None = None
         self._pending_confirmations = 0
+
+    def set_prefix(self, pcm: bytes) -> None:
+        """Queue a 24 kHz mono PCM16 cue for the next serialized playback session."""
+        self._prefix_pcm = pcm
 
     def prepare_output(self) -> None:
         """Prepare silent callback output before admitting streaming synthesis."""
@@ -430,8 +435,12 @@ class SoundDeviceSink:
                     self._stop_flag.wait(0.05)
                     continue
                 renderer = PCMStreamRenderer(
-                    source, position_frames=position, skip_leading_silence=True
+                    source,
+                    position_frames=position,
+                    skip_leading_silence=True,
+                    prefix_pcm=self._prefix_pcm,
                 )
+                self._prefix_pcm = b""
                 source.wait_buffered(240, timeout=0.02)
                 if self._prepared_output is None:
                     self._device.refresh()
@@ -514,6 +523,7 @@ class SoundDeviceSink:
                 latency_seconds=getattr(stream, "latency", None),
                 block_frames=self._BLOCK_FRAMES,
             )
+            self._play_prefix(stream, audio.samplerate, audio.channels)
             last_sample = None
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
@@ -564,6 +574,23 @@ class SoundDeviceSink:
                 # One bounded diagnostic per stream. The driver accepted the
                 # block: replaying it would duplicate audio, not repair the gap.
                 log.warning("event=audio_output_underflow")
+
+    def _play_prefix(self, stream: OutputStream, samplerate: int, channels: int) -> None:
+        """Play a cue on the legacy file stream without changing speech position."""
+        import numpy as np  # noqa: PLC0415
+
+        if not self._prefix_pcm:
+            return
+        samples = np.frombuffer(self._prefix_pcm, dtype="<i2") / 32768.0
+        self._prefix_pcm = b""
+        positions = np.arange(round(len(samples) * samplerate / 24000)) * 24000 / samplerate
+        cue = np.repeat(
+            np.interp(positions, np.arange(len(samples)), samples)[:, None], channels, axis=1
+        )
+        for start in range(0, len(cue), self._BLOCK_FRAMES):
+            if self._stop_flag.is_set() or self._pause_flag.is_set():
+                break
+            stream.write(cue[start : start + self._BLOCK_FRAMES].astype("float32"))
 
     def _device_moved_from(self, opened_on: str | None) -> bool:
         """Whether the OS default output has moved away from ``opened_on``.
@@ -898,6 +925,8 @@ class PlaybackController:
             return cleared
 
     def _begin(self, utt_id: str, path: Path, *, position_ms: int) -> None:
+        clip = self._store.get(utt_id)
+        self._configure_cue(clip is not None and clip.state is State.READY)
         self._store.transition(utt_id, State.PLAYING)
         self._current_id = utt_id
         self._start_audio(utt_id, path, position_ms=position_ms)
@@ -911,6 +940,7 @@ class PlaybackController:
         *,
         position_ms: int,
     ) -> None:
+        self._configure_cue(parent.state is State.READY)
         if parent.state in (State.READY, State.PAUSED):
             self._store.transition(parent.id, State.PLAYING)
         self._store.transition_segment(parent.id, segment.index, State.PLAYING)
@@ -928,6 +958,14 @@ class PlaybackController:
         )
         self._sink_active = True
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
+
+    def _configure_cue(self, new_document: bool) -> None:  # noqa: FBT001 - internal state decision
+        from aitts.audio_cues import earcon_pcm  # noqa: PLC0415
+
+        set_prefix = getattr(self._sink, "set_prefix", None)
+        if callable(set_prefix):
+            enabled = self._store.get_setting("earcon_enabled", "false") == "true"
+            set_prefix(earcon_pcm() if enabled and new_document else b"")
 
     def _live_source(self, artifact_id: str) -> SpoolingPCMStream | None:
         return self._streams.get(artifact_id) if self._streams is not None else None

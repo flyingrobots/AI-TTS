@@ -137,6 +137,7 @@ def test_app_bundle_has_release_identity_without_checkout_paths(tmp_path: Path) 
         "identifier": info.get("CFBundleIdentifier"),
         "version": info.get("CFBundleShortVersionString"),
         "accessory": info.get("LSUIElement"),
+        "audio_capture_permission": bool(info.get("NSAudioCaptureUsageDescription")),
         "single_instance": info.get("LSMultipleInstancesProhibited"),
         "checkout_embedded": str(REPOSITORY).encode() in info_path.read_bytes(),
     } == {
@@ -145,6 +146,7 @@ def test_app_bundle_has_release_identity_without_checkout_paths(tmp_path: Path) 
         "identifier": "com.flyingrobots.ai-tts.menubar",
         "version": "0.1.0",
         "accessory": True,
+        "audio_capture_permission": True,
         "single_instance": True,
         "checkout_embedded": False,
     }

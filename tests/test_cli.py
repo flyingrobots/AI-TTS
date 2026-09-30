@@ -326,3 +326,24 @@ async def test_engine_catalog_and_per_clip_override_reach_daemon(
     ]
     assert await run_cli(daemon, "say", "owned source", "--engine", "missing") == EXIT_DAEMON_ERROR
     assert "selected model is not available" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("arguments", "key", "expected"),
+    [
+        (("settings", "set", "earcon", "on"), "earcon_enabled", True),
+        (("settings", "--ducking", "off"), "ducking_enabled", False),
+    ],
+)
+async def test_audio_effect_setting_aliases(
+    daemon: Daemon,
+    capsys: pytest.CaptureFixture[str],
+    arguments: tuple[str, ...],
+    key: str,
+    *,
+    expected: bool,
+) -> None:
+    assert await run_cli(daemon, *arguments) == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["settings"][key] is expected
+    assert await run_cli(daemon, "settings") == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["settings"][key] is expected

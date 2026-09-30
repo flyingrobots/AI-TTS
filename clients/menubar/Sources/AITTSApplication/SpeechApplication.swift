@@ -131,6 +131,8 @@ public enum SpeechCommand: Equatable, Sendable {
     case setSynthesisSpeed(Double)
     case setPlaybackRate(Double)
     case setCaptionsEnabled(Bool)
+    case setEarconEnabled(Bool)
+    case setDuckingEnabled(Bool)
     /// Move one chunk within the document currently playing.
     case nextSegment
     case previousSegment
