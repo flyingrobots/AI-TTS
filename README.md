@@ -171,6 +171,8 @@ If launchd rejects the replacement, the installer restores the previous plist
 and attempts to reload it if the service was previously loaded. A deliberately
 unloaded service remains unloaded. Failed recovery is reported; restoring a
 plist does not restore an older uv environment or prove daemon health.
+The installer does not launch or stop the menu app. After upgrading an already-
+running app, quit and reopen it to load the new bundle.
 
 `make install-all` does all three. `make uninstall` stops and removes the
 launchd agent and the executables, and deliberately leaves your speech history,
@@ -200,9 +202,11 @@ Skill replacement is also staged: a failed render preserves the installed
 
 ### Doing it by hand
 
-The Makefile is a convenience over three steps you can run yourself. Kokoro
-stays an optional, locally resolved dependency so this repository never vendors
-or redistributes its Python environment:
+The commands below expose the individual installation operations. Use
+`make install` for staged preparation and launch-agent recovery; running these
+steps manually does not provide that orchestration. Kokoro stays an optional,
+locally resolved dependency, so this repository never vendors or redistributes
+its Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign

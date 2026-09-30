@@ -129,7 +129,7 @@ def install_application(
         publish_app_bundle(candidate_app, app, force=True)
         activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
     sys.stdout.write(
-        "Installed. The daemon is registered with launchd; the menu-bar app is not running.\n"
+        "Installed. The daemon is registered with launchd; the menu-bar app was not launched.\n"
         f"Start the app: open {app}\n"
         "Check the daemon: make doctor\n"
         "Wire up your agents: make install-agents\n"

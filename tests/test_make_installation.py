@@ -183,6 +183,7 @@ def test_install_reports_registration_without_claiming_daemon_health(
     assert result.returncode == 0, result.stderr
     assert "daemon is registered" in result.stdout
     assert "daemon is running" not in result.stdout
+    assert "menu-bar app was not launched" in result.stdout
 
 
 def test_install_includes_the_english_model_in_the_daemon_environment(

@@ -750,3 +750,13 @@ executed command fails the requirement assertion; restored code passes. The
 failed suite was not accepted or retried without correcting the observation.
 This replaces the old command-text projection; it does not weaken the installed
 English-speech dependency contract.
+
+
+## Installation audit follow-up: menu-app completion receipt
+
+Change-kind: bug fix. The completion receipt still asserted that the menu app
+was not running, although installation neither checks nor stops an incumbent
+app process. The existing registration-receipt test observed that unsupported
+statement where the action-only receipt was required. It now reports that the
+installer did not launch the app. README documents quit/reopen after upgrade
+and distinguishes manual operations from staged Make orchestration.
