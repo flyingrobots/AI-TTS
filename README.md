@@ -210,6 +210,12 @@ launchctl bootstrap "gui/$(id -u)" \
 open "$HOME/Applications/AI-TTS.app"
 ```
 
+The launch-agent renderer stages and flushes a complete plist before publishing
+it. With `--force`, a validation or write failure leaves the existing plist
+intact; without `--force`, an existing or concurrently installed plist is refused.
+Rendering a replacement does not reload launchd; use the bootout/bootstrap steps
+above to activate it.
+
 ### Local diagnostic log
 
 The installed launch agent passes an explicit `--log-file` to the daemon. AI-TTS

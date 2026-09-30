@@ -572,3 +572,24 @@ reference is replaced, not process-wide threading. Both gates are released
 and workers joined during cleanup. Oracle: completion permits reacquisition
 while active playback remains exclusive. Retire only with a stronger
 calibrated completion/reacquisition contract.
+
+
+## Installation audit: preserve launch agent on failed replacement
+
+Change-kind: bug fix. Forced rendering unlinked the incumbent plist before
+validating the log directory or serializing the new payload. Two small owned-
+filesystem regressions observed the old artifact missing after log validation
+failure, or replaced with partial bytes after a seeded serialization failure.
+The renderer now prepares and flushes a sibling candidate before atomic
+publication. Forced publication replaces the destination; unforced publication
+uses exclusive linking so a concurrent installation is preserved.
+
+The successful replacement check validates executable arguments and mode.
+Wrong-command and wrong-mode seeds fail their respective assertions; replacing
+exclusive linking with replacement fails concurrent-install refusal. An initial
+calibration run encountered stale bytecode after same-size rapid rewrites; its
+restoration result was discarded. All three seeds were rerun with bytecode
+invalidated and writing disabled, then restored checks passed. These checks
+use the profile's small owned-temp-file exception and invoke the public CLI
+entrypoint or renderer, without launchd or installed user configuration.
+Retire only with a stronger calibrated installation failure contract.
