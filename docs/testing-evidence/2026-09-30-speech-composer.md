@@ -8,7 +8,7 @@ failures preserve the draft and successful admission clears it with a queue/hold
 confirmation. Its model selector exposes the default and active backend today;
 multiple registered models remain the separate prompt-4 routing work.
 
-## Boundary evidence
+## Initial boundary evidence (`7af1e62`)
 
 Medium Swift tests use owned document, clipboard, selection, and speech ports;
 no user clipboard, Accessibility target, network, model, or speaker is observed.
@@ -49,3 +49,10 @@ No retry was used. The runner failure is handled separately from this feature.
 Deletion: remove draft tests only when the composer contract is retired; retain
 model admission tests while callers can request an explicit model. Live GUI,
 Accessibility permissions, and model quality remain manual acceptance surfaces.
+
+## Integrated audit
+
+The historical XCTest invocation failure above is mitigated by the fix already
+merged to main; integration passed the full 124-test Swift suite. The composer
+wait helper now uses completion events instead of wall-clock polling. See the
+[PR 31 audit receipt](2026-09-30-pr31-audit.md) for corrections and calibration.
