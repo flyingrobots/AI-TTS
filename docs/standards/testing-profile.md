@@ -813,3 +813,42 @@ daemon remained untouched. A menu-click probe exposed no popover; subsequent
 IOConsoleUsers inspection confirmed CGSSessionScreenIsLocked=Yes. Interactive
 acceptance remains pending an unlocked session. Only one display was connected,
 so cross-display acceptance also remains pending suitable hardware.
+
+
+## Native UI audit: signed candidate acceptance receipt
+
+Change-kind: behavior change (documentation only). Candidate source `521b6b0`
+built as a release bundle with App Intents metadata and passed strict codesign
+verification. All 730 Python and 129 Swift tests passed, as did the frozen lock,
+Ruff, formatting and mypy. Required CI run 36755162505 passed that exact head.
+
+On 2026-09-30, a cross-process System Events probe read the signed candidate's
+native menu-item accessibility description. With a nonexistent owned socket it
+reported `AI-TTS: Needs attention`; after starting an isolated daemon it reported
+`AI-TTS: Ready`. Submitting fixed audit text, pausing and resuming through that
+daemon produced `AI-TTS: Speaking`, `AI-TTS: Playback paused`, then
+`AI-TTS: Speaking`. FakeEngine and FakeSink supplied deterministic silent
+speech; this is a real app/IPC/accessibility projection check, not acoustic
+acceptance or evidence that a person operated the UI controls. The property is
+AX description, not AX title: an earlier title-only probe was invalid for this
+control. An initial transition probe used the nonexistent `speak` IPC operation;
+correcting it to the documented `submit` operation allowed the full sequence.
+Neither exploratory probe failure was attributed to the product.
+
+The existing menu app had no open windows before each brief replacement. It was
+restored from its original installed bundle afterward; the installed daemon
+retained its original process throughout, and its queue was not used. All audit
+speech/state lived in an owned temporary daemon directory, removed afterward.
+
+| Live acceptance boundary | Current evidence | Remaining requirement |
+| --- | --- | --- |
+| Signed app startup and status accessibility | Observed unavailable, ready, speaking, paused, resumed states across processes | Human VoiceOver traversal remains open |
+| Popover, composer, Queue/History and settings controls | Native contract tests; locked-session click inconclusive | Operate the signed candidate in an unlocked session |
+| Selection and host Services | Earlier TextEdit/NSPerformService receipts; adapter tests | Complete representative host and permission matrix |
+| App Intents | Generated metadata and installed indexing receipts | Execute an actual custom Shortcut against the candidate |
+| Cross-display sizing | Controlled native sizing tests | A second connected display and live move/resize checks |
+| Audible playback | Silent probe and adapter/lifecycle tests | Real engine/device acoustic acceptance |
+
+IOConsoleUsers reported `CGSSessionScreenIsLocked=Yes`; system display inventory
+showed one connected Studio Display. Unlock and second-display availability
+were requested. These limitations must not be promoted to passing acceptance.
