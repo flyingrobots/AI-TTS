@@ -150,6 +150,7 @@ class Daemon:
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._exports: dict[asyncio.Task[dict[str, Any]], tuple[set[str], set[str]]] = {}
 
     @property
     def socket_path(self) -> Path:
@@ -216,6 +217,7 @@ class Daemon:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks = []
+        await asyncio.gather(*self._exports, return_exceptions=True)
         self._store.close()
 
     # -- events ------------------------------------------------------------
@@ -470,6 +472,8 @@ class Daemon:
 
     def _protected_artifacts(self) -> set[str]:
         protected = {Path(path).stem for path in self._store.protected_audio_paths()}
+        for identities, _paths in self._exports.values():
+            protected.update(identities)
         for item in self._store.input_queue() + self._store.playback_queue():
             protected.add(item.id)
             protected.update(segment.artifact_id for segment in self._store.segments(item.id))
@@ -627,17 +631,35 @@ class Daemon:
                 }
             ]
         try:
-            return await asyncio.to_thread(
-                self._evidence.export,
-                Path(destination),
-                {
-                    **self._serialize_utterance(item, history=True),
-                    "provenance": self._provenance(item, segments),
-                },
-                clips,
+            worker = asyncio.create_task(
+                asyncio.to_thread(
+                    self._evidence.export,
+                    Path(destination),
+                    {
+                        **self._serialize_utterance(item, history=True),
+                        "provenance": self._provenance(item, segments),
+                    },
+                    clips,
+                )
             )
+            self._exports[worker] = (
+                {item.id, *(str(clip["artifact_id"]) for clip in clips)},
+                {str(clip["audio_path"]) for clip in clips if clip["audio_path"]},
+            )
+            worker.add_done_callback(self._export_finished)
+            # Cancelling a request cannot cancel filesystem work in a thread.
+            # The worker owns its pins until completion, independently of its caller.
+            return await asyncio.shield(worker)
         except (OSError, ValueError) as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
+
+    def _export_finished(self, worker: asyncio.Task[dict[str, Any]]) -> None:
+        self._exports.pop(worker)
+        if not worker.cancelled():
+            worker.exception()  # Retrieve failures even if the client stopped awaiting.
+
+    def _export_audio_paths(self) -> frozenset[str]:
+        return frozenset(path for _ids, paths in self._exports.values() for path in paths)
 
     async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
         await self._require_controller().pause(
@@ -882,7 +904,7 @@ class Daemon:
     async def _op_purge_cache(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
         try:
-            report = self._cache.purge()
+            report = self._cache.purge(additional_protected=self._export_audio_paths())
         except OSError as exc:
             log.warning("event=cache_purge_inspection_failed")
             msg = "could not inspect audio cache"
@@ -1059,7 +1081,10 @@ class Daemon:
     def enforce_cache_limit(self) -> None:
         """Bring the cache back under its configured cap."""
         try:
-            report = self._cache.enforce(max_bytes=self._settings.cache_limit())
+            report = self._cache.enforce(
+                max_bytes=self._settings.cache_limit(),
+                additional_protected=self._export_audio_paths(),
+            )
         except OSError:
             log.warning("event=cache_inspection_failed")
             return

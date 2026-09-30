@@ -236,6 +236,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Evidence reports protect their audio and sidecars from deletion and eviction
+  until the archive worker finishes, including after a client disconnects.
+
 - Rejected speech submissions preserve the caller’s existing voice assignment.
 
 - Newly failed speech now shows a local toast with View History and dismiss actions, plus a persistent menu error and tray indicator. Startup and polling do not repeat old failure alerts.
