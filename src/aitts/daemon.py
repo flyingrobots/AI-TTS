@@ -116,6 +116,7 @@ class Daemon:
         self._home = home
         self._started_at = time.monotonic()
         self._model_state = "loading"
+        self._warmup_finished = asyncio.Event()
         self._input_activity = (
             input_activity if input_activity is not None else platform_input_activity()
         )
@@ -185,13 +186,19 @@ class Daemon:
         self._store.on_segment_transition.append(self._on_segment_transition)
         loop = asyncio.get_running_loop()
         self._tasks = [
-            loop.create_task(self._pool.run(), name="aitts-synthesis"),
+            loop.create_task(self._run_synthesis(), name="aitts-synthesis"),
             loop.create_task(self._supervise_playback(), name="aitts-playback"),
             loop.create_task(self._warm_model(), name="aitts-warmup"),
             loop.create_task(self._listener.run(), name="aitts-input"),
             loop.create_task(self._expire_files_loop(), name="aitts-retention"),
         ]
         await self._server.start()
+
+    async def _run_synthesis(self) -> None:
+        """Keep user text queued while first-run assets and inference are prepared."""
+        await self._warmup_finished.wait()
+        if self._pool is not None:
+            await self._pool.run()
 
     async def _supervise_playback(self) -> None:
         """Restart the critical playback loop if it exits unexpectedly."""
@@ -527,6 +534,8 @@ class Daemon:
         except Exception:  # noqa: BLE001 - readiness must report warmup failure
             self._model_state = "failed"
             log.warning("event=model_warmup_failed")
+        finally:
+            self._warmup_finished.set()
 
     async def _op_restart_model(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload

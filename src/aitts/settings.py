@@ -85,7 +85,8 @@ class SettingsService:
     def values(self) -> dict[str, object]:
         """Every setting, as the wire reports it."""
         return {
-            "voice": self._store.get_setting("voice", self._environment.default_voice()),
+            "engine": self._store.get_setting("engine", "kokoro"),
+            "voice": self.speaking_voice(),
             "speed": float(self._store.get_setting("speed", "1.0")),
             "playback_rate": self._environment.playback_rate(),
             "cache_max_bytes": self.cache_limit(),
@@ -108,6 +109,7 @@ class SettingsService:
         and got one of them.
         """
         planners: dict[str, Callable[[object], Callable[[], None]]] = {
+            "engine": self._plan_engine,
             "voice": self._plan_voice,
             "speed": self._plan_speed,
             "cache_max_bytes": self._plan_cache_limit,
@@ -125,6 +127,11 @@ class SettingsService:
             planned.append(planner(value))
         for effect in planned:
             effect()
+
+    def _plan_engine(self, value: object) -> Callable[[], None]:
+        if value not in ("kokoro", "kokoro-mlx"):
+            raise ApiError(BAD_REQUEST, "engine must be kokoro or kokoro-mlx")
+        return lambda: self._store.set_setting("engine", str(value))
 
     # -- individual reads, for callers that want one value ----------------
 
@@ -147,8 +154,10 @@ class SettingsService:
         return self._store.get_setting("input_interrupt_resume", "when_idle")
 
     def speaking_voice(self) -> str:
-        """Return the voice to speak with when a client names none."""
-        return self._store.get_setting("voice", self._environment.default_voice())
+        """Use the saved choice only when the active engine can synthesize it."""
+        default = self._environment.default_voice()
+        saved = self._store.get_setting("voice", default)
+        return saved if saved in self._environment.available_voices() else default
 
     def speaking_speed(self) -> float:
         """Return the speed to synthesize at when a client names none."""

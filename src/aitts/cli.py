@@ -146,7 +146,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     daemon = sub.add_parser("daemon", help="run the daemon in the foreground")
     daemon.add_argument("--home", type=Path, default=None)
-    daemon.add_argument("--engine", choices=["kokoro", "fake"], default="kokoro")
+    daemon.add_argument("--engine", choices=["kokoro", "kokoro-mlx", "fake"], default=None)
     daemon.add_argument("--workers", type=int, default=2)
     daemon.add_argument(
         "--log-file",
@@ -282,14 +282,9 @@ def _run_daemon(args: argparse.Namespace) -> int:
     from aitts.playback import SoundDeviceSink  # noqa: PLC0415
 
     home = args.home or default_home()
-    if args.engine == "fake":
-        from aitts.engine import FakeEngine  # noqa: PLC0415
+    from aitts.engines.selection import configured_engine  # noqa: PLC0415
 
-        engine: Any = FakeEngine(voices=["bm_daniel", "af_bella"])
-    else:
-        from aitts.engines.kokoro import KokoroEngine  # noqa: PLC0415
-
-        engine = KokoroEngine()
+    engine = configured_engine(home, override=args.engine)
     terminator = ImmediateProcessTerminator()
 
     async def serve() -> None:

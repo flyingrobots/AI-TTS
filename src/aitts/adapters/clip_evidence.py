@@ -32,6 +32,9 @@ _MAX_LOG_BYTES = 1024 * 1024
 _PACKAGES = (
     "ai-tts",
     "kokoro",
+    "kokoro-mlx",
+    "mlx",
+    "mlx-metal",
     "torch",
     "misaki",
     "spacy",

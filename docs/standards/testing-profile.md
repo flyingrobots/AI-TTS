@@ -184,3 +184,12 @@ hold/cancellation races during device handoff, queue clearing, and paused
 restart recovery. The deterministic schedule and PCM-boundary calibration
 receipt is [playback preemption](../testing-evidence/2026-09-30-playback-preemption.md).
 Real hardware acoustic acceptance remains separate from the measured stop ramp.
+
+## September 30 optional MLX backend
+
+The MLX adapter has offline WAV/argument contracts, malformed-output rejection,
+controlled startup-warmup scheduling, persisted selection/fallback checks, and
+real Apple Silicon offline synthesis evidence. See the
+[MLX receipt](../testing-evidence/2026-09-30-kokoro-mlx.md). Hardware performance
+numbers are observations, not CI thresholds; cold asset downloads stay outside
+hermetic tests.

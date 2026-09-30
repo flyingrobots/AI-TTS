@@ -330,3 +330,31 @@ def test_the_playback_rate_parser_at_its_edges(raw: object, expected: float | No
 )
 def test_the_speed_parser_at_its_edges(raw: object, expected: float | None) -> None:
     assert parse_speed(raw) == expected
+
+
+def test_engine_preference_is_persisted_for_next_start(store: Store) -> None:
+    service = SettingsService(store, FakeEnvironment())
+    service.apply({"engine": "kokoro-mlx"})
+    assert service.values()["engine"] == "kokoro-mlx"
+    assert store.get_setting("engine", "kokoro") == "kokoro-mlx"
+    with pytest.raises(ApiError, match="engine must be"):
+        service.apply({"engine": "not-an-engine"})
+    assert store.get_setting("engine", "kokoro") == "kokoro-mlx"
+
+
+def test_engine_switch_uses_a_supported_default_without_losing_saved_preference(
+    store: Store,
+) -> None:
+    environment = FakeEnvironment(voices=("bm_daniel", "af_custom"))
+    settings = SettingsService(store, environment)
+    settings.apply({"voice": "af_custom", "engine": "kokoro-mlx"})
+
+    # The next daemon starts with the MLX catalog, which lacks the extra voice.
+    mlx_settings = SettingsService(store, FakeEnvironment(voices=("bm_daniel", "af_heart")))
+    assert mlx_settings.speaking_voice() == "bm_daniel"
+    assert mlx_settings.values()["voice"] == "bm_daniel"
+
+    # A later restart with the original catalog honors the user's saved choice.
+    restored_settings = SettingsService(store, environment)
+    assert restored_settings.speaking_voice() == "af_custom"
+    assert restored_settings.values()["voice"] == "af_custom"
