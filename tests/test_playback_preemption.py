@@ -260,3 +260,28 @@ async def test_preemption_between_chunks_preserves_completed_progress(
         with contextlib.suppress(asyncio.CancelledError):
             await task
         await controller.skip()
+
+
+@pytest.mark.oracle("a lower-ranked ready alert waits for the queue head to finish")
+async def test_older_ready_alert_does_not_interrupt_the_queue_head(
+    store: Store, sink: FakeSink
+) -> None:
+    older = preempting_clip(store, "older alert")
+    newer = preempting_clip(store, "newer alert")
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        sink.advance_to(125)
+        await settle(controller, schedule)
+        assert (controller.current_id, [path.name for path in sink.started]) == (
+            newer.id,
+            [f"{newer.id}.wav"],
+        )
+        sink.finish_current()
+        await schedule.wait_for_idle_after(schedule.idle_cycles)
+        assert (controller.current_id, sink.start_positions[-1]) == (older.id, 0)
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.skip()

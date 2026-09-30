@@ -631,11 +631,14 @@ class PlaybackController:
         """Transfer the device only once the interrupting clip can speak."""
         if bool(self.held):
             return
+        current = self._current()
         candidate = next(
             (
                 item
                 for item in self._store.playback_queue()
-                if item.priority is Priority.PREEMPT and item.state is State.READY
+                if item.priority is Priority.PREEMPT
+                and item.state is State.READY
+                and (current is None or current.is_terminal or item.order_key < current.order_key)
             ),
             None,
         )
