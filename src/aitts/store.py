@@ -70,7 +70,8 @@ CREATE TABLE IF NOT EXISTS utterances (
     duration_ms INTEGER,
     played_ms INTEGER,
     audio_path TEXT,
-    replay_of TEXT
+    replay_of TEXT,
+    engine TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_utterances_state ON utterances(state);
 CREATE INDEX IF NOT EXISTS idx_utterances_order ON utterances(order_key);
@@ -106,7 +107,7 @@ CREATE TABLE IF NOT EXISTS voice_assignments (
 _COLUMNS = (
     "id, text, voice, speed, sensitivity, priority, state, order_key, "
     "submitted_at, state_changed_at, source, error, duration_ms, played_ms, "
-    "audio_path, replay_of, generation_artifact_id"
+    "audio_path, replay_of, generation_artifact_id, engine"
 )
 _SEGMENT_COLUMNS = (
     "utterance_id, segment_index, text, state, error, duration_ms, played_ms, audio_path, "
@@ -149,6 +150,7 @@ def _row_to_utterance(row: sqlite3.Row) -> Utterance:
         audio_path=row["audio_path"],
         generation_artifact_id=row["generation_artifact_id"],
         replay_of=row["replay_of"],
+        engine=row["engine"],
     )
 
 
@@ -194,6 +196,9 @@ class Store:
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(_SCHEMA)
         self._migrate_generation_identity()
+        columns = {row["name"] for row in self._db.execute("PRAGMA table_info(utterances)")}
+        if "engine" not in columns:
+            self._db.execute("ALTER TABLE utterances ADD COLUMN engine TEXT")
         self._commit_or_rollback()
         self._secure_database_sidecars(db_path)
         self.on_transition: list[Callable[[Utterance, State], None]] = []
@@ -242,6 +247,7 @@ class Store:
         priority: Priority = Priority.NORMAL,
         source: str | None = None,
         replay_of: str | None = None,
+        engine: str | None = None,
         at_head: bool = False,
         spoken_segments: tuple[str, ...] | None = None,
     ) -> Utterance:
@@ -270,10 +276,11 @@ class Store:
             state_changed_at=now,
             source=source,
             replay_of=replay_of,
+            engine=engine,
         )
         self._db.execute(
             f"INSERT INTO utterances ({_COLUMNS}) "  # noqa: S608 - constant column list
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 utt.id,
                 utt.text,
@@ -292,6 +299,7 @@ class Store:
                 utt.audio_path,
                 utt.replay_of,
                 utt.generation_artifact_id,
+                utt.engine,
             ),
         )
         if spoken_segments is not None:
@@ -565,11 +573,17 @@ class Store:
         self._commit_or_rollback()
         return parent_cursor.rowcount + segment_cursor.rowcount
 
+    def bind_legacy_engine(self, name: str) -> None:
+        """Give pre-registry clips the startup backend before defaults can change."""
+        self._db.execute("UPDATE utterances SET engine = ? WHERE engine IS NULL", (name,))
+        self._commit_or_rollback()
+
     def claim_for_synthesis(self) -> SynthesisWork | None:
         """Atomically claim the earliest parent-owned unit of synthesis work."""
         terminal_placeholders = ",".join("?" * len(TERMINAL))
         row = self._db.execute(
             "SELECT u.id, u.text AS parent_text, u.voice, u.speed, u.state, "  # noqa: S608
+            "u.engine, u.sensitivity, "
             "s.segment_index, s.text AS segment_text "
             "FROM utterances AS u "
             "LEFT JOIN utterance_segments AS s "
@@ -597,6 +611,8 @@ class Store:
                 text=parent.text,
                 voice=parent.voice,
                 speed=parent.speed,
+                engine=parent.engine,
+                sensitivity=parent.sensitivity,
             )
 
         self._db.execute(
@@ -626,6 +642,8 @@ class Store:
             text=segment.text,
             voice=row["voice"],
             speed=row["speed"],
+            engine=row["engine"],
+            sensitivity=Sensitivity(row["sensitivity"]),
         )
 
     def start_streaming(self, work: SynthesisWork) -> None:  # noqa: C901 - atomic readiness and post-commit parent/child events

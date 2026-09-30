@@ -27,6 +27,16 @@ mlx = [
     "mlx>=0.31.1; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version < '3.13'",
 ]
 
+chatterbox = [
+    "chatterbox-tts @ https://github.com/resemble-ai/chatterbox/archive/cb240457c3e197c6fbc2e7d3b9765febe63f7e73.tar.gz",
+    "resemble-perth @ https://github.com/resemble-ai/Perth/archive/ff1c8ac55a976971245cdd53c18d6131ca00d993.tar.gz",
+    "torch>=2.13",
+    "torchaudio>=2.11",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project.scripts]
 ai-tts = "aitts.cli:main"
 ai-tts-mcp = "aitts.adapters.mcp:main"
@@ -98,7 +108,7 @@ enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 # a developer's --all-extras environment. tests/test_optional_imports.py pins
 # the list against the source rather than trusting it to stay complete.
 [[tool.mypy.overrides]]
-module = ["torch", "sounddevice", "soundfile", "kokoro", "kokoro.*", "kokoro_mlx", "mlx", "mlx.*", "huggingface_hub"]
+module = ["torch", "sounddevice", "soundfile", "kokoro", "kokoro.*", "kokoro_mlx", "mlx", "mlx.*", "huggingface_hub", "chatterbox", "chatterbox.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

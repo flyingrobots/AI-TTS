@@ -15,16 +15,20 @@ alongside its fallback from this checkout:
 uv tool install --force --python 3.12 --with 'kokoro-mlx==0.1.2' \
   --with 'kokoro>=0.9.4' \
   --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' .
+```
+
+Use **Restart daemon** once after installing the extra so its startup catalog can
+discover MLX. Then select it for future clips:
+
+```sh
 ai-tts settings --set engine=kokoro-mlx
 ```
 
-Then use **Restart daemon** in the menu. Alternatively, an explicitly managed
-foreground daemon accepts `ai-tts daemon --engine kokoro-mlx`. The setting takes
-effect on the next daemon start. If a saved voice is absent from the new engine,
-its catalog default is used and reported; the saved choice is retained for a
-later switch back. The status response reports the backend
-actually selected. Missing MLX or English language assets, an unsupported runtime, or unavailable Metal
-falls back to reference Kokoro with an operational log event. Upstream
+Selection now takes effect without another restart. An explicitly managed
+foreground daemon also accepts `ai-tts daemon --engine kokoro-mlx`. If that startup
+selection is unavailable because MLX or English language assets are missing,
+the runtime is unsupported, or Metal is unavailable, it falls back to reference Kokoro with an operational log
+event. Live settings only accept registered backends. Upstream
 `kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.
 
 Warmup resolves model and curated voice assets from the local Hugging Face
@@ -562,6 +566,9 @@ ai-tts rewind
 # what the daemon is doing, and what it can speak
 ai-tts status
 ai-tts voices
+ai-tts engines                         # registered engines, voices, locality and readiness
+ai-tts settings set engine kokoro-mlx  # next clip uses this backend
+ai-tts say "Use this model for one clip." --engine kokoro
 
 # the queues: 'playback' is the speaking plan, 'input' is what is still
 # being synthesized
@@ -779,3 +786,85 @@ cannot do it.
 ## Licence
 
 Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+
+### Multiple local engines
+
+`ai-tts engines` lists the daemon's registered backends, their voices and readiness.
+`ai-tts settings set engine NAME` (also `settings --engine NAME` or
+`settings --set engine=NAME`) changes the default for future submissions. Queued
+clips and all their segments keep the engine recorded when they were accepted,
+including after daemon restart. The composer lists local models and updates its
+voice picker when a model changes. A per-clip `--engine NAME` overrides the default.
+Models prepare on first use and remain resident until explicitly reloaded or the
+daemon exits. Loading one does not unload another, so memory use can increase.
+
+The reference Kokoro adapter is registered at startup; MLX is also registered when
+its supported runtime and optional dependency are available. On startup, an
+unavailable configured MLX backend still falls back to reference Kokoro.
+
+To register a separately managed local speech server, set these variables in the
+environment used to launch the daemon:
+
+```sh
+export AI_TTS_OPENAI_URL=http://127.0.0.1:8880
+export AI_TTS_OPENAI_MODEL=kokoro
+export AI_TTS_OPENAI_VOICE=af_heart
+ai-tts daemon
+```
+
+Then select `openai-audio` in the composer or through settings. URL/model/voice
+configuration is read at daemon startup; restart the daemon to change it. The
+adapter posts to `/v1/audio/speech`, requests WAV, and bounds responses to 64 MiB
+with a 30-second socket timeout. Only literal loopback addresses and `localhost`
+are accepted. `localhost` is pinned to `127.0.0.1`; proxies and redirects are not
+used. HTTPS requires a certificate valid for the numeric loopback destination.
+Remote endpoints are refused even for public text. Other registered adapters
+marked non-local may only receive explicitly public text, enforced at admission
+and again before synthesis.
+
+The server owns its model: the UI reports **server managed**, without claiming the
+model is hot. Restart it using that server's controls. Evidence records the
+requested model and route; server-side model weights cannot be fingerprinted by
+this adapter.
+
+Native Chatterbox Turbo (350M) is available through the `chatterbox` extra.
+It uses the bundled `default` voice and preserves native samples, including
+watermarking. Turbo accepts generation speed 1; playback rate is independently
+adjustable. CPU is the tested default; `AI_TTS_CHATTERBOX_DEVICE` selects another
+upstream-supported device.
+
+From this checkout, install the frozen dependencies and explicitly fetch the tested
+model revision once:
+
+```sh
+uv sync --frozen --all-extras
+export AI_TTS_CHATTERBOX_MODEL_DIR="$(uv run --frozen --all-extras python - <<'PYTHON'
+from huggingface_hub import snapshot_download
+print(snapshot_download(
+    "ResembleAI/chatterbox-turbo",
+    revision="749d1c1a46eb10492095d68fbcf55691ccf137cd",
+    allow_patterns=["ve.safetensors", "t3_turbo_v1.safetensors",
+                    "s3gen_meanflow.safetensors", "conds.pt", "*.json", "*.txt"],
+))
+PYTHON
+)"
+# Stop any existing daemon before starting this foreground instance.
+uv run --frozen --all-extras ai-tts daemon --engine chatterbox
+```
+
+The directory must contain the complete local snapshot. Synthesis never downloads
+assets. A daemon launched with `AI_TTS_CHATTERBOX_MODEL_DIR` registers Chatterbox
+alongside the other engines; select it in the composer, use `say --engine chatterbox`,
+or change the default with `settings set engine chatterbox`.
+
+The extra pins immutable upstream source archives: Chatterbox's dependency-only
+[PR 486](https://github.com/resemble-ai/chatterbox/pull/486) and Perth's upstream
+fix for removed `pkg_resources` (not yet published to PyPI). Their revisions and
+archive hashes are checked in the lock and source-audit policy. CI uses strict
+hashed PyPI auditing for the remaining graph and separately records OSV commit and
+package queries for both source dependencies, then checks the combined SBOM and
+license inventory. No known advisory findings is not a source-security guarantee;
+source-query coverage is disclosed in the retained evidence. The
+[native acceptance receipt](docs/testing-evidence/2026-09-30-multi-engine.md)
+records real offline inference with the frozen Python 3.12 graph.

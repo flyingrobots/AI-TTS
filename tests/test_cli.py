@@ -28,9 +28,12 @@ pytestmark = [
 @pytest.fixture
 async def daemon(tmp_path: Path) -> Any:
     sock_dir = Path(tempfile.mkdtemp(prefix="aitts-"))
+    alternate = FakeEngine(voices=["af_bella"])
+    alternate.name = "alternate"
     d = Daemon(
         home=tmp_path,
         engine=FakeEngine(voices=["bm_daniel"]),
+        engines={"alternate": alternate},
         sink=FakeSink(auto_finish_ms=5),
         socket_path=sock_dir / "d.sock",
     )
@@ -295,3 +298,31 @@ async def test_say_preempt_is_persisted_while_playback_held(
     assert clip is not None
     assert clip.priority.value == "preempt"
     assert response["playback_held"] is True
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ("settings", "set", "engine", "alternate"),
+        ("settings", "--engine", "alternate"),
+        ("settings", "--set", "engine=alternate"),
+    ],
+)
+async def test_engine_selection_forms_report_the_selected_backend(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str], arguments: tuple[str, ...]
+) -> None:
+    assert await run_cli(daemon, *arguments) == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["settings"]["engine"] == "alternate"
+
+
+async def test_engine_catalog_and_per_clip_override_reach_daemon(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "engines") == EXIT_OK
+    catalog = json.loads(capsys.readouterr().out)["engines"]
+    assert [(item["name"], item["is_local"], item["voices"]) for item in catalog] == [
+        ("alternate", True, ["af_bella"]),
+        ("fake", True, ["bm_daniel"]),
+    ]
+    assert await run_cli(daemon, "say", "owned source", "--engine", "missing") == EXIT_DAEMON_ERROR
+    assert "selected model is not available" in capsys.readouterr().out

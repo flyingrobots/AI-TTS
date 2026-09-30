@@ -793,3 +793,16 @@ silent hardware measurements are in the
 accepted measured startup latency and deferred the original 150 ms optimization
 target to issue #33. Physical route changes and long-session acoustic acceptance
 remain outside the hermetic suite.
+
+
+## September 30 multi-engine extension
+
+Per-clip backend selection, child routing, legacy database migration, independent
+model readiness, and local HTTP synthesis have owned boundary tests. Sensitivity
+is enforced both before admission and before rendering. The composer consumes the
+same model/voice catalog. See the [receipt](../testing-evidence/2026-09-30-multi-engine.md)
+for seeded-fault calibration, suite costs and real offline Chatterbox inference
+from the frozen install. Source archives have exact identity checks and separately
+labeled OSV commit/package advisory queries; registry packages retain strict
+hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory
+responses cannot establish source security or advisory-database coverage.

@@ -7,17 +7,20 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import os
 import platform
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from aitts.engines.chatterbox import ChatterboxEngine
 from aitts.engines.kokoro import KokoroEngine
 from aitts.engines.kokoro_mlx import KokoroMlxEngine
+from aitts.engines.openai_compatible import OpenAIAudioEngine
 from aitts.store import Store
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from aitts.engine import Engine
 
@@ -69,3 +72,46 @@ def configured_engine(
     finally:
         store.close()
     return select_engine(name, probe_mlx=probe_mlx)
+
+
+def configured_engines(
+    home: Path,
+    *,
+    override: str | None = None,
+    probe_mlx: Callable[[], bool] = mlx_available,
+) -> tuple[Engine, dict[str, Engine]]:
+    """Build the startup catalog without loading weights or contacting speech servers.
+
+    Optional server/model configuration is deployment-scoped: changing it needs
+    a daemon restart. The selected name is a live, persisted user preference.
+    """
+    store = Store(home / "state.db")
+    try:
+        name = override or store.get_setting("engine", "kokoro")
+    finally:
+        store.close()
+    engines: dict[str, Engine] = {"kokoro": KokoroEngine()}
+    if probe_mlx():
+        engines["kokoro-mlx"] = KokoroMlxEngine()
+    elif name == "kokoro-mlx":
+        log.warning("event=mlx_backend_unavailable fallback=kokoro")
+        name = "kokoro"
+    url = os.environ.get("AI_TTS_OPENAI_URL")
+    if url:
+        engines["openai-audio"] = OpenAIAudioEngine(
+            url,
+            os.environ.get("AI_TTS_OPENAI_MODEL", "kokoro"),
+            os.environ.get("AI_TTS_OPENAI_VOICE", "af_heart"),
+        )
+    directory = os.environ.get("AI_TTS_CHATTERBOX_MODEL_DIR")
+    if directory:
+        engines["chatterbox"] = ChatterboxEngine(
+            Path(directory),
+            device=os.environ.get("AI_TTS_CHATTERBOX_DEVICE", "cpu"),
+        )
+    if name == "fake":
+        engines[name] = select_engine(name)
+    if name not in engines:
+        msg = f"engine {name!r} is not configured in this daemon"
+        raise ValueError(msg)
+    return engines[name], engines

@@ -363,6 +363,13 @@ extension Snapshot {
                 guard let pid = row["pid"] as? Int, let uptime = row["uptime_seconds"] as? Double,
                       let model = row["model_state"] as? String, let jobs = row["active_synthesis"] as? Int else { return nil }
                 return DaemonRuntime(pid: pid, uptimeSeconds: uptime, modelState: model, activeSynthesis: jobs)
+            },
+            engines: (json["engines"] as? [[String: Any]] ?? []).compactMap { row in
+                guard let name = row["name"] as? String,
+                      let isLocal = row["is_local"] as? Bool,
+                      let voices = row["voices"] as? [String],
+                      let state = row["state"] as? String else { return nil }
+                return SpeechEngine(name: name, isLocal: isLocal, voices: voices, state: state)
             }
         )
     }
