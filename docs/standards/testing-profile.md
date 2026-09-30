@@ -658,3 +658,23 @@ agent integration commands replaced by true. Unfixed output omitted the daemon
 failure message; fixed output reports the same exit-specific diagnostic as
 the PATH-resolved branch. No installed daemon or agent is invoked. Retire only
 with a stronger calibrated diagnostic-entrypoint contract.
+
+
+## Installation audit: prepare before replacing the CLI
+
+Change-kind: bug fix. make install invoked uv tool install before building
+the app, so a build failure left the CLI upgraded despite installation failure.
+A medium real-Make regression owns its uv command, package-version sentinel,
+and all artifact destinations. With a seeded build failure, unfixed Make
+changed the CLI sentinel; staged installation leaves it unchanged.
+
+The Make entrypoint now delegates preparation and publication to a stdlib
+orchestrator. It prepares app and plist before uv replacement and consistently
+passes explicit app/plist/log destinations. A successful owned-tool install
+checks all three resulting artifacts; omitting plist publication fails that
+required artifact read. Bytecode was invalidated during calibration. External
+build and package operations are controlled command doubles; app publication
+and plist rendering remain real. No launchctl or installed tool is invoked.
+This does not claim full-system rollback of uv's environment after a later
+publication or service failure. Retire only with a stronger staged-install
+contract and equivalent failure evidence.

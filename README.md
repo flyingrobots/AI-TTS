@@ -162,6 +162,12 @@ make doctor          # is the daemon up, and what is wired in?
 make help            # every target
 ```
 
+`make install` prepares the signed app bundle and launch-agent plist before
+asking uv to replace the CLI environment. Preparation failure leaves the CLI
+untouched. Each artifact is published atomically, but the entire uv environment,
+app and service installation is not one filesystem transaction; a failure after
+uv succeeds does not automatically restore the previous CLI environment.
+
 `make install-all` does all three. `make uninstall` stops and removes the
 launchd agent and the executables, and deliberately leaves your speech history,
 cached audio, and installed app alone.
