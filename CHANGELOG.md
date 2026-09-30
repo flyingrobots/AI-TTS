@@ -238,6 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Playback evidence includes driver underflows reported while writing the stop fade.
+
 - The native Queue shows suspended speech and keeps Clear Queue available during preemption; suspended clips cannot be reordered or individually cancelled.
 
 - Native Queue and History preserve preempt priority and offer it in the requeue menu.

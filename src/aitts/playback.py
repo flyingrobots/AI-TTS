@@ -329,7 +329,6 @@ class SoundDeviceSink:
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
         self._opened_on = self._device.default_output_identity()
-        underflow_reported = False
         self._stream_underflows = 0
         with (
             self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream,
@@ -378,24 +377,24 @@ class SoundDeviceSink:
                     ]
                 ).astype("float32")
                 last_sample = block[-1]
-                underflowed = stream.write(block)
-                if underflowed:
-                    self._stream_underflows += 1
-                if underflowed and not underflow_reported:
-                    self._audio_event("output_underflow")
-                    # One bounded diagnostic per stream, without speech or file paths.
-                    # The driver has already accepted this block: replaying it would
-                    # duplicate audio rather than repair the preceding gap.
-                    log.warning("event=audio_output_underflow")
-                    underflow_reported = True
+                self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
             if self._stop_flag.is_set() and last_sample is not None:
                 # End at silence without consuming source frames that must be
                 # heard after resumption. Device close drains this short tail.
                 ramp = np.linspace(1.0, 0.0, max(2, int(audio.samplerate * 0.005)))
-                stream.write((ramp[:, None] * last_sample).astype("float32"))
+                self._write_output(stream, (ramp[:, None] * last_sample).astype("float32"))
         return source_frame
+
+    def _write_output(self, stream: OutputStream, block: Any) -> None:  # noqa: ANN401 - a numpy block of PCM frames
+        if stream.write(block):
+            self._stream_underflows += 1
+            if self._stream_underflows == 1:
+                self._audio_event("output_underflow")
+                # One bounded diagnostic per stream. The driver accepted the
+                # block: replaying it would duplicate audio, not repair the gap.
+                log.warning("event=audio_output_underflow")
 
     def _device_moved_from(self, opened_on: str | None) -> bool:
         """Whether the OS default output has moved away from ``opened_on``.
