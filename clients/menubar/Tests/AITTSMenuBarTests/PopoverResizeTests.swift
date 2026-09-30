@@ -10,19 +10,38 @@ import XCTest
 final class PopoverResizeTests: XCTestCase {
     override func setUp() { super.setUp(); executionTimeAllowance = 15 }
 
+    // Test-Oracle: an explicit preferred height survives a new sizing instance.
     @MainActor
-    func testSizePersistsAndFitsAvailableScreen() throws {
-        let name = "resize-test-\(UUID().uuidString)"
+    func testExplicitHeightPersistsAcrossReconstruction() throws {
+        let name = "resize-persistence-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let sizing = PopoverSizing(defaults: defaults)
+        sizing.resize(to: 650)
+        XCTAssertEqual(PopoverSizing(defaults: defaults).height, 650)
+    }
+
+    // Test-Oracle: ordinary displays clamp requested heights to 360...available height.
+    @MainActor
+    func testRequestedHeightIsClampedToUsableBounds() throws {
+        let name = "resize-bounds-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let sizing = PopoverSizing(defaults: defaults)
         sizing.maximumHeight = 700
-        sizing.resize(to: 650)
-        XCTAssertEqual(PopoverSizing(defaults: defaults).height, 650)
         sizing.resize(to: 900)
         XCTAssertEqual(sizing.height, 700)
         sizing.resize(to: 10)
         XCTAssertEqual(sizing.height, 360)
+    }
+
+    // Test-Oracle: a screen shorter than the normal minimum takes precedence over it.
+    @MainActor
+    func testShortScreenTakesPrecedenceOverMinimumHeight() throws {
+        let name = "resize-short-screen-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let sizing = PopoverSizing(defaults: defaults)
         sizing.maximumHeight = 300
         sizing.resize(to: 600)
         XCTAssertEqual(sizing.height, 300)
