@@ -238,6 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preempted document chunks emit their committed segment state-change event; paused-offset refreshes do not duplicate it.
+
 - Playback evidence includes driver underflows reported while writing the stop fade.
 
 - The native Queue shows suspended speech and keeps Clear Queue available during preemption; suspended clips cannot be reordered or individually cancelled.

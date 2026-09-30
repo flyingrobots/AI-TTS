@@ -774,6 +774,7 @@ class Store:
         clip = self.get(utt_id)
         if clip is None or clip.state not in (State.PLAYING, State.PAUSED):
             return False
+        segment_before = self.get_segment(utt_id, index) if index is not None else None
         total = position_ms
         if index is not None:
             total += self.completed_segment_duration_ms(utt_id, before=index)
@@ -787,6 +788,11 @@ class Store:
             (State.PAUSED.value, total, time.time(), utt_id),
         )
         self._commit_or_rollback()
+        if segment_before is not None and segment_before.state is not State.PAUSED:
+            segment_after = self.get_segment(utt_id, segment_before.index)
+            if segment_after is not None:
+                for segment_callback in self.on_segment_transition:
+                    segment_callback(segment_after, segment_before.state)
         after = self.get(utt_id)
         if after is not None:
             for callback in self.on_transition:
