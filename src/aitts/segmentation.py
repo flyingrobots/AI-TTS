@@ -1,7 +1,7 @@
 # Copyright 2026 James Ross
 # SPDX-License-Identifier: Apache-2.0
 
-"""Application policy for turning one long submission into playable segments."""
+"""Application policy for turning speech submissions into playable segments."""
 
 from __future__ import annotations
 
@@ -15,10 +15,12 @@ from aitts.model import ContentFormat
 
 TARGET_SEGMENT_WORDS = 180
 MAX_SEGMENT_WORDS = 220
+PARAGRAPH_DOCUMENT_MIN_WORDS = 60
+PARAGRAPH_SEGMENT_MIN_WORDS = 20
 _MIN_BOUNDARY_WORDS = 90
 _WORD = re.compile(r"[A-Za-z0-9]+")
 _MARKDOWN_HEADING = re.compile(r"(?m)^[ \t]{0,3}#{1,6}[ \t]+")
-_PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n")
+_PARAGRAPH_BREAK = re.compile(r"\r?\n[ \t]*\r?\n")
 _SENTENCE_BREAK = re.compile(r"[.!?](?:[\]\)\"']*)\s")
 _PLAIN_MARKDOWN_NODES = frozenset({"root", "paragraph", "inline", "text", "softbreak"})
 _INLINE_BREAK_NODES = frozenset({"softbreak", "hardbreak"})
@@ -46,17 +48,39 @@ class _SpokenBlock:
 
 
 def segment_text(text: str) -> tuple[str, ...]:
-    """Split long text at structural boundaries without changing short clips."""
+    """Expose substantial paragraphs while retaining short, atomic clip identity."""
     if len(_WORD.findall(text)) <= TARGET_SEGMENT_WORDS:
-        return (text,)
+        return _paragraph_segments(text)
 
     segments = tuple(
         segment
         for section in _structural_sections(text)
-        for segment in _bounded_segments(section)
+        for paragraph in _paragraph_segments(section)
+        for segment in _bounded_segments(paragraph)
         if segment
     )
     return segments or (text,)
+
+
+def _paragraph_segments(text: str) -> tuple[str, ...]:
+    if len(_WORD.findall(text)) < PARAGRAPH_DOCUMENT_MIN_WORDS:
+        return (text,)
+    paragraphs = [part.strip() for part in _PARAGRAPH_BREAK.split(text) if part.strip()]
+    if len(paragraphs) <= 1:
+        return (text,)
+    result: list[str] = []
+    pending: list[str] = []
+    pending_words = 0
+    for paragraph in paragraphs:
+        pending.append(paragraph)
+        pending_words += len(_WORD.findall(paragraph))
+        if pending_words >= PARAGRAPH_SEGMENT_MIN_WORDS:
+            result.append("\n\n".join(pending))
+            pending = []
+            pending_words = 0
+    if pending:
+        result[-1] += "\n\n" + "\n\n".join(pending)
+    return tuple(result) if len(result) > 1 else (text,)
 
 
 def prepare_speech_segments(

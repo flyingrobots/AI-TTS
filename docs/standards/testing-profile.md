@@ -283,3 +283,14 @@ callbacks feed the opt-in dBFS meter. See the
 [terminal receipt](../testing-evidence/2026-09-30-terminal-dashboard.md) for
 falsification, rendered previews, suite costs and the expanded dependency audit.
 Acoustic level calibration and every terminal emulator/size remain outside CI.
+
+
+## September 30 paragraph navigation
+
+Medium-length paragraph plans now have exact plain/Markdown/legacy boundary
+examples, CRLF and threshold checks, generated token-conservation/size invariants,
+and an actual daemon next/previous transport journey. Eight seeded faults and
+observed-red examples are recorded in the
+[paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
+The established word-count policy and explicit Markdown section behavior remain;
+this change does not claim language-independent semantic paragraph detection.
