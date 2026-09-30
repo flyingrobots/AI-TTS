@@ -782,3 +782,15 @@ oracle after successful bootstrap followed by interruption. Bytecode was
 invalidated before mutation and restoration; restored eight-case suite passes.
 Full validation: 730 Python tests (258 small, 472 medium), 127 Swift tests,
 frozen lock, Ruff and mypy pass.
+
+
+## Native UI audit: initial status-item visibility
+
+Change-kind: bug fix. An owned real NSStatusItem started with no image when the
+daemon was unavailable: StatusController initialized its cached state to error
+and skipped the first render as unchanged. The medium native contract test
+observed a nil image on unfixed code, then a rendered image after initialization
+explicitly draws the initial state. Preferences and notifications are isolated;
+no installed daemon, socket or user preferences enter this assertion. Retire
+only with an equivalent native startup discoverability check. This tests the
+AppKit boundary, not VoiceOver traversal or physical display placement.

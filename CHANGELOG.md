@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
+
 - Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
 
 - App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.

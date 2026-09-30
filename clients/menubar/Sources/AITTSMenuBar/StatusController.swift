@@ -72,6 +72,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
             button.action = #selector(togglePopover(_:))
             button.target = self
         }
+        render()
         applyState()
         state.$failureNotice
             .sink { [weak self] notice in
