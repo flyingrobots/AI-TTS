@@ -390,20 +390,58 @@ async def test_the_interrupt_can_be_turned_off_in_settings(tmp_path: Path, sink:
         cleanup()
 
 
-async def test_the_default_resume_policy_is_configurable(tmp_path: Path, sink: FakeSink) -> None:
+@pytest.mark.oracle(
+    "2026-09-20 dictation workflow: the default microphone hold releases when input is idle"
+)
+async def test_default_microphone_hold_releases_and_plays_the_queued_reply(
+    tmp_path: Path, sink: FakeSink
+) -> None:
     activity = FakeInputActivity(active=False)
     daemon, cleanup = await make_daemon(tmp_path, activity, sink)
     try:
-        await daemon.dispatch({"op": "settings", "set": {"input_interrupt_resume": "when_idle"}})
+        await after_more_polls(activity)
+        activity.active = True
+        await wait_for(lambda: daemon._require_controller().interrupted_at is not None)
+        reply = await daemon.dispatch({"op": "submit", "text": "your queued reply"})
+        await wait_for(
+            lambda: (
+                (item := daemon.store.get(reply["id"])) is not None and item.state is State.READY
+            )
+        )
+
+        # An unavailable reading must not release the microphone hold.
+        activity.active = None
+        await after_more_polls(activity)
+        assert sink.started == []
+
+        activity.active = False
+        await after_more_polls(activity)
+        status = await daemon.dispatch({"op": "status"})
+        assert status["playback_held"] is False
+        await wait_for(lambda: daemon._require_controller().current_id == reply["id"])
+        assert len(sink.started) == 1
+    finally:
+        await daemon.stop()
+        cleanup()
+
+
+@pytest.mark.parametrize(("policy", "held_after_idle"), [("manual", True), ("when_idle", False)])
+async def test_the_default_resume_policy_is_configurable(
+    tmp_path: Path, sink: FakeSink, policy: str, *, held_after_idle: bool
+) -> None:
+    activity = FakeInputActivity(active=False)
+    daemon, cleanup = await make_daemon(tmp_path, activity, sink)
+    try:
+        await daemon.dispatch({"op": "settings", "set": {"input_interrupt_resume": policy}})
         await submit_and_play(daemon, "a long explanation")
 
         activity.active = True
         await wait_for(lambda: daemon._require_controller().interrupted_at is not None)
-        # Configured to resume by itself: no button press should be needed.
         activity.active = False
+        await after_more_polls(activity)
 
-        await wait_for(lambda: daemon._require_controller().held is False)
-        assert is_held(daemon._require_controller()) is False
+        status = await daemon.dispatch({"op": "status"})
+        assert status["playback_held"] is held_after_idle
     finally:
         await daemon.stop()
         cleanup()

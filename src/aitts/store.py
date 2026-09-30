@@ -367,15 +367,9 @@ class Store:
         """Utterances on the playback side: Ready, Playing, Paused."""
         return self._by_states(_PLAYBACK_STATES)
 
-    def pending_queue(self) -> list[Utterance]:
+    def _pending_queue(self) -> list[Utterance]:
         """Everything that will play after the current utterance, in order."""
         return self._by_states(_PENDING_STATES)
-
-    def head_of_plan(self) -> Utterance | None:
-        """Return the earliest non-terminal utterance in plan order."""
-        nonterminal = tuple(s for s in State if s not in TERMINAL)
-        items = self._by_states(nonterminal)
-        return items[0] if items else None
 
     def next_pending(self, *, exclude: str | None = None) -> Utterance | None:
         """Return the earliest utterance still owed to the listener (not playing)."""
@@ -780,6 +774,7 @@ class Store:
         clip = self.get(utt_id)
         if clip is None or clip.state not in (State.PLAYING, State.PAUSED):
             return False
+        segment_before = self.get_segment(utt_id, index) if index is not None else None
         total = position_ms
         if index is not None:
             total += self.completed_segment_duration_ms(utt_id, before=index)
@@ -790,11 +785,21 @@ class Store:
             )
         self._db.execute(
             "UPDATE utterances SET state = ?, played_ms = ?, state_changed_at = ? WHERE id = ?",
-            (State.PAUSED.value, total, time.time(), utt_id),
+            (
+                State.PAUSED.value,
+                total,
+                time.time() if clip.state is not State.PAUSED else clip.state_changed_at,
+                utt_id,
+            ),
         )
         self._commit_or_rollback()
+        if segment_before is not None and segment_before.state is not State.PAUSED:
+            segment_after = self.get_segment(utt_id, segment_before.index)
+            if segment_after is not None:
+                for segment_callback in self.on_segment_transition:
+                    segment_callback(segment_after, segment_before.state)
         after = self.get(utt_id)
-        if after is not None:
+        if after is not None and clip.state is not State.PAUSED:
             for callback in self.on_transition:
                 callback(after, clip.state)
         return True
@@ -824,7 +829,7 @@ class Store:
 
     def reorder_pending(self, utt_ids: list[str]) -> None:
         """Replace the pending plan order with one exact, complete permutation."""
-        pending = self.pending_queue()
+        pending = self._pending_queue()
         pending_ids = [utt.id for utt in pending]
         if len(utt_ids) != len(set(utt_ids)) or set(utt_ids) != set(pending_ids):
             msg = "ids must name the complete pending plan exactly once"

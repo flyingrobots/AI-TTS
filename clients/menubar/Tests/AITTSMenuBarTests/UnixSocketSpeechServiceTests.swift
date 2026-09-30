@@ -15,6 +15,20 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testPreemptPrioritySurvivesNativeDecodingAndRequeue() throws {
+        let item = try XCTUnwrap(Utterance(daemonJSON: [
+            "id": "alert", "text": "alert", "voice": "v", "state": "Played",
+            "priority": "preempt"
+        ]))
+        let transport = RecordingDaemonTransport()
+        let service = UnixSocketSpeechService(transport: transport)
+        try service.perform(.requeue(id: item.id, priority: item.priority))
+        XCTAssertEqual(item.priority.rawValue, "preempt")
+        XCTAssertEqual(try transport.canonicalRequests(), try canonicalize([
+            ["op": "requeue", "id": "alert", "priority": "preempt"]
+        ]))
+    }
+
     func testStorageAndMaintenanceMapToDaemonRequests() throws {
         let transport = RecordingDaemonTransport(responses: [[
             "ok": true, "entries": [["id": "clip", "preview": "hello", "bytes": Int64(42),

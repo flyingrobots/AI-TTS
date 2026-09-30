@@ -184,3 +184,21 @@ def test_nested_audio_remains_in_cache_inventory_and_purge(tmp_path: Path) -> No
     assert [(entry.path, entry.size_bytes) for entry in cache.inventory()] == [(published, 8)]
     assert cache.delete(published) is True
     assert cache.inventory() == ()
+
+
+@pytest.mark.oracle("provenance reads must not create generated-storage entries")
+def test_reading_legacy_metadata_does_not_create_cache_state(tmp_path: Path) -> None:
+    root = tmp_path / "cache"
+    evidence = ClipEvidence(root)
+    evidence.read_metadata("legacy", "generation.json")
+    assert not root.exists()
+
+
+@pytest.mark.oracle("exporting legacy evidence must not create generated-storage entries")
+def test_exporting_legacy_evidence_does_not_create_cache_state(tmp_path: Path) -> None:
+    root = tmp_path / "cache"
+    evidence = ClipEvidence(root)
+    evidence.export(
+        tmp_path / "report.zip", {}, [{"artifact_id": "legacy", "text": "old", "audio_path": None}]
+    )
+    assert not root.exists()
