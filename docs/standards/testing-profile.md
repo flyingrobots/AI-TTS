@@ -647,3 +647,14 @@ installation subprocess. The regression passes; existing first-install,
 reinstall, dry-run and awkward-path contracts remain green. No real skill
 directory or installed command participates. Retire only with a stronger
 calibrated generated-skill replacement contract.
+
+
+## Installation audit: uv-resolved daemon diagnostics
+
+Change-kind: bug fix. make doctor discarded a failed status result when the
+CLI was found through uv's tool directory rather than PATH. A medium real-Make
+regression owns a uv command and an ai-tts executable returning exit 7, with
+agent integration commands replaced by true. Unfixed output omitted the daemon
+failure message; fixed output reports the same exit-specific diagnostic as
+the PATH-resolved branch. No installed daemon or agent is invoked. Retire only
+with a stronger calibrated diagnostic-entrypoint contract.

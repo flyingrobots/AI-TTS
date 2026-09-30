@@ -117,7 +117,7 @@ doctor:
 	@if command -v ai-tts >/dev/null 2>&1; then \
 		ai-tts status || printf '  daemon is not answering (exit %s)\n' "$$?"; \
 	elif [ -x "$$(uv tool dir --bin 2>/dev/null)/ai-tts" ]; then \
-		"$$(uv tool dir --bin)/ai-tts" status || true; \
+		"$$(uv tool dir --bin)/ai-tts" status || printf '  daemon is not answering (exit %s)\n' "$$?"; \
 	else \
 		printf '  ai-tts is not installed; run: make install\n'; \
 	fi
