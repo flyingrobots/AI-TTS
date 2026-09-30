@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recovery settles documents whose final child completed before the parent completion commit, preserving played duration and releasing the queue.
+
+- Updated frozen PyJWT to 2.15.1 for the recursive payload error-handling vulnerability CVE-2026-101918.
+
+- Skipping a document now commits the parent, active child, and unfinished siblings together, preventing later chunks from returning after an interrupted Skip.
+
+- Recovery carries a committed child synthesis failure to its still-active parent instead of leaving the document stranded in the queue.
+
+- Recovery repairs a document whose first child audio committed before its parent became Ready, including another crash during that repair.
+
+- Restarting with Ready playback now engages the durable global hold, requiring explicit resume even if the process stopped before any clip began playing.
+
 - Cached replays retain generation-artifact identity after audio eviction, so provenance and reports can still find retained evidence. Existing audio references are migrated on database open; previously lost links cannot be reconstructed.
 
 - The frozen urllib3 dependency is updated to 2.8.0 for proxy-TLS isolation, Deflate streaming, and oversized chunk-header vulnerabilities, with an in-memory chunk-header regression.

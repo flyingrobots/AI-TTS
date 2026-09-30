@@ -355,3 +355,109 @@ while fresh-schema cases pass. Seeds were removed and all four cases pass.
 Retire only when a replacement calibrated evidence-retention contract subsumes
 these cases. Explicit generated-file deletion remains allowed to remove
 sidecars; retaining history does not promise indefinite evidence retention.
+
+
+## Crash recovery audit: Ready queue admission
+
+Change-kind: bug fix. Startup inferred a recovery hold only from Paused rows,
+so a queue containing only Ready clips could speak immediately after restart.
+It now holds every restored playback queue; fresh empty startup is unchanged.
+The medium daemon-status regression seeds durable Ready, Playing, and Paused
+states, then starts a new daemon with owned fake device/input ports. The Ready
+case observed `playback_held == false` on the unfixed code; all three now report
+true. An initial probe read the field at the wrong snapshot level and was
+corrected before recording red evidence. No sleep or absence of events is used
+to infer safety. Retire only with a stronger restart-admission contract.
+
+
+## Crash recovery audit: interrupted composite publication
+
+Change-kind: bug fix. `finish_synthesis` commits child Ready before promoting
+its parent. A crash between those commits left a durable Ready first child
+under a Synthesizing parent; old recovery requeued the parent permanently,
+because subsequent child synthesis never performs the first-child promotion.
+Recovery now reconciles Queued parents whose first child is already Ready,
+using legal Synthesizing/Ready transitions. Repeating recovery is safe across
+both additional commits.
+
+The medium Store-boundary publication test injects crashes after each of the
+two actual publication commits. The first seed observed a Queued parent on
+unfixed code; both now restore Ready. Three additional seeds interrupt recovery
+after requeue, Synthesizing, and Ready commits and prove convergence on reopen.
+An exploratory third publication seed was removed because the two-child setup
+has only two publication commits; it is not counted as red evidence. Oracle:
+architecture section 6's durable queued-work recovery. Retire when atomic
+publication or a stronger calibrated crash matrix subsumes these cases.
+
+## Crash audit follow-up: blocked model-reload exclusion
+
+Change-kind: behavior change (test observation only). The late PR #40 review
+correctly noted that eventual reload readiness did not prove synthesis stayed
+excluded before the native restart finished. The existing medium event-gated
+check now captures the real SynthesisPool at composition and reads its public
+exclusion gate after request cancellation, before releasing the native worker.
+It does not inspect Daemon's private pool reference or infer safety from time.
+A seeded cancellation handler that prematurely sets the pool gate fails both
+success/failure cases at the new assertion; restoration passes both. This is
+additional calibration of an existing fixed runtime invariant, not a newly
+claimed production defect.
+
+
+## Crash recovery audit: interrupted child failure
+
+Change-kind: bug fix. Strict local agy found that child failure and parent
+failure commit separately. Seeded crashes after the child commit left parents
+Queued (first-child failure) or Paused (failure during playback) on restart,
+instead of terminal with their recorded error. Both cases were observed red.
+Recovery now propagates committed child failures to active parents before
+considering Ready promotion, using legal state transitions. The two medium
+Store-boundary regressions pass with the fix and retain the exact failure
+message as their oracle. This also repairs prefixes written by older versions.
+
+
+## Crash recovery audit: atomic document Skip
+
+Change-kind: bug fix. Strict local agy identified separate commits for active
+child Skip, sibling cancellation, and parent Skip. A medium playback-controller
+regression seeds a paused document, resumes through a fake sink, and crashes
+at the first Skip state commit (after the separate interruption-metadata write).
+On unfixed code, reopening recovers the parent Paused with a Ready next child.
+The new Store.skip_utterance boundary writes the active child and terminal
+parent together; the existing parent transition cancels remaining siblings in
+that same transaction. Both transport Skip and clearing suspended speech use
+this boundary. Observers run after commit. The regression now observes parent
+Skipped, active child Skipped, and remaining child Cancelled after reopening.
+Retire only if a stronger calibrated atomic transport contract supersedes it.
+Old partial skips cannot be inferred safely from a skipped child alone, because
+Next Chunk uses that state too; this fix prevents new partial Skip commits.
+
+
+## Crash audit CI follow-up: PyJWT parser containment
+
+Change-kind: bug fix. Required dependency CI run 36741915464 failed for
+PyJWT 2.14.0, CVE-2026-101918 / GHSA-42vr-xj54-vc7v. The frozen transitive
+package is now 2.15.1 (upstream's first patched version is 2.15.0).
+
+The small public `jwt.decode` regression injects RecursionError through a
+scoped replacement of the payload module's JSON decoder reference. Header
+parsing remains real, and the process-wide json module is unchanged. The
+unfixed 2.14.0 run leaked RecursionError; 2.15.1 raises the expected DecodeError.
+Exploratory 2,000/20,000-level payloads did not exhaust this Python 3.14 parser
+and were discarded rather than claimed as red-to-green evidence. This is a
+calibrated error-boundary contract, not a claim that AI-TTS exposes remote JWT
+authentication or that every runtime has the same recursion threshold.
+[Upstream advisory](https://github.com/jpadilla/pyjwt/security/advisories/GHSA-42vr-xj54-vc7v).
+Retire if the dependency leaves the graph or stronger conformance replaces it.
+
+
+## Crash recovery audit: interrupted final-child completion
+
+Change-kind: bug fix. The final strict review identified another separate
+child/parent commit boundary: the last child could be Played while its parent
+remained Playing. Old recovery paused that parent forever with no unfinished
+child for resume. Two medium post-commit crash regressions (all children played,
+or an earlier child skipped) observed Paused/unknown position instead of
+Played/20ms or Played/10ms. Recovery now settles paused composite parents when
+all children are terminal, after giving child failure propagation precedence.
+Its played position follows the same completed-child duration contract as
+normal completion. This recovers old durable prefixes without replaying audio.

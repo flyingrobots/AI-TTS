@@ -709,8 +709,7 @@ class PlaybackController:
                 if clip is not None and clip.state is State.PAUSED:
                     segment = self._store.get_segment(utt_id, index) if index is not None else None
                     position = (segment.played_ms or 0) if segment else 0
-                    self._store.skip_segments(utt_id, index, position)
-                    self._store.transition(utt_id, State.SKIPPED, played_ms=clip.played_ms)
+                    self._store.skip_utterance(utt_id, index, position, played_ms=clip.played_ms)
                     cleared += 1
             return cleared
 
@@ -967,9 +966,9 @@ class PlaybackController:
             )
             segment_index = self._current_segment_index
             await self._release_sink()
-            if self._store.segments(current.id):
-                self._store.skip_segments(current.id, segment_index, segment_position)
-            self._store.transition(current.id, State.SKIPPED, played_ms=document_position)
+            self._store.skip_utterance(
+                current.id, segment_index, segment_position, played_ms=document_position
+            )
             self._current_id = None
             self._current_segment_index = None
         self.notify()

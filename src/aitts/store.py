@@ -757,24 +757,39 @@ class Store:
         moved = self.get_segment(utt_id, index)
         return moved is not None and moved.state is State.READY
 
-    def skip_segments(self, utt_id: str, active_index: int | None, played_ms: int) -> None:
-        """Settle one document's child queue after a parent-level Skip."""
-        if active_index is not None:
-            active = self.get_segment(utt_id, active_index)
-            if active is not None and active.state in (State.PLAYING, State.PAUSED):
-                self.transition_segment(
-                    utt_id,
-                    active_index,
-                    State.SKIPPED,
-                    played_ms=played_ms,
-                )
-        placeholders = ",".join("?" * len(TERMINAL))
-        self._db.execute(
-            f"UPDATE utterance_segments SET state = ? "  # noqa: S608
-            f"WHERE utterance_id = ? AND state NOT IN ({placeholders})",
-            (State.CANCELLED.value, utt_id, *(state.value for state in TERMINAL)),
-        )
-        self._commit_or_rollback()
+    def skip_utterance(
+        self,
+        utt_id: str,
+        active_index: int | None,
+        segment_played_ms: int,
+        *,
+        played_ms: int | None,
+    ) -> Utterance:
+        """Atomically skip a parent, its active child, and all unfinished siblings."""
+        current = self.get(utt_id)
+        if current is None:
+            raise KeyError(utt_id)
+        if current.state not in (State.PLAYING, State.PAUSED):
+            msg = f"cannot skip an utterance in state {current.state.value}"
+            raise TransitionError(msg)
+        active = self.get_segment(utt_id, active_index) if active_index is not None else None
+        if active is not None and active.state in (State.PLAYING, State.PAUSED):
+            self._db.execute(
+                "UPDATE utterance_segments SET state = ?, played_ms = ? "
+                "WHERE utterance_id = ? AND segment_index = ?",
+                (State.SKIPPED.value, segment_played_ms, utt_id, active.index),
+            )
+        else:
+            active = None
+        # Terminal parent transition cancels unfinished siblings and commits
+        # this child update in the same transaction before notifying observers.
+        after = self.transition(utt_id, State.SKIPPED, played_ms=played_ms)
+        if active is not None:
+            child = self.get_segment(utt_id, active.index)
+            if child is not None:
+                for callback in self.on_segment_transition:
+                    callback(child, active.state)
+        return after
 
     def move_to_head(self, utt_id: str) -> Utterance:
         """Reorder an utterance to the front of the plan."""
@@ -902,6 +917,26 @@ class Store:
             self.transition(utt.id, State.QUEUED)
         for utt in self._by_states((State.PLAYING,)):
             self.transition(utt.id, State.PAUSED)
+        # Child completion may commit before its parent promotion or failure.
+        # Reconcile durable prefixes, including interrupted earlier recovery.
+        for utt in self.input_queue() + self.playback_queue():
+            segments = self.segments(utt.id)
+            failed = next((child for child in segments if child.state is State.FAILED), None)
+            if failed is not None:
+                if utt.state is State.QUEUED:
+                    self.transition(utt.id, State.SYNTHESIZING)
+                self.transition(utt.id, State.FAILED, error=f"segment failed: {failed.error}")
+            elif (
+                utt.state is State.PAUSED
+                and segments
+                and all(child.state in TERMINAL for child in segments)
+            ):
+                self.transition(
+                    utt.id, State.PLAYED, played_ms=self.completed_segment_duration_ms(utt.id)
+                )
+            elif utt.state is State.QUEUED and segments and segments[0].state is State.READY:
+                self.transition(utt.id, State.SYNTHESIZING)
+                self.transition(utt.id, State.READY)
 
     def _segments_by_states(self, states: tuple[State, ...]) -> list[UtteranceSegment]:
         placeholders = ",".join("?" * len(states))
