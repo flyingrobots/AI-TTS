@@ -708,3 +708,19 @@ unfixed output asserted running; it now reports registration and directs the
 user to make doctor for status. Existing Make cases share one owned invocation
 helper, with their result oracles unchanged. Retire only with a calibrated
 health check or equally truthful registration receipt.
+
+
+## Installation audit: newline-bearing executable paths
+
+Change-kind: bug fix. An embedded newline made sed reject the skill replacement
+expression, while trailing newlines were silently removed by command substitution.
+Two medium owned installer cases observed render failure or a different executable
+path on unfixed code. Quoting and binary resolution now preserve trailing bytes
+with a sentinel, and sed replacement escapes physical line endings.
+
+Skill checks parse a complete fenced status command as shell words, preserving
+quoted multiline paths. Matching MCP dry-run cases verify the complete native
+command argument list; removing the MCP resolution sentinel fails the trailing-
+newline argument check. Existing apostrophe, ampersand and space cases stay green.
+No command from the generated skill is executed. Retire only with an equivalent
+calibrated path-to-command argument preservation contract.

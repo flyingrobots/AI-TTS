@@ -402,3 +402,34 @@ def test_failed_skill_render_preserves_installed_skill(
         "failed": result.returncode != 0,
         "skill": installed.read_bytes(),
     } == {"failed": True, "skill": b"working installed skill"}
+
+
+@pytest.mark.parametrize("name", ["line\nbreak/ai-tts", "ai-tts\n"])
+def test_skill_preserves_newlines_in_executable_path(
+    tmp_path: Path, sandbox: dict[str, str], name: str
+) -> None:
+    binary = tmp_path / name
+    env = dict(sandbox, AITTS_BIN=str(binary))
+
+    result = run(env, "skill", "--claude")
+
+    assert result.returncode == 0, result.stderr
+    installed = Path(env["AITTS_CLAUDE_SKILLS_DIR"]) / "speak" / "SKILL.md"
+    # The second fenced command is the complete status example. Parse it as a
+    # shell command, not physical lines: a quoted pathname may span lines.
+    status = installed.read_text().split("```bash\n")[2].split("```", 1)[0]
+    assert shell_words(status) == [str(binary), "status"]
+
+
+@pytest.mark.parametrize("name", ["line\nbreak/ai-tts-mcp", "ai-tts-mcp\n"])
+def test_mcp_dry_run_preserves_newlines_in_server_path(
+    tmp_path: Path, sandbox: dict[str, str], name: str
+) -> None:
+    server = tmp_path / name
+    env = dict(sandbox, AITTS_MCP_BIN=str(server))
+
+    result = run(env, "mcp", "--claude", "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    command = result.stdout.split("-> ", 1)[1].removesuffix(" (dry run)\n")
+    assert shell_words(command) == ["claude", "mcp", "add", "ai-tts", "--", str(server)]

@@ -107,9 +107,11 @@ resolve_bin() {
 
 # Render a value as a single POSIX shell word. Single-quote it and close,
 # escape, reopen around each embedded apostrophe, which is the only character
-# single quotes cannot carry.
+# single quotes cannot carry. The sentinel prevents command substitution
+# from discarding trailing newlines in a legal pathname.
 shell_quote() {
-    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+    protected=$(printf '%s.' "$1" | sed "s/'/'\\\\''/g")
+    printf "'%s'" "${protected%.}"
 }
 
 skills_dir_for() {
@@ -146,7 +148,8 @@ run_mcp_add() {
 install_skill_for() (
     agent=$1
     destination="$(skills_dir_for "$agent")/$SKILL_NAME"
-    binary=$(resolve_bin ai-tts)
+    binary=$(resolve_bin ai-tts; printf '.')
+    binary=${binary%.}
     if [ -z "$binary" ]; then
         die "could not find the ai-tts executable; run 'make install' first, or
        set AITTS_BIN to its absolute path"
@@ -163,8 +166,9 @@ install_skill_for() (
     # by an agent, so the path has to be a single shell word first; that word
     # is then escaped for sed's replacement grammar, where an unescaped &
     # inserts the matched text and an unescaped | would end the expression.
+    # Escape physical newlines too, so sed keeps them inside the replacement.
     quoted=$(shell_quote "$binary")
-    escaped=$(printf '%s' "$quoted" | sed -e 's/[&|\\]/\\&/g')
+    escaped=$(printf '%s' "$quoted" | sed -e 's/[&|\\]/\\&/g' -e '$!s/$/\\/')
     temporary=$(mktemp "$destination/.SKILL.md.XXXXXX")
     trap 'rm -f -- "$temporary"' EXIT
     trap 'exit 1' HUP INT TERM
@@ -179,7 +183,8 @@ install_skill_for() (
 
 install_mcp_for() {
     agent=$1
-    server=$(resolve_bin ai-tts-mcp)
+    server=$(resolve_bin ai-tts-mcp; printf '.')
+    server=${server%.}
     if [ -z "$server" ]; then
         die "could not find the ai-tts-mcp executable; run 'make install' first,
        or set AITTS_MCP_BIN to its absolute path"
