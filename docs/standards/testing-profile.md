@@ -809,9 +809,11 @@ This is not a claim that real VoiceOver traversal has passed.
 
 Live preflight on 2026-09-30: the signed candidate launched against an owned
 daemon with FakeEngine/FakeSink and the installed app was restored. The installed
-daemon remained untouched. A menu-click probe exposed no popover; subsequent
-IOConsoleUsers inspection confirmed CGSSessionScreenIsLocked=Yes. Interactive
-acceptance remains pending an unlocked session. Only one display was connected,
+daemon remained untouched. The initial window-only probe did not inspect the
+popover beneath the menu-bar item and therefore cannot establish whether it
+opened. Subsequent IOConsoleUsers inspection confirmed
+CGSSessionScreenIsLocked=Yes. Interactive acceptance remains pending an unlocked
+session. Only one display was connected,
 so cross-display acceptance also remains pending suitable hardware.
 
 
@@ -843,7 +845,7 @@ speech/state lived in an owned temporary daemon directory, removed afterward.
 | Live acceptance boundary | Current evidence | Remaining requirement |
 | --- | --- | --- |
 | Signed app startup and status accessibility | Observed unavailable, ready, speaking, paused, resumed states across processes | Human VoiceOver traversal remains open |
-| Popover, composer, Queue/History and settings controls | Native contract tests; locked-session click inconclusive | Operate the signed candidate in an unlocked session |
+| Popover, composer, Queue/History and settings controls | Native contract tests; resumed probe observed a popover beneath the menu-bar item | Complete control journeys against the signed candidate in an unlocked session |
 | Selection and host Services | Earlier TextEdit/NSPerformService receipts; adapter tests | Complete representative host and permission matrix |
 | App Intents | Generated metadata and installed indexing receipts | Execute an actual custom Shortcut against the candidate |
 | Cross-display sizing | Controlled native sizing tests | A second connected display and live move/resize checks |
@@ -852,3 +854,27 @@ speech/state lived in an owned temporary daemon directory, removed afterward.
 IOConsoleUsers reported `CGSSessionScreenIsLocked=Yes`; system display inventory
 showed one connected Studio Display. Unlock and second-display availability
 were requested. These limitations must not be promoted to passing acceptance.
+
+
+### Resumed native probe: distinguish automation failures from product failures
+
+On resume, the initial session query no longer contained the lock flag. A
+signed-candidate click followed by a process-wide accessibility listing exposed
+the popover beneath the status item, including Queue/History, the composer
+launcher, settings control and resize slider. Popovers are not required to
+appear in the application's window list; the earlier window-only probe was
+therefore an invalid observation of popover visibility.
+
+The expanded XCTest fixture still did not reliably expose SwiftUI controls.
+A diagnostic traversal exceeded its process deadline and left a pending
+System Events request. The owned probes were stopped and System Events was
+restarted; no result from that fixture counts as regression evidence. The
+experimental test remains outside the repository's automated suite.
+
+A separate direct Accessibility client is trusted and can inspect the signed
+app's status item. Further checks found the display asleep; after a bounded
+wake assertion, IOConsoleUsers explicitly reported the session locked again.
+No failed or empty UI observation from that state is attributed to the product.
+The ten explicit action-label changes remain a local draft pending a valid
+red/green check. Neither the lock nor the automation failure establishes that
+those changes fix the review finding.
