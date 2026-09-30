@@ -101,23 +101,25 @@ than admitted as silent or empty speech.
 
 ### Selected text is a separate application use case
 
-Selected text does not enter through `DocumentEnqueueing`, because it has no
-file URL or trustworthy document-format provenance. Every native text-selection
-adapter calls the `SelectionEnqueueing` application port instead.
-`EnqueueSelection` preserves the exact input, rejects an empty or
-whitespace-only selection, and owns one policy: `plain_text`, confidential,
-Normal priority, with voice and generation speed resolved by the daemon at
-parent admission.
+Services and App Intents send selected text through `SelectionEnqueueing`, not
+`DocumentEnqueueing`, because it has no file URL or trustworthy format metadata.
+`EnqueueSelection` preserves exact input, rejects blank text, and owns a literal,
+confidential, Normal-priority policy with daemon-resolved voice and speed.
 
-The primary adapter is a macOS text Service. macOS hands it the selected string
-only after the user invokes **Read Selection with AI-TTS**, so it needs neither
-Accessibility trust nor clipboard mutation. The **Read Current Selection…**
-menu action implements `SelectedTextReaderPort` through the Accessibility API.
-It queries only after explicit invocation, captures the previous frontmost
-process before the menu popover becomes key, and fails honestly when the
-focused element does not expose selected text. **Read Clipboard** is a separate
-explicit, non-mutating fallback. Neither action polls selection state or
-synthesizes Command-C.
+The macOS text Service receives selected text only after **Read Selection with
+AI-TTS** is invoked, without Accessibility trust or clipboard mutation. In the
+composer, **Import Selection** uses `SelectedTextReaderPort` through the
+Accessibility adapter. It remembers the most recently activated external
+application, but queries its selection only on explicit import and fails when
+the focused element exposes none. **Paste Clipboard** is a separate explicit,
+non-mutating reader. Neither action polls selection state or synthesizes
+Command-C.
+
+Composer imports append to `SpeechDraft`. They do not immediately call
+`SelectionEnqueueing`: the user may edit, combine imports, and choose the
+whole-draft content format before **Speak** submits through `SpeechServicePort`.
+Draft admission remains confidential and Normal priority, with optional voice
+and active-backend pins. Services and App Intents retain direct admission.
 
 The full decision, permission boundary, fallbacks, and acceptance matrix are in
 [`os-integration.md`](os-integration.md).
@@ -277,6 +279,14 @@ graph TB
   returns immutable public schemas. The MCP adapter owns MCP tool-schema
   translation; the Unix-socket adapter owns daemon NDJSON encoding and
   decoding. The application port imports neither MCP nor either wire format.
+- **Python application policy depends inward.** Static imports under
+  `aitts.application` may reference that package and the shared `aitts.model`,
+  but not concrete adapters, daemon composition, or transport entry points.
+  Platform audio factories live in `aitts.adapters.platform_audio`; daemon and
+  playback wiring select them outside the application ports. The harvested
+  check in `tests/test_application_architecture.py` includes function-local and
+  type-checking imports. It does not claim to detect dynamic imports or prove
+  semantic separation merely from module names.
 - **The native-client boundary is also hexagonal.** The reusable
   `AITTSApplication` Swift library contains only models, ports, and the
   `EnqueueDocument`, `EnqueueSelection`, `EnqueueCurrentSelection`, and

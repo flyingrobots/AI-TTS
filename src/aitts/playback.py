@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from aitts.adapters.diagnostic_logging import utterance_trace
-from aitts.application.audio_device import platform_audio_device
+from aitts.adapters.platform_audio import platform_audio_device
 from aitts.application.playback_schedule import PlaybackCheckpoint
 from aitts.model import Priority, State
 

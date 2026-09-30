@@ -24,10 +24,10 @@ from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.generated_storage import GeneratedStorage
+from aitts.adapters.platform_audio import platform_input_activity
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
-from aitts.application.input_activity import platform_input_activity
 from aitts.application.metrics import MetricsRecorder
 from aitts.engine import eligible_engine_names, engine_preparation
 from aitts.input_interrupt import DEFAULT_POLL_SECONDS, InputInterruptWatcher

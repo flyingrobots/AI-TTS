@@ -78,20 +78,3 @@ class FakeAudioDevice:
     def refresh(self) -> None:
         """Record that the cached enumeration would have been discarded."""
         self.refreshes += 1
-
-
-def platform_audio_device() -> AudioDevicePort:
-    """Return the best available device port for this platform.
-
-    Dispatched on ``platform.system()`` rather than ``sys.platform`` so the
-    non-macOS branch stays analysable on a macOS checkout.
-    """
-    import platform  # noqa: PLC0415 - resolved once, at sink construction
-
-    if platform.system() == "Darwin":
-        from aitts.adapters.core_audio import (  # noqa: PLC0415 - macOS-only adapter
-            CoreAudioOutputDevice,
-        )
-
-        return CoreAudioOutputDevice()
-    return NullAudioDevice()
