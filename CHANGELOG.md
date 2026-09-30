@@ -236,6 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Rejected storage requests preserve the previous automatic-retention policy.
+
 - Markdown speech cleanup preserves numeric multiplication signs and inline-code
   asterisks while removing loose prose emphasis.
 

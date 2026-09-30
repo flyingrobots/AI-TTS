@@ -493,18 +493,18 @@ class Daemon:
 
     async def _op_storage(self, payload: dict[str, Any]) -> dict[str, Any]:
         days = payload.get("retention_days")
+        if days is not None and (type(days) is not int or days not in {0, 1, 7, 30, 90}):
+            raise ApiError(BAD_REQUEST, "retention_days must be 0, 1, 7, 30, or 90")
+        identities = payload.get("delete")
+        if identities is not None and (
+            not isinstance(identities, list) or not all(isinstance(key, str) for key in identities)
+        ):
+            raise ApiError(BAD_REQUEST, "delete must contain artifact ids")
         if days is not None:
-            if type(days) is not int or days not in {0, 1, 7, 30, 90}:
-                raise ApiError(BAD_REQUEST, "retention_days must be 0, 1, 7, 30, or 90")
             self._store.set_setting("retention_days", str(days))
         protected = self._protected_artifacts()
         receipt: dict[str, int] | None = None
-        identities = payload.get("delete")
         if identities is not None:
-            if not isinstance(identities, list) or not all(
-                isinstance(key, str) for key in identities
-            ):
-                raise ApiError(BAD_REQUEST, "delete must contain artifact ids")
             receipt = self._generated_storage.remove(set(identities), protected)
         entries = self._generated_storage.inventory(protected)
         return {
