@@ -238,6 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Nested speech interruptions recover in their queue-defined order even when wall-clock timestamps tie or move backward.
+
 - History replay provenance identifies the replay while retaining its original caller.
 
 - Rejected storage requests preserve the previous automatic-retention policy.

@@ -514,8 +514,10 @@ class PlaybackController:
                 segment = self._store.next_unfinished_segment(paused.id)
                 if segment is not None and segment.state is State.PAUSED:
                     self._current_segment_index = segment.index
+            # Every accepted takeover ranks ahead of its interrupted clip.
+            # Rebuild that durable nesting, independent of wall-clock changes.
             for saved in sorted(
-                self._store.playback_queue(), key=lambda item: item.state_changed_at
+                self._store.playback_queue(), key=lambda item: item.order_key, reverse=True
             ):
                 if saved.state is State.PAUSED and saved.id != self._current_id:
                     segment = self._store.next_unfinished_segment(saved.id)
@@ -1128,4 +1130,4 @@ class PlaybackController:
 
     def _adoptable_paused(self) -> Utterance | None:
         paused = [utt for utt in self._store.playback_queue() if utt.state is State.PAUSED]
-        return max(paused, key=lambda utt: utt.state_changed_at, default=None)
+        return min(paused, key=lambda utt: utt.order_key, default=None)

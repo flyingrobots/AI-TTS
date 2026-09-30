@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import itertools
 
 import pytest
 
@@ -280,6 +281,43 @@ async def test_older_ready_alert_does_not_interrupt_the_queue_head(
         sink.finish_current()
         await schedule.wait_for_idle_after(schedule.idle_cycles)
         assert (controller.current_id, sink.start_positions[-1]) == (older.id, 0)
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.skip()
+
+
+@pytest.mark.parametrize("clock_step", [0, -1])
+@pytest.mark.oracle(
+    "restart resumes nested preemptions in LIFO order despite wall-clock ties or rollback"
+)
+async def test_nested_recovery_does_not_depend_on_wall_clock_order(
+    store: Store, monkeypatch: pytest.MonkeyPatch, clock_step: int
+) -> None:
+    timestamps = itertools.count(1000, clock_step)
+    monkeypatch.setattr("aitts.store.time.time", lambda: float(next(timestamps)))
+    document = preempting_clip(store, "document")
+    store.transition(document.id, State.PLAYING)
+    store.transition(document.id, State.PAUSED, played_ms=300)
+    alert = preempting_clip(store, "alert")
+    store.transition(alert.id, State.PLAYING)
+    store.transition(alert.id, State.PAUSED, played_ms=125)
+    nested = preempting_clip(store, "nested")
+    store.transition(nested.id, State.PLAYING)
+    store.recover()
+    sink = FakeSink()
+    controller, schedule = playback_controller(store, sink, held=True)
+    task = await start(controller, schedule)
+    try:
+        await controller.resume()
+        await settle(controller, schedule)
+        observed = []
+        for _ in range(3):
+            observed.append((controller.current_id, sink.start_positions[-1]))
+            await controller.skip()
+            await settle(controller, schedule)
+        assert observed == [(nested.id, 0), (alert.id, 125), (document.id, 300)]
     finally:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
