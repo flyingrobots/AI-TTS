@@ -101,10 +101,11 @@ CREATE TABLE IF NOT EXISTS voice_assignments (
 _COLUMNS = (
     "id, text, voice, speed, sensitivity, priority, state, order_key, "
     "submitted_at, state_changed_at, source, error, duration_ms, played_ms, "
-    "audio_path, replay_of"
+    "audio_path, replay_of, generation_artifact_id"
 )
 _SEGMENT_COLUMNS = (
-    "utterance_id, segment_index, text, state, error, duration_ms, played_ms, audio_path"
+    "utterance_id, segment_index, text, state, error, duration_ms, played_ms, audio_path, "
+    "generation_artifact_id"
 )
 
 
@@ -141,6 +142,7 @@ def _row_to_utterance(row: sqlite3.Row) -> Utterance:
         duration_ms=row["duration_ms"],
         played_ms=row["played_ms"],
         audio_path=row["audio_path"],
+        generation_artifact_id=row["generation_artifact_id"],
         replay_of=row["replay_of"],
     )
 
@@ -155,6 +157,7 @@ def _row_to_segment(row: sqlite3.Row) -> UtteranceSegment:
         duration_ms=row["duration_ms"],
         played_ms=row["played_ms"],
         audio_path=row["audio_path"],
+        generation_artifact_id=row["generation_artifact_id"],
     )
 
 
@@ -185,10 +188,26 @@ class Store:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(_SCHEMA)
+        self._migrate_generation_identity()
         self._commit_or_rollback()
         self._secure_database_sidecars(db_path)
         self.on_transition: list[Callable[[Utterance, State], None]] = []
         self.on_segment_transition: list[Callable[[UtteranceSegment, State], None]] = []
+
+    def _migrate_generation_identity(self) -> None:
+        """Retain known generation ownership independently of evictable audio."""
+        for table in ("utterances", "utterance_segments"):
+            columns = self._db.execute(f"PRAGMA table_info({table})").fetchall()
+            if "generation_artifact_id" not in {row["name"] for row in columns}:
+                self._db.execute(f"ALTER TABLE {table} ADD COLUMN generation_artifact_id TEXT")
+            rows = self._db.execute(
+                f"SELECT rowid, audio_path FROM {table} "  # noqa: S608 - fixed internal tables
+                "WHERE generation_artifact_id IS NULL AND audio_path IS NOT NULL"
+            ).fetchall()
+            self._db.executemany(
+                f"UPDATE {table} SET generation_artifact_id = ? WHERE rowid = ?",  # noqa: S608
+                [(Path(row["audio_path"]).stem, row["rowid"]) for row in rows],
+            )
 
     @staticmethod
     def _secure_database_sidecars(db_path: Path) -> None:
@@ -249,7 +268,7 @@ class Store:
         )
         self._db.execute(
             f"INSERT INTO utterances ({_COLUMNS}) "  # noqa: S608 - constant column list
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 utt.id,
                 utt.text,
@@ -267,6 +286,7 @@ class Store:
                 utt.played_ms,
                 utt.audio_path,
                 utt.replay_of,
+                utt.generation_artifact_id,
             ),
         )
         if spoken_segments is not None:
@@ -449,6 +469,7 @@ class Store:
             ("duration_ms", duration_ms),
             ("played_ms", played_ms),
             ("audio_path", audio_path),
+            ("generation_artifact_id", Path(audio_path).stem if audio_path else None),
         ):
             if value is not None:
                 sets.append(f"{column} = ?")
@@ -502,6 +523,7 @@ class Store:
             ("duration_ms", duration_ms),
             ("played_ms", played_ms),
             ("audio_path", audio_path),
+            ("generation_artifact_id", Path(audio_path).stem if audio_path else None),
         ):
             if value is not None:
                 sets.append(f"{column} = ?")

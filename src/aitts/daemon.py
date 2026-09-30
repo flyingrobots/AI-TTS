@@ -630,9 +630,9 @@ class Daemon:
                 if item.source and item.source.startswith(prefix):
                     origin = label
                     break
-        artifacts = [(Path(x.audio_path).stem if x.audio_path else x.artifact_id) for x in segments]
+        artifacts = [(x.generation_artifact_id or x.artifact_id) for x in segments]
         if not artifacts:
-            artifacts = [Path(item.audio_path).stem if item.audio_path else item.id]
+            artifacts = [item.generation_artifact_id or item.id]
         return {
             "origin": origin,
             "caller_source": item.source,
@@ -663,9 +663,7 @@ class Daemon:
         segments = self._store.segments(item.id)
         clips = [
             {
-                "artifact_id": Path(segment.audio_path).stem
-                if segment.audio_path
-                else segment.artifact_id,
+                "artifact_id": segment.generation_artifact_id or segment.artifact_id,
                 "segment_index": segment.index,
                 "text": segment.text,
                 "state": segment.state.value,
@@ -676,7 +674,7 @@ class Daemon:
         if not clips:
             clips = [
                 {
-                    "artifact_id": Path(item.audio_path).stem if item.audio_path else item.id,
+                    "artifact_id": item.generation_artifact_id or item.id,
                     "segment_index": None,
                     "text": item.text,
                     "state": item.state.value,

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cached replays retain generation-artifact identity after audio eviction, so provenance and reports can still find retained evidence. Existing audio references are migrated on database open; previously lost links cannot be reconstructed.
+
 - The frozen urllib3 dependency is updated to 2.8.0 for proxy-TLS isolation, Deflate streaming, and oversized chunk-header vulnerabilities, with an in-memory chunk-header regression.
 
 - Competing daemon starts now refuse an already-owned state directory or socket instead of recovering a live queue or replacing its endpoint; failed startup releases acquired resources.

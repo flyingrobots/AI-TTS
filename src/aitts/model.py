@@ -107,6 +107,7 @@ class Utterance:
     duration_ms: int | None = None
     played_ms: int | None = None
     audio_path: str | None = None
+    generation_artifact_id: str | None = None
     replay_of: str | None = None
 
     @property
@@ -127,6 +128,7 @@ class UtteranceSegment:
     duration_ms: int | None = None
     played_ms: int | None = None
     audio_path: str | None = None
+    generation_artifact_id: str | None = None
 
     @property
     def artifact_id(self) -> str:
