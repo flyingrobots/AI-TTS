@@ -630,18 +630,17 @@ class Daemon:
                     "audio_path": item.audio_path,
                 }
             ]
-        try:
-            worker = asyncio.create_task(
-                asyncio.to_thread(
-                    self._evidence.export,
-                    Path(destination),
-                    {
-                        **self._serialize_utterance(item, history=True),
-                        "provenance": self._provenance(item, segments),
-                    },
-                    clips,
-                )
+        report_item = self._serialize_utterance(item, history=True)
+
+        def export_report() -> dict[str, Any]:
+            return self._evidence.export(
+                Path(destination),
+                {**report_item, "provenance": self._provenance(item, segments)},
+                clips,
             )
+
+        try:
+            worker = asyncio.create_task(asyncio.to_thread(export_report))
             self._exports[worker] = (
                 {item.id, *(str(clip["artifact_id"]) for clip in clips)},
                 {str(clip["audio_path"]) for clip in clips if clip["audio_path"]},

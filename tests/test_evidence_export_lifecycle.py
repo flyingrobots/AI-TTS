@@ -118,3 +118,29 @@ async def test_inflight_report_preserves_files_across_deletion(  # noqa: PLR0915
 
     with zipfile.ZipFile(destination) as archive:
         assert archive.read(f"clips/{item.id}/audio.wav") == b"audio"
+
+
+@pytest.mark.oracle("report metadata filesystem reads must not occupy the daemon event-loop thread")
+async def test_export_reads_provenance_on_a_worker_thread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    daemon = Daemon(home=tmp_path, engine=FakeEngine(["v"]), sink=FakeSink())
+    item = daemon.store.submit("legacy", voice="v", speed=1.0)
+    daemon.store.transition(item.id, State.CANCELLED)
+    event_loop_thread = threading.get_ident()
+    observed_threads: list[int] = []
+    original = ClipEvidence.read_metadata
+
+    def observe_read(evidence: ClipEvidence, artifact_id: str, name: str) -> dict[str, Any] | None:
+        observed_threads.append(threading.get_ident())
+        return original(evidence, artifact_id, name)
+
+    monkeypatch.setattr(ClipEvidence, "read_metadata", observe_read)
+    try:
+        await daemon.dispatch(
+            {"op": "export_evidence", "id": item.id, "destination": str(tmp_path / "report.zip")}
+        )
+        assert observed_threads, "export must read provenance metadata"
+        assert event_loop_thread not in observed_threads
+    finally:
+        await daemon.stop()
