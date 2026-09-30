@@ -461,3 +461,21 @@ Played/20ms or Played/10ms. Recovery now settles paused composite parents when
 all children are terminal, after giving child failure propagation precedence.
 Its played position follows the same completed-child duration contract as
 normal completion. This recovers old durable prefixes without replaying audio.
+
+
+## Admission audit: reject isolated Unicode surrogates before side effects
+
+Change-kind: bug fix. Escaped isolated surrogates were accepted by JSON parsing
+but later failed SQLite/UTF-8 processing. Four real-IPC cases observed internal
+errors; malformed text also left a durable source voice claim. Three narrow
+codec regressions accepted malformed values, nested list values, and keys.
+All seven were observed red before the fix. The adapter now iteratively
+validates every decoded string and key before dispatch, keeping validation
+independent of Python recursion depth. Unicode encoding failure joins the
+existing typed bad-request path. A valid supplementary Unicode character is
+an explicit example in the existing generated round-trip property.
+
+The medium IPC cases own their temporary daemon, fake engine and socket. Their
+oracle is typed refusal with an empty voice register; codec cases use the
+explicit wire Unicode-text contract (stricter than JSON escape grammar alone).
+Retire only with equivalent calibrated validation before durable admission.
