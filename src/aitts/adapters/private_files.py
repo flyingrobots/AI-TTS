@@ -72,7 +72,7 @@ def secure_private_state(home: Path) -> None:
 
 
 def _secure_file(path: Path, *, flags: int) -> None:
-    descriptor = os.open(path, flags | _NO_FOLLOW, PRIVATE_FILE_MODE)
+    descriptor = os.open(path, flags | _NO_FOLLOW | os.O_NONBLOCK, PRIVATE_FILE_MODE)
     try:
         metadata = os.fstat(descriptor)
         if not stat.S_ISREG(metadata.st_mode):

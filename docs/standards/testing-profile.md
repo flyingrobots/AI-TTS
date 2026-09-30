@@ -479,3 +479,19 @@ The medium IPC cases own their temporary daemon, fake engine and socket. Their
 oracle is typed refusal with an empty voice register; codec cases use the
 explicit wire Unicode-text contract (stricter than JSON escape grammar alone).
 Retire only with equivalent calibrated validation before durable admission.
+
+
+## Admission audit: nonblocking private-file type validation
+
+Change-kind: bug fix. secure_existing_file opened a candidate read-only before
+fstat could reject non-regular files. An unexpected FIFO therefore waited for
+a writer indefinitely. Descriptor acquisition now uses O_NONBLOCK before the
+existing regular-file check; ordinary file privacy behavior is unchanged.
+
+A medium public-adapter regression creates an owned FIFO and calls validation
+in an isolated Python process. The unfixed run reached its two-second liveness
+deadline (and was killed/reaped by subprocess.run); fixed code returns EINVAL.
+The deadline bounds completion, not scheduling or an absence-of-events safety
+claim. No FIFO peer exists. Existing permissive-umask, sidecar, candidate and
+symlink privacy checks remain relevant. Retire only with an equivalent
+nonblocking descriptor-validation contract.
