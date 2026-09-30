@@ -489,8 +489,12 @@ a writer indefinitely. Descriptor acquisition now uses O_NONBLOCK before the
 existing regular-file check; ordinary file privacy behavior is unchanged.
 
 A medium public-adapter regression creates an owned FIFO and calls validation
-in an isolated Python process. The unfixed run reached its two-second liveness
+in an isolated Python process. The original unfixed run reached its two-second liveness
 deadline (and was killed/reaped by subprocess.run); fixed code returns EINVAL.
+PR #43 review increased the subprocess deadline to ten seconds to allow slow
+interpreter startup within the medium test's fifteen-second ceiling. Removing
+O_NONBLOCK still reaches that ten-second deadline and fails; restored code
+returns promptly. This test-only observation change does not alter the oracle.
 The deadline bounds completion, not scheduling or an absence-of-events safety
 claim. No FIFO peer exists. Existing permissive-umask, sidecar, candidate and
 symlink privacy checks remain relevant. Retire only with an equivalent

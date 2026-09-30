@@ -206,7 +206,7 @@ else:
             [sys.executable, "-c", script, str(fifo)],
             capture_output=True,
             text=True,
-            timeout=2,
+            timeout=10,
             check=False,
         )
         outcome = (result.returncode, result.stdout.strip())
