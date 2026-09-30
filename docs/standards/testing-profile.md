@@ -736,3 +736,17 @@ required. They now receive that diagnostic and still verify the winning
 artifact's exact bytes. The direct renderer continues exposing FileExistsError
 to library callers; unrelated forced-render validation errors remain unchanged.
 Retire only with an equivalent calibrated CLI refusal contract.
+
+
+## Installation audit follow-up: observe the executed package command
+
+Change-kind: behavior change (test observation only). The first full suite
+after staging failed the English-model distribution test with StopIteration:
+it assumed uv tool install appeared directly in make -n output. The requirement
+was unchanged, but Make now delegates to the installer. The test moved to the
+owned real-Make harness and reads the actual uv argument vector, still requiring
+the exact English-model wheel in --with extras. Removing that wheel from the
+executed command fails the requirement assertion; restored code passes. The
+failed suite was not accepted or retried without correcting the observation.
+This replaces the old command-text projection; it does not weaken the installed
+English-speech dependency contract.

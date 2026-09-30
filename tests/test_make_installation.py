@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import plistlib
 import subprocess
@@ -55,7 +56,7 @@ def install_environment(tmp_path: Path) -> dict[str, str]:
     uv.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     uv.chmod(0o755)
     uv.with_suffix(".py").write_text(
-        """import os, sys
+        """import os, sys, json
 from pathlib import Path
 root = Path(os.environ["AITTS_TEST_ROOT"])
 args = sys.argv[1:]
@@ -69,6 +70,7 @@ if args[:2] == ["run", "python"] and args[2].endswith("build_app_bundle.py"):
     (output / "version").write_text("new app")
 elif args[:2] == ["tool", "install"]:
     (root / "cli-version").write_text("new cli")
+    (root / "install-arguments.json").write_text(json.dumps(args))
 elif args[:3] == ["tool", "dir", "--bin"]:
     print(root / "bin")
 else:
@@ -181,3 +183,19 @@ def test_install_reports_registration_without_claiming_daemon_health(
     assert result.returncode == 0, result.stderr
     assert "daemon is registered" in result.stdout
     assert "daemon is running" not in result.stdout
+
+
+def test_install_includes_the_english_model_in_the_daemon_environment(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: installed English speech needs no runtime package installer."""
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    extras = [
+        arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
+    ]
+    assert (
+        "https://github.com/explosion/spacy-models/releases/download/"
+        "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+    ) in extras
