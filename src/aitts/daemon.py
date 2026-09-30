@@ -357,14 +357,6 @@ class Daemon:
             priority = Priority(payload.get("priority", "normal"))
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
-        source = payload.get("source")
-        voice = self._voices.resolve(
-            source=source if isinstance(source, str) else None,
-            requested=payload.get("voice") or None,
-        )
-        if voice not in self._engine.list_voices():
-            msg = f"unknown voice {voice!r}"
-            raise ApiError(BAD_REQUEST, msg)
         speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
         content_format: ContentFormat | None
         if "content_format" not in payload:
@@ -378,6 +370,14 @@ class Daemon:
         spoken_segments = prepare_speech_segments(text, content_format=content_format)
         if not spoken_segments:
             msg = "submit text contains no speakable content"
+            raise ApiError(BAD_REQUEST, msg)
+        source = payload.get("source")
+        voice = self._voices.resolve(
+            source=source if isinstance(source, str) else None,
+            requested=payload.get("voice") or None,
+        )
+        if voice not in self._engine.list_voices():
+            msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
         composite = spoken_segments != (text,)
         utt = self._store.submit(

@@ -482,3 +482,30 @@ async def test_release_and_a_voice_together_are_refused(voice_daemon: Daemon) ->
                 "release": True,
             }
         )
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        {"speed": -1},
+        {"content_format": "invalid"},
+        {"text": "---", "content_format": "markdown"},
+    ],
+)
+@pytest.mark.oracle("rejected submissions cannot mutate a caller's saved voice assignment")
+async def test_rejected_submission_preserves_the_callers_voice(
+    voice_daemon: Daemon, invalid: dict[str, object]
+) -> None:
+    # Retire if rejected submissions gain an explicit voice-changing contract.
+    await voice_daemon.dispatch(
+        {"op": "submit", "text": "first", "source": "agent", "voice": "af_heart"}
+    )
+    before = await voice_daemon.dispatch({"op": "voice_assignments"})
+
+    with pytest.raises(ApiError):
+        await voice_daemon.dispatch(
+            {"op": "submit", "text": "rejected", "source": "agent", "voice": "im_nicola", **invalid}
+        )
+
+    after = await voice_daemon.dispatch({"op": "voice_assignments"})
+    assert after == before

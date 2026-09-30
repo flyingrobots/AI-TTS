@@ -236,6 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Rejected speech submissions preserve the caller’s existing voice assignment.
+
 - Newly failed speech now shows a local toast with View History and dismiss actions, plus a persistent menu error and tray indicator. Startup and polling do not repeat old failure alerts.
 
 - Concurrent document segments no longer overwrite shared phonemizer state and fail with an input/output line-count mismatch. Neural inference remains parallel.
