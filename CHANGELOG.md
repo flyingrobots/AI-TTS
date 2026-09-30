@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Engine switches use and report a compatible default voice while preserving the saved preference for compatible engines.
 - MLX startup now falls back to reference Kokoro when required English language assets are missing.
 
 ### Added

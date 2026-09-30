@@ -20,7 +20,9 @@ ai-tts settings --set engine=kokoro-mlx
 
 Then use **Restart daemon** in the menu. Alternatively, an explicitly managed
 foreground daemon accepts `ai-tts daemon --engine kokoro-mlx`. The setting takes
-effect on the next daemon start; the status response reports the backend
+effect on the next daemon start. If a saved voice is absent from the new engine,
+its catalog default is used and reported; the saved choice is retained for a
+later switch back. The status response reports the backend
 actually selected. Missing MLX or English language assets, an unsupported runtime, or unavailable Metal
 falls back to reference Kokoro with an operational log event. Upstream
 `kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.

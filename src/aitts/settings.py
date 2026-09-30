@@ -86,7 +86,7 @@ class SettingsService:
         """Every setting, as the wire reports it."""
         return {
             "engine": self._store.get_setting("engine", "kokoro"),
-            "voice": self._store.get_setting("voice", self._environment.default_voice()),
+            "voice": self.speaking_voice(),
             "speed": float(self._store.get_setting("speed", "1.0")),
             "playback_rate": self._environment.playback_rate(),
             "cache_max_bytes": self.cache_limit(),
@@ -154,8 +154,10 @@ class SettingsService:
         return self._store.get_setting("input_interrupt_resume", "when_idle")
 
     def speaking_voice(self) -> str:
-        """Return the voice to speak with when a client names none."""
-        return self._store.get_setting("voice", self._environment.default_voice())
+        """Use the saved choice only when the active engine can synthesize it."""
+        default = self._environment.default_voice()
+        saved = self._store.get_setting("voice", default)
+        return saved if saved in self._environment.available_voices() else default
 
     def speaking_speed(self) -> float:
         """Return the speed to synthesize at when a client names none."""
