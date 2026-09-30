@@ -164,3 +164,9 @@ def test_multiline_loose_emphasis_is_removed_after_front_matter() -> None:
     assert prepare_speech_segments(
         "---\ntitle: ignored\n---\n** first\nsecond **", content_format=ContentFormat.MARKDOWN
     ) == ("first\nsecond",)
+
+
+@pytest.mark.parametrize("text", ["** spaced **.", "** spaced ** ."])
+@pytest.mark.oracle("loose prose emphasis accepts adjacent punctuation without introducing a gap")
+def test_loose_emphasis_ends_at_punctuation(text: str) -> None:
+    assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == ("spaced.",)
