@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The menu resize grip supports keyboard arrows and accessibility increment/decrement, and exposes its current height and bounds.
+
 - History removal prunes cached provenance, and late requests cannot restore details for removed clips.
 
 - History exposes a clearly labeled Show/Hide provenance button with a full clickable target and selectable clip details.

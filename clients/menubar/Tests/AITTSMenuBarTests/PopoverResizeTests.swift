@@ -71,6 +71,35 @@ final class PopoverResizeTests: XCTestCase {
         grip.mouseDragged(with: try event(.leftMouseDragged, 110)) // screen y=330
         XCTAssertEqual(heights, [580, 600, 480])
     }
+    // Test-Oracle: keyboard and accessibility users can adjust the same height value as dragging.
+    @MainActor
+    func testGripSupportsKeyboardAndAccessibilityAdjustment() throws {
+        _ = NSApplication.shared
+        let grip = PopoverResizeGrip(frame: NSRect(x: 0, y: 0, width: 368, height: 16))
+        var requests: [CGFloat] = []
+        grip.onResize = { requests.append($0) }
+        grip.height = 500
+        XCTAssertTrue(grip.isAccessibilityElement())
+        XCTAssertEqual(grip.accessibilityRole(), .slider)
+        XCTAssertEqual(grip.accessibilityValue() as? CGFloat, 500)
+        XCTAssertEqual(grip.accessibilityMinValue() as? CGFloat, 360)
+        XCTAssertEqual(grip.accessibilityMaxValue() as? CGFloat, 1200)
+        grip.maximumHeight = 300
+        XCTAssertEqual(grip.accessibilityMinValue() as? CGFloat, 300)
+        XCTAssertEqual(grip.accessibilityMaxValue() as? CGFloat, 300)
+        grip.maximumHeight = 1200
+        XCTAssertTrue(grip.acceptsFirstResponder)
+        XCTAssertTrue(grip.accessibilityPerformIncrement())
+        XCTAssertTrue(grip.accessibilityPerformDecrement())
+        for key: UInt16 in [126, 125] {
+            let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+                modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: key))
+            grip.keyDown(with: event)
+        }
+        XCTAssertEqual(requests, [520, 480, 520, 480])
+    }
+
     // Test-Oracle: the production grip drives the actual popover size and durable preference.
     @MainActor
     func testProductionGripChangesPopoverSizeAndSavedPreference() throws {

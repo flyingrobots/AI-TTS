@@ -44,7 +44,7 @@ struct PopoverView: View {
             } else {
                 UnreachableView()
             }
-            PopoverResizeHandle(height: sizing.height) { sizing.resize(to: $0) }
+            PopoverResizeHandle(height: sizing.height, maximumHeight: sizing.maximumHeight) { sizing.resize(to: $0) }
                 .frame(height: 16)
         }
         .frame(width: 368, height: sizing.height)
