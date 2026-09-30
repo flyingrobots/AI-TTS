@@ -44,10 +44,12 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private var trayState: TrayState = .error
 
     init(state: AppState, defaults: UserDefaults = .standard,
-         popover: NSPopover? = nil, statusItem: NSStatusItem? = nil) {
+         popover: NSPopover? = nil, statusItem: NSStatusItem? = nil,
+         applicationNotifications: NotificationCenter? = nil) {
         self.popover = popover ?? NSPopover()
         self.sizing = PopoverSizing(defaults: defaults)
-        self.composerWindow = SpeechComposerWindowController(state: state)
+        self.composerWindow = SpeechComposerWindowController(
+            state: state, applicationNotifications: applicationNotifications)
         self.state = state
         self.captionPanel = CaptionPanelController(state: state)
         self.fullTextWindow = FullTextWindowController(state: state)

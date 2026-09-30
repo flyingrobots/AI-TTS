@@ -493,7 +493,7 @@ final class AppState: ObservableObject {
 
     func capturePriorApplication(processIdentifier: Int32?) {
         priorApplicationProcessIdentifier = processIdentifier
-        if let processIdentifier { composer.priorApplication = processIdentifier }
+        composer.priorApplication = processIdentifier
     }
 
     func enqueueCurrentSelection() {

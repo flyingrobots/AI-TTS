@@ -96,7 +96,28 @@ final class SpeechComposer: ObservableObject {
 final class SpeechComposerWindowController: NSObject, NSWindowDelegate {
     private let state: AppState
     private var window: NSWindow?
-    init(state: AppState) { self.state = state; super.init() }
+    private let applicationNotifications: NotificationCenter
+    private var activationObserver: NSObjectProtocol?
+
+    init(state: AppState, applicationNotifications: NotificationCenter? = nil,
+         ownProcessIdentifier: Int32 = ProcessInfo.processInfo.processIdentifier) {
+        self.state = state
+        self.applicationNotifications = applicationNotifications ?? NSWorkspace.shared.notificationCenter
+        super.init()
+        activationObserver = self.applicationNotifications.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak state] notification in
+            let process = (notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                           as? NSRunningApplication)?.processIdentifier
+            guard process != ownProcessIdentifier else { return }
+            // The notification center delivers this observer on OperationQueue.main.
+            MainActor.assumeIsolated { state?.composer.priorApplication = process }
+        }
+    }
+
+    deinit {
+        if let activationObserver { applicationNotifications.removeObserver(activationObserver) }
+    }
 
     func update() {
         guard state.showingComposer else { window?.orderOut(nil); return }
