@@ -222,6 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- App bundle construction discovers Xcode’s actual Swift module directory, and installation includes the English spaCy model in the daemon environment.
+
 - The sink's failure path is now tested rather than marked unreachable. A
   device that cannot be opened, a device that fails part-way through a clip,
   and cached audio evicted before the sink opened it all end that clip with an

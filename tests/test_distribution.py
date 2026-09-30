@@ -428,3 +428,61 @@ def test_a_release_bundle_refuses_to_ship_without_app_intents(
         )
         is None
     )
+
+
+@pytest.mark.parametrize("module_directory", [".", "Modules"])
+def test_bundle_metadata_can_import_built_application_modules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, module_directory: str
+) -> None:
+    """Oracle: swiftc -I must point at the directory containing built modules."""
+    from scripts import build_app_bundle as builder  # noqa: PLC0415
+
+    products = tmp_path / "Products" / "Release"
+    modules = products / module_directory
+    modules.mkdir(parents=True)
+    (modules / "AITTSApplication.swiftmodule").mkdir()
+    (products / builder.EXECUTABLE_NAME).write_bytes(b"executable")
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.1.0"\n')
+
+    def run_tool(arguments: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        return subprocess.CompletedProcess(arguments, 0, stdout=str(products))
+
+    def extract_metadata(
+        *,
+        repository: Path,
+        binary: Path,
+        module_search_path: Path,
+        resources: Path,
+        allow_missing_catalog: bool,
+    ) -> None:
+        del repository, binary, resources, allow_missing_catalog
+        assert (module_search_path / "AITTSApplication.swiftmodule").is_dir(), (
+            f"App Intents compiler cannot import built modules from {module_search_path}"
+        )
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/tools/{name}")
+    monkeypatch.setattr(subprocess, "run", run_tool)
+    monkeypatch.setattr(builder, "generate_app_intents_metadata", extract_metadata)
+    builder.build_app_bundle(repository=tmp_path, output=tmp_path / "AI-TTS.app", sign=False)
+
+
+def test_install_includes_the_english_model_in_the_daemon_environment() -> None:
+    """Oracle: installed English speech must not need a runtime package installer."""
+    import shlex  # noqa: PLC0415
+
+    result = subprocess.run(
+        ["/usr/bin/make", "-n", "install", "UNAME_S=Darwin", "UV=/tools/uv"],
+        cwd=REPOSITORY,
+        env={"PATH": "/usr/bin:/bin", "HOME": "/nonexistent", "MAKEFLAGS": ""},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commands = [shlex.split(line) for line in result.stdout.replace("\\\n", " ").splitlines()]
+    install = next(command for command in commands if command[:3] == ["uv", "tool", "install"])
+    extras = [install[index + 1] for index, argument in enumerate(install) if argument == "--with"]
+    assert (
+        "https://github.com/explosion/spacy-models/releases/download/"
+        "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+    ) in extras

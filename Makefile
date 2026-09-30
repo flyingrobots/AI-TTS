@@ -66,7 +66,8 @@ install: export AITTS_APP := $(APP_BUNDLE)
 install: export AITTS_PLIST := $(LAUNCH_AGENT)
 install: tools
 	@printf '==> installing the ai-tts and ai-tts-mcp executables\n'
-	@uv tool install --force --python $(PYTHON_VERSION) --with "kokoro>=0.9.4" .
+	@uv tool install --force --python $(PYTHON_VERSION) --with "kokoro>=0.9.4" \
+		--with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 	@printf '==> installing %s\n' "$$AITTS_APP"
 	@uv run python scripts/build_app_bundle.py --output "$$AITTS_APP" --force
 	@printf '==> installing the launchd user agent\n'

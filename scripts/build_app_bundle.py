@@ -434,10 +434,15 @@ def build_app_bundle(
         output=output,
         version=project_version(repository),
     )
+    # SwiftPM's native builder uses Modules/; the Xcode builder places modules
+    # beside the executable. Resolve from the actual build products.
+    module_search_path = Path(bin_path) / "Modules"
+    if (Path(bin_path) / "AITTSApplication.swiftmodule").exists():
+        module_search_path = Path(bin_path)
     generate_app_intents_metadata(
         repository=repository,
         binary=bundle / "Contents" / "MacOS" / EXECUTABLE_NAME,
-        module_search_path=Path(bin_path) / "Modules",
+        module_search_path=module_search_path,
         resources=bundle / "Contents" / "Resources",
         allow_missing_catalog=allow_missing_app_intents,
     )

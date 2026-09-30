@@ -144,7 +144,8 @@ or redistributes its Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
-uv tool install --force --python 3.12 --with "kokoro>=0.9.4" .
+uv tool install --force --python 3.12 --with "kokoro>=0.9.4" \
+  --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 
 # build an ad-hoc-signed, checkout-independent menu-bar app
 python3 scripts/build_app_bundle.py \
