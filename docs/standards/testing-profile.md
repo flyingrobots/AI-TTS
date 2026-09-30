@@ -448,3 +448,16 @@ calibrated error-boundary contract, not a claim that AI-TTS exposes remote JWT
 authentication or that every runtime has the same recursion threshold.
 [Upstream advisory](https://github.com/jpadilla/pyjwt/security/advisories/GHSA-42vr-xj54-vc7v).
 Retire if the dependency leaves the graph or stronger conformance replaces it.
+
+
+## Crash recovery audit: interrupted final-child completion
+
+Change-kind: bug fix. The final strict review identified another separate
+child/parent commit boundary: the last child could be Played while its parent
+remained Playing. Old recovery paused that parent forever with no unfinished
+child for resume. Two medium post-commit crash regressions (all children played,
+or an earlier child skipped) observed Paused/unknown position instead of
+Played/20ms or Played/10ms. Recovery now settles paused composite parents when
+all children are terminal, after giving child failure propagation precedence.
+Its played position follows the same completed-child duration contract as
+normal completion. This recovers old durable prefixes without replaying audio.

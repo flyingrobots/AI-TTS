@@ -926,6 +926,14 @@ class Store:
                 if utt.state is State.QUEUED:
                     self.transition(utt.id, State.SYNTHESIZING)
                 self.transition(utt.id, State.FAILED, error=f"segment failed: {failed.error}")
+            elif (
+                utt.state is State.PAUSED
+                and segments
+                and all(child.state in TERMINAL for child in segments)
+            ):
+                self.transition(
+                    utt.id, State.PLAYED, played_ms=self.completed_segment_duration_ms(utt.id)
+                )
             elif utt.state is State.QUEUED and segments and segments[0].state is State.READY:
                 self.transition(utt.id, State.SYNTHESIZING)
                 self.transition(utt.id, State.READY)

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recovery settles documents whose final child completed before the parent completion commit, preserving played duration and releasing the queue.
+
 - Updated frozen PyJWT to 2.15.1 for the recursive payload error-handling vulnerability CVE-2026-101918.
 
 - Skipping a document now commits the parent, active child, and unfinished siblings together, preventing later chunks from returning after an interrupted Skip.

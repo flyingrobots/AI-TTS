@@ -135,3 +135,41 @@ async def test_document_skip_crash_cannot_resume_later_children(tmp_path: Path) 
         )
     finally:
         restarted.close()
+
+
+@pytest.mark.parametrize("first_state", [State.PLAYED, State.SKIPPED])
+@pytest.mark.oracle("architecture section 6: fully heard documents settle after completion crash")
+def test_final_child_completion_crash_recovers_terminal_parent(
+    tmp_path: Path, first_state: State
+) -> None:
+    connections: list[CrashAfterCommit] = []
+
+    def connect(path: str) -> sqlite3.Connection:
+        connection = sqlite3.connect(path, factory=CrashAfterCommit)
+        connections.append(connection)
+        return connection
+
+    database = tmp_path / "state.db"
+    store = Store(database, connect=connect)
+    parent = store.submit("document", voice="v", speed=1, spoken_segments=("first", "last"))
+    while work := store.claim_for_synthesis():
+        store.finish_synthesis(work, audio_path=f"{work.id}.wav", duration_ms=10)
+    store.transition(parent.id, State.PLAYING)
+    store.transition_segment(parent.id, 0, State.PLAYING)
+    store.transition_segment(parent.id, 0, first_state)
+    store.transition_segment(parent.id, 1, State.PLAYING)
+    connections[-1].crash_after = 1
+    with pytest.raises(SeededRecoveryError):
+        store.transition_segment(parent.id, 1, State.PLAYED, played_ms=10)
+    store.close()
+    restarted = Store(database)
+    try:
+        restarted.recover()
+        restored = restarted.get(parent.id)
+        assert restored is not None
+        assert (restored.state, restored.played_ms) == (
+            State.PLAYED,
+            20 if first_state is State.PLAYED else 10,
+        )
+    finally:
+        restarted.close()
