@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Forced app upgrades build, package and sign a sibling candidate before atomically swapping it into place. Build failures preserve the installed app, and unsupported filesystems fail without deleting it.
+
 - Forced launch-agent upgrades preserve the existing plist if validation or serialization fails, and publish only a complete replacement. Unforced installs refuse concurrent replacement.
 
 - Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.

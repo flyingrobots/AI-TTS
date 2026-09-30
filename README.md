@@ -210,6 +210,12 @@ launchctl bootstrap "gui/$(id -u)" \
 open "$HOME/Applications/AI-TTS.app"
 ```
 
+The app builder also stages the complete bundle, including metadata and signing,
+before publication. A forced upgrade uses macOS atomic directory exchange, so
+build failures preserve the installed app and there is no delete/rename gap.
+Filesystems without the required rename support refuse the upgrade; the builder
+does not fall back to deleting the working app.
+
 The launch-agent renderer stages and flushes a complete plist before publishing
 it. With `--force`, a validation or write failure leaves the existing plist
 intact; without `--force`, an existing or concurrently installed plist is refused.

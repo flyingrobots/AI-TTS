@@ -593,3 +593,25 @@ invalidated and writing disabled, then restored checks passed. These checks
 use the profile's small owned-temp-file exception and invoke the public CLI
 entrypoint or renderer, without launchd or installed user configuration.
 Retire only with a stronger calibrated installation failure contract.
+
+
+## Installation audit: preserve app during forced upgrade
+
+Change-kind: bug fix. The app CLI removed an existing bundle before checking
+toolchain availability or completing the build. Two small owned-filesystem
+cases injected failure before build and after partial assembly; both observed
+the incumbent missing on unfixed code. The CLI now builds, extracts metadata
+and signs a sibling candidate first, then publishes it through macOS
+renamex_np. RENAME_SWAP atomically exchanges an existing nonempty directory;
+RENAME_EXCL handles initial installation and refuses concurrent unforced
+replacement. Unsupported platforms/filesystems fail without a delete fallback.
+
+Three success cases (initial install, forced initial install, forced upgrade)
+and a concurrent-install refusal exercise real native rename operations on
+owned temporary directories. Omitting publication, denying replacement, and
+allowing an unforced swap each fail the corresponding contracts. Bytecode was
+invalidated for every seed; restored cases pass. Build work is substituted at
+the build boundary for these small publication tests; real signed-bundle
+validation is separate. These tests establish namespace publication and
+pre-publication failure preservation, not an exhaustive power-loss durability
+campaign. Retire only with a stronger calibrated installation contract.

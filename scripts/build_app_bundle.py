@@ -6,7 +6,10 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import json
+import os
 import plistlib
 import shutil
 import stat
@@ -458,6 +461,30 @@ def build_app_bundle(
     return bundle
 
 
+def publish_app_bundle(candidate: Path, output: Path, *, force: bool) -> None:
+    """Publish a complete sibling bundle without removing the installed app.
+
+    macOS renamex_np provides an atomic swap for nonempty directories, unlike
+    ordinary rename. Unsupported filesystems fail without a destructive fallback.
+    The displaced app remains at candidate for the staging owner to clean up.
+    """
+    if sys.platform != "darwin":
+        message = "atomic app-bundle publication requires macOS"
+        raise RuntimeError(message)
+    rename = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True).renamex_np
+    rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+    rename.restype = ctypes.c_int
+    # Darwin sys/stdio.h: RENAME_SWAP = 0x2, RENAME_EXCL = 0x4.
+    flags = 0x2 if force else 0x4
+    result = rename(os.fsencode(candidate), os.fsencode(output), flags)
+    error = ctypes.get_errno()
+    if result != 0 and force and error == errno.ENOENT:
+        result = rename(os.fsencode(candidate), os.fsencode(output), 0x4)
+        error = ctypes.get_errno()
+    if result != 0:
+        raise OSError(error, os.strerror(error), str(output))
+
+
 def main(argv: list[str] | None = None) -> int:
     """Build one standalone app bundle from the repository's Swift target."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -481,14 +508,19 @@ def main(argv: list[str] | None = None) -> int:
     if output.exists():
         if not args.force:
             parser.error(f"output already exists: {output}; pass --force to replace it")
-        shutil.rmtree(output)
-    build_app_bundle(
-        repository=repository,
-        output=output,
-        configuration=args.configuration,
-        sign=not args.unsigned,
-        allow_missing_app_intents=args.allow_missing_app_intents,
-    )
+        if not output.is_dir():
+            parser.error(f"output is not an app directory: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=output.parent, prefix=f".{output.name}-") as staging:
+        candidate = Path(staging) / output.name
+        build_app_bundle(
+            repository=repository,
+            output=candidate,
+            configuration=args.configuration,
+            sign=not args.unsigned,
+            allow_missing_app_intents=args.allow_missing_app_intents,
+        )
+        publish_app_bundle(candidate, output, force=args.force)
     sys.stdout.write(f"{output}\n")
     return 0
 
