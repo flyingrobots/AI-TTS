@@ -65,6 +65,11 @@ final class StatusController: NSObject, NSPopoverDelegate {
                 Task { @MainActor in self?.captionPanel.updateVisibility() }
             }
             .store(in: &cancellables)
+        state.$captionPosition
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.captionPanel.updateVisibility() }
+            }
+            .store(in: &cancellables)
         state.$captionsEnabled
             .sink { [weak self] _ in
                 Task { @MainActor in self?.captionPanel.updateVisibility() }

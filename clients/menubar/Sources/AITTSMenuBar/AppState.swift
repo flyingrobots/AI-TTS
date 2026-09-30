@@ -34,6 +34,7 @@ final class AppState: ObservableObject {
     @Published var voices: [String] = []
     @Published var speed: Double = 1.0
     @Published var playbackRate: Double = 1.0
+    @Published var captionPosition: CaptionPosition
     @Published var captionsEnabled: Bool
     @Published var cachePurgeReceipt: CachePurgeReceipt? = nil
     @Published var purgingCachedAudio = false
@@ -86,7 +87,13 @@ final class AppState: ObservableObject {
         self.currentSelectionEnqueuer = currentSelectionEnqueuer
         self.clipboardEnqueuer = clipboardEnqueuer
         self.defaults = defaults
+        self.captionPosition = CaptionPosition(rawValue: defaults.string(forKey: "captionPosition") ?? "") ?? .bottom
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
+    }
+
+    func setCaptionPosition(_ position: CaptionPosition) {
+        defaults.set(position.rawValue, forKey: "captionPosition")
+        captionPosition = position
     }
 
     // MARK: - Refresh

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Captions can be placed at the top or bottom of the screen; the preference persists and takes effect immediately.
+
 - **The listener's voice takes the floor.** Playback stops when something
   starts using the microphone and then waits, so dictating to an agent works
   as a conversation instead of a shouting match. The platform reading is

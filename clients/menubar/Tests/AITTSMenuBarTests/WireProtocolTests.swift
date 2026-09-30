@@ -126,6 +126,14 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(PlaybackRate.allCases.map(\.label), ["0.5×", "0.75×", "1×", "1.5×", "2×", "3×"])
     }
 
+    func testCaptionsUseSelectedEdgeOfVisibleScreen() {
+        let visible = NSRect(x: -1200, y: 25, width: 1200, height: 800)
+        XCTAssertEqual(CaptionPresentation.frame(in: visible, position: .top),
+                       NSRect(x: -980, y: 649, width: 760, height: 132))
+        XCTAssertEqual(CaptionPresentation.frame(in: visible, position: .bottom),
+                       NSRect(x: -980, y: 69, width: 760, height: 132))
+    }
+
     func testCaptionPresentationIsOptInAndRequiresAnActiveSegment() throws {
         let active = try XCTUnwrap(DaemonStatus(daemonJSON: [
             "playback_state": "playing",
