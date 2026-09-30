@@ -338,9 +338,9 @@ complete decision, current-state ledger, and delivery proof are in
 | 9.3 | Let the user assign the selected-text Service a keyboard shortcut through macOS | **[INFERRED]** | **SHOULD** |
 | 9.4 | Admit selected text exactly once as confidential, Normal, literal `plain_text` | **[INFERRED]** | **MUST** |
 | 9.5 | Route a selected file through the existing `DocumentEnqueueing` application port | **[INFERRED]** | **MUST** |
-| 9.6 | Offer **Read Current Selection…** through Accessibility only after explicit invocation and only when compatibility evidence justifies it | **[STATED]** | **SHOULD** |
+| 9.6 | Offer **Speak… → Import Selection** through Accessibility only after explicit invocation and only when compatibility evidence justifies it | **[STATED]** | **SHOULD** |
 | 9.7 | Never poll another application's selection in the background or synthesize Command-C | **[INFERRED]** | **MUST** |
-| 9.8 | Offer an explicit, non-mutating **Read Clipboard** fallback | **[PROPOSED]** | **COULD** |
+| 9.8 | Offer an explicit, non-mutating **Paste Clipboard** fallback | **[PROPOSED]** | **COULD** |
 | 9.9 | Expose speech and transport actions through App Intents after installed-bundle metadata is proved | **[PROPOSED]** | **COULD** |
 
 **9.1 is the primary selection contract.** macOS supplies the selected string
@@ -365,8 +365,10 @@ never sniffs syntax.
 **9.6 is deliberately second.** Accessibility can recover selections from
 some hosts that do not cooperate with Services, but it requires broad user
 trust and does not expose selected text uniformly. The menu action queries the
-previously frontmost process once, after the user asks; it never watches focus
-or selection changes. If no selection is available, it reports that boundary
+previously frontmost process once, after the user asks. Workspace activation
+notifications keep that process identity current while the composer exists;
+they never read selected text. Selection is read only on explicit import, and
+imported text remains editable until the user presses Speak. If no selection is available, it reports that boundary
 and points to the Service or explicit clipboard action.
 
 **9.7 is a privacy and state-integrity requirement.** Synthetic copy depends on

@@ -106,16 +106,3 @@ class InputInterruptDetector:
         was_cold = self._hot is False
         self._hot = True
         return was_cold
-
-
-def platform_input_activity() -> InputActivityPort:
-    """Return the best available input-activity port for this platform."""
-    import platform  # noqa: PLC0415 - resolved once, at daemon construction
-
-    if platform.system() == "Darwin":
-        from aitts.adapters.core_audio import (  # noqa: PLC0415 - macOS-only adapter
-            CoreAudioInputActivity,
-        )
-
-        return CoreAudioInputActivity()
-    return NullInputActivity()

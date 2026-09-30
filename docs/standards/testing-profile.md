@@ -193,3 +193,48 @@ real Apple Silicon offline synthesis evidence. See the
 [MLX receipt](../testing-evidence/2026-09-30-kokoro-mlx.md). Hardware performance
 numbers are observations, not CI thresholds; cold asset downloads stay outside
 hermetic tests.
+
+## September 30 post-merge boundary audit
+
+Change-kind: bug fix. Platform audio factory imports in the application layer
+violated inward dependency direction. The factories now live in
+`aitts.adapters.platform_audio`; daemon and playback composition call them.
+Their selection logic and injected-port behavior are unchanged.
+
+`tests/test_application_architecture.py` is a medium repository-boundary test
+with architecture §4 as its oracle. It harvests Python application source
+files and static imports, including nested functions, relative imports, and
+TYPE_CHECKING branches. Source and import witness counts prevent empty input
+from passing. Dynamic imports and semantic coupling remain outside this check;
+the Swift package dependency graph remains compiler-enforced, but no universal
+cross-language architecture proof is claimed.
+
+Falsification observed in the isolated `audit/post-merge-validation` worktree:
+
+- Before moving the factories, the new test failed on
+  `application/audio_device.py:92` and `application/input_activity.py:116`, naming
+  the two concrete `aitts.adapters.core_audio` dependencies.
+- After relocation, the architecture, audio-device, and input-interruption
+  suites passed all 50 tests.
+- Seeding `from ..adapters import core_audio` into the application source failed
+  with the resolved outward dependency. Seeding an `aitts.daemon` import under
+  TYPE_CHECKING also failed. Empty source discovery and an import-free parsed
+  tree each failed their corresponding witness assertion. Each seed was removed
+  immediately after its run.
+
+The gate should change with an explicitly revised application boundary; remove
+it only if another calibrated mechanism enforces the same dependency contract.
+
+Final local validation: 653 Python tests (237 small, 416 medium), Ruff, format,
+and mypy passed. The unchanged Swift source passed 127 tests with warnings as
+errors under the 60-second suite deadline. A release app bundle built with
+App Intents metadata and passed strict signature verification. The system's
+`python3` lacked `tomllib`; the supported `uv run --frozen python` build succeeded.
+
+The candidate's duplicate-instance launch exited successfully while the existing
+app retained its lock. This proves duplicate-launch refusal, not interactive UI
+acceptance. The installed executable differs from this candidate, so its live
+behavior cannot certify this tree. The installed app and daemon were not replaced
+or restarted. Real selection-permission/host, VoiceOver traversal, cross-display
+resize, and acoustic playback acceptance remain open; controlled native and daemon
+boundary suites do not substitute for those checks.

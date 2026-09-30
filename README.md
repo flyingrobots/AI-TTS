@@ -581,6 +581,34 @@ the daemon default or pins the current active backend; pinning fails visibly if
 that backend changes. Additional simultaneous model choices require the planned
 multi-engine registry. It does not install or switch models behind your back.
 
+The **Text** picker selects **Plain text** or **Markdown** for the whole draft.
+Attaching a Markdown file selects Markdown; later plain-text imports do not
+switch it back. Check this choice when mixing imports. Imports append with a
+blank line between them; the combined draft must fit within 512 KiB of UTF-8,
+including separators. The character counter is not a byte counter. An oversized
+import leaves the existing draft intact. **Clear** and successful submission
+reset text and import attribution while keeping the voice, model, and text-format
+choices for the next draft. Quitting the app loses an unsent draft.
+
+**Import Selection** targets the most recently activated other application,
+including after switching away from and back to an open composer. It reads the
+selection only when clicked. Imported-source labels record acquisition history;
+editing away imported text does not remove those labels. The report records the
+final submitted text, not a character-by-character edit history.
+
+The menu-bar popover starts at 368 × 500 points. Drag the bottom grip to change
+its height; after focusing the grip, Up/Down adjusts it by 20 points. The grip
+also exposes an accessibility slider. The app remembers the preferred height
+and fits it to the current display without replacing that preference when a
+smaller display temporarily limits the size.
+
+Queue includes speech suspended by a Preempt clip, shown as **Paused**. While
+such rows exist, drag reordering is disabled. Their individual remove buttons
+are also disabled; **Clear queue…** discards suspended and other upcoming speech
+while leaving the current clip alone. History's **Re-queue** defaults to Normal;
+its adjacent menu also offers Urgent and Preempt. Preempt can interrupt the
+current clip once its audio is ready; Urgent waits for the current clip to finish.
+
 **Purge Cached Audio…** is also available in Settings, and `ai-tts
 purge-cache` exposes the same operation to scripts. It removes reusable and
 orphaned WAV files while retaining audio still owned by current or queued
