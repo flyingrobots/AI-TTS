@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic screen fitting no longer overwrites the preferred menu height; returning to a larger display restores it.
+
+- Menu heights above 1200 points remain intact across relaunches on tall displays.
+
+- The menu resize grip supports keyboard arrows and accessibility increment/decrement, and exposes its current height and bounds.
+
 - History removal prunes cached provenance, and late requests cannot restore details for removed clips.
 
 - History exposes a clearly labeled Show/Hide provenance button with a full clickable target and selectable clip details.
@@ -16,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MLX startup now falls back to reference Kokoro when required English language assets are missing.
 
 ### Added
+
+- Drag the menu card’s bottom grip to resize its height. The height persists across launches and is bounded to the current screen.
 
 - Optional `kokoro-mlx` backend on Apple Silicon/Python 3.12, selected through a persisted engine preference or daemon flag. Preparation precedes queued synthesis; unsupported installations fall back to reference Kokoro. Clip evidence fingerprints MLX assets and runtime versions.
 

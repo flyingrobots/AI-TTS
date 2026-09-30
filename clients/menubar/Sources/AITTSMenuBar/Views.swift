@@ -20,6 +20,7 @@ enum PlaybackTab: String, CaseIterable {
 struct PopoverView: View {
     @EnvironmentObject var state: AppState
     @State private var showingSettings = false
+    @ObservedObject var sizing: PopoverSizing
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,8 +44,10 @@ struct PopoverView: View {
             } else {
                 UnreachableView()
             }
+            PopoverResizeHandle(height: sizing.height, maximumHeight: sizing.maximumHeight) { sizing.resize(to: $0) }
+                .frame(height: 16)
         }
-        .frame(width: 368, height: 500)
+        .frame(width: 368, height: sizing.height)
         .onAppear { state.startPolling(interval: 0.5) }
         .onDisappear { state.stopPolling() }
         .sheet(isPresented: $state.showingStorage) {
