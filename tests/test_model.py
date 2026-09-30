@@ -81,7 +81,7 @@ def test_sensitivity_values() -> None:
 
 
 def test_priority_values() -> None:
-    assert {p.value for p in Priority} == {"normal", "urgent"}
+    assert {p.value for p in Priority} == {"normal", "urgent", "preempt"}
 
 
 def test_content_format_values() -> None:

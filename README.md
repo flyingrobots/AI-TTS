@@ -6,6 +6,22 @@ You send it text. It queues that text, synthesizes audio in the background with 
 
 > **Status: v0.1.0 release candidate.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. No `v0.1.0` tag or release has been published yet. See [Project status](#project-status) and [Using it](#using-it).
 
+## Interrupting and resuming speech
+
+`ai-tts say "Build failed" --preempt` (or `--priority preempt`) interrupts
+current playback as soon as the alert's first audio is ready. The interrupted
+clip retains its chunk and millisecond offset. Nested alerts resume in reverse
+order after completion, failure, or Skip. `urgent` still only moves a clip to
+the front of the pending queue.
+
+MCP `enqueue_speech` and raw `submit` accept `preempt: true`. User and microphone
+holds take precedence; preemption never releases a hold. Clearing the playback
+queue also skips suspended clips without stopping the current alert. A daemon
+restart restores paused clips but requires Resume before any speech starts.
+The output stream drains a 5 ms fade to silence before a stopped device is
+reused. Synthesizing the alert and draining an audio block still take time;
+preemption is not a guarantee of zero latency.
+
 ## Why
 
 Driving a TTS engine from shell scripts breaks in ways that are hard to see, because the failures are silent. Every one of these was observed in a single evening against a bare Kokoro install:

@@ -51,6 +51,7 @@ class EnqueueSpeech(PublicSchema):
     speed: PlaybackSpeed | None = None
     sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL
     priority: Priority = Priority.NORMAL
+    preempt: bool = False
     source: NonEmptyText | None = None
 
 

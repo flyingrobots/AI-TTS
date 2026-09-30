@@ -118,6 +118,7 @@ def _register_submission_tools(server: MCPServer, speech: SpeechServicePort) -> 
         ] = None,
         sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL,
         priority: Priority = Priority.NORMAL,
+        preempt: bool = False,  # noqa: FBT001, FBT002 - public submission option
         source: Annotated[
             str | None,
             Field(description="Calling agent identity recorded with the clip."),
@@ -131,6 +132,7 @@ def _register_submission_tools(server: MCPServer, speech: SpeechServicePort) -> 
             speed=speed,
             sensitivity=sensitivity,
             priority=priority,
+            preempt=preempt,
             source=source,
         )
         return _invoke(lambda: speech.enqueue_speech(request))

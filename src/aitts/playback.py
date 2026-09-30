@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.application.audio_device import platform_audio_device
 from aitts.application.playback_schedule import PlaybackCheckpoint
-from aitts.model import State
+from aitts.model import Priority, State
 
 if TYPE_CHECKING:
     from contextlib import AbstractContextManager
@@ -329,7 +329,6 @@ class SoundDeviceSink:
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
         self._opened_on = self._device.default_output_identity()
-        underflow_reported = False
         self._stream_underflows = 0
         with (
             self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream,
@@ -346,6 +345,7 @@ class SoundDeviceSink:
                 latency_seconds=getattr(stream, "latency", None),
                 block_frames=self._BLOCK_FRAMES,
             )
+            last_sample = None
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
                     self._audio_event("output_device_changed")
@@ -376,19 +376,25 @@ class SoundDeviceSink:
                         for channel in range(audio.channels)
                     ]
                 ).astype("float32")
-                underflowed = stream.write(block)
-                if underflowed:
-                    self._stream_underflows += 1
-                if underflowed and not underflow_reported:
-                    self._audio_event("output_underflow")
-                    # One bounded diagnostic per stream, without speech or file paths.
-                    # The driver has already accepted this block: replaying it would
-                    # duplicate audio rather than repair the preceding gap.
-                    log.warning("event=audio_output_underflow")
-                    underflow_reported = True
+                last_sample = block[-1]
+                self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
+            if self._stop_flag.is_set() and last_sample is not None:
+                # End at silence without consuming source frames that must be
+                # heard after resumption. Device close drains this short tail.
+                ramp = np.linspace(1.0, 0.0, max(2, int(audio.samplerate * 0.005)))
+                self._write_output(stream, (ramp[:, None] * last_sample).astype("float32"))
         return source_frame
+
+    def _write_output(self, stream: OutputStream, block: Any) -> None:  # noqa: ANN401 - a numpy block of PCM frames
+        if stream.write(block):
+            self._stream_underflows += 1
+            if self._stream_underflows == 1:
+                self._audio_event("output_underflow")
+                # One bounded diagnostic per stream. The driver accepted the
+                # block: replaying it would duplicate audio, not repair the gap.
+                log.warning("event=audio_output_underflow")
 
     def _device_moved_from(self, opened_on: str | None) -> bool:
         """Whether the OS default output has moved away from ``opened_on``.
@@ -482,6 +488,7 @@ class PlaybackController:
             self._store.set_setting("playback_held", "true")
         self._current_id: str | None = None
         self._current_segment_index: int | None = None
+        self._preempted_stack: list[tuple[str, int | None]] = []
         self._sink_active = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
@@ -506,6 +513,19 @@ class PlaybackController:
                 segment = self._store.next_unfinished_segment(paused.id)
                 if segment is not None and segment.state is State.PAUSED:
                     self._current_segment_index = segment.index
+            # Every accepted takeover ranks ahead of its interrupted clip.
+            # Rebuild that durable nesting, independent of wall-clock changes.
+            for saved in sorted(
+                self._store.playback_queue(), key=lambda item: item.order_key, reverse=True
+            ):
+                if saved.state is State.PAUSED and saved.id != self._current_id:
+                    segment = self._store.next_unfinished_segment(saved.id)
+                    index = (
+                        segment.index
+                        if segment is not None and segment.state is State.PAUSED
+                        else None
+                    )
+                    self._preempted_stack.append((saved.id, index))
 
     @property
     def current_id(self) -> str | None:
@@ -563,6 +583,8 @@ class PlaybackController:
         """Start the next in-order utterance whenever the device is free."""
         while True:
             await self._schedule.checkpoint(PlaybackCheckpoint.BEFORE_PLAN)
+            async with self._transport_lock:
+                await self._plan_preemption()
             if self._current_id is None and not self.held:
                 nxt = self._store.next_pending()
                 if nxt is not None and nxt.state is State.READY:
@@ -605,6 +627,92 @@ class PlaybackController:
             # fixed short wait meant a store query ten times a second for as
             # long as the daemon sat in the menu bar.
             self._idle_wait = min(self._idle_wait * 2, _PLAN_WAIT_MAX_SECONDS)
+
+    async def _plan_preemption(self) -> None:
+        """Transfer the device only once the interrupting clip can speak."""
+        if bool(self.held):
+            return
+        current = self._current()
+        candidate = next(
+            (
+                item
+                for item in self._store.playback_queue()
+                if item.priority is Priority.PREEMPT
+                and item.state is State.READY
+                and (current is None or current.is_terminal or item.order_key < current.order_key)
+            ),
+            None,
+        )
+        if candidate is not None:
+            await self._suspend_current()
+            if self.held:
+                return
+            refreshed = self._store.get(candidate.id)
+            if refreshed is not None and refreshed.state is State.READY:
+                self._start_saved(refreshed)
+        if self._current_id is None:
+            self._restore_preempted()
+
+    def _restore_preempted(self) -> None:
+        while self._preempted_stack:
+            utt_id, index = self._preempted_stack.pop()
+            saved = self._store.get(utt_id)
+            if saved is not None and saved.state is State.PAUSED:
+                self._start_saved(saved, index)
+                self._record_control("resumed", "preemption_complete")
+                break
+
+    async def _suspend_current(self) -> None:
+        current = self._current()
+        if current is not None and not current.is_terminal:
+            self._record_control("preempted", "priority_preempt")
+            index = self._current_segment_index
+            had_sink = self._sink_active
+            position = self.current_position_ms() or 0
+            if index is None and self._store.segments(current.id):
+                position = self._store.completed_segment_duration_ms(current.id)
+            await self._release_sink()
+            if had_sink:
+                position = self._sink.position_ms()
+            if self._store.suspend_playback(current.id, index, position):
+                self._preempted_stack.append((current.id, index))
+            self._current_id = None
+            self._current_segment_index = None
+        elif self._sink_active:
+            await self._release_sink()
+            self._current_id = None
+            self._current_segment_index = None
+
+    def _start_saved(self, clip: Utterance, index: int | None = None) -> None:
+        segment = (
+            self._store.get_segment(clip.id, index)
+            if index is not None
+            else self._store.next_unfinished_segment(clip.id)
+        )
+        if segment is not None and segment.state in (State.READY, State.PAUSED):
+            self._begin_segment(clip, segment, position_ms=segment.played_ms or 0)
+        elif segment is None and clip.audio_path is not None:
+            self._begin(clip.id, Path(clip.audio_path), position_ms=clip.played_ms or 0)
+        else:
+            self._current_id = clip.id
+            self._current_segment_index = None
+            if clip.state is State.PAUSED:
+                self._store.transition(clip.id, State.PLAYING)
+
+    async def clear_preempted(self) -> int:
+        """Drain suspended speech without stopping the current alert."""
+        async with self._transport_lock:
+            cleared = 0
+            while self._preempted_stack:
+                utt_id, index = self._preempted_stack.pop()
+                clip = self._store.get(utt_id)
+                if clip is not None and clip.state is State.PAUSED:
+                    segment = self._store.get_segment(utt_id, index) if index is not None else None
+                    position = (segment.played_ms or 0) if segment else 0
+                    self._store.skip_segments(utt_id, index, position)
+                    self._store.transition(utt_id, State.SKIPPED, played_ms=clip.played_ms)
+                    cleared += 1
+            return cleared
 
     def _begin(self, utt_id: str, path: Path, *, position_ms: int) -> None:
         self._store.transition(utt_id, State.PLAYING)
@@ -812,6 +920,9 @@ class PlaybackController:
             current = self._adoptable_paused()
             if current is not None:
                 self._current_id = current.id
+                self._preempted_stack = [
+                    saved for saved in self._preempted_stack if saved[0] != current.id
+                ]
         if current is not None and current.state is State.PAUSED:
             if self._sink_active:
                 self._sink.resume()
@@ -1017,7 +1128,5 @@ class PlaybackController:
         return self._store.get(self._current_id)
 
     def _adoptable_paused(self) -> Utterance | None:
-        for utt in self._store.playback_queue():
-            if utt.state is State.PAUSED:
-                return utt
-        return None
+        paused = [utt for utt in self._store.playback_queue() if utt.state is State.PAUSED]
+        return min(paused, key=lambda utt: utt.order_key, default=None)

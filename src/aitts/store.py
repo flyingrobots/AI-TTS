@@ -769,6 +769,41 @@ class Store:
             raise KeyError(utt_id)
         return after
 
+    def suspend_playback(self, utt_id: str, index: int | None, position_ms: int) -> bool:
+        """Save a stopped device's final offset, including a concurrent user hold."""
+        clip = self.get(utt_id)
+        if clip is None or clip.state not in (State.PLAYING, State.PAUSED):
+            return False
+        segment_before = self.get_segment(utt_id, index) if index is not None else None
+        total = position_ms
+        if index is not None:
+            total += self.completed_segment_duration_ms(utt_id, before=index)
+            self._db.execute(
+                "UPDATE utterance_segments SET state = ?, played_ms = ? "
+                "WHERE utterance_id = ? AND segment_index = ?",
+                (State.PAUSED.value, position_ms, utt_id, index),
+            )
+        self._db.execute(
+            "UPDATE utterances SET state = ?, played_ms = ?, state_changed_at = ? WHERE id = ?",
+            (
+                State.PAUSED.value,
+                total,
+                time.time() if clip.state is not State.PAUSED else clip.state_changed_at,
+                utt_id,
+            ),
+        )
+        self._commit_or_rollback()
+        if segment_before is not None and segment_before.state is not State.PAUSED:
+            segment_after = self.get_segment(utt_id, segment_before.index)
+            if segment_after is not None:
+                for segment_callback in self.on_segment_transition:
+                    segment_callback(segment_after, segment_before.state)
+        after = self.get(utt_id)
+        if after is not None and clip.state is not State.PAUSED:
+            for callback in self.on_transition:
+                callback(after, clip.state)
+        return True
+
     def clear_queue(self, queue: QueueName) -> int:
         """Cancel every cancellable utterance on the named queue.
 

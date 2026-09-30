@@ -44,10 +44,11 @@ class Sensitivity(enum.StrEnum):
 
 
 class Priority(enum.StrEnum):
-    """Queue placement. Urgent inserts at the head of the plan; it never interrupts."""
+    """Queue placement: urgent queues first; preempt interrupts when audio is ready."""
 
     NORMAL = "normal"
     URGENT = "urgent"
+    PREEMPT = "preempt"
 
 
 class ContentFormat(enum.StrEnum):

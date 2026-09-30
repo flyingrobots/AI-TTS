@@ -361,7 +361,7 @@ limit does not poison the connection, so a corrected next request can proceed.
 // history
 → {"op":"history", "limit":100, "before":"utt_..."}
 ← {"ok":true, "items":[{"id":"...","text":"...","final_state":"Played|Skipped|Failed|Cancelled", ...}]}
-→ {"op":"requeue", "id":"utt_...", "priority":"normal|urgent"}
+→ {"op":"requeue", "id":"utt_...", "priority":"normal|urgent|preempt"}
 → {"op":"remove_history", "id":"utt_..."}
 → {"op":"clear", "queue":"history"}
 
@@ -495,7 +495,15 @@ source-audio time. The current sink changes rate by resampling and therefore
 does not promise pitch preservation; independent pitch control remains outside
 the current contract.
 
-**Barge-in.** A high-priority submission (`priority: "urgent"`) may pause the current utterance and play ahead of the queue. **This is off by default.** An agent that can interrupt the user mid-sentence will do so at the wrong moment. When enabled, the interrupted utterance returns to `Ready` at the head of the queue, not to `Skipped`.
+**Barge-in.** Explicit `preempt: true` or `priority: "preempt"` transfers
+playback once the alert's first audio is ready. `urgent` only queues ahead.
+Interrupted speech stays `Paused` with its current chunk and source offset;
+nested interruptions form a LIFO stack. Completion, failure, and Skip restore
+the newest suspended clip. User and microphone holds prevent any automatic
+start. Queue clear discards suspended clips as `Skipped` without stopping the
+active alert. Saved paused offsets survive restart, which requires explicit
+Resume; the paused records reconstruct the remaining resumption order.
+
 
 ---
 
@@ -672,7 +680,7 @@ remains deliberately unresolved because the implemented fail-closed default is
 safe without a heuristic content sniffer.
 
 1. **Rewind granularity** — is within-utterance seeking required, or is utterance-level rewind enough for v1? Seeking needs the offset tracked and complicates resume-after-restart.
-2. **Priority levels** — is `normal`/`urgent` sufficient, or is a numeric priority wanted? Barge-in default (off) is a judgement call worth confirming.
+2. **Priority levels** — explicit `normal`, `urgent`, and `preempt` are supported; numeric urgency remains deferred.
 3. **Multiple output devices** — ~~one device is assumed.~~ **Partly resolved.** Assuming one device was wrong in a way that assuming *a* device is not: the audio library resolves its device list at initialization and answers every later query from that snapshot, so a daemon that outlives a hardware change speaks to a device the listener has already left. Playback therefore tracks the *system default*: the default output is read live from CoreAudio (never from the cached enumeration, which is the defect), the cache is rebuilt before each clip, and a mid-clip change reopens the stream on the new device at the frame already reached. Explicit output *routing* — pinning speech to a chosen device regardless of the system default — remains unimplemented and would still be a setting the playback controller owns.
 4. **History retention** — permanent by default is what was asked for. Confirm there should be no automatic expiry, only explicit deletion.
 5. **Who classifies, and can the daemon help?** §9 makes the caller responsible for `sensitivity` and fails closed. **The open question is whether the daemon should additionally *refuse* text that looks confidential but was declared `public`** — a path-shaped string, a `PRO-` identifier, an `@` address. That would catch a caller's honest mistake, but a heuristic that blocks a legitimate `public` utterance is its own failure and there is no good way to appeal it. **Deliberately unresolved: fail-closed defaults are cheap and correct; a content sniffer is neither obviously.**

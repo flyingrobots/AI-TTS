@@ -281,3 +281,17 @@ async def test_metrics_are_reachable_from_the_cli(
     assert "synthesis_wait_ms" in reported
     assert "playback_wait_ms" in reported
     assert reported["queue_depth"] == {"input": 0, "playback": 0}
+
+
+async def test_say_preempt_is_persisted_while_playback_held(
+    daemon: Daemon,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert await run_cli(daemon, "pause") == EXIT_OK
+    capsys.readouterr()
+    assert await run_cli(daemon, "say", "alert", "--preempt") == EXIT_OK
+    response = json.loads(capsys.readouterr().out)
+    clip = daemon.store.get(response["id"])
+    assert clip is not None
+    assert clip.priority.value == "preempt"
+    assert response["playback_held"] is True

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `say --preempt`, `priority: preempt`, and MCP `preempt: true` interrupt playback when alert audio is ready, then resume the interrupted chunk and offset. Nested alerts unwind in reverse order; holds remain authoritative, queue clearing drains suspended clips, and device stops fade to silence.
+
 - Manage Files lists generated storage and deletes individual or all eligible clips with their source and evidence. Opt-in 1/7/30/90-day retention defaults to Never. Clear History can also remove generated files while protecting active and queued work.
 
 - The menu shows model readiness and daemon PID/uptime, offers safe model reload and daemon restart, and provides Launch daemon, View Logs, and Quit when disconnected.
@@ -235,6 +237,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decisions, or open questions changed.
 
 ### Fixed
+
+- Refreshing a suspended playback offset preserves the parent transition timestamp and does not emit a duplicate Paused event.
+
+- Preempted document chunks emit their committed segment state-change event; paused-offset refreshes do not duplicate it.
+
+- Playback evidence includes driver underflows reported while writing the stop fade.
+
+- The native Queue shows suspended speech and keeps Clear Queue available during preemption; suspended clips cannot be reordered or individually cancelled.
+
+- Native Queue and History preserve preempt priority and offer it in the requeue menu.
+
+- Nested speech interruptions recover in their queue-defined order even when wall-clock timestamps tie or move backward.
 
 - History replay provenance identifies the replay while retaining its original caller.
 

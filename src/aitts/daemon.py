@@ -359,6 +359,11 @@ class Daemon:
             priority = Priority(payload.get("priority", "normal"))
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
+        preempt = payload.get("preempt", False)
+        if type(preempt) is not bool:
+            raise ApiError(BAD_REQUEST, "preempt must be a boolean")
+        if preempt:
+            priority = Priority.PREEMPT
         speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
         content_format: ContentFormat | None
         if "content_format" not in payload:
@@ -389,7 +394,7 @@ class Daemon:
             sensitivity=sensitivity,
             priority=priority,
             source=source if isinstance(source, str) else None,
-            at_head=priority is Priority.URGENT,
+            at_head=priority in (Priority.URGENT, Priority.PREEMPT),
             spoken_segments=spoken_segments if composite else None,
         )
         self._evidence.submitted(utt.id, text, payload)
@@ -825,7 +830,7 @@ class Daemon:
         replay = self._replay(
             target,
             priority=priority,
-            at_head=priority is Priority.URGENT,
+            at_head=priority in (Priority.URGENT, Priority.PREEMPT),
         )
         segments = self._store.segments(replay.id)
         return {
@@ -867,7 +872,8 @@ class Daemon:
     async def _op_clear(self, payload: dict[str, Any]) -> dict[str, Any]:
         queue = payload.get("queue")
         if queue == "queue":
-            cleared = self._store.clear_pending()
+            cleared = await self._require_controller().clear_preempted()
+            cleared += self._store.clear_pending()
             return {"ok": True, "cleared": cleared}
         if queue == "history":
             delete_files = payload.get("delete_files", False)
@@ -891,7 +897,8 @@ class Daemon:
         if queue not in ("input", "playback"):
             msg = "clear requires 'queue': 'queue', 'history', 'input', or 'playback'"
             raise ApiError(BAD_REQUEST, msg)
-        cleared = self._store.clear_queue(queue)
+        cleared = await self._require_controller().clear_preempted() if queue == "playback" else 0
+        cleared += self._store.clear_queue(queue)
         return {"ok": True, "cleared": cleared}
 
     async def _op_remove_history(self, payload: dict[str, Any]) -> dict[str, Any]:
