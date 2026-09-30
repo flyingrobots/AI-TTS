@@ -329,3 +329,29 @@ wall-clock timing, or live server participates in this test. The full dependency
 audit separately verifies all three advisory fixes; this regression does not
 claim to exercise the proxy-TLS or Deflate-loop defects. Retire it only when the
 dependency leaves the frozen graph or calibrated conformance supersedes it.
+
+
+## Replay ownership audit: generation identity outlives cached audio
+
+Change-kind: bug fix. Cache eviction cleared a replay's only link to its
+original generation artifact. Provenance and report export then looked under
+the new hearing's identity and silently lost access to retained evidence.
+Utterances and segments now persist generation_artifact_id independently of
+audio_path. Store open adds and backfills these nullable columns from existing
+audio paths; previously erased links are not guessed from replay ancestry,
+since a replay may have regenerated its audio.
+
+The medium `test_replay_ownership.py` enters through daemon dispatch and seeds
+completed synthesis through Store's contract, with no running daemon workers.
+Owned temporary files contain distinct generation metadata. Single-clip and
+two-segment replay provenance both failed on unfixed main after purge. The
+fixed checks also export the retained metadata, reopen the database after
+purge, and exercise upgrade from the old table shape before purge.
+
+Calibration: removing the provenance identity mapping fails the exact metadata
+projection; removing export's mapping fails to find the expected generation
+entry in the ZIP; disabling migration backfill fails both legacy-shape cases
+while fresh-schema cases pass. Seeds were removed and all four cases pass.
+Retire only when a replacement calibrated evidence-retention contract subsumes
+these cases. Explicit generated-file deletion remains allowed to remove
+sidecars; retaining history does not promise indefinite evidence retention.
