@@ -57,3 +57,31 @@ def test_suspending_playback_publishes_the_committed_segment_transition(tmp_path
     finally:
         reader.close()
         store.close()
+
+
+@pytest.mark.oracle("offset-only refresh preserves transition time and emits no state-change event")
+def test_paused_offset_refresh_does_not_repeat_the_parent_transition(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [10.0]
+    monkeypatch.setattr("aitts.store.time.time", lambda: clock[0])
+    item = store.submit("clip", voice="v", speed=1.0)
+    store.transition(item.id, State.SYNTHESIZING)
+    store.transition(item.id, State.READY, audio_path="/owned/clip.wav", duration_ms=1000)
+    store.transition(item.id, State.PLAYING)
+    events = []
+    store.on_transition.append(
+        lambda clip, previous: events.append((previous, clip.state, clip.state_changed_at))
+    )
+    clock[0] = 20.0
+    store.suspend_playback(item.id, None, 200)
+    clock[0] = 30.0
+    store.suspend_playback(item.id, None, 250)
+    saved = store.get(item.id)
+    if saved is None:
+        pytest.fail("suspension unexpectedly removed its utterance")
+    assert (events, saved.state_changed_at, saved.played_ms) == (
+        [(State.PLAYING, State.PAUSED, 20.0)],
+        20.0,
+        250,
+    )

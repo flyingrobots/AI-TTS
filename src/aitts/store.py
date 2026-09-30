@@ -785,7 +785,12 @@ class Store:
             )
         self._db.execute(
             "UPDATE utterances SET state = ?, played_ms = ?, state_changed_at = ? WHERE id = ?",
-            (State.PAUSED.value, total, time.time(), utt_id),
+            (
+                State.PAUSED.value,
+                total,
+                time.time() if clip.state is not State.PAUSED else clip.state_changed_at,
+                utt_id,
+            ),
         )
         self._commit_or_rollback()
         if segment_before is not None and segment_before.state is not State.PAUSED:
@@ -794,7 +799,7 @@ class Store:
                 for segment_callback in self.on_segment_transition:
                     segment_callback(segment_after, segment_before.state)
         after = self.get(utt_id)
-        if after is not None:
+        if after is not None and clip.state is not State.PAUSED:
             for callback in self.on_transition:
                 callback(after, clip.state)
         return True

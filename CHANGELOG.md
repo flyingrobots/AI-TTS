@@ -238,6 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refreshing a suspended playback offset preserves the parent transition timestamp and does not emit a duplicate Paused event.
+
 - Preempted document chunks emit their committed segment state-change event; paused-offset refreshes do not duplicate it.
 
 - Playback evidence includes driver underflows reported while writing the stop fade.
