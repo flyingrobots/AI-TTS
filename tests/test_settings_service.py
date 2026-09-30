@@ -330,3 +330,13 @@ def test_the_playback_rate_parser_at_its_edges(raw: object, expected: float | No
 )
 def test_the_speed_parser_at_its_edges(raw: object, expected: float | None) -> None:
     assert parse_speed(raw) == expected
+
+
+def test_engine_preference_is_persisted_for_next_start(store: Store) -> None:
+    service = SettingsService(store, FakeEnvironment())
+    service.apply({"engine": "kokoro-mlx"})
+    assert service.values()["engine"] == "kokoro-mlx"
+    assert store.get_setting("engine", "kokoro") == "kokoro-mlx"
+    with pytest.raises(ApiError, match="engine must be"):
+        service.apply({"engine": "not-an-engine"})
+    assert store.get_setting("engine", "kokoro") == "kokoro-mlx"

@@ -6,6 +6,33 @@ You send it text. It queues that text, synthesizes audio in the background with 
 
 > **Status: v0.1.0 release candidate.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. No `v0.1.0` tag or release has been published yet. See [Project status](#project-status) and [Using it](#using-it).
 
+## Optional Apple Silicon MLX backend
+
+The default backend remains `kokoro`. To install the optional native backend
+alongside its fallback from this checkout:
+
+```sh
+uv tool install --force --python 3.12 --with 'kokoro-mlx==0.1.2' \
+  --with 'kokoro>=0.9.4' \
+  --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' .
+ai-tts settings --set engine=kokoro-mlx
+```
+
+Then use **Restart daemon** in the menu. Alternatively, an explicitly managed
+foreground daemon accepts `ai-tts daemon --engine kokoro-mlx`. The setting takes
+effect on the next daemon start; the status response reports the backend
+actually selected. Missing MLX, an unsupported runtime, or unavailable Metal
+falls back to reference Kokoro with an operational log event. Upstream
+`kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.
+
+Warmup resolves model and curated voice assets from the local Hugging Face
+cache, fetching missing files once, and primes inference without playback.
+Speech stays queued until preparation ends. Synthesis uses only those local
+assets and produces 24 kHz WAVs. Evidence reports include MLX package versions
+and hashes of the actual config, weights, and selected voice. The one-machine
+[acceptance receipt](docs/testing-evidence/2026-09-30-kokoro-mlx.md) records
+measured latency and memory; neither is a universal performance guarantee.
+
 ## Interrupting and resuming speech
 
 `ai-tts say "Build failed" --preempt` (or `--priority preempt`) interrupts
