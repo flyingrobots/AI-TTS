@@ -44,12 +44,14 @@ class RecordingStream:
         self.identity = identity
         self.blocks: list[Any] = []
         self._on_write = on_write
+        self.underflowed = False
 
-    def write(self, block: Any) -> None:
+    def write(self, block: Any) -> bool:
         import numpy as np  # noqa: PLC0415 - kept off module import, as in the sink
 
         self.blocks.append(np.array(block, copy=True))
         self._on_write()
+        return self.underflowed
 
     @property
     def frames(self) -> int:
@@ -160,7 +162,7 @@ async def test_default_output_change_mid_clip_reopens_without_losing_frames(tone
     np.testing.assert_allclose(delivered, source_samples(tone), atol=1e-6)
 
 
-async def test_default_output_change_while_paused_is_adopted_before_resume(tone: Path) -> None:
+async def test_default_output_change_while_paused_is_adopted_on_resume(tone: Path) -> None:
     device = FakeAudioDevice(identity="macbook-speakers")
     streams = RecordingStreams(device)
     sink = SoundDeviceSink(device=device, open_stream=streams)
@@ -177,17 +179,11 @@ async def test_default_output_change_while_paused_is_adopted_before_resume(tone:
         await asyncio.sleep(0.005)
     device.identity = "studio-display"
 
-    # A device moved while held must be adopted without waiting for the next clip.
-    deadline = asyncio.get_running_loop().time() + 2.0
-    while len(streams.opened) < 2:
-        if asyncio.get_running_loop().time() > deadline:
-            msg = "paused sink did not adopt the new default output device"
-            raise AssertionError(msg)
-        await asyncio.sleep(0.005)
-    assert streams.opened[-1].identity == "studio-display"
-
+    # A held player owns no running stream. Resume must adopt the new device
+    # within this clip, rather than opening a starving stream while paused.
     sink.resume()
     assert await sink.wait() is True
+    assert streams.opened[-1].identity == "studio-display"
     assert streams.frames == _FRAMES
 
 
@@ -402,3 +398,70 @@ async def test_an_unreadable_audio_file_fails_the_clip_rather_than_the_daemon(
     # sink opening it. That has to end this clip, not the process.
     assert natural is False
     assert sink.error is not None
+
+
+@pytest.mark.parametrize("underflowed", [False, True])
+async def test_output_underflow_diagnostic_is_bounded_and_truthful(
+    tone: Path, caplog: pytest.LogCaptureFixture, *, underflowed: bool
+) -> None:
+    """Oracle: sounddevice.write reports inserted output; diagnostics must expose it."""
+    device = FakeAudioDevice(identity="owned-output")
+    streams = RecordingStreams(device)
+
+    def report_driver_status() -> None:
+        streams.opened[-1].underflowed = underflowed
+
+    streams.on_write = report_driver_status
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    with caplog.at_level(logging.WARNING, logger="aitts.playback"):
+        sink.start(tone)
+        await sink.wait()
+
+    events = [record.getMessage() for record in caplog.records if record.name == "aitts.playback"]
+    assert events == (["event=audio_output_underflow"] if underflowed else [])
+
+
+async def test_repeated_pauses_release_output_and_resume_without_changing_samples(
+    tone: Path,
+) -> None:
+    """Oracle: a held player must not starve a running output stream or lose its place."""
+    import numpy as np  # noqa: PLC0415
+
+    device = FakeAudioDevice(identity="owned-output")
+    streams = RecordingStreams(device)
+    loop = asyncio.get_running_loop()
+    closed: asyncio.Queue[None] = asyncio.Queue()
+
+    @contextlib.contextmanager
+    def open_stream(*, samplerate: int, channels: int) -> Any:
+        with streams(samplerate=samplerate, channels=channels) as stream:
+            try:
+                yield stream
+            finally:
+                loop.call_soon_threadsafe(closed.put_nowait, None)
+
+    sink = SoundDeviceSink(device=device, open_stream=open_stream)
+
+    def pause_first_block() -> None:
+        if len(streams.opened) <= 2 and len(streams.opened[-1].blocks) == 1:
+            sink.pause()
+
+    streams.on_write = pause_first_block
+    sink.start(tone)
+    try:
+        for _ in range(2):
+            try:
+                await asyncio.wait_for(closed.get(), timeout=1)
+            except TimeoutError:
+                pytest.fail("paused playback kept its output stream running")
+            sink.resume()
+        await sink.wait()
+    finally:
+        sink.stop()
+        sink.resume()
+        await sink.wait()
+
+    np.testing.assert_array_equal(
+        np.concatenate([block for stream in streams.opened for block in stream.blocks]),
+        source_samples(tone),
+    )

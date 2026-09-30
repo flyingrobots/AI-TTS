@@ -166,8 +166,8 @@ class FakeSink:
 class OutputStream(Protocol):
     """The one thing playback asks of an opened output stream."""
 
-    def write(self, block: Any) -> None:  # noqa: ANN401 - a numpy block of frames
-        """Write one block of frames, blocking until the device accepts it."""
+    def write(self, block: Any) -> bool:  # noqa: ANN401 - a numpy block of frames
+        """Write frames; return whether the driver inserted data after an underflow."""
         ...
 
 
@@ -280,6 +280,10 @@ class SoundDeviceSink:
                 # on stop, or when the listener moves the system default; only
                 # the last of those comes back for another pass.
                 while not self._stop_flag.is_set() and source_frame < len(audio):
+                    if self._pause_flag.is_set():
+                        # A paused blocking stream must close instead of starving the device.
+                        self._stop_flag.wait(0.05)
+                        continue
                     source_frame = self._play_on_current_device(audio, source_frame)
                 if not self._stop_flag.is_set() and source_frame >= len(audio):
                     self._natural = True
@@ -301,14 +305,14 @@ class SoundDeviceSink:
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
         self._opened_on = self._device.default_output_identity()
+        underflow_reported = False
         with self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream:
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
                     log.info("event=audio_output_device_changed")
                     return source_frame
                 if self._pause_flag.is_set():
-                    self._stop_flag.wait(0.05)
-                    continue
+                    return source_frame
                 rate = self._current_rate()
                 remaining = len(audio) - source_frame
                 output_frames = min(
@@ -332,7 +336,11 @@ class SoundDeviceSink:
                         for channel in range(audio.channels)
                     ]
                 ).astype("float32")
-                stream.write(block)
+                underflowed = stream.write(block)
+                if underflowed and not underflow_reported:
+                    # The driver accepted this block; do not replay it and duplicate audio.
+                    log.warning("event=audio_output_underflow")
+                    underflow_reported = True
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
         return source_frame

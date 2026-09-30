@@ -222,6 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pausing closes the audio output stream; resuming reopens it at the saved frame and current device. Driver underruns are recorded without replaying audio.
+
 - App bundle construction discovers Xcode’s actual Swift module directory, and installation includes the English spaCy model in the daemon environment.
 
 - The sink's failure path is now tested rather than marked unreachable. A
