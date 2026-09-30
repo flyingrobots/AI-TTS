@@ -27,8 +27,8 @@ enum PopoverOpenSequence {
 @MainActor
 final class StatusController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
-    private let popover = NSPopover()
-    private let sizing = PopoverSizing(defaults: .standard)
+    private let popover: NSPopover
+    private let sizing: PopoverSizing
     private let state: AppState
     private let captionPanel: CaptionPanelController
     private let fullTextWindow: FullTextWindowController
@@ -42,13 +42,18 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private var phase = 0
     private var trayState: TrayState = .error
 
-    init(state: AppState) {
+    init(state: AppState, defaults: UserDefaults = .standard,
+         popover: NSPopover? = nil, statusItem: NSStatusItem? = nil) {
+        self.popover = popover ?? NSPopover()
+        self.sizing = PopoverSizing(defaults: defaults)
         self.state = state
         self.captionPanel = CaptionPanelController(state: state)
         self.fullTextWindow = FullTextWindowController(state: state)
-        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        self.statusItem = statusItem ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
+        let popover = self.popover
+        let statusItem = self.statusItem
         popover.contentSize = NSSize(width: 368, height: sizing.height)
         popover.behavior = .transient
         popover.delegate = self
