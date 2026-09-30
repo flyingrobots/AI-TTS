@@ -43,6 +43,7 @@ final class AppState: ObservableObject {
     @Published var purgingCachedAudio = false
     @Published var provenanceDetails: [String: String] = [:]
     @Published var reportingID: String?
+    @Published var voiceNotice: String?
     @Published var reportMessage: String?
     @Published var reachable = false
     @Published var lastError: String?
@@ -404,7 +405,21 @@ final class AppState: ObservableObject {
         plan = plan.filter { !upcomingIDs.contains($0.id) } + ids.compactMap { byID[$0] }
         send(.reorder(ids: ids))
     }
-    func setVoice(_ voice: String) { send(.setVoice(voice)) }
+    func setVoice(_ voice: String) {
+        voiceNotice = nil
+        queue.async { [speech] in
+            do {
+                try speech.perform(.setVoice(voice))
+                Task { @MainActor [weak self] in
+                    self?.lastError = nil
+                    self?.voiceNotice = "Voice set to \(voice). New clips use this voice unless a caller or voice assignment overrides it."
+                    self?.refresh()
+                }
+            } catch {
+                Task { @MainActor [weak self] in self?.lastError = "Could not change voice." }
+            }
+        }
+    }
     func setSpeed(_ speed: Double) { send(.setSynthesisSpeed(speed)) }
     func setPlaybackRate(_ rate: Double) {
         playbackRate = rate

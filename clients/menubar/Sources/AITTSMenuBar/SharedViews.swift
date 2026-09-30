@@ -32,26 +32,43 @@ struct ModelHealthFooter: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
-        VStack(alignment: .leading) {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(state.lastError == nil ? Color.green : Color.red)
-                .frame(width: 6, height: 6)
-            if let error = state.lastError {
-                Text(error).foregroundStyle(.red)
-            } else {
-                Text("Model hot · \(state.status?.engine ?? "?") · \(state.status?.voice ?? "")")
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(state.lastError == nil ? Color.green : Color.red)
+                    .frame(width: 6, height: 6)
+                Text("Model hot · \(state.status?.engine ?? "?") ·")
                     .foregroundStyle(.secondary)
+                Menu {
+                    ForEach(state.voices, id: \.self) { voice in
+                        Button { state.setVoice(voice) } label: {
+                            if voice == state.status?.voice { Label(voice, systemImage: "checkmark") }
+                            else { Text(voice) }
+                        }
+                    }
+                } label: { Text(state.status?.voice ?? "Voice") }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(state.voices.isEmpty)
+                .accessibilityLabel("Default voice")
+                Spacer(minLength: 0)
             }
-            Spacer()
-        }
-            Button("Open Data Folder", systemImage: "folder") { state.openDataFolder() }
-                .buttonStyle(.borderless)
+            if let error = state.lastError { Text(error).foregroundStyle(.red) }
+            if let notice = state.voiceNotice {
+                HStack(alignment: .top) {
+                    Text(notice).fixedSize(horizontal: false, vertical: true)
+                    Button { state.voiceNotice = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.borderless).help("Dismiss voice confirmation")
+                }
+            }
+            HStack {
+                Button("Open Data Folder", systemImage: "folder") { state.openDataFolder() }
+            }.buttonStyle(.borderless)
         }
         .font(.caption2)
-        .lineLimit(1)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+
     }
 }
 
