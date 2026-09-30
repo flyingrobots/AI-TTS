@@ -33,9 +33,22 @@ from typing import TYPE_CHECKING, Any, Protocol
 from aitts.engine import SynthesisError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 log = logging.getLogger(__name__)
+
+# Misaki/eSpeak mutates per-call punctuation and word-count bookkeeping.
+# Share the gate across languages/engines; release it before neural inference.
+_PHONEMIZER_GATE = threading.Lock()
+
+
+def _serialized_phonemizer(phonemizer: Callable[..., Any]) -> Callable[..., Any]:
+    def phonemize(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - upstream G2P has no common typed signature
+        with _PHONEMIZER_GATE:
+            return phonemizer(*args, **kwargs)
+
+    return phonemize
+
 
 _SAMPLE_RATE = 24000
 _DEFAULT_REPO_ID = "hexgrad/Kokoro-82M"
@@ -371,6 +384,7 @@ class KokoroEngine:
                         repo_id=self._assets.repo_id,
                         model=self._shared_model(),
                     )
+                pipeline.g2p = _serialized_phonemizer(pipeline.g2p)
                 self._pipelines[lang_code] = pipeline
         return pipeline
 
