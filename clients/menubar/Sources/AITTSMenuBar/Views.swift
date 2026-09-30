@@ -19,7 +19,6 @@ enum PlaybackTab: String, CaseIterable {
 
 struct PopoverView: View {
     @EnvironmentObject var state: AppState
-    @State private var tab: PlaybackTab = .queue
     @State private var showingSettings = false
 
     var body: some View {
@@ -30,10 +29,10 @@ struct PopoverView: View {
                 EnginePreparationBanner()
                 InterruptionNotice()
                 CurrentPlaybackCard()
-                PlaybackTabBar(selected: $tab)
+                PlaybackTabBar(selected: $state.selectedTab)
                 Divider()
                 Group {
-                    switch tab {
+                    switch state.selectedTab {
                     case .queue: QueueView()
                     case .history: HistoryView()
                     }

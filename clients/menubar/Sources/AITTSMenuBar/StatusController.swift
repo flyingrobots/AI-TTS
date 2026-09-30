@@ -31,6 +31,11 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private let state: AppState
     private let captionPanel: CaptionPanelController
     private let fullTextWindow: FullTextWindowController
+    private lazy var failureToast = SpeechFailureToastController(state: state) { [weak self] in
+        guard let self else { return }
+        self.state.selectedTab = .history
+        if !self.popover.isShown { self.togglePopover(nil) }
+    }
     private var cancellables: Set<AnyCancellable> = []
     private var animationTimer: Timer?
     private var phase = 0
@@ -54,6 +59,14 @@ final class StatusController: NSObject, NSPopoverDelegate {
             button.target = self
         }
         applyState()
+        state.$failureNotice
+            .sink { [weak self] notice in
+                Task { @MainActor in
+                    self?.failureToast.update(notice)
+                    self?.applyState()
+                }
+            }
+            .store(in: &cancellables)
         state.$status
             .combineLatest(state.$reachable)
             .sink { [weak self] _, _ in
@@ -83,7 +96,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
     }
 
     private func applyState() {
-        let newState = TrayState.from(
+        let newState: TrayState = state.failureNotice != nil ? .error : TrayState.from(
             reachable: state.reachable, daemonState: state.status?.playbackState)
         guard newState != trayState else { return }
         trayState = newState

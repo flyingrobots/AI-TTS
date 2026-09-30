@@ -55,6 +55,9 @@ final class AppState: ObservableObject {
     @Published var launchingDaemon = false
     @Published var daemonRecoveryError: String?
     @Published var lastError: String?
+    @Published var failureNotice: SpeechFailureNotice?
+    @Published var selectedTab: PlaybackTab = .queue
+    private var knownFailedIDs: Set<String>?
     @Published var voiceAssignments: [VoiceAssignment] = []
     @Published var inputInterruptEnabled = true
     @Published var inputInterruptResume: InputInterruptResume = .manual
@@ -184,7 +187,7 @@ final class AppState: ObservableObject {
             self.reportingID = item.id
             self.reportMessage = nil
             let exporter = self.evidenceExporter
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
                 do {
                     let warnings = try exporter.exportEvidence(id: item.id, destination: destination)
                     Task { @MainActor [weak self] in
@@ -284,31 +287,52 @@ final class AppState: ObservableObject {
     }
 
     func refresh() {
-        queue.async { [speech] in
+        queue.async { [self, speech] in
             let snapshot = try? speech.snapshot()
             let observedAt = Date()
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.reachable = snapshot != nil
-                self.runtime = snapshot?.runtime
-                guard let snapshot else {
-                    self.status = nil
-                    return
-                }
-                self.statusObservedAt = observedAt
-                self.observedPlaybackRate = snapshot.playbackRate
-                self.status = snapshot.status
-                self.plan = snapshot.plan
-                self.history = snapshot.history
-                self.speed = snapshot.speed
-                self.playbackRate = snapshot.playbackRate
-                self.applyCaptionSettings(snapshot)
-                self.voiceAssignments = snapshot.voiceAssignments
-                self.inputInterruptEnabled = snapshot.inputInterruptEnabled
-                self.inputInterruptResume = snapshot.inputInterruptResume
-                if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
+                self?.applySnapshot(snapshot, observedAt: observedAt)
             }
         }
+    }
+
+    /// Apply the daemon's typed snapshot at the UI boundary, independently of transport scheduling.
+    func applySnapshot(_ snapshot: Snapshot?, observedAt: Date = Date()) {
+        self.reachable = snapshot != nil
+        self.runtime = snapshot?.runtime
+        guard let snapshot else {
+            self.status = nil
+            return
+        }
+        self.statusObservedAt = observedAt
+        self.observedPlaybackRate = snapshot.playbackRate
+        self.status = snapshot.status
+        self.plan = snapshot.plan
+        self.history = snapshot.history
+        self.observeFailures(snapshot.history)
+        self.speed = snapshot.speed
+        self.playbackRate = snapshot.playbackRate
+        self.applyCaptionSettings(snapshot)
+        self.voiceAssignments = snapshot.voiceAssignments
+        self.inputInterruptEnabled = snapshot.inputInterruptEnabled
+        self.inputInterruptResume = snapshot.inputInterruptResume
+        if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
+    }
+
+    private func observeFailures(_ history: [Utterance]) {
+        let failed = history.filter { $0.state == "Failed" }
+        let previous = knownFailedIDs
+        knownFailedIDs = Set(failed.map(\.id))
+        // First connection establishes a baseline; old History must not toast again.
+        guard let previous, let item = failed.first(where: { !previous.contains($0.id) }) else { return }
+        let notice = SpeechFailureNotice(id: item.id, detail: item.error ?? "The clip could not be generated or played.")
+        lastError = "Speech failed: \(notice.detail)"
+        failureNotice = notice
+    }
+
+    func dismissError() {
+        failureNotice = nil
+        lastError = nil
     }
 
     private func applyCaptionSettings(_ snapshot: Snapshot) {
@@ -356,7 +380,7 @@ final class AppState: ObservableObject {
     // MARK: - Actions (fire, then refresh)
 
     private func send(_ command: SpeechCommand) {
-        queue.async { [speech] in
+        queue.async { [self, speech] in
             var failure: String?
             do {
                 try speech.perform(command)
@@ -417,7 +441,7 @@ final class AppState: ObservableObject {
     func purgeCachedAudio() {
         purgingCachedAudio = true
         cachePurgeReceipt = nil
-        queue.async { [speech] in
+        queue.async { [self, speech] in
             var receipt: CachePurgeReceipt?
             var failure: String?
             do {
@@ -440,7 +464,7 @@ final class AppState: ObservableObject {
     }
 
     func enqueueFile(_ url: URL) {
-        queue.async { [documentEnqueuer] in
+        queue.async { [self, documentEnqueuer] in
             var failure: String?
             do {
                 try documentEnqueuer.enqueueDocument(at: url)
@@ -462,7 +486,7 @@ final class AppState: ObservableObject {
 
     func enqueueCurrentSelection() {
         let processIdentifier = priorApplicationProcessIdentifier
-        queue.async { [currentSelectionEnqueuer] in
+        queue.async { [self, currentSelectionEnqueuer] in
             var failure: String?
             do {
                 try currentSelectionEnqueuer.enqueueCurrentSelection(
@@ -480,7 +504,7 @@ final class AppState: ObservableObject {
     }
 
     func enqueueClipboard() {
-        queue.async { [clipboardEnqueuer] in
+        queue.async { [self, clipboardEnqueuer] in
             var failure: String?
             do {
                 try clipboardEnqueuer.enqueueClipboard()
@@ -518,7 +542,7 @@ final class AppState: ObservableObject {
     }
     func setVoice(_ voice: String) {
         voiceNotice = nil
-        queue.async { [speech] in
+        queue.async { [self, speech] in
             do {
                 try speech.perform(.setVoice(voice))
                 Task { @MainActor [weak self] in
@@ -558,7 +582,7 @@ final class AppState: ObservableObject {
             priority: .urgent,
             source: "menubar-preview"
         )
-        queue.async { [speech] in
+        queue.async { [self, speech] in
             var failure: String?
             do {
                 try speech.submit(submission)

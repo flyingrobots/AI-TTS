@@ -54,7 +54,14 @@ struct ModelHealthFooter: View {
                 .accessibilityLabel("Default voice")
                 Spacer(minLength: 0)
             }
-            if let error = state.lastError { Text(error).foregroundStyle(.red) }
+            if let error = state.lastError {
+                HStack(alignment: .top) {
+                    Text(error).foregroundStyle(.red).lineLimit(3)
+                    Spacer(minLength: 0)
+                    Button { state.dismissError() } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.borderless).help("Dismiss error")
+                }
+            }
             if let notice = state.voiceNotice {
                 HStack(alignment: .top) {
                     Text(notice).fixedSize(horizontal: false, vertical: true)

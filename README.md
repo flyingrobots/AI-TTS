@@ -573,7 +573,10 @@ model/voice fingerprints, BLAKE3 source/audio identities, and per-file synthesis
 and playback logs. Playback sessions record pauses and resumes with their
 causes, stream reopenings, device changes, and output underruns. Reports are not
 uploaded. Older clips explicitly report evidence that was never captured.
-Expand **Provenance** to inspect these details without exporting.
+Expand **Provenance** to inspect these details without exporting. New speech
+failures show a local toast with **View History**, plus a persistent menu error
+and tray indicator. The toast does not request notification permission or take
+keyboard focus; historical failures are not announced again on app startup.
 
 New artifacts live together under `~/Library/Application Support/ai-tts/cache/<artifact-id>/`.
 **Open Data Folder** opens the application data directory in Finder.
