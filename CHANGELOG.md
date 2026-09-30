@@ -238,6 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The native Queue shows suspended speech and keeps Clear Queue available during preemption; suspended clips cannot be reordered or individually cancelled.
+
 - Native Queue and History preserve preempt priority and offer it in the requeue menu.
 
 - Nested speech interruptions recover in their queue-defined order even when wall-clock timestamps tie or move backward.

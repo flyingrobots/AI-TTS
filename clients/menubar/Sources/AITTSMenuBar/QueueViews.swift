@@ -60,6 +60,7 @@ struct QueueView: View {
                 List {
                     ForEach(state.upcoming) { item in
                         QueueRow(item: item)
+                            .moveDisabled(!state.canReorderQueue)
                     }
                     .onMove(perform: move)
                 }
@@ -114,10 +115,12 @@ struct QueueRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            Image(systemName: "line.3.horizontal")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .help("Drag to reorder")
+            if state.canReorderQueue {
+                Image(systemName: "line.3.horizontal")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .help("Drag to reorder")
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.text)
                     .font(.system(size: 12))
@@ -139,7 +142,8 @@ struct QueueRow: View {
                 Image(systemName: "xmark.circle")
             }
             .buttonStyle(.borderless)
-            .help("Remove from queue")
+            .disabled(item.state == "Paused")
+            .help(item.state == "Paused" ? "Clear Queue to discard suspended speech" : "Remove from queue")
         }
         .padding(.vertical, 2)
     }
