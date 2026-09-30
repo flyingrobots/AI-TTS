@@ -531,3 +531,24 @@ the second assertion with 800ms instead of zero; restoration passes both cases.
 The schedule uses events and plan-cycle checkpoints, not sleeps. Oracle:
 architecture section 7's global hold and Restart contracts. Retire only with
 a stronger calibrated hold-across-device-release contract.
+
+
+## Playback handoff audit: shutdown device retirement
+
+Change-kind: bug fix. Daemon shutdown cancelled the plan loop but left the
+audio sink and its independent completion watcher alive, then closed SQLite
+and released state ownership. Two medium daemon-boundary regressions observed
+shutdown returning without requesting device stop on unfixed code. The fixed
+daemon retires admitted requests and worker loops, then asks the controller
+to retire its watcher and release the device before closing state.
+
+An event-gated owned sink proves stop remains pending until release, then
+reports no outstanding wait calls. Parent and child offsets are read from a
+reopened database; the fake advances during teardown to distinguish the final
+750ms position from the earlier 700ms observation. Separate seeds retaining
+700ms and omitting child suspension fail the corresponding durable assertions.
+A no-resume restored-clip control preserves 400ms; removing the active-device
+guard fails that check with zero. All seeds are restored. Repeated stop is
+harmless, and existing process-level bounded shutdown checks remain green.
+Oracle: exclusive playback ownership and durable paused position on shutdown.
+Retire only with a stronger calibrated daemon/device handoff contract.

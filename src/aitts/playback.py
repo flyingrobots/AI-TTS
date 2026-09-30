@@ -812,6 +812,22 @@ class PlaybackController:
             played_ms=played_ms,
         )
 
+    async def stop(self) -> None:
+        """Retire playback before the owner closes durable state.
+
+        The caller first retires the plan loop and transport requests. Device
+        release can advance the playhead, so save its final position afterward.
+        """
+        had_active_sink = self._sink_active
+        await self._release_sink()
+        current = self._current()
+        if current is not None and had_active_sink:
+            self._store.suspend_playback(
+                current.id, self._current_segment_index, self._sink.position_ms()
+            )
+        self._current_id = None
+        self._current_segment_index = None
+
     async def _release_sink(self) -> None:
         """Stop playback and wait until the device can be acquired again."""
         watcher = self._watcher

@@ -268,7 +268,9 @@ graph TB
 - **Synthesis worker pool** — N parallel workers. N is a setting, not a constant.
 - **Engine adapter** — see §8. The engine is a detail, not the architecture.
 - **Process-termination adapter** — SIGTERM first closes the socket, cancels
-  workers, and commits/closes SQLite. It then exits at the OS boundary without
+  workers, releases the audio device and its completion watcher, and saves the
+  final active parent/child position as Paused before closing SQLite and
+  releasing daemon ownership. It then exits at the OS boundary without
   waiting for cancelled `to_thread` work: Python cannot interrupt a native
   model call, and loop teardown would otherwise join that thread indefinitely.
   An unpublished `.part` candidate is cache-invisible and swept on the next
