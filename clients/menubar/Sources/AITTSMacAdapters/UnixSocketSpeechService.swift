@@ -13,7 +13,7 @@ protocol DaemonTransport: Sendable {
 extension DaemonClient: DaemonTransport {}
 
 /// Outbound adapter from typed application requests to the daemon's NDJSON protocol.
-public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
+public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, GeneratedStorageManaging, Sendable {
     private let transport: any DaemonTransport
 
     public init() {
@@ -50,9 +50,9 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
         let payload: [String: Any]
         switch command {
         case .pause:
-            payload = ["op": "pause"]
+            payload = ["op": "pause", "origin": "menubar"]
         case .resume:
-            payload = ["op": "resume"]
+            payload = ["op": "resume", "origin": "menubar"]
         case .skip:
             payload = ["op": "skip"]
         case .rewind(let id):
@@ -99,6 +99,70 @@ public struct UnixSocketSpeechService: SpeechServicePort, Sendable {
             payload = ["op": "assign_voice", "source": source, "release": true]
         }
         _ = try request(payload)
+    }
+
+    public static var dataDirectory: URL {
+        URL(fileURLWithPath: WireProtocol.defaultSocketPath()).deletingLastPathComponent()
+    }
+
+    public func provenance(id: String) throws -> String {
+        let response = try request(["op": "provenance", "id": id])
+        guard let details = response["provenance"] as? [String: Any] else {
+            throw SpeechServiceError.invalidResponse
+        }
+        func pretty(_ value: Any) -> String {
+            guard JSONSerialization.isValidJSONObject(value),
+                let data = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]),
+                let text = String(data: data, encoding: .utf8) else { return "Not captured" }
+            return text
+        }
+        var lines = ["From: \(details["origin"] as? String ?? "Unknown")",
+                     "Caller: \(details["caller_source"] as? String ?? "—")",
+                     "Resolved voice: \(details["resolved_voice"] as? String ?? "—")",
+                     "Resolved speed: \(details["resolved_speed"] ?? "—")",
+                     "Source BLAKE3 (UTF-8):", details["source_blake3"] as? String ?? "Not captured",
+                     "", "Request arguments:", pretty(details["arguments"] ?? NSNull())]
+        if let clips = details["clips"] as? [[String: Any]] {
+            for (index, clip) in clips.enumerated() {
+                let audio = clip["audio"] as? [String: Any]
+                lines += ["", "Audio \(index + 1) BLAKE3:", audio?["blake3"] as? String ?? "Not captured",
+                          "Generation and audio details:", pretty(clip)]
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    public func storage(retentionDays: Int? = nil, deleting: [String]? = nil) throws -> GeneratedStorageSnapshot {
+        var payload: [String: Any] = ["op": "storage"]
+        if let retentionDays { payload["retention_days"] = retentionDays }
+        if let deleting { payload["delete"] = deleting }
+        let response = try request(payload)
+        guard let rows = response["entries"] as? [[String: Any]],
+              let total = response["total_bytes"] as? Int64,
+              let days = response["retention_days"] as? Int else { throw SpeechServiceError.invalidResponse }
+        let entries = try rows.map { row -> GeneratedFile in
+            guard let id = row["id"] as? String, let preview = row["preview"] as? String,
+                  let bytes = row["bytes"] as? Int64, let modified = row["modified_at"] as? Double,
+                  let protected = row["protected"] as? Bool else { throw SpeechServiceError.invalidResponse }
+            return GeneratedFile(id: id, preview: preview, bytes: bytes, modifiedAt: modified, protected: protected)
+        }
+        let receipt = response["receipt"] as? [String: Int]
+        let message = receipt.map { "Deleted \($0["removed"] ?? 0); protected \($0["protected"] ?? 0); failed \($0["failed"] ?? 0)." }
+        return GeneratedStorageSnapshot(entries: entries, totalBytes: total, retentionDays: days, message: message)
+    }
+
+    public func clearHistoryAndFiles() throws {
+        _ = try request(["op": "clear", "queue": "history", "delete_files": true])
+    }
+
+    public func restartModel() throws { _ = try request(["op": "restart_model"]) }
+
+    public func exportEvidence(id: String, destination: URL) throws -> [String] {
+        let response = try request(["op": "export_evidence", "id": id, "destination": destination.path])
+        guard let warnings = response["warnings"] as? [String], response["path"] as? String == destination.path else {
+            throw SpeechServiceError.invalidResponse
+        }
+        return warnings
     }
 
     public func purgeCachedAudio() throws -> CachePurgeReceipt {
@@ -293,7 +357,12 @@ extension Snapshot {
             inputInterruptResume: InputInterruptResume(
                 rawValue: (json["settings"] as? [String: Any])?["input_interrupt_resume"]
                     as? String ?? ""
-            ) ?? .manual
+            ) ?? .manual,
+            runtime: (json["runtime"] as? [String: Any]).flatMap { row in
+                guard let pid = row["pid"] as? Int, let uptime = row["uptime_seconds"] as? Double,
+                      let model = row["model_state"] as? String, let jobs = row["active_synthesis"] as? Int else { return nil }
+                return DaemonRuntime(pid: pid, uptimeSeconds: uptime, modelState: model, activeSynthesis: jobs)
+            }
         )
     }
 

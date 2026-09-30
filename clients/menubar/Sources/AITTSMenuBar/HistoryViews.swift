@@ -48,6 +48,8 @@ struct HistoryView: View {
             HStack(spacing: 8) {
                 TextField("Search history", text: $query)
                     .textFieldStyle(.roundedBorder)
+                Button("Manage Files…") { state.showingStorage = true }
+                    .buttonStyle(.borderless)
                 Button("Clear history…") { confirmingClear = true }
                     .buttonStyle(.borderless)
                     .disabled(state.history.isEmpty)
@@ -55,6 +57,9 @@ struct HistoryView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
 
+            if let message = state.reportMessage {
+                Text(message).font(.caption).padding(.horizontal, 10)
+            }
             Divider()
 
             if filtered.isEmpty {
@@ -85,10 +90,11 @@ struct HistoryView: View {
             isPresented: $confirmingClear,
             titleVisibility: .visible
         ) {
-            Button("Clear History", role: .destructive) { state.clearHistory() }
+            Button("Clear History Only", role: .destructive) { state.clearHistory() }
+            Button("Clear History and Generated Files", role: .destructive) { state.clearHistoryAndFiles() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("History records will be removed. Cached audio remains managed separately.")
+            Text("Choose whether to keep generated audio and evidence files. Files needed by current or queued playback are protected.")
         }
     }
 }
@@ -96,6 +102,7 @@ struct HistoryView: View {
 struct HistoryRow: View {
     @EnvironmentObject var state: AppState
     let item: Utterance
+    @State private var showingProvenance = false
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -151,9 +158,31 @@ struct HistoryRow: View {
                     PriorityBadge()
                 }
                 Spacer()
+                if state.reportingID == item.id {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Report…") { state.report(item) }
+                        .buttonStyle(.borderless)
+                        .disabled(state.reportingID != nil)
+                        .help("Save this item's audio, source, and diagnostic logs as a ZIP")
+                }
                 RequeueControl(id: item.id)
             }
             .padding(.leading, 41)
+
+            DisclosureGroup("Provenance", isExpanded: $showingProvenance) {
+                Text(state.provenanceDetails[item.id] ?? "Loading…")
+                    .font(.system(.caption2, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.leading, 41)
+            .onChange(of: showingProvenance) { _, expanded in
+                if expanded {
+                    state.provenanceDetails[item.id] = nil
+                    state.loadProvenance(item.id)
+                }
+            }
 
             if let error = item.error {
                 Text(error)

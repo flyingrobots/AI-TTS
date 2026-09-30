@@ -85,7 +85,7 @@ need red-on-parent evidence or the written irreproducible-failure carve-out.
 | Kokoro lifecycle | production engine starts and stops without wedging | engine adapter/process lifecycle | bounded non-cooperative shutdown process test; manual live acceptance | add automated real-Kokoro synthesis and teardown acceptance |
 | Distribution | installed binaries and app do not depend on a checkout | wheel/app/launch artifacts | isolated wheel install, bundle/plist contracts, signed bundle CI build | add clean external-machine install and launch lifecycle acceptance |
 | Dependency supply chain | the supported all-extras runtime graph is frozen, vulnerability-audited, inventoried, and non-vacuous | hashed `uv` export, PyPI advisory service, CycloneDX SBOM, installed metadata, and repository evidence verifier | exact tool pins; strict audit; cross-report package/version reconciliation; retained lock digest, SBOM, and licenses | hosted exact-head receipt and human distribution-license decision remain open |
-| Local diagnostics | daemon evidence remains useful without becoming unbounded or a second speech-history store | private rotating-file adapter plus shell-free launch-agent projection | exact retention defaults; legacy-mode migration; symlink refusal; record cap and exception-payload suppression; static-event safe-field audit | no user-facing diagnostics export or installed long-duration rollover receipt yet |
+| Local diagnostics | daemon evidence remains useful without becoming unbounded or a second speech-history store | private rotating-file adapter plus shell-free launch-agent projection | exact retention defaults; legacy-mode migration; symlink refusal; record cap and exception-payload suppression; static-event safe-field audit | per-clip report export now covered by the 2026-09-30 receipt; installed long-duration rollover remains open |
 
 ## Adoption ledger
 
@@ -167,3 +167,12 @@ promise:
 
 Review this profile whenever a new trust boundary or durability promise is
 introduced, and at least once before each release.
+
+## September 30 clip diagnostics and storage extension
+
+Per-artifact evidence export, active-file-protected deletion, opt-in retention,
+model reload readiness, and native maintenance controls have boundary checks and
+seeded-fault receipts in
+[`2026-09-30-clip-evidence-and-storage.md`](../testing-evidence/2026-09-30-clip-evidence-and-storage.md).
+Legacy artifacts have explicit capture gaps; real long-session audio diagnosis
+and automated native sheet interaction remain blind spots.

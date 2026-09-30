@@ -21,6 +21,7 @@ from aitts.adapters.diagnostic_logging import utterance_trace
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from aitts.adapters.clip_evidence import ClipEvidence
     from aitts.application.artifacts import AudioArtifactPort
     from aitts.engine import Engine
     from aitts.model import SynthesisWork
@@ -39,12 +40,17 @@ class SynthesisPool:
         artifacts: AudioArtifactPort,
         *,
         workers: int = 2,
+        evidence: ClipEvidence | None = None,
     ) -> None:
         """Create a pool of ``workers`` synthesis workers over ``engine``."""
+        self._evidence = evidence
         self._store = store
         self._engine = engine
         self._artifacts = artifacts
         self._workers = max(1, workers)
+        self.active_jobs = 0
+        self.enabled = asyncio.Event()
+        self.enabled.set()
         self._wake = asyncio.Event()
         # Counts how many times a worker has found no work and parked. It is
         # the only observable moment at which the pool is provably idle, which
@@ -65,6 +71,7 @@ class SynthesisPool:
 
     async def _worker(self) -> None:
         while True:
+            await self.enabled.wait()
             claimed = self._store.claim_for_synthesis()
             if claimed is None:
                 self.parks += 1
@@ -72,7 +79,11 @@ class SynthesisPool:
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._wake.wait(), timeout=0.5)
                 continue
-            await self._synthesize_one(claimed)
+            self.active_jobs += 1
+            try:
+                await self._synthesize_one(claimed)
+            finally:
+                self.active_jobs -= 1
 
     async def _synthesize_one(self, work: SynthesisWork) -> None:
         try:
@@ -82,10 +93,8 @@ class SynthesisPool:
             return
         try:
             duration_ms = await asyncio.to_thread(
-                self._engine.synthesize,
-                work.text,
-                work.voice,
-                work.speed,
+                self._render,
+                work,
                 out_path,
             )
         except Exception as exc:  # noqa: BLE001 - any engine failure is Failed, not fatal
@@ -93,7 +102,31 @@ class SynthesisPool:
             return
         self._finish(work, duration_ms=duration_ms, out_path=out_path)
 
-    def _finish(
+    def _render(self, work: SynthesisWork, out_path: Path) -> int:
+        if self._evidence is not None:
+            self._evidence.prepare(work, self._engine.name)
+        try:
+            duration = self._engine.synthesize(work.text, work.voice, work.speed, out_path)
+        except Exception as exc:
+            if self._evidence is not None:
+                self._evidence.record(work.id, "synthesis", "failed", error=str(exc))
+            raise
+        if self._evidence is not None:
+            provenance = getattr(self._engine, "evidence", None)
+            try:
+                metadata = (
+                    provenance(work.voice)
+                    if callable(provenance)
+                    else {"model_identity": "unavailable"}
+                )
+                self._evidence.generated(work.id, metadata)
+            except Exception:  # noqa: BLE001 - diagnostics cannot fail synthesis
+                self._evidence.record(work.id, "synthesis", "model_metadata_unavailable")
+            self._evidence.audio_generated(work.id, out_path)
+            self._evidence.record(work.id, "synthesis", "rendered", duration_ms=duration)
+        return duration
+
+    def _finish(  # noqa: C901 - publication and evidence stay in one lifecycle operation
         self,
         work: SynthesisWork,
         *,
@@ -132,6 +165,8 @@ class SynthesisPool:
         # turn. Cache purge also runs synchronously on that loop, so it can see
         # either an invisible candidate or a protected published artifact,
         # never an unowned final WAV between these two calls.
+        if self._evidence is not None:
+            self._evidence.record(work.id, "synthesis", "published", duration_ms=duration_ms)
         self._store.finish_synthesis(
             work,
             audio_path=str(published_path),

@@ -25,7 +25,11 @@ class FileAudioCache:
         """Inventory regular, non-symlink WAV files directly under the cache root."""
         ensure_private_directory(self._root)
         entries: list[CacheEntry] = []
-        for path in sorted(self._root.glob("*.wav")):
+        paths = list(self._root.glob("*.wav"))
+        for directory in self._root.iterdir():
+            if directory.is_dir() and not directory.is_symlink():
+                paths.extend(directory.glob("*.wav"))
+        for path in sorted(paths):
             if path.is_symlink() or not path.is_file():
                 continue
             try:
@@ -62,10 +66,10 @@ class FileAudioCache:
         return True
 
     def _member(self, path: Path) -> Path | None:
-        if path.is_symlink():
+        if path.is_symlink() or path.parent.is_symlink():
             return None
         root = self._root.resolve()
         candidate = path.resolve()
-        if candidate.parent != root or candidate.suffix != ".wav":
+        if (root not in {candidate.parent, candidate.parent.parent}) or candidate.suffix != ".wav":
             return None
         return candidate

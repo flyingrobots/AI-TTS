@@ -184,12 +184,12 @@ async def test_cancel_during_synthesis_discards_result(store: Store, cache_dir: 
     # Wait for the outcome rather than for the clock. A settle-time sleep makes
     # "no artifact was published" pass while the worker simply has not got
     # there yet, which is the assertion most in need of a real oracle.
-    await wait_for(lambda: list(cache_dir.iterdir()) == [])
+    await wait_for(lambda: [p for p in cache_dir.rglob("*") if p.is_file()] == [])
     got = store.get(utt.id)
     assert got is not None
     assert got.state is State.CANCELLED
     assert got.audio_path is None
-    assert list(cache_dir.iterdir()) == []
+    assert [p for p in cache_dir.rglob("*") if p.is_file()] == []
     task.cancel()
 
 

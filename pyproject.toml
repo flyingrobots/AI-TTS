@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [{ name = "James Ross" }]
 dependencies = [
+    "blake3>=1,<2",
     "markdown-it-py>=4.2,<5",
     "mcp>=2,<3",
     "numpy>=1.26",
@@ -91,7 +92,7 @@ enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 # a developer's --all-extras environment. tests/test_optional_imports.py pins
 # the list against the source rather than trusting it to stay complete.
 [[tool.mypy.overrides]]
-module = ["sounddevice", "soundfile", "kokoro", "kokoro.*", "huggingface_hub"]
+module = ["torch", "sounddevice", "soundfile", "kokoro", "kokoro.*", "huggingface_hub"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

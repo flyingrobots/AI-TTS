@@ -15,6 +15,27 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testStorageAndMaintenanceMapToDaemonRequests() throws {
+        let transport = RecordingDaemonTransport(responses: [[
+            "ok": true, "entries": [["id": "clip", "preview": "hello", "bytes": Int64(42),
+                                     "modified_at": 100.0, "protected": true]],
+            "total_bytes": Int64(42), "retention_days": 7
+        ]])
+        let service = UnixSocketSpeechService(transport: transport)
+        let storage = try service.storage(retentionDays: 7, deleting: ["old"])
+        try service.clearHistoryAndFiles()
+        try service.restartModel()
+        XCTAssertEqual(storage.totalBytes, 42)
+        XCTAssertEqual(storage.retentionDays, 7)
+        XCTAssertEqual(storage.entries.map(\.id), ["clip"])
+        XCTAssertEqual(storage.entries.map(\.protected), [true])
+        XCTAssertEqual(try transport.canonicalRequests(), try canonicalize([
+            ["op": "storage", "retention_days": 7, "delete": ["old"]],
+            ["op": "clear", "queue": "history", "delete_files": true],
+            ["op": "restart_model"]
+        ]))
+    }
+
     func testTypedSubmissionAndCommandsMapToExactDaemonRequests() throws {
         let transport = RecordingDaemonTransport()
         let service = UnixSocketSpeechService(transport: transport)
@@ -57,8 +78,8 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
                     "speed": 1.25, "sensitivity": "internal", "priority": "urgent",
                     "source": "finder-service", "content_format": "markdown",
                 ],
-                ["op": "pause"],
-                ["op": "resume"],
+                ["op": "pause", "origin": "menubar"],
+                ["op": "resume", "origin": "menubar"],
                 ["op": "skip"],
                 ["op": "rewind"],
                 ["op": "rewind", "to": "utt_previous"],

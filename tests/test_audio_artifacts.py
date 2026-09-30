@@ -129,14 +129,14 @@ async def test_inflight_candidate_is_hidden_from_cache_and_explicit_purge(
     started = await asyncio.to_thread(engine.started.wait, 1.0)
     inflight = tuple(entry.path.name for entry in cache.inventory())
     purge = CacheController(store, cache).purge()
-    candidate_during_purge = tuple(path.read_bytes() for path in cache_dir.glob("*.part"))
+    candidate_during_purge = tuple(path.read_bytes() for path in cache_dir.rglob("*.part"))
     engine.release.set()
     await wait_for(
         lambda: (current := store.get(utterance.id)) is not None and current.state is State.READY
     )
     current = store.get(utterance.id)
     published = tuple(entry.path.name for entry in cache.inventory())
-    staging = tuple(path.name for path in cache_dir.glob("*.part"))
+    staging = tuple(path.name for path in cache_dir.rglob("*.part"))
     task.cancel()
 
     assert {

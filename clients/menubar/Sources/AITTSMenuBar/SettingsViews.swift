@@ -94,6 +94,15 @@ struct SettingsView: View {
                         set: { state.setCaptionsEnabled($0) }
                     )
                 )
+                Picker("Caption position", selection: Binding(
+                    get: { state.captionPosition },
+                    set: { state.setCaptionPosition($0) }
+                )) {
+                    ForEach(CaptionPosition.allCases, id: \.self) { position in
+                        Text(position.rawValue).tag(position)
+                    }
+                }
+                .pickerStyle(.segmented)
                 Text("Shows the exact segment currently being spoken without taking focus.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

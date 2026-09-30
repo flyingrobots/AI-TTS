@@ -1095,3 +1095,63 @@ async def test_a_line_just_past_the_boundary_is_refused(daemon: Daemon) -> None:
     assert response["ok"] is False
     assert response["error"]["type"] == "bad_request"
     assert "too large" in response["error"]["message"]
+
+
+async def test_clear_history_and_files_preserves_pending_artifacts(
+    daemon: Daemon, tmp_path: Path
+) -> None:
+    finished = daemon.store.submit("finished", voice="bm_daniel", speed=1.0)
+    daemon.store.transition(finished.id, State.CANCELLED)
+    active = daemon.store.submit("pending", voice="bm_daniel", speed=1.0)
+    for identity in (finished.id, active.id):
+        directory = tmp_path / "cache" / identity
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "source.txt").write_text("retained source")
+    response = await rpc(
+        daemon.socket_path, {"op": "clear", "queue": "history", "delete_files": True}
+    )
+    assert response == {"ok": True, "cleared": 1}
+    assert daemon.store.history() == []
+    assert not (tmp_path / "cache" / finished.id).exists()
+    assert (tmp_path / "cache" / active.id / "source.txt").read_text() == "retained source"
+
+
+async def test_storage_retention_is_explicit_and_validated(daemon: Daemon) -> None:
+    initial = await rpc(daemon.socket_path, {"op": "storage"})
+    changed = await rpc(daemon.socket_path, {"op": "storage", "retention_days": 7})
+    invalid = await rpc(daemon.socket_path, {"op": "storage", "retention_days": True})
+    final = await rpc(daemon.socket_path, {"op": "storage"})
+    assert [initial["retention_days"], changed["retention_days"], final["retention_days"]] == [
+        0,
+        7,
+        7,
+    ]
+    assert invalid["ok"] is False
+
+
+async def test_model_reload_reports_readiness_and_recovers_from_failure(
+    daemon: Daemon, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail_reload(_engine: FakeEngine) -> None:
+        msg = "controlled model failure"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(FakeEngine, "restart", fail_reload, raising=False)
+
+    async def model_is_ready() -> bool:
+        snapshot = await rpc(daemon.socket_path, {"op": "snapshot"})
+        return bool(snapshot["runtime"]["model_state"] == "ready")
+
+    await wait_for_async(model_is_ready)
+    failed = await rpc(daemon.socket_path, {"op": "restart_model"})
+    failed_status = await rpc(daemon.socket_path, {"op": "snapshot"})
+    monkeypatch.setattr(FakeEngine, "restart", lambda _: None)
+    recovered = await rpc(daemon.socket_path, {"op": "restart_model"})
+    ready = await rpc(daemon.socket_path, {"op": "snapshot"})
+    assert failed["ok"] is False
+    assert failed["error"]["type"] == "internal"
+    assert failed_status["runtime"]["model_state"] == "failed"
+    assert recovered == {"ok": True}
+    assert ready["runtime"]["model_state"] == "ready"
+    assert ready["runtime"]["pid"] > 0
+    assert ready["runtime"]["uptime_seconds"] >= 0

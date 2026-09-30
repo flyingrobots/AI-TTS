@@ -7,7 +7,19 @@ import AITTSApplication
 import AppKit
 import SwiftUI
 
+enum CaptionPosition: String, CaseIterable {
+    case bottom = "Bottom"
+    case top = "Top"
+}
+
 enum CaptionPresentation {
+    static func frame(in visible: NSRect, position: CaptionPosition) -> NSRect {
+        let size = NSSize(width: min(760, max(1, visible.width - 80)), height: min(132, visible.height))
+        let margin = min(44, max(0, (visible.height - size.height) / 2))
+        let y = position == .top ? visible.maxY - margin - size.height : visible.minY + margin
+        return NSRect(x: visible.midX - size.width / 2, y: y, width: size.width, height: size.height)
+    }
+
     static func shouldShow(enabled: Bool, reachable: Bool, status: DaemonStatus?) -> Bool {
         enabled && reachable && status?.current?.activeSegment != nil
     }
@@ -73,13 +85,7 @@ final class CaptionPanelController {
 
     private func positionPanel() {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
-        let visible = screen.visibleFrame
-        let size = NSSize(width: min(760, visible.width - 80), height: 132)
-        let origin = NSPoint(
-            x: visible.midX - size.width / 2,
-            y: visible.minY + 44
-        )
-        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        panel.setFrame(CaptionPresentation.frame(in: screen.visibleFrame, position: state.captionPosition), display: true)
     }
 }
 

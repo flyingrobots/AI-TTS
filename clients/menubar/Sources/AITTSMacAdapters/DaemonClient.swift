@@ -10,16 +10,27 @@ enum ClientError: Error {
 }
 
 final class DaemonClient: Sendable {
-    private let socketPath: String
+    private let openConnection: @Sendable () throws -> Int32
 
     init(socketPath: String = WireProtocol.defaultSocketPath()) {
-        self.socketPath = socketPath
+        self.openConnection = { try Self.connect(socketPath: socketPath) }
+    }
+
+    /// The caller transfers ownership of each connected descriptor to this client.
+    init(openConnection: @escaping @Sendable () throws -> Int32) {
+        self.openConnection = openConnection
     }
 
     /// Send one request and return the parsed response.
     func request(_ payload: [String: Any]) throws -> [String: Any] {
-        let fd = try connect()
+        let fd = try openConnection()
         defer { close(fd) }
+        let operation = payload["op"] as? String ?? ""
+        if ["export_evidence", "restart_model", "storage"].contains(operation)
+            || (operation == "clear" && payload["delete_files"] as? Bool == true) {
+            var timeout = timeval(tv_sec: 120, tv_usec: 0)
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        }
         let data = try WireProtocol.encode(payload)
         try writeAll(fd, data)
         let line = try readLine(fd)
@@ -30,7 +41,7 @@ final class DaemonClient: Sendable {
     /// connection drops or `shouldContinue` says stop. Call from a background
     /// thread; reconnection is the caller's job.
     func subscribe(shouldContinue: () -> Bool, onEvent: (Data) -> Void) throws {
-        let fd = try connect()
+        let fd = try openConnection()
         defer { close(fd) }
         // Events can be minutes apart; do not let the receive timeout cut us off.
         var timeout = timeval(tv_sec: 2, tv_usec: 0)
@@ -55,7 +66,7 @@ final class DaemonClient: Sendable {
         }
     }
 
-    private func connect() throws -> Int32 {
+    private static func connect(socketPath: String) throws -> Int32 {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ClientError.unreachable("cannot create socket") }
         var addr = sockaddr_un()

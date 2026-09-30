@@ -53,18 +53,21 @@ class DaemonRequestClient(Protocol):
 class UnixSocketSpeechAdapter:
     """Encode public commands to daemon NDJSON and decode typed public results."""
 
-    def __init__(self, client: DaemonRequestClient) -> None:
+    def __init__(self, client: DaemonRequestClient, *, origin: str | None = None) -> None:
         """Wrap a raw daemon request client."""
         self._client = client
+        self._origin = origin
 
     @classmethod
-    def connect(cls, socket_path: Path) -> UnixSocketSpeechAdapter:
+    def connect(cls, socket_path: Path, *, origin: str | None = None) -> UnixSocketSpeechAdapter:
         """Connect the adapter to a daemon Unix-socket path."""
-        return cls(Client(socket_path))
+        return cls(Client(socket_path), origin=origin)
 
     def enqueue_speech(self, request: EnqueueSpeech) -> EnqueueSpeechReceipt:
         """Encode one speech request and decode its admission receipt."""
         payload = {"op": "submit", **request.model_dump(mode="json", exclude_none=True)}
+        if self._origin is not None:
+            payload["origin"] = self._origin
         return self._exchange(payload, EnqueueSpeechReceipt)
 
     def speech_status(self) -> SpeechStatus:

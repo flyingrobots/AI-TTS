@@ -49,10 +49,10 @@ final class SpeechApplicationTests: XCTestCase {
         )
     }
 
-    func testSelectionEnqueuePreservesExactLiteralTextAndOwnsAdmissionPolicy() throws {
+    func testSelectionEnqueueProjectsMarkdownForSpokenAdmission() throws {
         let speech = RecordingSpeechService()
         let enqueue = EnqueueSelection(speech: speech)
-        let selectedText = "  # Release notes\n\nKeep **this** literal.\n"
+        let selectedText = "  # Release notes\n\nKeep **this** formatted.\n"
 
         try enqueue.enqueueSelection(selectedText, source: "macos-service:text")
 
@@ -61,7 +61,7 @@ final class SpeechApplicationTests: XCTestCase {
             [
                 SpeechSubmission(
                     text: selectedText,
-                    contentFormat: .plainText,
+                    contentFormat: .markdown,
                     voice: nil,
                     speed: nil,
                     sensitivity: .confidential,

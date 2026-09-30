@@ -126,6 +126,14 @@ final class WireProtocolTests: XCTestCase {
         XCTAssertEqual(PlaybackRate.allCases.map(\.label), ["0.5×", "0.75×", "1×", "1.5×", "2×", "3×"])
     }
 
+    func testCaptionsUseSelectedEdgeOfVisibleScreen() {
+        let visible = NSRect(x: -1200, y: 25, width: 1200, height: 800)
+        XCTAssertEqual(CaptionPresentation.frame(in: visible, position: .top),
+                       NSRect(x: -980, y: 649, width: 760, height: 132))
+        XCTAssertEqual(CaptionPresentation.frame(in: visible, position: .bottom),
+                       NSRect(x: -980, y: 69, width: 760, height: 132))
+    }
+
     func testCaptionPresentationIsOptInAndRequiresAnActiveSegment() throws {
         let active = try XCTUnwrap(DaemonStatus(daemonJSON: [
             "playback_state": "playing",
@@ -149,8 +157,11 @@ final class WireProtocolTests: XCTestCase {
             CaptionPresentation.shouldShow(enabled: true, reachable: true, status: idle))
     }
 
+    // Synchronous XCTest waits retain callback coverage without entering the
+    // async invocation path that crashes in swift_task_localValuePopImpl (#6).
+    // See docs/testing-evidence/2026-09-30-xctest-invocation.md.
     @MainActor
-    func testCaptionPreferenceFollowsDaemonAndPushesChangesWithoutChangingWatchdog() async throws {
+    func testCaptionPreferenceFollowsDaemonAndPushesChangesWithoutChangingWatchdog() throws {
         let suite = "ai-tts-caption-preference-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -178,13 +189,13 @@ final class WireProtocolTests: XCTestCase {
         }
 
         state.refresh()
-        await fulfillment(of: [daemonPreferenceApplied], timeout: 1)
+        wait(for: [daemonPreferenceApplied], timeout: 1)
         XCTAssertTrue(state.captionsEnabled)
         XCTAssertTrue(defaults.bool(forKey: "captionsEnabled"))
         XCTAssertEqual(state.backgroundPollingInterval, 5.0)
 
         state.setCaptionsEnabled(false)
-        await fulfillment(of: [speech.commandPerformed], timeout: 1)
+        wait(for: [speech.commandPerformed], timeout: 1)
         XCTAssertFalse(state.captionsEnabled)
         XCTAssertFalse(defaults.bool(forKey: "captionsEnabled"))
         XCTAssertEqual(speech.commands, [.setCaptionsEnabled(false)])
@@ -193,7 +204,7 @@ final class WireProtocolTests: XCTestCase {
     }
 
     @MainActor
-    func testLegacyCaptionPreferenceMigratesWhenDaemonHasNoValue() async throws {
+    func testLegacyCaptionPreferenceMigratesWhenDaemonHasNoValue() throws {
         let suite = "ai-tts-caption-migration-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -213,14 +224,14 @@ final class WireProtocolTests: XCTestCase {
         )
 
         state.refresh()
-        await fulfillment(of: [speech.commandPerformed], timeout: 1)
+        wait(for: [speech.commandPerformed], timeout: 1)
 
         XCTAssertTrue(state.captionsEnabled)
         XCTAssertEqual(speech.commands, [.setCaptionsEnabled(true)])
     }
 
     @MainActor
-    func testMenuBarCachePurgePublishesTheTypedReceipt() async throws {
+    func testMenuBarCachePurgePublishesTheTypedReceipt() throws {
         let suite = "ai-tts-cache-purge-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -242,7 +253,7 @@ final class WireProtocolTests: XCTestCase {
         }
 
         state.purgeCachedAudio()
-        await fulfillment(of: [receiptPublished], timeout: 1)
+        wait(for: [receiptPublished], timeout: 1)
 
         XCTAssertEqual(state.cachePurgeReceipt, speech.cachePurgeReceipt)
         XCTAssertFalse(state.purgingCachedAudio)
@@ -289,7 +300,7 @@ final class WireProtocolTests: XCTestCase {
     }
 
     @MainActor
-    func testMenuBarSelectionActionUsesCapturedApplication() async {
+    func testMenuBarSelectionActionUsesCapturedApplication() {
         let selection = RecordingCurrentSelectionEnqueuer()
         let clipboard = RecordingClipboardEnqueuer()
         let ports = InertApplicationPorts()
@@ -304,13 +315,13 @@ final class WireProtocolTests: XCTestCase {
         state.capturePriorApplication(processIdentifier: 4_242)
         state.enqueueCurrentSelection()
 
-        await fulfillment(of: [selection.called], timeout: 1)
+        wait(for: [selection.called], timeout: 1)
         XCTAssertEqual(selection.processIdentifier, 4_242)
         XCTAssertEqual(clipboard.callCount, 0)
     }
 
     @MainActor
-    func testMenuBarClipboardActionCallsOnlyClipboardPort() async {
+    func testMenuBarClipboardActionCallsOnlyClipboardPort() {
         let selection = RecordingCurrentSelectionEnqueuer()
         let clipboard = RecordingClipboardEnqueuer()
         let ports = InertApplicationPorts()
@@ -324,7 +335,7 @@ final class WireProtocolTests: XCTestCase {
 
         state.enqueueClipboard()
 
-        await fulfillment(of: [clipboard.called], timeout: 1)
+        wait(for: [clipboard.called], timeout: 1)
         XCTAssertEqual(clipboard.callCount, 1)
         XCTAssertNil(selection.processIdentifier)
     }

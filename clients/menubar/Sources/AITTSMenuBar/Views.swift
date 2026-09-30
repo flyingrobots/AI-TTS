@@ -19,7 +19,6 @@ enum PlaybackTab: String, CaseIterable {
 
 struct PopoverView: View {
     @EnvironmentObject var state: AppState
-    @State private var tab: PlaybackTab = .queue
     @State private var showingSettings = false
 
     var body: some View {
@@ -30,10 +29,10 @@ struct PopoverView: View {
                 EnginePreparationBanner()
                 InterruptionNotice()
                 CurrentPlaybackCard()
-                PlaybackTabBar(selected: $tab)
+                PlaybackTabBar(selected: $state.selectedTab)
                 Divider()
                 Group {
-                    switch tab {
+                    switch state.selectedTab {
                     case .queue: QueueView()
                     case .history: HistoryView()
                     }
@@ -48,6 +47,9 @@ struct PopoverView: View {
         .frame(width: 368, height: 500)
         .onAppear { state.startPolling(interval: 0.5) }
         .onDisappear { state.stopPolling() }
+        .sheet(isPresented: $state.showingStorage) {
+            GeneratedStorageSheet().environmentObject(state)
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsSheet(isPresented: $showingSettings)
                 .environmentObject(state)
@@ -250,13 +252,30 @@ struct PlaybackTabBar: View {
 }
 
 struct UnreachableView: View {
+    @EnvironmentObject var state: AppState
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.bubble").font(.largeTitle)
             Text("The daemon is not running").font(.headline)
-            Text("Start it with:  ai-tts daemon")
-                .font(.system(.caption, design: .monospaced))
+            HStack {
+                Button("Launch daemon") { state.launchDaemon() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(state.launchingDaemon)
+                Button("View Logs") { state.viewDaemonLogs() }
+                Button("Quit") { NSApp.terminate(nil) }
+            }
+            if state.launchingDaemon {
+                ProgressView("Launching daemon…").controlSize(.small)
+            }
+            if let error = state.daemonRecoveryError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
         }
+        .padding()
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

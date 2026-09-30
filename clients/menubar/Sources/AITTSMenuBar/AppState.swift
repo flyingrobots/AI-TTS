@@ -6,6 +6,9 @@
 // while the popover is open (it carries the live playback position).
 
 import AITTSApplication
+import AITTSMacAdapters
+import AppKit
+import UniformTypeIdentifiers
 import Foundation
 
 /// A lock-guarded bool shared between the main actor and the event thread.
@@ -34,11 +37,27 @@ final class AppState: ObservableObject {
     @Published var voices: [String] = []
     @Published var speed: Double = 1.0
     @Published var playbackRate: Double = 1.0
+    @Published var captionPosition: CaptionPosition
     @Published var captionsEnabled: Bool
     @Published var cachePurgeReceipt: CachePurgeReceipt? = nil
     @Published var purgingCachedAudio = false
+    @Published var provenanceDetails: [String: String] = [:]
+    @Published var voiceNotice: String?
+    @Published var reportingID: String?
+    @Published var reportMessage: String?
+    @Published var showingStorage = false
+    @Published var storageSnapshot: GeneratedStorageSnapshot?
+    @Published var storageBusy = false
+    @Published var storageMessage: String?
+    @Published var runtime: DaemonRuntime?
+    @Published var maintenanceInProgress = false
     @Published var reachable = false
+    @Published var launchingDaemon = false
+    @Published var daemonRecoveryError: String?
     @Published var lastError: String?
+    @Published var failureNotice: SpeechFailureNotice?
+    @Published var selectedTab: PlaybackTab = .queue
+    private var knownFailedIDs: Set<String>?
     @Published var voiceAssignments: [VoiceAssignment] = []
     @Published var inputInterruptEnabled = true
     @Published var inputInterruptResume: InputInterruptResume = .manual
@@ -62,6 +81,8 @@ final class AppState: ObservableObject {
     /// Whether the current clip has chunks to step between.
     var currentIsChunked: Bool { (status?.current?.segmentCount ?? 1) > 1 }
 
+    private let storageManager: any GeneratedStorageManaging
+    private let evidenceExporter: any EvidenceExporting
     private let speech: any SpeechServicePort
     private let documentEnqueuer: any DocumentEnqueueing
     private let currentSelectionEnqueuer: any CurrentSelectionEnqueueing
@@ -79,17 +100,176 @@ final class AppState: ObservableObject {
         documentEnqueuer: any DocumentEnqueueing,
         currentSelectionEnqueuer: any CurrentSelectionEnqueueing,
         clipboardEnqueuer: any ClipboardEnqueueing,
-        defaults: UserDefaults
+        defaults: UserDefaults,
+        evidenceExporter: any EvidenceExporting = UnixSocketSpeechService(),
+        storageManager: any GeneratedStorageManaging = UnixSocketSpeechService()
     ) {
+        self.storageManager = storageManager
+        self.evidenceExporter = evidenceExporter
         self.speech = speech
         self.documentEnqueuer = documentEnqueuer
         self.currentSelectionEnqueuer = currentSelectionEnqueuer
         self.clipboardEnqueuer = clipboardEnqueuer
         self.defaults = defaults
+        self.captionPosition = CaptionPosition(rawValue: defaults.string(forKey: "captionPosition") ?? "") ?? .bottom
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
     }
 
+    func manageStorage(retentionDays: Int? = nil, deleting: [String]? = nil) {
+        guard !storageBusy else { return }
+        storageBusy = true
+        storageMessage = nil
+        let manager = storageManager
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let snapshot = try manager.storage(retentionDays: retentionDays, deleting: deleting)
+                Task { @MainActor [weak self] in
+                    self?.storageSnapshot = snapshot
+                    self?.storageMessage = snapshot.message
+                    self?.storageBusy = false
+                    self?.refresh()
+                }
+            } catch {
+                Task { @MainActor [weak self] in
+                    self?.storageBusy = false
+                    self?.storageMessage = "Could not update generated files. Check the daemon and retry."
+                }
+            }
+        }
+    }
+
+    func clearHistoryAndFiles() {
+        let manager = storageManager
+        queue.async { [weak self] in
+            var failure: String?
+            do { try manager.clearHistoryAndFiles() }
+            catch let SpeechServiceError.rejected(_, message) { failure = message }
+            catch { failure = "Could not clear history and generated files." }
+            Task { @MainActor [weak self] in
+                self?.lastError = failure
+                self?.provenanceDetails = [:]
+                self?.refresh()
+            }
+        }
+    }
+
+    func loadProvenance(_ id: String) {
+        guard provenanceDetails[id] == nil else { return }
+        provenanceDetails[id] = "Loading…"
+        let exporter = evidenceExporter
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let text: String
+            do { text = try exporter.provenance(id: id) }
+            catch { text = "Provenance is unavailable. Close and reopen these details to retry." }
+            Task { @MainActor [weak self] in self?.provenanceDetails[id] = text }
+        }
+    }
+
+    func setCaptionPosition(_ position: CaptionPosition) {
+        defaults.set(position.rawValue, forKey: "captionPosition")
+        captionPosition = position
+    }
+
+    func openDataFolder() {
+        NSWorkspace.shared.open(UnixSocketSpeechService.dataDirectory)
+    }
+
+    func report(_ item: Utterance) {
+        guard reportingID == nil else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.zip]
+        panel.nameFieldStringValue = "AI-TTS-report-\(item.id)-\(Int(Date().timeIntervalSince1970)).zip"
+        panel.title = "Save audio evidence"
+        panel.message = "Includes this item's audio, source text, generation details, and playback logs. Saved locally for you to share."
+        panel.prompt = "Save Report"
+        panel.begin { [weak self] result in
+            guard result == .OK, let destination = panel.url, let self else { return }
+            self.reportingID = item.id
+            self.reportMessage = nil
+            let exporter = self.evidenceExporter
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
+                do {
+                    let warnings = try exporter.exportEvidence(id: item.id, destination: destination)
+                    Task { @MainActor [weak self] in
+                        self?.reportingID = nil
+                        self?.reportMessage = warnings.isEmpty ? "Report saved." : "Report saved. Some older evidence or cached audio was unavailable; see manifest.json."
+                        NSWorkspace.shared.activateFileViewerSelecting([destination])
+                    }
+                } catch {
+                    let message: String
+                    if case SpeechServiceError.rejected(_, let detail) = error { message = detail }
+                    else { message = "Could not save the report. Check the daemon and try again." }
+                    Task { @MainActor [weak self] in
+                        self?.reportingID = nil
+                        self?.reportMessage = message
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Refresh
+
+    func launchDaemon() {
+        guard !launchingDaemon else { return }
+        launchingDaemon = true
+        daemonRecoveryError = nil
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var failure: String?
+            do {
+                try DaemonLauncher().launch()
+            } catch {
+                failure = error.localizedDescription
+            }
+            Task { @MainActor [weak self] in
+                self?.launchingDaemon = false
+                self?.daemonRecoveryError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func reloadModel() {
+        guard !maintenanceInProgress else { return }
+        maintenanceInProgress = true
+        let exporter = evidenceExporter
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var failure: String?
+            do { try exporter.restartModel() }
+            catch let SpeechServiceError.rejected(_, message) { failure = message }
+            catch { failure = "Model reload failed." }
+            Task { @MainActor [weak self] in
+                self?.maintenanceInProgress = false
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func restartDaemon() {
+        guard !maintenanceInProgress else { return }
+        maintenanceInProgress = true
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var failure: String?
+            do { try DaemonLauncher().restart() }
+            catch { failure = error.localizedDescription }
+            Task { @MainActor [weak self] in
+                self?.maintenanceInProgress = false
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func viewDaemonLogs() {
+        let directory = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/AI-TTS")
+        let log = directory.appendingPathComponent("daemon.log")
+        let target = FileManager.default.fileExists(atPath: log.path) ? log : directory
+        if !NSWorkspace.shared.open(target) {
+            daemonRecoveryError = "No daemon logs are available yet. Launch the daemon first."
+        }
+    }
 
     func startPolling(interval: TimeInterval) {
         stopPolling()
@@ -111,26 +291,48 @@ final class AppState: ObservableObject {
             let snapshot = try? speech.snapshot()
             let observedAt = Date()
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.reachable = snapshot != nil
-                guard let snapshot else {
-                    self.status = nil
-                    return
-                }
-                self.statusObservedAt = observedAt
-                self.observedPlaybackRate = snapshot.playbackRate
-                self.status = snapshot.status
-                self.plan = snapshot.plan
-                self.history = snapshot.history
-                self.speed = snapshot.speed
-                self.playbackRate = snapshot.playbackRate
-                self.applyCaptionSettings(snapshot)
-                self.voiceAssignments = snapshot.voiceAssignments
-                self.inputInterruptEnabled = snapshot.inputInterruptEnabled
-                self.inputInterruptResume = snapshot.inputInterruptResume
-                if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
+                self?.applySnapshot(snapshot, observedAt: observedAt)
             }
         }
+    }
+
+    /// Apply the daemon's typed snapshot at the UI boundary, independently of transport scheduling.
+    func applySnapshot(_ snapshot: Snapshot?, observedAt: Date = Date()) {
+        self.reachable = snapshot != nil
+        self.runtime = snapshot?.runtime
+        guard let snapshot else {
+            self.status = nil
+            return
+        }
+        self.statusObservedAt = observedAt
+        self.observedPlaybackRate = snapshot.playbackRate
+        self.status = snapshot.status
+        self.plan = snapshot.plan
+        self.history = snapshot.history
+        self.observeFailures(snapshot.history)
+        self.speed = snapshot.speed
+        self.playbackRate = snapshot.playbackRate
+        self.applyCaptionSettings(snapshot)
+        self.voiceAssignments = snapshot.voiceAssignments
+        self.inputInterruptEnabled = snapshot.inputInterruptEnabled
+        self.inputInterruptResume = snapshot.inputInterruptResume
+        if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
+    }
+
+    private func observeFailures(_ history: [Utterance]) {
+        let failed = history.filter { $0.state == "Failed" }
+        let previous = knownFailedIDs
+        knownFailedIDs = Set(failed.map(\.id))
+        // First connection establishes a baseline; old History must not toast again.
+        guard let previous, let item = failed.first(where: { !previous.contains($0.id) }) else { return }
+        let notice = SpeechFailureNotice(id: item.id, detail: item.error ?? "The clip could not be generated or played.")
+        lastError = "Speech failed: \(notice.detail)"
+        failureNotice = notice
+    }
+
+    func dismissError() {
+        failureNotice = nil
+        lastError = nil
     }
 
     private func applyCaptionSettings(_ snapshot: Snapshot) {
@@ -338,7 +540,21 @@ final class AppState: ObservableObject {
         plan = plan.filter { !upcomingIDs.contains($0.id) } + ids.compactMap { byID[$0] }
         send(.reorder(ids: ids))
     }
-    func setVoice(_ voice: String) { send(.setVoice(voice)) }
+    func setVoice(_ voice: String) {
+        voiceNotice = nil
+        queue.async { [self, speech] in
+            do {
+                try speech.perform(.setVoice(voice))
+                Task { @MainActor [weak self] in
+                    self?.lastError = nil
+                    self?.voiceNotice = "Voice set to \(voice). New clips use this voice unless a caller or voice assignment overrides it."
+                    self?.refresh()
+                }
+            } catch {
+                Task { @MainActor [weak self] in self?.lastError = "Could not change voice." }
+            }
+        }
+    }
     func setSpeed(_ speed: Double) { send(.setSynthesisSpeed(speed)) }
     func setPlaybackRate(_ rate: Double) {
         playbackRate = rate

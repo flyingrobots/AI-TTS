@@ -30,24 +30,72 @@ struct EmptyPane: View {
 
 struct ModelHealthFooter: View {
     @EnvironmentObject var state: AppState
+    @State private var confirmingRestart = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(state.lastError == nil ? Color.green : Color.red)
-                .frame(width: 6, height: 6)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(state.runtime?.modelState == "ready" ? Color.green : Color.orange)
+                    .frame(width: 6, height: 6)
+                Text("Model \(state.runtime?.modelState ?? "unknown") · \(state.status?.engine ?? "?") ·")
+                    .foregroundStyle(.secondary)
+                Menu {
+                    ForEach(state.voices, id: \.self) { voice in
+                        Button { state.setVoice(voice) } label: {
+                            if voice == state.status?.voice { Label(voice, systemImage: "checkmark") }
+                            else { Text(voice) }
+                        }
+                    }
+                } label: { Text(state.status?.voice ?? "Voice") }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(state.voices.isEmpty)
+                .accessibilityLabel("Default voice")
+                Spacer(minLength: 0)
+            }
             if let error = state.lastError {
-                Text(error).foregroundStyle(.red)
-            } else {
-                Text("Model hot · \(state.status?.engine ?? "?") · \(state.status?.voice ?? "")")
+                HStack(alignment: .top) {
+                    Text(error).foregroundStyle(.red).lineLimit(3)
+                    Spacer(minLength: 0)
+                    Button { state.dismissError() } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.borderless).help("Dismiss error")
+                }
+            }
+            if let notice = state.voiceNotice {
+                HStack(alignment: .top) {
+                    Text(notice).fixedSize(horizontal: false, vertical: true)
+                    Button { state.voiceNotice = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.borderless).help("Dismiss voice confirmation")
+                }
+            }
+            if let runtime = state.runtime {
+                Text("Daemon connected · PID \(runtime.pid) · up \(clock(Int(runtime.uptimeSeconds * 1000))) · \(runtime.activeSynthesis) generating")
                     .foregroundStyle(.secondary)
             }
-            Spacer()
+            HStack {
+                Button("Open Data Folder", systemImage: "folder") { state.openDataFolder() }
+                Button("Manage Files…") { state.showingStorage = true }
+                Spacer()
+                Menu("Maintenance") {
+                    Button("Reload Model") { state.reloadModel() }
+                        .disabled(state.maintenanceInProgress || state.runtime?.activeSynthesis != 0 || ["loading", "reloading"].contains(state.runtime?.modelState ?? ""))
+                    Button("Restart Daemon…") { confirmingRestart = true }
+                        .disabled(state.maintenanceInProgress)
+                    Button("View Daemon Logs") { state.viewDaemonLogs() }
+                }.menuStyle(.borderlessButton).fixedSize()
+                if state.maintenanceInProgress { ProgressView().controlSize(.small) }
+            }.buttonStyle(.borderless)
         }
         .font(.caption2)
-        .lineLimit(1)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .confirmationDialog("Restart daemon?", isPresented: $confirmingRestart) {
+            Button("Restart Daemon") { state.restartDaemon() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Playback will pause. Queued work will be recovered; resume playback when the daemon reconnects.")
+        }
     }
 }
 

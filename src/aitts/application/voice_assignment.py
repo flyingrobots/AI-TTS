@@ -59,7 +59,7 @@ def next_unclaimed_voice(catalog: Sequence[str], taken: Collection[str]) -> str:
     return catalog[0]
 
 
-def decide_speaking_voice(  # noqa: PLR0913 - one decision, six independent inputs
+def decide_speaking_voice(  # noqa: PLR0911, PLR0913 - one decision, seven precedence branches
     *,
     source: str | None,
     requested: str | None,
@@ -71,25 +71,24 @@ def decide_speaking_voice(  # noqa: PLR0913 - one decision, six independent inpu
 ) -> VoiceDecision:
     """Resolve one submission's voice.
 
-    In order of authority: the listener's override; the voice this client
-    already holds; the voice it asks for, if no one else holds that; otherwise
-    the next voice nobody holds.
-
-    A held voice outranks a fresh request on purpose. Stability is the point —
-    the listener recognises an agent by its voice, so an agent that changes
-    its mind mid-session is the failure, not the feature. It also means the
-    register fills from the first thing each client says, rather than staying
-    empty because every client already passes a voice of its own.
+    In order of authority: the listener's pinned override; an explicit requested
+    voice if available; the voice this client already holds; otherwise the next
+    voice nobody holds.
     """
     if pinned is not None:
         return VoiceDecision(voice=pinned, claim=False)
-    if claimed is not None:
-        return VoiceDecision(voice=claimed, claim=False)
     if not is_agent_source(source):
         # The listener reading to themselves: honour an explicit request, fall
         # back to the configured default, and never consume a catalog voice.
         return VoiceDecision(voice=requested or default_voice, claim=False)
-    if requested is not None and requested not in taken:
-        return VoiceDecision(voice=requested, claim=True)
-    # Either it asked for nothing, or it asked for a voice already spoken for.
+    if requested is not None:
+        if requested == claimed:
+            return VoiceDecision(voice=claimed, claim=False)
+        if requested not in taken:
+            return VoiceDecision(voice=requested, claim=True)
+        if claimed is not None:
+            return VoiceDecision(voice=claimed, claim=False)
+        return VoiceDecision(voice=next_unclaimed_voice(catalog, taken), claim=True)
+    if claimed is not None:
+        return VoiceDecision(voice=claimed, claim=False)
     return VoiceDecision(voice=next_unclaimed_voice(catalog, taken), claim=True)

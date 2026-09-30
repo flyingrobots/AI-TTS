@@ -12,12 +12,18 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from blake3 import blake3
+
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
+from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.filesystem_cache import FileAudioCache
+from aitts.adapters.generated_storage import GeneratedStorage
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
@@ -43,7 +49,7 @@ from aitts.model import (
     Utterance,
     UtteranceSegment,
 )
-from aitts.playback import PlaybackController
+from aitts.playback import PlaybackController, SoundDeviceSink
 from aitts.segmentation import prepare_speech_segments
 from aitts.settings import SPEED_MESSAGE, SettingsService, parse_speed
 from aitts.store import Store, TransitionError
@@ -108,6 +114,8 @@ class Daemon:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
         secure_private_state(home)
         self._home = home
+        self._started_at = time.monotonic()
+        self._model_state = "loading"
         self._input_activity = (
             input_activity if input_activity is not None else platform_input_activity()
         )
@@ -119,6 +127,10 @@ class Daemon:
         self._workers = workers
         self._store = Store(home / "state.db")
         self._cache_dir = home / "cache"
+        self._evidence = ClipEvidence(self._cache_dir)
+        self._generated_storage = GeneratedStorage(self._cache_dir)
+        if isinstance(sink, SoundDeviceSink):
+            sink.evidence = self._evidence
         self._cache = CacheController(self._store, FileAudioCache(self._cache_dir))
         self._settings = SettingsService(self._store, self)
         self._voices = VoiceRegistry(
@@ -138,6 +150,7 @@ class Daemon:
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._exports: dict[asyncio.Task[dict[str, Any]], tuple[set[str], set[str]]] = {}
 
     @property
     def socket_path(self) -> Path:
@@ -159,12 +172,14 @@ class Daemon:
             self._sink,
             ImmediatePlaybackSchedule(),
             held=held,
+            evidence=self._evidence,
         )
         self._pool = SynthesisPool(
             self._store,
             self._engine,
             FileAudioArtifacts(self._cache_dir),
             workers=self._workers,
+            evidence=self._evidence,
         )
         self._store.on_transition.append(self._on_transition)
         self._store.on_segment_transition.append(self._on_segment_transition)
@@ -172,8 +187,9 @@ class Daemon:
         self._tasks = [
             loop.create_task(self._pool.run(), name="aitts-synthesis"),
             loop.create_task(self._supervise_playback(), name="aitts-playback"),
-            loop.create_task(asyncio.to_thread(self._engine.warmup), name="aitts-warmup"),
+            loop.create_task(self._warm_model(), name="aitts-warmup"),
             loop.create_task(self._listener.run(), name="aitts-input"),
+            loop.create_task(self._expire_files_loop(), name="aitts-retention"),
         ]
         await self._server.start()
 
@@ -201,6 +217,7 @@ class Daemon:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks = []
+        await asyncio.gather(*self._exports, return_exceptions=True)
         self._store.close()
 
     # -- events ------------------------------------------------------------
@@ -256,6 +273,10 @@ class Daemon:
             "get": self._op_get,
             "list": self._op_list,
             "history": self._op_history,
+            "export_evidence": self._op_export_evidence,
+            "provenance": self._op_provenance,
+            "restart_model": self._op_restart_model,
+            "storage": self._op_storage,
             "pause": self._op_pause,
             "resume": self._op_resume,
             "resume_when_input_idle": self._op_resume_when_input_idle,
@@ -338,14 +359,6 @@ class Daemon:
             priority = Priority(payload.get("priority", "normal"))
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
-        source = payload.get("source")
-        voice = self._voices.resolve(
-            source=source if isinstance(source, str) else None,
-            requested=payload.get("voice") or None,
-        )
-        if voice not in self._engine.list_voices():
-            msg = f"unknown voice {voice!r}"
-            raise ApiError(BAD_REQUEST, msg)
         speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
         content_format: ContentFormat | None
         if "content_format" not in payload:
@@ -360,6 +373,14 @@ class Daemon:
         if not spoken_segments:
             msg = "submit text contains no speakable content"
             raise ApiError(BAD_REQUEST, msg)
+        source = payload.get("source")
+        voice = self._voices.resolve(
+            source=source if isinstance(source, str) else None,
+            requested=payload.get("voice") or None,
+        )
+        if voice not in self._engine.list_voices():
+            msg = f"unknown voice {voice!r}"
+            raise ApiError(BAD_REQUEST, msg)
         composite = spoken_segments != (text,)
         utt = self._store.submit(
             text,
@@ -371,6 +392,7 @@ class Daemon:
             at_head=priority is Priority.URGENT,
             spoken_segments=spoken_segments if composite else None,
         )
+        self._evidence.submitted(utt.id, text, payload)
         if self._pool is not None:
             self._pool.notify()
         return {
@@ -448,14 +470,209 @@ class Daemon:
             "items": [self._serialize_utterance(u, history=True) for u in items],
         }
 
-    async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def _protected_artifacts(self) -> set[str]:
+        protected = {Path(path).stem for path in self._store.protected_audio_paths()}
+        for identities, _paths in self._exports.values():
+            protected.update(identities)
+        for item in self._store.input_queue() + self._store.playback_queue():
+            protected.add(item.id)
+            protected.update(segment.artifact_id for segment in self._store.segments(item.id))
+        return protected
+
+    async def _expire_files_loop(self) -> None:
+        while True:
+            try:
+                protected = self._protected_artifacts()
+                days = int(self._store.get_setting("retention_days", "0"))
+                expired = self._generated_storage.expired(protected, days)
+                if expired:
+                    self._generated_storage.remove(expired, protected)
+            except (OSError, ValueError):
+                log.warning("event=generated_file_retention_failed")
+            await asyncio.sleep(60)
+
+    async def _op_storage(self, payload: dict[str, Any]) -> dict[str, Any]:
+        days = payload.get("retention_days")
+        if days is not None and (type(days) is not int or days not in {0, 1, 7, 30, 90}):
+            raise ApiError(BAD_REQUEST, "retention_days must be 0, 1, 7, 30, or 90")
+        identities = payload.get("delete")
+        if identities is not None and (
+            not isinstance(identities, list) or not all(isinstance(key, str) for key in identities)
+        ):
+            raise ApiError(BAD_REQUEST, "delete must contain artifact ids")
+        if days is not None:
+            self._store.set_setting("retention_days", str(days))
+        protected = self._protected_artifacts()
+        receipt: dict[str, int] | None = None
+        if identities is not None:
+            receipt = self._generated_storage.remove(set(identities), protected)
+        entries = self._generated_storage.inventory(protected)
+        return {
+            "ok": True,
+            "entries": entries,
+            "total_bytes": sum(row["bytes"] for row in entries),
+            "retention_days": int(self._store.get_setting("retention_days", "0")),
+            "receipt": receipt,
+        }
+
+    async def _warm_model(self) -> None:
+        try:
+            await asyncio.to_thread(self._engine.warmup)
+            self._model_state = "ready"
+        except Exception:  # noqa: BLE001 - readiness must report warmup failure
+            self._model_state = "failed"
+            log.warning("event=model_warmup_failed")
+
+    async def _op_restart_model(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
-        await self._require_controller().pause()
+        restart = getattr(self._engine, "restart", None)
+        if not callable(restart):
+            raise ApiError(BAD_REQUEST, "this engine does not support model reload")
+        if (
+            self._pool is None
+            or self._pool.active_jobs
+            or self._model_state in {"loading", "reloading"}
+        ):
+            raise ApiError(ILLEGAL_STATE, "wait for active synthesis or model loading to finish")
+        self._pool.enabled.clear()
+        self._model_state = "reloading"
+        try:
+            await asyncio.to_thread(restart)
+            self._model_state = "ready"
+        except Exception as exc:
+            self._model_state = "failed"
+            log.warning("event=model_reload_failed")
+            raise ApiError(INTERNAL, "model reload failed; view daemon logs") from exc
+        else:
+            return {"ok": True}
+        finally:
+            self._pool.enabled.set()
+            self._server.broadcast({"event": "model_readiness_changed"})
+
+    async def _op_provenance(self, payload: dict[str, Any]) -> dict[str, Any]:
+        item = self._get_utterance(payload)
+        return {
+            "ok": True,
+            "provenance": await asyncio.to_thread(
+                self._provenance, item, self._store.segments(item.id)
+            ),
+        }
+
+    def _provenance(self, item: Utterance, segments: list[UtteranceSegment]) -> dict[str, Any]:
+        request = self._evidence.read_metadata(item.id, "request.json")
+        arguments = request.get("arguments", {}) if request else None
+        sources = {
+            "menubar-file": "User read file",
+            "macos-accessibility": "User read selection",
+            "macos-clipboard": "User read clipboard",
+            "macos-service": "macOS Service",
+            "macos-intent": "Shortcut",
+        }
+        origin = (
+            str(arguments.get("origin", "Unknown"))
+            if isinstance(arguments, dict)
+            else "Unknown (legacy clip)"
+        )
+        if item.replay_of is not None:
+            origin = "History replay"
+        else:
+            for prefix, label in sources.items():
+                if item.source and item.source.startswith(prefix):
+                    origin = label
+                    break
+        artifacts = [(Path(x.audio_path).stem if x.audio_path else x.artifact_id) for x in segments]
+        if not artifacts:
+            artifacts = [Path(item.audio_path).stem if item.audio_path else item.id]
+        return {
+            "origin": origin,
+            "caller_source": item.source,
+            "arguments": arguments,
+            "source_blake3": blake3(item.text.encode("utf-8")).hexdigest(),
+            "resolved_voice": item.voice,
+            "resolved_speed": item.speed,
+            "replay_of": item.replay_of,
+            "submitted_at": item.submitted_at,
+            "clips": [
+                {
+                    "artifact_id": key,
+                    "generation": self._evidence.read_metadata(key, "generation.json"),
+                    "model": self._evidence.read_metadata(key, "model.json"),
+                    "audio": self._evidence.read_metadata(key, "audio.json"),
+                }
+                for key in artifacts
+            ],
+        }
+
+    async def _op_export_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
+        item = self._get_utterance(payload)
+        if not item.is_terminal:
+            raise ApiError(ILLEGAL_STATE, "report is available for completed History items")
+        destination = payload.get("destination")
+        if not isinstance(destination, str):
+            raise ApiError(BAD_REQUEST, "report requires a destination .zip path")
+        segments = self._store.segments(item.id)
+        clips = [
+            {
+                "artifact_id": Path(segment.audio_path).stem
+                if segment.audio_path
+                else segment.artifact_id,
+                "segment_index": segment.index,
+                "text": segment.text,
+                "state": segment.state.value,
+                "audio_path": segment.audio_path,
+            }
+            for segment in segments
+        ]
+        if not clips:
+            clips = [
+                {
+                    "artifact_id": Path(item.audio_path).stem if item.audio_path else item.id,
+                    "segment_index": None,
+                    "text": item.text,
+                    "state": item.state.value,
+                    "audio_path": item.audio_path,
+                }
+            ]
+        report_item = self._serialize_utterance(item, history=True)
+
+        def export_report() -> dict[str, Any]:
+            return self._evidence.export(
+                Path(destination),
+                {**report_item, "provenance": self._provenance(item, segments)},
+                clips,
+            )
+
+        try:
+            worker = asyncio.create_task(asyncio.to_thread(export_report))
+            self._exports[worker] = (
+                {item.id, *(str(clip["artifact_id"]) for clip in clips)},
+                {str(clip["audio_path"]) for clip in clips if clip["audio_path"]},
+            )
+            worker.add_done_callback(self._export_finished)
+            # Cancelling a request cannot cancel filesystem work in a thread.
+            # The worker owns its pins until completion, independently of its caller.
+            return await asyncio.shield(worker)
+        except (OSError, ValueError) as exc:
+            raise ApiError(BAD_REQUEST, str(exc)) from exc
+
+    def _export_finished(self, worker: asyncio.Task[dict[str, Any]]) -> None:
+        self._exports.pop(worker)
+        if not worker.cancelled():
+            worker.exception()  # Retrieve failures even if the client stopped awaiting.
+
+    def _export_audio_paths(self) -> frozenset[str]:
+        return frozenset(path for _ids, paths in self._exports.values() for path in paths)
+
+    async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
+        await self._require_controller().pause(
+            cause="menu_button" if payload.get("origin") == "menubar" else "explicit_control"
+        )
         return self._transport_reply()
 
     async def _op_resume(self, payload: dict[str, Any]) -> dict[str, Any]:
-        del payload
-        await self._require_controller().resume()
+        await self._require_controller().resume(
+            cause="menu_button" if payload.get("origin") == "menubar" else "explicit_control"
+        )
         return self._transport_reply()
 
     async def _op_resume_when_input_idle(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -533,6 +750,17 @@ class Daemon:
             replay_of=target.id,
             at_head=at_head,
             spoken_segments=tuple(segment.text for segment in source_segments) or None,
+        )
+        self._evidence.submitted(
+            replay.id,
+            target.text,
+            {
+                "origin": "History replay",
+                "replay_of": target.id,
+                "voice": target.voice,
+                "speed": target.speed,
+                "priority": priority.value,
+            },
         )
         if source_segments:
             cached_segments: list[tuple[UtteranceSegment, Path]] = []
@@ -642,6 +870,21 @@ class Daemon:
             cleared = self._store.clear_pending()
             return {"ok": True, "cleared": cleared}
         if queue == "history":
+            delete_files = payload.get("delete_files", False)
+            if type(delete_files) is not bool:
+                raise ApiError(BAD_REQUEST, "delete_files must be a boolean")
+            if delete_files:
+                protected = self._protected_artifacts()
+                identities = {
+                    str(row["id"]) for row in self._generated_storage.inventory(protected)
+                }
+                receipt = self._generated_storage.remove(identities, protected)
+                if receipt["failed"]:
+                    raise ApiError(
+                        INTERNAL,
+                        "Some files could not be deleted; history was kept. "
+                        "Open Manage Files to retry.",
+                    )
             cleared = self._store.clear_history()
             self._server.broadcast({"event": "history_changed", "cleared": cleared})
             return {"ok": True, "cleared": cleared}
@@ -663,7 +906,7 @@ class Daemon:
     async def _op_purge_cache(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
         try:
-            report = self._cache.purge()
+            report = self._cache.purge(additional_protected=self._export_audio_paths())
         except OSError as exc:
             log.warning("event=cache_purge_inspection_failed")
             msg = "could not inspect audio cache"
@@ -778,6 +1021,12 @@ class Daemon:
         return {
             "ok": True,
             "status": status,
+            "runtime": {
+                "pid": os.getpid(),
+                "uptime_seconds": time.monotonic() - self._started_at,
+                "model_state": self._model_state,
+                "active_synthesis": self._pool.active_jobs if self._pool else 0,
+            },
             "playback": [self._serialize_utterance(u) for u in playback],
             "input": [self._serialize_utterance(u) for u in pending],
             "plan": [self._serialize_utterance(u) for u in plan],
@@ -834,7 +1083,10 @@ class Daemon:
     def enforce_cache_limit(self) -> None:
         """Bring the cache back under its configured cap."""
         try:
-            report = self._cache.enforce(max_bytes=self._settings.cache_limit())
+            report = self._cache.enforce(
+                max_bytes=self._settings.cache_limit(),
+                additional_protected=self._export_audio_paths(),
+            )
         except OSError:
             log.warning("event=cache_inspection_failed")
             return

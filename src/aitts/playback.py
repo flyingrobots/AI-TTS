@@ -16,6 +16,7 @@ import logging
 import math
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
@@ -27,6 +28,7 @@ from aitts.model import State
 if TYPE_CHECKING:
     from contextlib import AbstractContextManager
 
+    from aitts.adapters.clip_evidence import ClipEvidence
     from aitts.application.audio_device import AudioDevicePort
     from aitts.application.playback_schedule import PlaybackSchedulePort
     from aitts.model import Utterance, UtteranceSegment
@@ -166,8 +168,8 @@ class FakeSink:
 class OutputStream(Protocol):
     """The one thing playback asks of an opened output stream."""
 
-    def write(self, block: Any) -> None:  # noqa: ANN401 - a numpy block of frames
-        """Write one block of frames, blocking until the device accepts it."""
+    def write(self, block: Any) -> bool:  # noqa: ANN401 - a numpy block of frames
+        """Write frames; return whether the driver inserted data after an underflow."""
         ...
 
 
@@ -208,8 +210,13 @@ class SoundDeviceSink:
         *,
         device: AudioDevicePort | None = None,
         open_stream: OutputStreamFactory | None = None,
+        evidence: ClipEvidence | None = None,
     ) -> None:
         """Create the sink; nothing is opened until :meth:`start`."""
+        self.evidence = evidence
+        self.playback_session = ""
+        self._audio_path: Path | None = None
+        self._stream_underflows = 0
         self._device = device if device is not None else platform_audio_device()
         self._open_stream = open_stream if open_stream is not None else _open_sounddevice_stream
         self.paused = False
@@ -249,6 +256,8 @@ class SoundDeviceSink:
         if self._thread is not None and self._thread.is_alive():  # pragma: no cover
             msg = "sink is already active; playback is strictly serialized"
             raise RuntimeError(msg)
+        self._audio_path = path
+        self.playback_session = uuid.uuid4().hex
         loop = asyncio.get_running_loop()
         self._pause_flag.clear()
         self._stop_flag.clear()
@@ -260,12 +269,26 @@ class SoundDeviceSink:
         ended = self._ended
 
         def signal_end() -> None:
+            self._audio_event("session_ended", natural=self._natural, error=self.error)
             loop.call_soon_threadsafe(ended.set)
 
+        self._audio_event("session_started", runtime=self.evidence.runtime if self.evidence else {})
         self._thread = threading.Thread(
             target=self._play_blocking, args=(path, position_ms, signal_end), daemon=True
         )
         self._thread.start()
+
+    def _audio_event(self, event: str, **details: object) -> None:
+        if self.evidence is not None and self._audio_path is not None:
+            self.evidence.record(
+                self._audio_path.stem,
+                "playback",
+                event,
+                playback_session=self.playback_session,
+                position_ms=self.position_ms(),
+                rate=self._current_rate(),
+                **details,
+            )
 
     def _play_blocking(self, path: Path, position_ms: int, signal_end: object) -> None:
         import soundfile as sf  # noqa: PLC0415 - keep audio deps out of test imports
@@ -280,6 +303,11 @@ class SoundDeviceSink:
                 # on stop, or when the listener moves the system default; only
                 # the last of those comes back for another pass.
                 while not self._stop_flag.is_set() and source_frame < len(audio):
+                    if self._pause_flag.is_set():
+                        # No live device stream while held: a blocking output
+                        # stream left running without writes will underflow.
+                        self._stop_flag.wait(0.05)
+                        continue
                     source_frame = self._play_on_current_device(audio, source_frame)
                 if not self._stop_flag.is_set() and source_frame >= len(audio):
                     self._natural = True
@@ -293,22 +321,38 @@ class SoundDeviceSink:
     def _play_on_current_device(self, audio: Any, source_frame: float) -> float:  # noqa: ANN401
         """Stream from ``source_frame`` until the file ends or the default moves.
 
-        Returns the frame reached, so the caller can resume there on the new
-        device without repeating or dropping audio.
+        A pause also closes the stream. Returns the frame reached, so the
+        caller can resume without repeating or dropping source audio.
         """
         import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
 
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
         self._opened_on = self._device.default_output_identity()
-        with self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream:
+        underflow_reported = False
+        self._stream_underflows = 0
+        with (
+            self._open_stream(samplerate=audio.samplerate, channels=audio.channels) as stream,
+            contextlib.ExitStack() as closing,
+        ):
+            closing.callback(
+                lambda: self._audio_event("stream_closing", underflows=self._stream_underflows)
+            )
+            self._audio_event(
+                "stream_opened",
+                sample_rate=audio.samplerate,
+                channels=audio.channels,
+                output_device=self._opened_on,
+                latency_seconds=getattr(stream, "latency", None),
+                block_frames=self._BLOCK_FRAMES,
+            )
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
+                    self._audio_event("output_device_changed")
                     log.info("event=audio_output_device_changed")
                     return source_frame
                 if self._pause_flag.is_set():
-                    self._stop_flag.wait(0.05)
-                    continue
+                    return source_frame
                 rate = self._current_rate()
                 remaining = len(audio) - source_frame
                 output_frames = min(
@@ -332,7 +376,16 @@ class SoundDeviceSink:
                         for channel in range(audio.channels)
                     ]
                 ).astype("float32")
-                stream.write(block)
+                underflowed = stream.write(block)
+                if underflowed:
+                    self._stream_underflows += 1
+                if underflowed and not underflow_reported:
+                    self._audio_event("output_underflow")
+                    # One bounded diagnostic per stream, without speech or file paths.
+                    # The driver has already accepted this block: replaying it would
+                    # duplicate audio rather than repair the preceding gap.
+                    log.warning("event=audio_output_underflow")
+                    underflow_reported = True
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
         return source_frame
@@ -410,8 +463,10 @@ class PlaybackController:
         schedule: PlaybackSchedulePort,
         *,
         held: bool = False,
+        evidence: ClipEvidence | None = None,
     ) -> None:
         """Wrap ``sink`` and restore the durable global playback hold."""
+        self._evidence = evidence
         self._store = store
         self._sink = sink
         self._schedule = schedule
@@ -502,6 +557,7 @@ class PlaybackController:
         self._sink.set_rate(rate)
         self._store.set_setting("playback_rate", str(rate))
         self.playback_rate = rate
+        self._record_control("rate_changed", "explicit_control")
 
     async def run(self) -> None:
         """Start the next in-order utterance whenever the device is free."""
@@ -662,7 +718,26 @@ class PlaybackController:
             await self._sink.wait()
             self._sink_active = False
 
-    async def pause(self) -> None:
+    def _record_control(self, event: str, cause: str) -> None:
+        current = self._current()
+        if self._evidence is None or current is None:
+            return
+        segment = self.current_segment
+        path = segment.audio_path if segment is not None else current.audio_path
+        artifact_id = Path(path).stem if path else (segment.artifact_id if segment else current.id)
+        self._evidence.record(
+            artifact_id,
+            "playback",
+            event,
+            cause=cause,
+            utterance_id=current.id,
+            position_ms=self.current_position_ms(),
+            segment_position_ms=self.current_segment_position_ms(),
+            rate=self.playback_rate,
+            playback_session=getattr(self._sink, "playback_session", None),
+        )
+
+    async def pause(self, *, cause: str = "explicit_control") -> None:
         """Hold playback. Synthesis continues; the buffer should fill while paused.
 
         This is the listener asking for silence, so it revokes any pending
@@ -670,10 +745,11 @@ class PlaybackController:
         request outranks a release armed earlier, and the hold is now theirs
         rather than something their microphone caused.
         """
-        await self._hold(reason=None)
+        await self._hold(reason=None, cause=cause)
 
-    async def _hold(self, *, reason: str | None) -> None:
+    async def _hold(self, *, reason: str | None, cause: str = "explicit_control") -> None:
         """Take the durable playback hold, recording why it was taken."""
+        self._record_control("pause_requested", "microphone" if reason == _LISTENER else cause)
         if reason is None:
             self._clear_interruption()
         self.held = True
@@ -718,14 +794,16 @@ class PlaybackController:
     def arm_resume_when_input_idle(self) -> None:
         """Resume by itself once the listener's input goes quiet again."""
         self.resume_when_input_idle_armed = True
+        self._record_control("resume_armed", "input_idle")
 
     def _clear_interruption(self) -> None:
         self.interrupted_at = None
         self.resume_when_input_idle_armed = False
         self._store.set_setting("playback_hold_reason", "")
 
-    async def resume(self) -> None:
+    async def resume(self, *, cause: str = "explicit_control") -> None:
         """Release the hold and continue (or adopt a restored paused utterance)."""
+        self._record_control("resume_requested", cause)
         self.held = False
         self._clear_interruption()
         self._store.set_setting("playback_held", "false")

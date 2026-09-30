@@ -105,12 +105,18 @@ def test_a_first_time_agent_gets_the_voice_it_asks_for_and_keeps_it() -> None:
     assert decision == VoiceDecision(voice="af_bella", claim=True)
 
 
-def test_a_held_voice_outranks_a_fresh_request() -> None:
+def test_a_held_voice_is_kept_when_requested_voice_is_taken() -> None:
+    decision = decide(requested="af_bella", claimed="bm_george", taken=("af_bella",))
+
+    # Another client holds af_bella, so the client keeps its held voice.
+    assert decision == VoiceDecision(voice="bm_george", claim=False)
+
+
+def test_an_unpinned_claim_can_be_explicitly_changed() -> None:
     decision = decide(requested="af_bella", claimed="bm_george")
 
-    # The listener recognises an agent by its voice; an agent changing its
-    # mind mid-session is the failure, not the feature.
-    assert decision == VoiceDecision(voice="bm_george", claim=False)
+    # The caller explicitly requested an available voice; grant and update claim.
+    assert decision == VoiceDecision(voice="af_bella", claim=True)
 
 
 def test_an_agent_asking_for_a_voice_someone_else_holds_gets_a_different_one() -> None:
@@ -206,6 +212,19 @@ async def test_agents_speaking_for_the_first_time_end_up_on_distinct_voices(
 
 async def test_an_agent_keeps_its_voice_across_submissions(voice_daemon: Daemon) -> None:
     first = await voice_daemon.dispatch({"op": "submit", "text": "one", "source": "steady"})
+    second = await voice_daemon.dispatch({"op": "submit", "text": "two", "source": "steady"})
+
+    one = voice_daemon.store.get(str(first["id"]))
+    two = voice_daemon.store.get(str(second["id"]))
+    assert one is not None
+    assert two is not None
+    assert one.voice == two.voice
+
+
+async def test_an_agent_can_explicitly_change_voice_across_submissions(
+    voice_daemon: Daemon,
+) -> None:
+    first = await voice_daemon.dispatch({"op": "submit", "text": "one", "source": "steady"})
     second = await voice_daemon.dispatch(
         {"op": "submit", "text": "two", "source": "steady", "voice": "im_nicola"}
     )
@@ -214,7 +233,8 @@ async def test_an_agent_keeps_its_voice_across_submissions(voice_daemon: Daemon)
     two = voice_daemon.store.get(str(second["id"]))
     assert one is not None
     assert two is not None
-    assert one.voice == two.voice
+    assert one.voice != two.voice
+    assert two.voice == "im_nicola"
 
 
 async def test_the_listener_can_see_and_change_the_mapping(voice_daemon: Daemon) -> None:
@@ -462,3 +482,30 @@ async def test_release_and_a_voice_together_are_refused(voice_daemon: Daemon) ->
                 "release": True,
             }
         )
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        {"speed": -1},
+        {"content_format": "invalid"},
+        {"text": "---", "content_format": "markdown"},
+    ],
+)
+@pytest.mark.oracle("rejected submissions cannot mutate a caller's saved voice assignment")
+async def test_rejected_submission_preserves_the_callers_voice(
+    voice_daemon: Daemon, invalid: dict[str, object]
+) -> None:
+    # Retire if rejected submissions gain an explicit voice-changing contract.
+    await voice_daemon.dispatch(
+        {"op": "submit", "text": "first", "source": "agent", "voice": "af_heart"}
+    )
+    before = await voice_daemon.dispatch({"op": "voice_assignments"})
+
+    with pytest.raises(ApiError):
+        await voice_daemon.dispatch(
+            {"op": "submit", "text": "rejected", "source": "agent", "voice": "im_nicola", **invalid}
+        )
+
+    after = await voice_daemon.dispatch({"op": "voice_assignments"})
+    assert after == before
