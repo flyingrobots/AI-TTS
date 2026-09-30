@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -111,6 +113,8 @@ class Daemon:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
         secure_private_state(home)
         self._home = home
+        self._started_at = time.monotonic()
+        self._model_state = "loading"
         self._input_activity = (
             input_activity if input_activity is not None else platform_input_activity()
         )
@@ -180,7 +184,7 @@ class Daemon:
         self._tasks = [
             loop.create_task(self._pool.run(), name="aitts-synthesis"),
             loop.create_task(self._supervise_playback(), name="aitts-playback"),
-            loop.create_task(asyncio.to_thread(self._engine.warmup), name="aitts-warmup"),
+            loop.create_task(self._warm_model(), name="aitts-warmup"),
             loop.create_task(self._listener.run(), name="aitts-input"),
         ]
         await self._server.start()
@@ -266,6 +270,7 @@ class Daemon:
             "history": self._op_history,
             "export_evidence": self._op_export_evidence,
             "provenance": self._op_provenance,
+            "restart_model": self._op_restart_model,
             "pause": self._op_pause,
             "resume": self._op_resume,
             "resume_when_input_idle": self._op_resume_when_input_idle,
@@ -455,6 +460,40 @@ class Daemon:
             "ok": True,
             "items": [self._serialize_utterance(u, history=True) for u in items],
         }
+
+    async def _warm_model(self) -> None:
+        try:
+            await asyncio.to_thread(self._engine.warmup)
+            self._model_state = "ready"
+        except Exception:  # noqa: BLE001 - readiness must report warmup failure
+            self._model_state = "failed"
+            log.warning("event=model_warmup_failed")
+
+    async def _op_restart_model(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        restart = getattr(self._engine, "restart", None)
+        if not callable(restart):
+            raise ApiError(BAD_REQUEST, "this engine does not support model reload")
+        if (
+            self._pool is None
+            or self._pool.active_jobs
+            or self._model_state in {"loading", "reloading"}
+        ):
+            raise ApiError(ILLEGAL_STATE, "wait for active synthesis or model loading to finish")
+        self._pool.enabled.clear()
+        self._model_state = "reloading"
+        try:
+            await asyncio.to_thread(restart)
+            self._model_state = "ready"
+        except Exception as exc:
+            self._model_state = "failed"
+            log.warning("event=model_reload_failed")
+            raise ApiError(INTERNAL, "model reload failed; view daemon logs") from exc
+        else:
+            return {"ok": True}
+        finally:
+            self._pool.enabled.set()
+            self._server.broadcast({"event": "model_readiness_changed"})
 
     async def _op_provenance(self, payload: dict[str, Any]) -> dict[str, Any]:
         item = self._get_utterance(payload)
@@ -893,6 +932,12 @@ class Daemon:
         return {
             "ok": True,
             "status": status,
+            "runtime": {
+                "pid": os.getpid(),
+                "uptime_seconds": time.monotonic() - self._started_at,
+                "model_state": self._model_state,
+                "active_synthesis": self._pool.active_jobs if self._pool else 0,
+            },
             "playback": [self._serialize_utterance(u) for u in playback],
             "input": [self._serialize_utterance(u) for u in pending],
             "plan": [self._serialize_utterance(u) for u in plan],

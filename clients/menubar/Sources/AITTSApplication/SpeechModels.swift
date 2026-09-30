@@ -191,8 +191,23 @@ public struct DaemonStatus: Equatable, Sendable {
     }
 }
 
+public struct DaemonRuntime: Equatable, Sendable {
+    public let pid: Int
+    public let uptimeSeconds: Double
+    public let modelState: String
+    public let activeSynthesis: Int
+
+    public init(pid: Int, uptimeSeconds: Double, modelState: String, activeSynthesis: Int) {
+        self.pid = pid
+        self.uptimeSeconds = uptimeSeconds
+        self.modelState = modelState
+        self.activeSynthesis = activeSynthesis
+    }
+}
+
 /// Everything a presentation adapter needs to render current speech state.
 public struct Snapshot: Equatable, Sendable {
+    public let runtime: DaemonRuntime?
     public let status: DaemonStatus
     public let plan: [Utterance]
     public let input: [Utterance]
@@ -218,8 +233,10 @@ public struct Snapshot: Equatable, Sendable {
         captionsEnabledConfigured: Bool = false,
         voiceAssignments: [VoiceAssignment] = [],
         inputInterruptEnabled: Bool = true,
-        inputInterruptResume: InputInterruptResume = .manual
+        inputInterruptResume: InputInterruptResume = .manual,
+        runtime: DaemonRuntime? = nil
     ) {
+        self.runtime = runtime
         self.status = status
         self.plan = plan
         self.input = input

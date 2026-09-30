@@ -42,10 +42,14 @@ final class AppState: ObservableObject {
     @Published var cachePurgeReceipt: CachePurgeReceipt? = nil
     @Published var purgingCachedAudio = false
     @Published var provenanceDetails: [String: String] = [:]
-    @Published var reportingID: String?
     @Published var voiceNotice: String?
+    @Published var reportingID: String?
     @Published var reportMessage: String?
+    @Published var runtime: DaemonRuntime?
+    @Published var maintenanceInProgress = false
     @Published var reachable = false
+    @Published var launchingDaemon = false
+    @Published var daemonRecoveryError: String?
     @Published var lastError: String?
     @Published var voiceAssignments: [VoiceAssignment] = []
     @Published var inputInterruptEnabled = true
@@ -101,11 +105,6 @@ final class AppState: ObservableObject {
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
     }
 
-    func setCaptionPosition(_ position: CaptionPosition) {
-        defaults.set(position.rawValue, forKey: "captionPosition")
-        captionPosition = position
-    }
-
     func loadProvenance(_ id: String) {
         guard provenanceDetails[id] == nil else { return }
         provenanceDetails[id] = "Loading…"
@@ -116,6 +115,11 @@ final class AppState: ObservableObject {
             catch { text = "Provenance is unavailable. Close and reopen these details to retry." }
             Task { @MainActor [weak self] in self?.provenanceDetails[id] = text }
         }
+    }
+
+    func setCaptionPosition(_ position: CaptionPosition) {
+        defaults.set(position.rawValue, forKey: "captionPosition")
+        captionPosition = position
     }
 
     func openDataFolder() {
@@ -158,6 +162,67 @@ final class AppState: ObservableObject {
 
     // MARK: - Refresh
 
+    func launchDaemon() {
+        guard !launchingDaemon else { return }
+        launchingDaemon = true
+        daemonRecoveryError = nil
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var failure: String?
+            do {
+                try DaemonLauncher().launch()
+            } catch {
+                failure = error.localizedDescription
+            }
+            Task { @MainActor [weak self] in
+                self?.launchingDaemon = false
+                self?.daemonRecoveryError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func reloadModel() {
+        guard !maintenanceInProgress else { return }
+        maintenanceInProgress = true
+        let exporter = evidenceExporter
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var failure: String?
+            do { try exporter.restartModel() }
+            catch let SpeechServiceError.rejected(_, message) { failure = message }
+            catch { failure = "Model reload failed." }
+            Task { @MainActor [weak self] in
+                self?.maintenanceInProgress = false
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func restartDaemon() {
+        guard !maintenanceInProgress else { return }
+        maintenanceInProgress = true
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var failure: String?
+            do { try DaemonLauncher().restart() }
+            catch { failure = error.localizedDescription }
+            Task { @MainActor [weak self] in
+                self?.maintenanceInProgress = false
+                self?.lastError = failure
+                self?.refresh()
+            }
+        }
+    }
+
+    func viewDaemonLogs() {
+        let directory = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/AI-TTS")
+        let log = directory.appendingPathComponent("daemon.log")
+        let target = FileManager.default.fileExists(atPath: log.path) ? log : directory
+        if !NSWorkspace.shared.open(target) {
+            daemonRecoveryError = "No daemon logs are available yet. Launch the daemon first."
+        }
+    }
+
     func startPolling(interval: TimeInterval) {
         stopPolling()
         refresh()
@@ -180,6 +245,7 @@ final class AppState: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.reachable = snapshot != nil
+                self.runtime = snapshot?.runtime
                 guard let snapshot else {
                     self.status = nil
                     return

@@ -289,4 +289,5 @@ public struct EnqueueDocument: DocumentEnqueueing, Sendable {
 public protocol EvidenceExporting: Sendable {
     func exportEvidence(id: String, destination: URL) throws -> [String]
     func provenance(id: String) throws -> String
+    func restartModel() throws
 }

@@ -1095,3 +1095,24 @@ async def test_a_line_just_past_the_boundary_is_refused(daemon: Daemon) -> None:
     assert response["ok"] is False
     assert response["error"]["type"] == "bad_request"
     assert "too large" in response["error"]["message"]
+
+
+async def test_model_reload_reports_readiness_and_recovers_from_failure(
+    daemon: Daemon, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail_reload(_engine: FakeEngine) -> None:
+        msg = "controlled model failure"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(FakeEngine, "restart", fail_reload, raising=False)
+    failed = await rpc(daemon.socket_path, {"op": "restart_model"})
+    failed_status = await rpc(daemon.socket_path, {"op": "snapshot"})
+    monkeypatch.setattr(FakeEngine, "restart", lambda _: None)
+    recovered = await rpc(daemon.socket_path, {"op": "restart_model"})
+    ready = await rpc(daemon.socket_path, {"op": "snapshot"})
+    assert failed["ok"] is False
+    assert failed_status["runtime"]["model_state"] == "failed"
+    assert recovered == {"ok": True}
+    assert ready["runtime"]["model_state"] == "ready"
+    assert ready["runtime"]["pid"] > 0
+    assert ready["runtime"]["uptime_seconds"] >= 0

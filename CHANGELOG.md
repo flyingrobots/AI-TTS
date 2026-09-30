@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The menu shows model readiness and daemon PID/uptime, offers safe model reload and daemon restart, and provides Launch daemon, View Logs, and Quit when disconnected.
+
 - The menu footer’s voice selector changes the default for new submissions and confirms the change. Existing queued voices and explicit caller assignments retain their values.
 
 - History reports export per-clip audio, source, BLAKE3 identities, generation/model provenance, and synthesis/playback logs including pause causes. Open Data Folder reveals the local files; reports stay local and identify missing legacy evidence.

@@ -26,3 +26,38 @@ These tests may be deleted when the corresponding packaging path is retired.
 The dry-run test checks installation intent; the real installed speech receipt
 is the integration evidence, not a claim that a command projection proves speech.
 
+## Disconnected menu
+
+Change-kind: feature.
+
+The disconnected view offers Launch daemon, View Logs, and Quit. Launch runs
+outside the UI thread, suppresses duplicate clicks, and surfaces failures. It
+uses the installed user launch agent, bootstrapping only when unregistered,
+and kickstarts without killing an existing process. Logs open the local daemon
+log, falling back to its directory. Quit terminates the menu application.
+
+`DaemonLauncherTests` is medium, with an owned temporary home and injected
+process boundary. Its oracle is the installed launch-agent contract and the
+requested explicit launch behavior. Four cases cover registered service,
+unregistered service, missing installation, and failed start. Replacing the
+launch implementation with a no-op produced four named assertion failures:
+two empty command lists and two missing user-facing errors. Restoring the
+implementation returned all four to green. Delete these cases if explicit
+launch support is removed or its OS boundary is replaced.
+
+Validation:
+
+- 101 Swift tests passed under the 60-second deadline after restoring the mutation.
+- 18 Python distribution and Swift testing-policy tests passed.
+- Targeted Ruff checks, formatting checks, mypy, and git diff whitespace check passed.
+- Release bundle compiled, extracted App Intents metadata, and was signed.
+- The production DaemonLauncher compiled into a temporary acceptance harness
+  successfully bootstrapped the actual unregistered installed service; the CLI
+  subsequently reported it reachable. The updated installed menu app was reopened.
+
+Limits: automated tests do not click the SwiftUI buttons or verify the external
+log viewer. A final reinstall hit launchd bootstrap error 5 immediately after
+bootout; once teardown completed, the new launcher successfully loaded the
+service. That reinstall timing race remains outside these changes. Existing
+playback was paused after service restart and was not resumed by acceptance
+checks; the extra queued setup-check was cancelled.

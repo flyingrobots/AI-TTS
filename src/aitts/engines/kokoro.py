@@ -397,6 +397,13 @@ class KokoroEngine:
         sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
         return int(len(samples) / _SAMPLE_RATE * 1000)
 
+    def restart(self) -> None:
+        """Reload the model after the daemon has suspended and drained synthesis."""
+        with self._lock:
+            self._pipelines.clear()
+            self._model = None
+        self.warmup()
+
     def evidence(self, voice: str) -> dict[str, Any]:
         """Fingerprint the actual locally resolved weights, config, and voice pack."""
         import torch  # noqa: PLC0415

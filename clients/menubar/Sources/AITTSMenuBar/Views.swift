@@ -250,13 +250,30 @@ struct PlaybackTabBar: View {
 }
 
 struct UnreachableView: View {
+    @EnvironmentObject var state: AppState
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.bubble").font(.largeTitle)
             Text("The daemon is not running").font(.headline)
-            Text("Start it with:  ai-tts daemon")
-                .font(.system(.caption, design: .monospaced))
+            HStack {
+                Button("Launch daemon") { state.launchDaemon() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(state.launchingDaemon)
+                Button("View Logs") { state.viewDaemonLogs() }
+                Button("Quit") { NSApp.terminate(nil) }
+            }
+            if state.launchingDaemon {
+                ProgressView("Launching daemon…").controlSize(.small)
+            }
+            if let error = state.daemonRecoveryError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
         }
+        .padding()
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

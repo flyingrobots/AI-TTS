@@ -48,6 +48,9 @@ class SynthesisPool:
         self._engine = engine
         self._artifacts = artifacts
         self._workers = max(1, workers)
+        self.active_jobs = 0
+        self.enabled = asyncio.Event()
+        self.enabled.set()
         self._wake = asyncio.Event()
         # Counts how many times a worker has found no work and parked. It is
         # the only observable moment at which the pool is provably idle, which
@@ -68,6 +71,7 @@ class SynthesisPool:
 
     async def _worker(self) -> None:
         while True:
+            await self.enabled.wait()
             claimed = self._store.claim_for_synthesis()
             if claimed is None:
                 self.parks += 1
@@ -75,7 +79,11 @@ class SynthesisPool:
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._wake.wait(), timeout=0.5)
                 continue
-            await self._synthesize_one(claimed)
+            self.active_jobs += 1
+            try:
+                await self._synthesize_one(claimed)
+            finally:
+                self.active_jobs -= 1
 
     async def _synthesize_one(self, work: SynthesisWork) -> None:
         try:

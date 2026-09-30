@@ -132,6 +132,8 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Sen
         return lines.joined(separator: "\n")
     }
 
+    public func restartModel() throws { _ = try request(["op": "restart_model"]) }
+
     public func exportEvidence(id: String, destination: URL) throws -> [String] {
         let response = try request(["op": "export_evidence", "id": id, "destination": destination.path])
         guard let warnings = response["warnings"] as? [String], response["path"] as? String == destination.path else {
@@ -332,7 +334,12 @@ extension Snapshot {
             inputInterruptResume: InputInterruptResume(
                 rawValue: (json["settings"] as? [String: Any])?["input_interrupt_resume"]
                     as? String ?? ""
-            ) ?? .manual
+            ) ?? .manual,
+            runtime: (json["runtime"] as? [String: Any]).flatMap { row in
+                guard let pid = row["pid"] as? Int, let uptime = row["uptime_seconds"] as? Double,
+                      let model = row["model_state"] as? String, let jobs = row["active_synthesis"] as? Int else { return nil }
+                return DaemonRuntime(pid: pid, uptimeSeconds: uptime, modelState: model, activeSynthesis: jobs)
+            }
         )
     }
 

@@ -30,14 +30,15 @@ struct EmptyPane: View {
 
 struct ModelHealthFooter: View {
     @EnvironmentObject var state: AppState
+    @State private var confirmingRestart = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
                 Circle()
-                    .fill(state.lastError == nil ? Color.green : Color.red)
+                    .fill(state.runtime?.modelState == "ready" ? Color.green : Color.orange)
                     .frame(width: 6, height: 6)
-                Text("Model hot · \(state.status?.engine ?? "?") ·")
+                Text("Model \(state.runtime?.modelState ?? "unknown") · \(state.status?.engine ?? "?") ·")
                     .foregroundStyle(.secondary)
                 Menu {
                     ForEach(state.voices, id: \.self) { voice in
@@ -61,14 +62,32 @@ struct ModelHealthFooter: View {
                         .buttonStyle(.borderless).help("Dismiss voice confirmation")
                 }
             }
+            if let runtime = state.runtime {
+                Text("Daemon connected · PID \(runtime.pid) · up \(clock(Int(runtime.uptimeSeconds * 1000))) · \(runtime.activeSynthesis) generating")
+                    .foregroundStyle(.secondary)
+            }
             HStack {
                 Button("Open Data Folder", systemImage: "folder") { state.openDataFolder() }
+                Spacer()
+                Menu("Maintenance") {
+                    Button("Reload Model") { state.reloadModel() }
+                        .disabled(state.maintenanceInProgress || state.runtime?.activeSynthesis != 0 || ["loading", "reloading"].contains(state.runtime?.modelState ?? ""))
+                    Button("Restart Daemon…") { confirmingRestart = true }
+                        .disabled(state.maintenanceInProgress)
+                    Button("View Daemon Logs") { state.viewDaemonLogs() }
+                }.menuStyle(.borderlessButton).fixedSize()
+                if state.maintenanceInProgress { ProgressView().controlSize(.small) }
             }.buttonStyle(.borderless)
         }
         .font(.caption2)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-
+        .confirmationDialog("Restart daemon?", isPresented: $confirmingRestart) {
+            Button("Restart Daemon") { state.restartDaemon() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Playback will pause. Queued work will be recovered; resume playback when the daemon reconnects.")
+        }
     }
 }
 
