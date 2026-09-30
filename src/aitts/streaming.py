@@ -335,10 +335,12 @@ class PCMStreamRenderer:
         *,
         position_frames: int = 0,
         skip_leading_silence: bool = False,
+        prefix_pcm: bytes = b"",
     ) -> None:
         """Start the sole reader at an explicit source offset."""
         import numpy as np  # noqa: PLC0415 - keep numpy off source transport imports
 
+        self._prefix = np.frombuffer(prefix_pcm, dtype="<i2").astype(np.float32) / 32768.0
         self.source = source
         source.seek(position_frames)
         self.position_frames = float(position_frames)
@@ -355,6 +357,21 @@ class PCMStreamRenderer:
     def render(self, frames: int, *, rate: float = 1.0) -> NDArray[np.float32]:
         """Fill missing audio with a short decay to silence, without consuming time."""
         import numpy as np  # noqa: PLC0415 - keep numpy off source transport imports
+
+        if len(self._prefix):
+            count = min(frames, len(self._prefix))
+            output = np.zeros((frames, 1), dtype=np.float32)
+            output[:count, 0] = self._prefix[:count]
+            self._prefix = self._prefix[count:]
+            if count < frames:
+                output[count:] = self._render_speech(frames - count, rate=rate)
+            self._last = float(output[-1, 0])
+            return output
+
+        return self._render_speech(frames, rate=rate)
+
+    def _render_speech(self, frames: int, *, rate: float) -> NDArray[np.float32]:
+        import numpy as np  # noqa: PLC0415
 
         output = np.zeros((frames, 1), dtype=np.float32)
         needed = max(0, math.ceil(frames * rate + self._phase) + 1 - len(self._pending))

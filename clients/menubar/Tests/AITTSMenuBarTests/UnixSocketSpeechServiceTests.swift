@@ -81,6 +81,8 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
             .setSynthesisSpeed(0.9),
             .setPlaybackRate(2.0),
             .setCaptionsEnabled(true),
+            .setEarconEnabled(true),
+            .setDuckingEnabled(false),
         ]
         for command in commands { try service.perform(command) }
 
@@ -107,6 +109,8 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
                 ["op": "settings", "set": ["speed": 0.9]],
                 ["op": "settings", "set": ["playback_rate": 2.0]],
                 ["op": "settings", "set": ["captions_enabled": true]],
+                ["op": "settings", "set": ["earcon_enabled": true]],
+                ["op": "settings", "set": ["ducking_enabled": false]],
             ])
         )
     }
@@ -239,6 +243,19 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
 
         XCTAssertEqual(transport.subscriptionCount, 1)
         XCTAssertEqual(changes, 2)
+    }
+
+    func testAudioEffectPreferencesDecodeDefaultsAndExplicitValues() throws {
+        var configured = snapshotResponse
+        configured["settings"] = ["earcon_enabled": true, "ducking_enabled": false]
+        let transport = RecordingDaemonTransport(responses: [snapshotResponse, configured])
+        let service = UnixSocketSpeechService(transport: transport)
+        let defaults = try service.snapshot()
+        XCTAssertFalse(defaults.earconEnabled)
+        XCTAssertTrue(defaults.duckingEnabled)
+        let explicit = try service.snapshot()
+        XCTAssertTrue(explicit.earconEnabled)
+        XCTAssertFalse(explicit.duckingEnabled)
     }
 
     private var snapshotResponse: [String: Any] {

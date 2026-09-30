@@ -1,0 +1,30 @@
+[
+  {
+    "fault": "gate-enabled-at-start",
+    "test": "DuckingGainTests.testDeliveryGateKeepsOutputSilentUntilAudioArrivesAndActivationIsExplicit",
+    "exit_code": 1,
+    "receipt": ".git/codex-scratch/gate-enabled-at-start.log",
+    "result": "named assertion failed"
+  },
+  {
+    "fault": "gate-invalid-not-sticky",
+    "test": "DuckingGainTests.testDeliveryGateKeepsOutputSilentUntilAudioArrivesAndActivationIsExplicit",
+    "exit_code": 1,
+    "receipt": ".git/codex-scratch/gate-invalid-not-sticky.log",
+    "result": "named assertion failed"
+  },
+  {
+    "fault": "status-prematurely-active",
+    "test": "MediaDuckingTests.testReadinessIsNotPublishedBeforeDeliveryAndFailureClosesRoute",
+    "exit_code": 1,
+    "receipt": ".git/codex-scratch/status-prematurely-active.log",
+    "result": "named assertion failed"
+  },
+  {
+    "fault": "readiness-failure-leaks-route",
+    "test": "MediaDuckingTests.testReadinessIsNotPublishedBeforeDeliveryAndFailureClosesRoute",
+    "exit_code": 1,
+    "receipt": ".git/codex-scratch/readiness-failure-leaks-route.log",
+    "result": "named assertion failed"
+  }
+]

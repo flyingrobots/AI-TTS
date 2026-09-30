@@ -104,6 +104,8 @@ class SettingsService:
             "cache_max_bytes": self.cache_limit(),
             "captions_enabled": self.captions_enabled(),
             "captions_enabled_configured": self._store.has_setting("captions_enabled"),
+            "earcon_enabled": self._store.get_setting("earcon_enabled", "false") == "true",
+            "ducking_enabled": self._store.get_setting("ducking_enabled", "true") == "true",
             "input_interrupt_enabled": self.input_interrupt_enabled(),
             "input_interrupt_resume": self.input_interrupt_resume(),
         }
@@ -127,6 +129,8 @@ class SettingsService:
             "cache_max_bytes": self._plan_cache_limit,
             "playback_rate": self._plan_playback_rate,
             "captions_enabled": self._plan_captions_enabled,
+            "earcon_enabled": self._plan_earcon_enabled,
+            "ducking_enabled": self._plan_ducking_enabled,
             "input_interrupt_enabled": self._plan_input_interrupt_enabled,
             "input_interrupt_resume": self._plan_input_interrupt_resume,
         }
@@ -224,6 +228,14 @@ class SettingsService:
             raise ApiError(BAD_REQUEST, msg)
         # The controller owns this one: it must take effect mid-clip.
         return lambda: self._environment.set_playback_rate(rate)
+
+    def _plan_earcon_enabled(self, value: object) -> Callable[[], None]:
+        stored = _boolean("earcon_enabled", value)
+        return lambda: self._store.set_setting("earcon_enabled", stored)
+
+    def _plan_ducking_enabled(self, value: object) -> Callable[[], None]:
+        stored = _boolean("ducking_enabled", value)
+        return lambda: self._store.set_setting("ducking_enabled", stored)
 
     def _plan_captions_enabled(self, value: object) -> Callable[[], None]:
         stored = _boolean("captions_enabled", value)

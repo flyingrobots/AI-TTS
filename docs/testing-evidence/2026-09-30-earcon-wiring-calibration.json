@@ -1,0 +1,23 @@
+[
+  {
+    "fault": "repeat_document_cue",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_audio_cues.py::test_document_cue_does_not_repeat_on_pause_or_chunk[True]"
+    ]
+  },
+  {
+    "fault": "swift_ducking_command",
+    "exit_code": 1,
+    "failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:75: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testTypedSubmissionAndCommandsMapToExactDaemonRequests] : XCTAssertEqual failed: (\"[\"{\\\"content_format\\\":\\\"markdown\\\",\\\"op\\\":\\\"submit\\\",\\\"priority\\\":\\\"urgent\\\",\\\"sensitivity\\\":\\\"internal\\\",\\\"source\\\":\\\"finder-service\\\",\\\"speed\\\":1.25,\\\"text\\\":\\\"Exact text\\\",\\\"voice\\\":\\\"bm_george\\\"}\", \"{\\\"op\\\":\\\"pause\\\",\\\"origin\\\":\\\"menubar\\\"}\", \"{\\\"op\\\":\\\"resume\\\",\\\"origin\\\":\\\"menubar\\\"}\", \"{\\\"op\\\":\\\"skip\\\"}\", \"{\\\"op\\\":\\\"rewind\\\"}\", \"{\\\"op\\\":\\\"rewind\\\",\\\"to\\\":\\\"utt_previous\\\"}\", \"{\\\"id\\\":\\\"utt_cancel\\\",\\\"op\\\":\\\"cancel\\\"}\", \"{\\\"op\\\":\\\"clear\\\",\\\"queue\\\":\\\"queue\\\"}\", \"{\\\"op\\\":\\\"clear\\\",\\\"queue\\\":\\\"history\\\"}\", \"{\\\"id\\\":\\\"utt_old\\\",\\\"op\\\":\\\"remove_history\\\"}\", \"{\\\"id\\\":\\\"utt_retry\\\",\\\"op\\\":\\\"requeue\\\",\\\"priority\\\":\\\"urgent\\\"}\", \"{\\\"ids\\\":[\\\"utt_2\\\",\\\"utt_1\\\"],\\\"op\\\":\\\"reorder\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"voice\\\":\\\"bf_emma\\\"}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"speed\\\":0.90000000000000002}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"playback_rate\\\":2}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"captions_enabled\\\":true}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"earcon_enabled\\\":true}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"earcon_enabled\\\":false}}\"]\") is not equal to (\"[\"{\\\"content_format\\\":\\\"markdown\\\",\\\"op\\\":\\\"submit\\\",\\\"priority\\\":\\\"urgent\\\",\\\"sensitivity\\\":\\\"internal\\\",\\\"source\\\":\\\"finder-service\\\",\\\"speed\\\":1.25,\\\"text\\\":\\\"Exact text\\\",\\\"voice\\\":\\\"bm_george\\\"}\", \"{\\\"op\\\":\\\"pause\\\",\\\"origin\\\":\\\"menubar\\\"}\", \"{\\\"op\\\":\\\"resume\\\",\\\"origin\\\":\\\"menubar\\\"}\", \"{\\\"op\\\":\\\"skip\\\"}\", \"{\\\"op\\\":\\\"rewind\\\"}\", \"{\\\"op\\\":\\\"rewind\\\",\\\"to\\\":\\\"utt_previous\\\"}\", \"{\\\"id\\\":\\\"utt_cancel\\\",\\\"op\\\":\\\"cancel\\\"}\", \"{\\\"op\\\":\\\"clear\\\",\\\"queue\\\":\\\"queue\\\"}\", \"{\\\"op\\\":\\\"clear\\\",\\\"queue\\\":\\\"history\\\"}\", \"{\\\"id\\\":\\\"utt_old\\\",\\\"op\\\":\\\"remove_history\\\"}\", \"{\\\"id\\\":\\\"utt_retry\\\",\\\"op\\\":\\\"requeue\\\",\\\"priority\\\":\\\"urgent\\\"}\", \"{\\\"ids\\\":[\\\"utt_2\\\",\\\"utt_1\\\"],\\\"op\\\":\\\"reorder\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"voice\\\":\\\"bf_emma\\\"}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"speed\\\":0.90000000000000002}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"playback_rate\\\":2}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"captions_enabled\\\":true}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"earcon_enabled\\\":true}}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"ducking_enabled\\\":false}}\"]\")"
+    ]
+  },
+  {
+    "fault": "swift_ducking_decode",
+    "exit_code": 1,
+    "failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:244: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testAudioEffectPreferencesDecodeDefaultsAndExplicitValues] : XCTAssertFalse failed"
+    ]
+  }
+]

@@ -1,0 +1,60 @@
+[
+  {
+    "fault": "cue_pitch",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_audio_cues.py::test_earcon_has_expected_duration_pitch_and_envelope"
+    ]
+  },
+  {
+    "fault": "cue_duration",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_audio_cues.py::test_earcon_has_expected_duration_pitch_and_envelope"
+    ]
+  },
+  {
+    "fault": "cue_gain",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_audio_cues.py::test_earcon_has_expected_duration_pitch_and_envelope"
+    ]
+  },
+  {
+    "fault": "cue_source_clock",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_audio_cues.py::test_prefix_precedes_speech_without_advancing_source_clock"
+    ]
+  },
+  {
+    "fault": "ducking_default",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_settings_service.py::test_audio_effect_preferences_have_defaults_and_persist[ducking_enabled-True]"
+    ]
+  },
+  {
+    "fault": "earcon_default",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_settings_service.py::test_audio_effect_preferences_have_defaults_and_persist[earcon_enabled-False]"
+    ]
+  },
+  {
+    "fault": "ducking_persistence",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_settings_service.py::test_audio_effect_preferences_have_defaults_and_persist[ducking_enabled-True]",
+      "FAILED tests/test_cli.py::test_audio_effect_setting_aliases[arguments1-ducking_enabled-False]"
+    ]
+  },
+  {
+    "fault": "cli_alias",
+    "exit_code": 1,
+    "failures": [
+      "FAILED tests/test_cli.py::test_audio_effect_setting_aliases[arguments0-earcon_enabled-True]",
+      "FAILED tests/test_cli.py::test_audio_effect_setting_aliases[arguments1-ducking_enabled-False]"
+    ]
+  }
+]

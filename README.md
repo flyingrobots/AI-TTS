@@ -868,3 +868,25 @@ license inventory. No known advisory findings is not a source-security guarantee
 source-query coverage is disclosed in the retained evidence. The
 [native acceptance receipt](docs/testing-evidence/2026-09-30-multi-engine.md)
 records real offline inference with the frozen Python 3.12 graph.
+
+
+### Speech chime and other-app volume
+
+Settings includes **Chime before speech** (off by default) and **Lower other apps
+during speech** (on by default). Both preferences are saved by the daemon:
+
+```bash
+ai-tts settings set earcon on
+ai-tts settings set ducking off
+```
+
+The 100 ms chime plays once before a new document, without repeating on resume or
+between its chunks. It is excluded from saved audio and the clip's playhead.
+
+With the menu-bar app running on macOS 14.2 or newer, ducking lowers other apps
+on the default output to 30% during speech. AI-TTS speech keeps its normal volume.
+macOS may request system-audio permission; Settings provides the route status,
+**Audio Privacy Settings**, and **Retry**. Audio passes through in memory and is
+not recorded. Pause, completion, disconnection, disabling the preference, and
+quitting restore other apps. An idle source stays unmuted until audio arrives.
+Headless daemon playback does not perform this native menu-bar routing.

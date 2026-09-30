@@ -806,3 +806,13 @@ from the frozen install. Source archives have exact identity checks and separate
 labeled OSV commit/package advisory queries; registry packages retain strict
 hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory
 responses cannot establish source security or advisory-database coverage.
+
+## September 30 earcon and media ducking
+
+Cue generation and actual sink output, persisted controls, native gain ramps,
+readiness, active delivery loss and route ownership have controlled boundary
+checks and falsification receipts. A native process-tap probe measured 30% gain
+and unity restoration on this Mac's eight-channel output. See the
+[earcon and ducking receipt](../testing-evidence/2026-09-30-earcon-and-ducking.md).
+Permission denial, physical route switching and long-session acoustic behavior
+remain manual acceptance gaps. Hardware measurements do not gate CI.
