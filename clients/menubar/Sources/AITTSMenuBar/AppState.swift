@@ -69,8 +69,14 @@ final class AppState: ObservableObject {
 
     /// The one user-facing queue: every clip that will play after the current one.
     var upcoming: [Utterance] {
-        plan.filter { ["Queued", "Synthesizing", "Ready"].contains($0.state) }
+        plan.filter {
+            $0.id != status?.current?.id
+                && ["Queued", "Synthesizing", "Ready", "Paused"].contains($0.state)
+        }
     }
+
+    /// Suspended clips must unwind before the pending plan can be rearranged.
+    var canReorderQueue: Bool { !upcoming.contains { $0.state == "Paused" } }
 
     /// The hold the listener's own voice caused, if that is why speech stopped.
     var interruption: SpeechInterruption? { status?.interruption }
@@ -287,7 +293,7 @@ final class AppState: ObservableObject {
     }
 
     func refresh() {
-        queue.async { [self, speech] in
+        queue.async { [speech, self] in
             let snapshot = try? speech.snapshot()
             let observedAt = Date()
             Task { @MainActor [weak self] in
@@ -380,7 +386,7 @@ final class AppState: ObservableObject {
     // MARK: - Actions (fire, then refresh)
 
     private func send(_ command: SpeechCommand) {
-        queue.async { [self, speech] in
+        queue.async { [speech, self] in
             var failure: String?
             do {
                 try speech.perform(command)
@@ -441,7 +447,7 @@ final class AppState: ObservableObject {
     func purgeCachedAudio() {
         purgingCachedAudio = true
         cachePurgeReceipt = nil
-        queue.async { [self, speech] in
+        queue.async { [speech, self] in
             var receipt: CachePurgeReceipt?
             var failure: String?
             do {
@@ -464,7 +470,7 @@ final class AppState: ObservableObject {
     }
 
     func enqueueFile(_ url: URL) {
-        queue.async { [self, documentEnqueuer] in
+        queue.async { [documentEnqueuer, self] in
             var failure: String?
             do {
                 try documentEnqueuer.enqueueDocument(at: url)
@@ -486,7 +492,7 @@ final class AppState: ObservableObject {
 
     func enqueueCurrentSelection() {
         let processIdentifier = priorApplicationProcessIdentifier
-        queue.async { [self, currentSelectionEnqueuer] in
+        queue.async { [currentSelectionEnqueuer, self] in
             var failure: String?
             do {
                 try currentSelectionEnqueuer.enqueueCurrentSelection(
@@ -504,7 +510,7 @@ final class AppState: ObservableObject {
     }
 
     func enqueueClipboard() {
-        queue.async { [self, clipboardEnqueuer] in
+        queue.async { [clipboardEnqueuer, self] in
             var failure: String?
             do {
                 try clipboardEnqueuer.enqueueClipboard()
@@ -534,6 +540,7 @@ final class AppState: ObservableObject {
     }
 
     func reorderQueue(_ ids: [String]) {
+        guard canReorderQueue else { return }
         let byID = Dictionary(uniqueKeysWithValues: upcoming.map { ($0.id, $0) })
         guard ids.count == byID.count, ids.allSatisfy({ byID[$0] != nil }) else { return }
         let upcomingIDs = Set(byID.keys)
@@ -582,7 +589,7 @@ final class AppState: ObservableObject {
             priority: .urgent,
             source: "menubar-preview"
         )
-        queue.async { [self, speech] in
+        queue.async { [speech, self] in
             var failure: String?
             do {
                 try speech.submit(submission)

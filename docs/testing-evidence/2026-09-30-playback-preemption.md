@@ -83,8 +83,10 @@ AudioSink contract. Hardware listening across every output device is not
 covered: waveform continuity at stop is measured at the PCM boundary. This
 feature does not close the long-session popping investigation (#25).
 
-## Final gates
+## Initial feature gates (`5176118`)
 
 `uv run pytest -q`: 588 tests passed (215 small, 373 medium), 8.12 seconds
 wall time. Ruff check, Ruff format-check, mypy (100 source files), and
-`git diff --check` passed. No Swift source changed.
+`git diff --check` passed. No Swift source changed in that initial feature commit.
+Later native priority/queue changes and their Swift validation are recorded in
+[the PR 27 audit](2026-09-30-pr27-audit.md).

@@ -61,3 +61,8 @@ def test_retention_uses_last_activity_and_never_expires_protected_files(tmp_path
     rows = storage.inventory({"active"})
     assert sum(row["bytes"] for row in rows) == 15
     assert {row["id"] for row in rows if row["protected"]} == {"active"}
+
+
+@pytest.mark.oracle("an absent generated cache has an empty inventory")
+def test_missing_cache_root_has_an_empty_inventory(tmp_path: Path) -> None:
+    assert GeneratedStorage(tmp_path / "absent-cache").inventory(set()) == []

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - History exposes a clearly labeled Show/Hide provenance button with a full clickable target and selectable clip details.
+- Engine switches use and report a compatible default voice while preserving the saved preference for compatible engines.
+- MLX startup now falls back to reference Kokoro when required English language assets are missing.
 
 ### Added
 
@@ -202,6 +204,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Simplified the internal speech store by removing an unused queue lookup and
+  making its pending-queue helper private. Playback and queue controls are
+  unchanged.
+
 - The Python suite's latency budget is now per class rather than one number
   for the whole suite, charged on measured test time including fixtures, and
   each run prints the count, charged total and p95 call latency per class. The
@@ -240,15 +246,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Newly failed speech now shows a local toast with View History and dismiss actions, plus a persistent menu error and tray indicator. Startup and polling do not repeat old failure alerts.
+- Refreshing a suspended playback offset preserves the parent transition timestamp and does not emit a duplicate Paused event.
 
-- Update locked PyJWT to 2.14.0 to clear the dependency audit’s reported advisories.
+- Preempted document chunks emit their committed segment state-change event; paused-offset refreshes do not duplicate it.
+
+- Playback evidence includes driver underflows reported while writing the stop fade.
+
+- The native Queue shows suspended speech and keeps Clear Queue available during preemption; suspended clips cannot be reordered or individually cancelled.
+
+- Native Queue and History preserve preempt priority and offer it in the requeue menu.
+
+- Nested speech interruptions recover in their queue-defined order even when wall-clock timestamps tie or move backward.
+
+- History replay provenance identifies the replay while retaining its original caller.
+
+- Rejected storage requests preserve the previous automatic-retention policy.
+
+- Markdown speech cleanup preserves numeric multiplication signs and inline-code
+  asterisks while removing loose prose emphasis.
+
+- Evidence reports protect their audio and sidecars from deletion and eviction
+  until the archive worker finishes, including after a client disconnects.
+
+- Rejected speech submissions preserve the caller’s existing voice assignment.
+
+- Newly failed speech now shows a local toast with View History and dismiss actions, plus a persistent menu error and tray indicator. Startup and polling do not repeat old failure alerts.
 
 - Concurrent document segments no longer overwrite shared phonemizer state and fail with an input/output line-count mismatch. Neural inference remains parallel.
 
 - Pausing closes the audio output stream; resuming reopens it at the saved frame and current device. Driver underruns are recorded without replaying audio.
 
 - App bundle construction discovers Xcode’s actual Swift module directory, and installation includes the English spaCy model in the daemon environment.
+
+- The internal Store API check now discovers only Store methods, includes
+  async definitions and callback references, and ignores comments and strings.
+  Repository scans are charged to the medium test tier; duplicate assertions
+  were consolidated and the guard has controlled falsification cases.
+
+- Update the frozen PyJWT dependency to 2.14.0 to address ten published
+  security advisories, including empty HMAC JWK acceptance.
+
+- Microphone pauses now resume by default once no input device is active.
+  Explicit manual pauses and saved `manual` policies remain in effect.
+- Agents using the speak skill now enqueue requested speech while playback
+  is paused. Status guidance explains that speech is saved for later playback,
+  and the skill distinguishes queued speech from confirmed playback.
 
 - The sink's failure path is now tested rather than marked unreachable. A
   device that cannot be opened, a device that fails part-way through a clip,

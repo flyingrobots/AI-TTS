@@ -35,21 +35,33 @@ run it in the background instead of waiting.
 `Played`**. Without it, exit 0 means "accepted onto the queue", not "was
 heard". The JSON receipt ends with `"final_state": "Played"` on success.
 
-## Check the queue before speaking
+## Queue speech even while paused
+
+Always enqueue speech the user requested. A playback hold controls when the
+listener hears it; it does not close admission. Submit once through `say`,
+including during dictation or a meeting hold. The daemon saves the speech for
+playback when the hold is released, so the listener can hear it and respond
+later.
+
+`status` is optional diagnostic information, never a prerequisite for enqueueing:
 
 ```bash
 <AI_TTS_BIN> status
 ```
 
-- `"playback_held": true` — the user has held the queue, often for a meeting.
-  **Say it in text instead.** Queued speech fires the moment they resume,
-  which is exactly the wrong moment.
-- `"interruption"` is non-null — playback stopped because the user started
-  speaking. Do not resume it on their behalf.
-- Exit code 2 — the daemon is down. **Report that; never fall back to another
-  audio path.**
+- `"playback_held": true`: enqueue normally. For a long hold, omit `--wait`
+  and report "Queued for playback when the pause ends."
+- `"interruption"` is non-null: enqueue normally. Microphone pauses resume
+  automatically when no input is active under the default `when_idle` policy.
+  Leave playback controls to the listener and daemon.
+- A manual pause waits for the listener to resume. Keep requested speech queued.
+- Exit code 2 with an unavailable daemon: report the connection failure.
+  Use the daemon as the only audio path.
 
-`submission_guidance` states the current disposition in words. Trust it.
+A wait timeout does not cancel an accepted submission. Keep its utterance ID
+and check that entry later instead of submitting a duplicate. Say "queued"
+while it is pending; claim playback only after `final_state: Played`.
+`submission_guidance` describes admission separately from playback.
 
 ## Voice
 
@@ -90,15 +102,12 @@ Markdown read aloud is unlistenable. Before speaking:
   fifty eight".
 - Keep it short and load-bearing. One or two sentences beats a paragraph.
 
-## When not to speak
+## When to use text
 
-**If a meeting is plausibly live, stay silent and say so in text instead.**
-Anything spoken during a call lands in someone else's recording, including
-recordings you cannot see and cannot retract. A general permission to speak
-never overrides an unheard "I'm in a meeting".
-
-Prefer text whenever the user has not asked to be spoken to, when the content
-is long, or when it is something they will want to re-read rather than hear.
+Use text when the user has not requested speech or explicitly asks for text.
+When speech is requested during a pause, queue it and let the daemon manage
+playback. Respect an explicit request for silence and leave an active hold in
+place.
 
 ## Never bypass the daemon
 
