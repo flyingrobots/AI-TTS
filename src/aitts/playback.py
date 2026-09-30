@@ -253,7 +253,9 @@ class SoundDeviceSink:
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Play ``path`` on the default output device from ``position_ms``."""
-        if self._thread is not None and self._thread.is_alive():  # pragma: no cover
+        # Completion is the handoff barrier: the stream and file are closed
+        # before it is signalled. The old Python thread may still be returning.
+        if self._thread is not None and not self._ended.is_set():
             msg = "sink is already active; playback is strictly serialized"
             raise RuntimeError(msg)
         self._audio_path = path
@@ -812,6 +814,22 @@ class PlaybackController:
             played_ms=played_ms,
         )
 
+    async def stop(self) -> None:
+        """Retire playback before the owner closes durable state.
+
+        The caller first retires the plan loop and transport requests. Device
+        release can advance the playhead, so save its final position afterward.
+        """
+        had_active_sink = self._sink_active
+        await self._release_sink()
+        current = self._current()
+        if current is not None and had_active_sink:
+            self._store.suspend_playback(
+                current.id, self._current_segment_index, self._sink.position_ms()
+            )
+        self._current_id = None
+        self._current_segment_index = None
+
     async def _release_sink(self) -> None:
         """Stop playback and wait until the device can be acquired again."""
         watcher = self._watcher
@@ -1089,7 +1107,8 @@ class PlaybackController:
 
     async def _restart_current_locked(self) -> None:
         """Replay the current utterance from its start."""
-        if self.held:
+        held_at_request = self.held
+        if held_at_request:
             return
         current = self._current()
         if current is None:
@@ -1102,9 +1121,8 @@ class PlaybackController:
             self._store.restart_segments(current.id)
             self._current_segment_index = None
             first = self._store.next_unfinished_segment(current.id)
-            refreshed = self._store.get(current.id)
-            if first is not None and refreshed is not None and first.state is State.READY:
-                self._begin_segment(refreshed, first, position_ms=0)
+            if first is not None and first.state is State.READY:
+                self._resume_document_at_next_ready(current.id)
             elif active is not None:
                 # restart_segments only reopens children whose audio survives;
                 # if none did, the device was released for nothing.
@@ -1114,6 +1132,12 @@ class PlaybackController:
         if current.audio_path is None:
             return
         await self._release_sink()
+        if self.held:
+            # Pause can arrive during release. Preserve Restart's zero offset
+            # for explicit Resume without acquiring the device through a hold.
+            self._store.suspend_playback(current.id, None, 0)
+            self.notify()
+            return
         if current.state is State.PAUSED:
             self._store.transition(current.id, State.PLAYING)
         self._sink.start(Path(current.audio_path), position_ms=0)

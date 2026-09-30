@@ -238,6 +238,8 @@ class Daemon:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks = []
+        if self._controller is not None:
+            await self._controller.stop()
         await asyncio.gather(*self._exports, return_exceptions=True)
         self._store.close()
         self._state_lease.release()

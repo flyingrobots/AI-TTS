@@ -564,6 +564,49 @@ async def test_restart_does_not_release_global_hold(store: Store, sink: FakeSink
     task.cancel()
 
 
+@pytest.mark.parametrize("composite", [False, True], ids=["single-clip", "document"])
+async def test_pause_during_restart_holds_until_resume_from_zero(
+    store: Store, *, composite: bool
+) -> None:
+    # Retire only with a stronger calibrated hold-across-device-release contract.
+    sink = DelayedReleaseSink()
+    controller, schedule = playback_controller(store, sink)
+    item = (
+        make_composite_ready(store, "document", ("first", "second"))
+        if composite
+        else make_ready(store, "single clip")
+    )
+    task = await start(controller, schedule)
+    sink.advance_to(800)
+    restart = asyncio.create_task(controller.restart_current())
+    try:
+        await asyncio.wait_for(sink.stop_requested.wait(), timeout=1)
+        await controller.pause()
+        sink.release_stop()
+        await restart
+        await settle(controller, schedule)
+
+        assert (controller.held, state_of(store, item.id), sink.start_positions) == (
+            True,
+            State.PAUSED,
+            [0],
+        )
+
+        await controller.resume()
+        await settle(controller, schedule)
+        assert (state_of(store, item.id), sink.start_positions, sink.overlaps) == (
+            State.PLAYING,
+            [0, 0],
+            0,
+        )
+    finally:
+        sink.release_stop()
+        await restart
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        await controller.skip()
+
+
 async def test_adopts_paused_utterance_after_restart(store: Store, sink: FakeSink) -> None:
     a = make_ready(store, "a")
     store.transition(a.id, State.PLAYING)

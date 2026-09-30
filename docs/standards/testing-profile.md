@@ -512,3 +512,63 @@ fifteen-second medium ceiling. The three example-based functions remain
 explicitly small. Strategies, example count, seed policy, oracle and assertions
 are unchanged; no new assertion or runtime behavior is introduced.
 Failure evidence: [Python job](https://github.com/flyingrobots/AI-TTS/actions/runs/36745318625/job/109989908799).
+
+
+## Playback handoff audit: Pause during Restart
+
+Change-kind: bug fix. Restart checked the global hold before awaiting device
+release, then started audio even if Pause arrived during that await. Two medium
+controller-boundary cases (single clip and document) use an event-gated sink
+to place Pause after stop is requested but before device release completes.
+Both observed a second sink start on unfixed code; the document also returned
+to Playing while held. The fix rechecks the hold through the existing document
+resume boundary and preserves zero as the single-clip resume offset.
+
+The regression observes held/Paused state and exactly one start after the
+completed handoff, then explicitly resumes and observes a zero-offset second
+start without overlap. Seeding retention of the old single-clip offset fails
+the second assertion with 800ms instead of zero; restoration passes both cases.
+The schedule uses events and plan-cycle checkpoints, not sleeps. Oracle:
+architecture section 7's global hold and Restart contracts. Retire only with
+a stronger calibrated hold-across-device-release contract.
+
+
+## Playback handoff audit: shutdown device retirement
+
+Change-kind: bug fix. Daemon shutdown cancelled the plan loop but left the
+audio sink and its independent completion watcher alive, then closed SQLite
+and released state ownership. Two medium daemon-boundary regressions observed
+shutdown returning without requesting device stop on unfixed code. The fixed
+daemon retires admitted requests and worker loops, then asks the controller
+to retire its watcher and release the device before closing state.
+
+An event-gated owned sink proves stop remains pending until release, then
+reports no outstanding wait calls. Parent and child offsets are read from a
+reopened database; the fake advances during teardown to distinguish the final
+750ms position from the earlier 700ms observation. Separate seeds retaining
+700ms and omitting child suspension fail the corresponding durable assertions.
+A no-resume restored-clip control preserves 400ms; removing the active-device
+guard fails that check with zero. All seeds are restored. Repeated stop is
+harmless, and existing process-level bounded shutdown checks remain green.
+Oracle: exclusive playback ownership and durable paused position on shutdown.
+Retire only with a stronger calibrated daemon/device handoff contract.
+
+
+## Playback handoff audit: completion before thread retirement
+
+Change-kind: bug fix. SoundDeviceSink signalled completion after closing the
+stream and file, but start independently required the Python worker thread to
+be dead. A caller could await completion and still receive an overlapping-
+playback error on immediate reacquisition. Start now uses the same completion
+event as wait; no device or evidence work remains after that barrier.
+
+The medium public sink regression owns a WAV, recording output adapter, and
+thread scheduler. Its wrapper holds worker retirement after the real playback
+target returns. The unfixed next start raised RuntimeError after wait returned
+True. The fixed sink plays both copies fully. The same check gates initial
+worker entry and requires active-playback refusal; removing that guard fails
+the refusal assertion. Only the playback module's threading dependency
+reference is replaced, not process-wide threading. Both gates are released
+and workers joined during cleanup. Oracle: completion permits reacquisition
+while active playback remains exclusive. Retire only with a stronger
+calibrated completion/reacquisition contract.

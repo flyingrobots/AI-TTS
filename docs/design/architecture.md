@@ -258,6 +258,7 @@ graph TB
 
 - **Daemon** — long-lived, model resident. **This is what makes generation hot rather than cold**, and it is what makes F3 impossible: playback is not bounded by any client's process lifetime.
 - **Playback controller** — **the only component permitted to touch the audio device.** It is single-threaded by construction. This is the entire fix for F4; overlap is not prevented by convention but by there being one owner. Sole ownership is not ownership of a *fixed* device: the sink follows the system default output, reopening its stream mid-clip when the listener moves it (§10 item 3).
+- **Audio completion** — the sink signals completion only after its output stream and source file are closed. `wait()` returning permits immediate reacquisition; retirement of the Python thread is not an additional device-ownership barrier.
 - **Audio device port** — reports the OS default output live and rebuilds the
   audio library's cached device enumeration. Separate from the sink because the
   two halves come from different system libraries, and separate from playback
@@ -268,7 +269,9 @@ graph TB
 - **Synthesis worker pool** — N parallel workers. N is a setting, not a constant.
 - **Engine adapter** — see §8. The engine is a detail, not the architecture.
 - **Process-termination adapter** — SIGTERM first closes the socket, cancels
-  workers, and commits/closes SQLite. It then exits at the OS boundary without
+  workers, releases the audio device and its completion watcher, and saves the
+  final active parent/child position as Paused before closing SQLite and
+  releasing daemon ownership. It then exits at the OS boundary without
   waiting for cancelled `to_thread` work: Python cannot interrupt a native
   model call, and loop teardown would otherwise join that thread indefinitely.
   An unpublished `.part` candidate is cache-invisible and swept on the next
@@ -494,7 +497,7 @@ invalidation event.
 
 - **`pause`** — engages a persistent global playback hold, even when there is no current utterance and Queue is empty. A current utterance stops at its present parent/child position. **Submission and synthesis continue**, but no audio may start until `resume` explicitly releases the hold. Running ahead while paused is exactly right; the user will want the buffer full when they resume.
 - **`skip`** — current parent → `Skipped`; an active child becomes `Skipped` and every unfinished sibling becomes `Cancelled`. The next `Ready` parent begins only when the global hold is not engaged; otherwise it remains ready for `resume`. **The input queue is untouched.** Skipping one thing is not permission to release a meeting-mode hold.
-- **`rewind`** — restarts the current parent at child zero or targets a previous parent (`to: utt_id`). **Rewinding to a played document recreates its child plan and reuses every child artifact when the full set remains cached**; if incomplete, its children are re-synthesized. Rewind does not delete what was ahead of it. The queue is restored after the replayed item.
+- **`rewind`** — restarts the current parent at child zero or targets a previous parent (`to: utt_id`). **Rewinding to a played document recreates its child plan and reuses every child artifact when the full set remains cached**; if incomplete, its children are re-synthesized. Rewind does not delete what was ahead of it. The queue is restored after the replayed item. Restart of the current item is inert while already held. If a hold arrives during its device teardown, the restart position is retained at zero and audio waits for explicit Resume.
 - **`cancel <id>`** — legal in `Queued`, `Synthesizing` and `Ready`. Cancelling a parent atomically cancels every unfinished child and signals the worker; the engine adapter may not support mid-generation abort, in which case the result is discarded on completion. **Cancel is not legal for a `Playing` utterance — that is `skip`**, and keeping them distinct keeps history honest about what happened.
 - **`clear`** — drains a named queue. **Requires naming which one.** There is no single "stop everything" that silently discards unsynthesized input.
 
