@@ -573,10 +573,13 @@ class Daemon:
             if isinstance(arguments, dict)
             else "Unknown (legacy clip)"
         )
-        for prefix, label in sources.items():
-            if item.source and item.source.startswith(prefix):
-                origin = label
-                break
+        if item.replay_of is not None:
+            origin = "History replay"
+        else:
+            for prefix, label in sources.items():
+                if item.source and item.source.startswith(prefix):
+                    origin = label
+                    break
         artifacts = [(Path(x.audio_path).stem if x.audio_path else x.artifact_id) for x in segments]
         if not artifacts:
             artifacts = [Path(item.audio_path).stem if item.audio_path else item.id]

@@ -14,6 +14,7 @@ from aitts.application.input_activity import FakeInputActivity
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.ipc import ApiError
+from aitts.model import State
 from aitts.playback import FakeSink
 
 if TYPE_CHECKING:
@@ -48,3 +49,23 @@ async def test_rejected_storage_request_cannot_enable_retention(
         await idle_daemon.dispatch({"op": "storage", "retention_days": 1, "delete": invalid_delete})
     after = await idle_daemon.dispatch({"op": "storage"})
     assert after == before
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["menubar-file", "macos-accessibility", "macos-clipboard", "macos-service", "macos-intent"],
+)
+@pytest.mark.oracle("a History replay reports its own origin and retains the original caller")
+async def test_replay_origin_is_not_overwritten_by_the_original_native_entry_point(
+    idle_daemon: Daemon, source: str
+) -> None:
+    original = idle_daemon.store.submit("source", voice="v", speed=1.0, source=source)
+    idle_daemon.store.transition(original.id, State.CANCELLED)
+    replay = await idle_daemon.dispatch({"op": "requeue", "id": original.id})
+    response = await idle_daemon.dispatch({"op": "provenance", "id": replay["id"]})
+    provenance = response["provenance"]
+    assert {key: provenance[key] for key in ("origin", "caller_source", "replay_of")} == {
+        "origin": "History replay",
+        "caller_source": source,
+        "replay_of": original.id,
+    }
