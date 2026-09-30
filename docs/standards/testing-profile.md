@@ -572,3 +572,213 @@ reference is replaced, not process-wide threading. Both gates are released
 and workers joined during cleanup. Oracle: completion permits reacquisition
 while active playback remains exclusive. Retire only with a stronger
 calibrated completion/reacquisition contract.
+
+
+## Installation audit: preserve launch agent on failed replacement
+
+Change-kind: bug fix. Forced rendering unlinked the incumbent plist before
+validating the log directory or serializing the new payload. Two small owned-
+filesystem regressions observed the old artifact missing after log validation
+failure, or replaced with partial bytes after a seeded serialization failure.
+The renderer now prepares and flushes a sibling candidate before atomic
+publication. Forced publication replaces the destination; unforced publication
+uses exclusive linking so a concurrent installation is preserved.
+
+The successful replacement check validates executable arguments and mode.
+Wrong-command and wrong-mode seeds fail their respective assertions; replacing
+exclusive linking with replacement fails concurrent-install refusal. An initial
+calibration run encountered stale bytecode after same-size rapid rewrites; its
+restoration result was discarded. All three seeds were rerun with bytecode
+invalidated and writing disabled, then restored checks passed. These checks
+use the profile's small owned-temp-file exception and invoke the public CLI
+entrypoint or renderer, without launchd or installed user configuration.
+Retire only with a stronger calibrated installation failure contract.
+
+
+## Installation audit: preserve app during forced upgrade
+
+Change-kind: bug fix. The app CLI removed an existing bundle before checking
+toolchain availability or completing the build. Two small owned-filesystem
+cases injected failure before build and after partial assembly; both observed
+the incumbent missing on unfixed code. The CLI now builds, extracts metadata
+and signs a sibling candidate first, then publishes it through macOS
+renamex_np. RENAME_SWAP atomically exchanges an existing nonempty directory;
+RENAME_EXCL handles initial installation and refuses concurrent unforced
+replacement. Unsupported platforms/filesystems fail without a delete fallback.
+
+Three success cases (initial install, forced initial install, forced upgrade)
+and a concurrent-install refusal exercise real native rename operations on
+owned temporary directories. Omitting publication, denying replacement, and
+allowing an unforced swap each fail the corresponding contracts. Bytecode was
+invalidated for every seed; restored cases pass. Build work is substituted at
+the build boundary for these small publication tests; real signed-bundle
+validation is separate. These tests establish namespace publication and
+pre-publication failure preservation, not an exhaustive power-loss durability
+campaign. Retire only with a stronger calibrated installation contract.
+
+
+## Installation audit: failed MCP registration
+
+Change-kind: bug fix. A failed native MCP add caused the installer to remove
+the existing entry and retry; another failure still returned success. Three
+medium CLI-boundary cases own Claude/Codex/Gemini doubles and their registration
+files. All observed exit zero and a deleted incumbent on unfixed code. The
+installer now leaves removal to the user/native host, reports failure, and
+continues other selected agents before returning an aggregate nonzero status.
+
+A fourth case combines one refusing host with two successful hosts. Removing
+the aggregate-failure handling makes it exit before those registrations and
+fails the exact resulting registration projection; restoration passes. These
+checks never execute a real agent CLI or change user configuration. Native
+add/update behavior remains the host's responsibility; the installer no longer
+performs destructive recovery after an arbitrary refusal. Retire only with a
+stronger calibrated registration-preservation and exit-status contract.
+
+
+## Installation audit: preserve skill on render failure
+
+Change-kind: bug fix. Shell redirection truncated the installed SKILL.md before
+rendering completed. A medium installer-boundary check uses an owned sed double
+that delegates quoting to real sed but emits partial output and fails during
+placeholder replacement. On unfixed code, the command failed while leaving
+partial bytes in the installed skill. The installer now renders into a sibling
+temporary file, publishes only on success, and scopes cleanup traps to the
+installation subprocess. The regression passes; existing first-install,
+reinstall, dry-run and awkward-path contracts remain green. No real skill
+directory or installed command participates. Retire only with a stronger
+calibrated generated-skill replacement contract.
+
+
+## Installation audit: uv-resolved daemon diagnostics
+
+Change-kind: bug fix. make doctor discarded a failed status result when the
+CLI was found through uv's tool directory rather than PATH. A medium real-Make
+regression owns a uv command and an ai-tts executable returning exit 7, with
+agent integration commands replaced by true. Unfixed output omitted the daemon
+failure message; fixed output reports the same exit-specific diagnostic as
+the PATH-resolved branch. No installed daemon or agent is invoked. Retire only
+with a stronger calibrated diagnostic-entrypoint contract.
+
+
+## Installation audit: prepare before replacing the CLI
+
+Change-kind: bug fix. make install invoked uv tool install before building
+the app, so a build failure left the CLI upgraded despite installation failure.
+A medium real-Make regression owns its uv command, package-version sentinel,
+and all artifact destinations. With a seeded build failure, unfixed Make
+changed the CLI sentinel; staged installation leaves it unchanged.
+
+The Make entrypoint now delegates preparation and publication to a stdlib
+orchestrator. It prepares app and plist before uv replacement and consistently
+passes explicit app/plist/log destinations. A successful owned-tool install
+checks all three resulting artifacts; omitting plist publication fails that
+required artifact read. Bytecode was invalidated during calibration. External
+build and package operations are controlled command doubles; app publication
+and plist rendering remain real. No launchctl or installed tool is invoked.
+This does not claim full-system rollback of uv's environment after a later
+publication or service failure. Retire only with a stronger staged-install
+contract and equivalent failure evidence.
+
+
+## Installation audit: launch-agent activation recovery
+
+Change-kind: bug fix. After bootout, a failed bootstrap left the previous
+service unloaded and its plist replaced. Two medium real-Make cases own a
+stateful launchctl double that rejects the replacement but accepts the original
+configuration. Both observed the new plist retained on unfixed code; the
+previously loaded case also lost its service. Installation now snapshots the
+prior plist and loaded state, restores the file on activation failure, and
+attempts reload only when the old service had been loaded and removed.
+
+Removing the loaded-state condition makes the deliberately unloaded case
+start a service and fail its oracle. Restored tests pass. An already-loaded
+service without its prior plist is refused before bootout. Recovery failure
+remains an error and is reported, not treated as health or successful rollback
+of the uv environment. All commands and state are owned fixtures; no system
+launchd service participates. Retire only with an equivalent calibrated
+activation-failure and prior-service-state contract.
+
+
+## Installation audit: registration is not daemon health
+
+Change-kind: bug fix. Installation claimed the daemon was running immediately
+after launchctl accepted its registration. A medium real-Make check uses an
+owned launchctl that accepts configuration without starting any daemon. The
+unfixed output asserted running; it now reports registration and directs the
+user to make doctor for status. Existing Make cases share one owned invocation
+helper, with their result oracles unchanged. Retire only with a calibrated
+health check or equally truthful registration receipt.
+
+
+## Installation audit: newline-bearing executable paths
+
+Change-kind: bug fix. An embedded newline made sed reject the skill replacement
+expression, while trailing newlines were silently removed by command substitution.
+Two medium owned installer cases observed render failure or a different executable
+path on unfixed code. Quoting and binary resolution now preserve trailing bytes
+with a sentinel, and sed replacement escapes physical line endings.
+
+Skill checks parse a complete fenced status command as shell words, preserving
+quoted multiline paths. Matching MCP dry-run cases verify the complete native
+command argument list; removing the MCP resolution sentinel fails the trailing-
+newline argument check. Existing apostrophe, ampersand and space cases stay green.
+No command from the generated skill is executed. Retire only with an equivalent
+calibrated path-to-command argument preservation contract.
+
+
+## Installation audit: concurrent CLI refusal diagnostics
+
+Change-kind: bug fix. Existing exclusive publication preserved a concurrent
+installation, but both CLIs leaked FileExistsError instead of their normal
+destination-conflict diagnostic. Two small owned CLI-boundary cases observed
+the raw exception where exit 2 and an explicit output-conflict message were
+required. They now receive that diagnostic and still verify the winning
+artifact's exact bytes. The direct renderer continues exposing FileExistsError
+to library callers; unrelated forced-render validation errors remain unchanged.
+Retire only with an equivalent calibrated CLI refusal contract.
+
+
+## Installation audit follow-up: observe the executed package command
+
+Change-kind: behavior change (test observation only). The first full suite
+after staging failed the English-model distribution test with StopIteration:
+it assumed uv tool install appeared directly in make -n output. The requirement
+was unchanged, but Make now delegates to the installer. The test moved to the
+owned real-Make harness and reads the actual uv argument vector, still requiring
+the exact English-model wheel in --with extras. Removing that wheel from the
+executed command fails the requirement assertion; restored code passes. The
+failed suite was not accepted or retried without correcting the observation.
+This replaces the old command-text projection; it does not weaken the installed
+English-speech dependency contract.
+
+
+## Installation audit follow-up: menu-app completion receipt
+
+Change-kind: bug fix. The completion receipt still asserted that the menu app
+was not running, although installation neither checks nor stops an incumbent
+app process. The existing registration-receipt test observed that unsupported
+statement where the action-only receipt was required. It now reports that the
+installer did not launch the app. README documents quit/reopen after upgrade
+and distinguishes manual operations from staged Make orchestration.
+
+
+## Installation audit: interrupted activation recovery
+
+Change-kind: bug fix. Eight small contract cases inject KeyboardInterrupt
+before and after bootout/bootstrap side effects, with prior service loaded
+or unloaded. All eight failed on the unfixed installer: new plist bytes
+survived, and service state could be stopped or use the replacement.
+The owned launchctl double retains the exact registered plist bytes, so a
+loaded replacement cannot masquerade as restored prior registration. Recovery
+now catches interruption, retires a possibly registered replacement, inspects
+actual service state, and reloads the prior configuration only when necessary.
+The original interrupt is still raised. Tests use only owned temporary files
+and a subprocess-boundary double; no installed service is accessed. Retire
+only when activation no longer replaces a live configuration, or an equivalent
+calibrated recovery contract replaces these cases. This does not establish
+resilience to repeated interruption, failed recovery commands, or power loss.
+A mutation omitting replacement retirement failed the exact registered-byte
+oracle after successful bootstrap followed by interruption. Bytecode was
+invalidated before mutation and restoration; restored eight-case suite passes.
+Full validation: 730 Python tests (258 small, 472 medium), 127 Swift tests,
+frozen lock, Ruff and mypy pass.
