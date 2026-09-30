@@ -28,6 +28,7 @@ enum PopoverOpenSequence {
 final class StatusController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
+    private let sizing = PopoverSizing(defaults: .standard)
     private let state: AppState
     private let captionPanel: CaptionPanelController
     private let fullTextWindow: FullTextWindowController
@@ -48,11 +49,14 @@ final class StatusController: NSObject, NSPopoverDelegate {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
-        popover.contentSize = NSSize(width: 360, height: 480)
+        popover.contentSize = NSSize(width: 368, height: sizing.height)
         popover.behavior = .transient
         popover.delegate = self
         popover.contentViewController = NSHostingController(
-            rootView: PopoverView().environmentObject(state))
+            rootView: PopoverView(sizing: sizing).environmentObject(state))
+        sizing.$height.sink { [weak self] height in
+            self?.popover.contentSize = NSSize(width: 368, height: height)
+        }.store(in: &cancellables)
 
         if let button = statusItem.button {
             button.action = #selector(togglePopover(_:))
@@ -133,6 +137,8 @@ final class StatusController: NSObject, NSPopoverDelegate {
                 ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
                 store: { state.capturePriorApplication(processIdentifier: $0) },
                 activate: {
+                    sizing.maximumHeight = max(200, (button.window?.screen?.visibleFrame.height ?? 800) - 32)
+                    sizing.resize(to: sizing.height)
                     state.startPolling(interval: 0.5)
                     popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
                     popover.contentViewController?.view.window?.makeKey()

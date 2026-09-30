@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Drag the menu card’s bottom grip to resize its height. The height persists across launches and is bounded to the current screen.
+
 - Optional `kokoro-mlx` backend on Apple Silicon/Python 3.12, selected through a persisted engine preference or daemon flag. Preparation precedes queued synthesis; unsupported installations fall back to reference Kokoro. Clip evidence fingerprints MLX assets and runtime versions.
 
 - `say --preempt`, `priority: preempt`, and MCP `preempt: true` interrupt playback when alert audio is ready, then resume the interrupted chunk and offset. Nested alerts unwind in reverse order; holds remain authoritative, queue clearing drains suspended clips, and device stops fade to silence.
