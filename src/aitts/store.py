@@ -367,15 +367,9 @@ class Store:
         """Utterances on the playback side: Ready, Playing, Paused."""
         return self._by_states(_PLAYBACK_STATES)
 
-    def pending_queue(self) -> list[Utterance]:
+    def _pending_queue(self) -> list[Utterance]:
         """Everything that will play after the current utterance, in order."""
         return self._by_states(_PENDING_STATES)
-
-    def head_of_plan(self) -> Utterance | None:
-        """Return the earliest non-terminal utterance in plan order."""
-        nonterminal = tuple(s for s in State if s not in TERMINAL)
-        items = self._by_states(nonterminal)
-        return items[0] if items else None
 
     def next_pending(self, *, exclude: str | None = None) -> Utterance | None:
         """Return the earliest utterance still owed to the listener (not playing)."""
@@ -800,7 +794,7 @@ class Store:
 
     def reorder_pending(self, utt_ids: list[str]) -> None:
         """Replace the pending plan order with one exact, complete permutation."""
-        pending = self.pending_queue()
+        pending = self._pending_queue()
         pending_ids = [utt.id for utt in pending]
         if len(utt_ids) != len(set(utt_ids)) or set(utt_ids) != set(pending_ids):
             msg = "ids must name the complete pending plan exactly once"
