@@ -2,6 +2,8 @@
 
 Change-kind: bug fix
 
+## Initial feature receipt (`58b174f`)
+
 The medium Swift regression hosts an actual HistoryRow in an owned AppKit
 window. Its oracle is a labeled native Show provenance button whose activation
 loads evidence for that row's clip; the fake exporter returns the requested ID.
@@ -18,3 +20,9 @@ completion with a one-second deadline under the suite's 60-second process limit.
 
 Remove this regression only when History no longer offers inline provenance.
 Real pointer/VoiceOver acceptance remains outside this in-process check.
+
+## Audit follow-up
+
+The control test now uses an explicitly delivered provenance response instead
+of polling a wall clock. Cache pruning and removed-item/late-response schedules
+are covered by the [PR 29 audit receipt](2026-09-30-pr29-audit.md).

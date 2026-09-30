@@ -26,10 +26,10 @@ ENGINE_NAMES = ("kokoro", "kokoro-mlx", "fake")
 
 
 def mlx_available() -> bool:
-    """Probe supported runtime, installed package and the Metal backend."""
+    """Probe the runtime, required packages/language assets, and Metal backend."""
     if sys.platform != "darwin" or platform.machine() != "arm64" or sys.version_info >= (3, 13):
         return False
-    if importlib.util.find_spec("kokoro_mlx") is None:
+    if any(importlib.util.find_spec(name) is None for name in ("kokoro_mlx", "en_core_web_sm")):
         return False
     try:
         import mlx.core as mx  # noqa: PLC0415 - optional hardware backend

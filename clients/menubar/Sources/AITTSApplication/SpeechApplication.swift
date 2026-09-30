@@ -6,6 +6,7 @@ import Foundation
 public enum RequeuePriority: String, CaseIterable, Equatable, Sendable {
     case normal
     case urgent
+    case preempt
 }
 
 public enum SpeechSensitivity: String, Equatable, Sendable {

@@ -43,6 +43,7 @@ struct QueueView: View {
                 List {
                     ForEach(state.upcoming) { item in
                         QueueRow(item: item)
+                            .moveDisabled(!state.canReorderQueue)
                     }
                     .onMove(perform: move)
                 }
@@ -66,7 +67,11 @@ struct QueueView: View {
         let count = state.upcoming.count
         let urgent = state.upcoming.filter { $0.priority == .urgent }.count
         let noun = count == 1 ? "clip" : "clips"
-        return urgent == 0 ? "\(count) upcoming \(noun)" : "\(count) upcoming · \(urgent) urgent"
+        let preempt = state.upcoming.filter { $0.priority == .preempt }.count
+        var parts = ["\(count) upcoming \(noun)"]
+        if urgent > 0 { parts.append("\(urgent) urgent") }
+        if preempt > 0 { parts.append("\(preempt) preempt") }
+        return parts.joined(separator: " · ")
     }
 
     private func move(from offsets: IndexSet, to destination: Int) {
@@ -82,18 +87,20 @@ struct QueueRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            Image(systemName: "line.3.horizontal")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .help("Drag to reorder")
+            if state.canReorderQueue {
+                Image(systemName: "line.3.horizontal")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .help("Drag to reorder")
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.text)
                     .font(.system(size: 12))
                     .lineLimit(2)
                 HStack(spacing: 6) {
                     StatePill(state: item.state)
-                    if item.priority == .urgent {
-                        PriorityBadge()
+                    if item.priority != .normal {
+                        PriorityBadge(priority: item.priority)
                     }
                     Text(item.voice)
                         .font(.system(size: 9, design: .monospaced))
@@ -107,7 +114,8 @@ struct QueueRow: View {
                 Image(systemName: "xmark.circle")
             }
             .buttonStyle(.borderless)
-            .help("Remove from queue")
+            .disabled(item.state == "Paused")
+            .help(item.state == "Paused" ? "Clear Queue to discard suspended speech" : "Remove from queue")
         }
         .padding(.vertical, 2)
     }
@@ -140,8 +148,10 @@ struct StatePill: View {
 }
 
 struct PriorityBadge: View {
+    let priority: RequeuePriority
+
     var body: some View {
-        Text("↑ Urgent")
+        Text(priority.badgeLabel ?? "")
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

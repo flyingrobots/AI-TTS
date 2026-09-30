@@ -7,18 +7,28 @@ import SwiftUI
 @MainActor
 final class PopoverSizing: ObservableObject {
     @Published private(set) var height: CGFloat
-    var maximumHeight: CGFloat = 1200
+    private(set) var maximumHeight: CGFloat = 1200
+    private var preferredHeight: CGFloat
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults) {
         self.defaults = defaults
         let stored = defaults.double(forKey: "menuCardHeight")
-        self.height = stored.isFinite && stored >= 360 ? min(stored, 1200) : 500
+        self.preferredHeight = stored.isFinite && stored >= 360 ? stored : 500
+        self.height = preferredHeight
+    }
+
+    /// Fit the current screen without changing the durable user preference.
+    func fit(to maximum: CGFloat) {
+        guard maximum.isFinite, maximum > 0 else { return }
+        maximumHeight = maximum
+        height = min(preferredHeight, maximumHeight)
     }
 
     func resize(to proposed: CGFloat) {
         guard proposed.isFinite else { return }
         height = min(max(proposed, 360), maximumHeight)
-        defaults.set(Double(height), forKey: "menuCardHeight")
+        preferredHeight = max(height, 360)
+        defaults.set(Double(preferredHeight), forKey: "menuCardHeight")
     }
 }
