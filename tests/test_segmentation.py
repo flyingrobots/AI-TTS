@@ -146,3 +146,14 @@ def test_markdown_speech_plan_strips_loose_formatting_asterisks() -> None:
     assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (
         "Here is bold text and spaced emphasis.",
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "spoken"),
+    [("2 * 3 * 4", "2 * 3 * 4"), ("Use `* literal *` here.", "Use * literal * here.")],
+)
+@pytest.mark.oracle(
+    "Markdown speech preserves arithmetic operators and literal inline-code content"
+)
+def test_loose_emphasis_cleanup_preserves_literal_asterisks(text: str, spoken: str) -> None:
+    assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == (spoken,)

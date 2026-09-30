@@ -236,6 +236,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Markdown speech cleanup preserves numeric multiplication signs and inline-code
+  asterisks while removing loose prose emphasis.
+
 - Evidence reports protect their audio and sidecars from deletion and eviction
   until the archive worker finishes, including after a client disconnects.
 
