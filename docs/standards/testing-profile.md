@@ -388,3 +388,16 @@ An exploratory third publication seed was removed because the two-child setup
 has only two publication commits; it is not counted as red evidence. Oracle:
 architecture section 6's durable queued-work recovery. Retire when atomic
 publication or a stronger calibrated crash matrix subsumes these cases.
+
+## Crash audit follow-up: blocked model-reload exclusion
+
+Change-kind: behavior change (test observation only). The late PR #40 review
+correctly noted that eventual reload readiness did not prove synthesis stayed
+excluded before the native restart finished. The existing medium event-gated
+check now captures the real SynthesisPool at composition and reads its public
+exclusion gate after request cancellation, before releasing the native worker.
+It does not inspect Daemon's private pool reference or infer safety from time.
+A seeded cancellation handler that prematurely sets the pool gate fails both
+success/failure cases at the new assertion; restoration passes both. This is
+additional calibration of an existing fixed runtime invariant, not a newly
+claimed production defect.

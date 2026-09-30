@@ -9,6 +9,7 @@ import asyncio
 import tempfile
 import threading
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -16,6 +17,7 @@ from aitts.application.input_activity import FakeInputActivity
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.playback import FakeSink
+from aitts.synthesis import SynthesisPool
 from tests.test_ipc import wait_for_async
 
 pytestmark = [
@@ -28,9 +30,18 @@ pytestmark = [
 
 @pytest.mark.parametrize("fails", [False, True])
 async def test_cancelled_reload_request_still_publishes_completion(
-    tmp_path: Path, *, fails: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fails: bool
 ) -> None:
     # Retire if model reload disappears or another lifecycle contract subsumes it.
+    pools: list[SynthesisPool] = []
+
+    class ObservedPool(SynthesisPool):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            pools.append(self)
+
+    # Capture the real synthesis port at composition; do not reach into Daemon.
+    monkeypatch.setattr("aitts.daemon.SynthesisPool", ObservedPool)
     entered = asyncio.Event()
     release = threading.Event()
     loop = asyncio.get_running_loop()
@@ -67,6 +78,7 @@ async def test_cancelled_reload_request_still_publishes_completion(
             request.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await request
+            assert not pools[0].enabled.is_set()
             release.set()
 
             async def completed() -> bool:
