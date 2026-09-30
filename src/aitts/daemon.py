@@ -22,6 +22,7 @@ from blake3 import blake3
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
+from aitts.adapters.exclusive_lease import ExclusiveFileLease
 from aitts.adapters.filesystem_cache import FileAudioCache
 from aitts.adapters.generated_storage import GeneratedStorage
 from aitts.adapters.platform_audio import platform_input_activity
@@ -116,6 +117,7 @@ class Daemon:
         """Prepare a daemon rooted at ``home`` speaking through ``engine``."""
         secure_private_state(home)
         self._home = home
+        self._state_lease = ExclusiveFileLease(home / "daemon.lock")
         self._started_at = time.monotonic()
         self._model_state = "loading"
         self._warmup_finished = asyncio.Event()
@@ -168,34 +170,40 @@ class Daemon:
 
     async def start(self) -> None:
         """Recover state, start the workers, and begin serving."""
-        self._store.recover()
-        self.enforce_cache_limit()
-        held = any(u.state is State.PAUSED for u in self._store.playback_queue())
-        self._controller = PlaybackController(
-            self._store,
-            self._sink,
-            ImmediatePlaybackSchedule(),
-            held=held,
-            evidence=self._evidence,
-        )
-        self._pool = SynthesisPool(
-            self._store,
-            self._engine,
-            FileAudioArtifacts(self._cache_dir),
-            workers=self._workers,
-            evidence=self._evidence,
-        )
-        self._store.on_transition.append(self._on_transition)
-        self._store.on_segment_transition.append(self._on_segment_transition)
-        loop = asyncio.get_running_loop()
-        self._tasks = [
-            loop.create_task(self._run_synthesis(), name="aitts-synthesis"),
-            loop.create_task(self._supervise_playback(), name="aitts-playback"),
-            loop.create_task(self._warm_model(), name="aitts-warmup"),
-            loop.create_task(self._listener.run(), name="aitts-input"),
-            loop.create_task(self._expire_files_loop(), name="aitts-retention"),
-        ]
-        await self._server.start()
+        self._state_lease.acquire()
+        try:
+            # Own the endpoint before recovering queues or starting engine work.
+            await self._server.start()
+            self._store.recover()
+            self.enforce_cache_limit()
+            held = any(u.state is State.PAUSED for u in self._store.playback_queue())
+            self._controller = PlaybackController(
+                self._store,
+                self._sink,
+                ImmediatePlaybackSchedule(),
+                held=held,
+                evidence=self._evidence,
+            )
+            self._pool = SynthesisPool(
+                self._store,
+                self._engine,
+                FileAudioArtifacts(self._cache_dir),
+                workers=self._workers,
+                evidence=self._evidence,
+            )
+            self._store.on_transition.append(self._on_transition)
+            self._store.on_segment_transition.append(self._on_segment_transition)
+            loop = asyncio.get_running_loop()
+            self._tasks = [
+                loop.create_task(self._run_synthesis(), name="aitts-synthesis"),
+                loop.create_task(self._supervise_playback(), name="aitts-playback"),
+                loop.create_task(self._warm_model(), name="aitts-warmup"),
+                loop.create_task(self._listener.run(), name="aitts-input"),
+                loop.create_task(self._expire_files_loop(), name="aitts-retention"),
+            ]
+        except BaseException:
+            await self.stop()
+            raise
 
     async def _run_synthesis(self) -> None:
         """Keep user text queued while first-run assets and inference are prepared."""
@@ -232,6 +240,7 @@ class Daemon:
         self._tasks = []
         await asyncio.gather(*self._exports, return_exceptions=True)
         self._store.close()
+        self._state_lease.release()
 
     # -- events ------------------------------------------------------------
 

@@ -549,6 +549,12 @@ ai-tts settings --set input_interrupt_resume=when_idle
 ai-tts-mcp
 ```
 
+Only one daemon may own a state directory or socket at a time. A competing start
+fails instead of taking over the existing queue or endpoint. For an isolated
+development daemon, use both a separate `--home` directory and `--socket` path.
+The empty `.lock` files may remain after shutdown; ownership is held by the OS
+lock, not by the file's presence.
+
 For development from the checkout instead:
 
 ```sh

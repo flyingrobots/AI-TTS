@@ -16,6 +16,7 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
+from aitts.adapters.exclusive_lease import ExclusiveFileLease
 from aitts.adapters.jsonl import (
     MAX_JSONL_LINE_BYTES,
     JsonlDecodeError,
@@ -57,8 +58,10 @@ class IPCServer:
     def __init__(self, socket_path: Path, api: Api) -> None:
         """Create a server for ``api`` at ``socket_path``."""
         self._socket_path = socket_path
+        self._lease = ExclusiveFileLease(socket_path.with_name(socket_path.name + ".lock"))
         self._api = api
         self._server: asyncio.Server | None = None
+        self._owns_socket = False
         self._handlers: set[asyncio.Task[None]] = set()
         self._clients: set[asyncio.StreamWriter] = set()
         self._subscribers: set[asyncio.StreamWriter] = set()
@@ -70,13 +73,38 @@ class IPCServer:
 
     async def start(self) -> None:
         """Bind the socket (mode 0600) and begin serving."""
-        self._socket_path.unlink(missing_ok=True)
-        self._server = await asyncio.start_unix_server(
-            self._serve_client,
-            path=str(self._socket_path),
-            limit=MAX_JSONL_LINE_BYTES + 1,
-        )
-        self._socket_path.chmod(0o600)
+        self._lease.acquire()
+        try:
+            await self._remove_stale_socket()
+            self._server = await asyncio.start_unix_server(
+                self._serve_client,
+                path=str(self._socket_path),
+                limit=MAX_JSONL_LINE_BYTES + 1,
+            )
+            self._owns_socket = True
+            self._socket_path.chmod(0o600)
+        except BaseException:
+            await self.stop()
+            raise
+
+    async def _remove_stale_socket(self) -> None:
+        if not self._socket_path.exists() and not self._socket_path.is_symlink():
+            return
+        if self._socket_path.is_symlink() or not self._socket_path.is_socket():
+            message = "socket path is occupied by a non-socket entry"
+            raise RuntimeError(message)
+        try:
+            _reader, writer = await asyncio.wait_for(
+                asyncio.open_unix_connection(str(self._socket_path)), timeout=1
+            )
+        except (ConnectionRefusedError, FileNotFoundError):
+            self._socket_path.unlink(missing_ok=True)
+        else:
+            writer.close()
+            with contextlib.suppress(ConnectionError):
+                await writer.wait_closed()
+            message = "socket is already owned by a live server"
+            raise RuntimeError(message)
 
     async def stop(self) -> None:
         """Stop serving and remove the socket."""
@@ -98,7 +126,13 @@ class IPCServer:
         self._subscribers.clear()
         if server is not None:
             await server.wait_closed()
-        self._socket_path.unlink(missing_ok=True)
+        if self._lease.held:
+            try:
+                if self._owns_socket:
+                    self._socket_path.unlink(missing_ok=True)
+                    self._owns_socket = False
+            finally:
+                self._lease.release()
 
     def broadcast(self, event: dict[str, Any]) -> None:
         """Send an event line to every subscriber, dropping dead connections."""

@@ -272,3 +272,26 @@ application's retirement event unset; the fixed server retires it before return
 and never dispatches the buffered request. No sleep establishes ordering. The
 IPC, reload, export ownership, and bounded process-shutdown suites pass 59 tests.
 Retire this check only when a calibrated replacement enforces request quiescence.
+
+## Daemon lifecycle audit: exclusive startup ownership
+
+Change-kind: bug fix. A second server previously unlinked a live socket, and a
+second daemon could recover the same state directory using a different socket.
+OS-backed leases now guard the state directory and socket independently before
+recovery or worker startup. Shutdown removes only an owned endpoint. Persistent
+lock files are never unlinked; the operating system releases their leases when
+a process exits. Failed startup closes resources and releases acquired leases.
+
+Medium real-socket and daemon-boundary regressions observed both competing starts
+succeed on the unfixed code when refusal was required. They now prove refusal,
+continued service by the incumbent, endpoint transfer after shutdown, harmless
+repeated stop, and state-lease release after endpoint acquisition failure. These
+are owned temporary directories and fake engines, without model downloads or
+real audio. Retire only if stronger calibrated lifecycle checks replace them.
+
+A legacy-listener regression also failed when the lease-only implementation
+replaced an active socket whose older server held no lease. A bounded connection
+probe now refuses that endpoint; failed start never unlinks an unowned socket.
+Positive recovery checks cover an abandoned socket, and a refusal check preserves
+an unrelated regular file. A missing-release mutant makes both endpoint transfer
+and failed-start successor tests fail; restoration returns them to green.

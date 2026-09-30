@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Competing daemon starts now refuse an already-owned state directory or socket instead of recovering a live queue or replacing its endpoint; failed startup releases acquired resources.
+
 - Daemon shutdown now retires active IPC handlers before closing application state and refuses buffered requests after serving stops.
 
 - Cancelling a model-reload request no longer releases synthesis exclusion early or leaves model readiness stuck; the daemon owns reload completion.
