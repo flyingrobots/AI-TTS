@@ -1089,7 +1089,8 @@ class PlaybackController:
 
     async def _restart_current_locked(self) -> None:
         """Replay the current utterance from its start."""
-        if self.held:
+        held_at_request = self.held
+        if held_at_request:
             return
         current = self._current()
         if current is None:
@@ -1102,9 +1103,8 @@ class PlaybackController:
             self._store.restart_segments(current.id)
             self._current_segment_index = None
             first = self._store.next_unfinished_segment(current.id)
-            refreshed = self._store.get(current.id)
-            if first is not None and refreshed is not None and first.state is State.READY:
-                self._begin_segment(refreshed, first, position_ms=0)
+            if first is not None and first.state is State.READY:
+                self._resume_document_at_next_ready(current.id)
             elif active is not None:
                 # restart_segments only reopens children whose audio survives;
                 # if none did, the device was released for nothing.
@@ -1114,6 +1114,12 @@ class PlaybackController:
         if current.audio_path is None:
             return
         await self._release_sink()
+        if self.held:
+            # Pause can arrive during release. Preserve Restart's zero offset
+            # for explicit Resume without acquiring the device through a hold.
+            self._store.suspend_playback(current.id, None, 0)
+            self.notify()
+            return
         if current.state is State.PAUSED:
             self._store.transition(current.id, State.PLAYING)
         self._sink.start(Path(current.audio_path), position_ms=0)

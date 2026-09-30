@@ -512,3 +512,22 @@ fifteen-second medium ceiling. The three example-based functions remain
 explicitly small. Strategies, example count, seed policy, oracle and assertions
 are unchanged; no new assertion or runtime behavior is introduced.
 Failure evidence: [Python job](https://github.com/flyingrobots/AI-TTS/actions/runs/36745318625/job/109989908799).
+
+
+## Playback handoff audit: Pause during Restart
+
+Change-kind: bug fix. Restart checked the global hold before awaiting device
+release, then started audio even if Pause arrived during that await. Two medium
+controller-boundary cases (single clip and document) use an event-gated sink
+to place Pause after stop is requested but before device release completes.
+Both observed a second sink start on unfixed code; the document also returned
+to Playing while held. The fix rechecks the hold through the existing document
+resume boundary and preserves zero as the single-clip resume offset.
+
+The regression observes held/Paused state and exactly one start after the
+completed handoff, then explicitly resumes and observes a zero-offset second
+start without overlap. Seeding retention of the old single-clip offset fails
+the second assertion with 800ms instead of zero; restoration passes both cases.
+The schedule uses events and plan-cycle checkpoints, not sleeps. Oracle:
+architecture section 7's global hold and Restart contracts. Retire only with
+a stronger calibrated hold-across-device-release contract.

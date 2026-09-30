@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pause arriving during Restart device teardown now keeps playback silent; explicit Resume honors the requested restart from zero.
+
 - Private-file validation refuses unexpected FIFOs without blocking startup or diagnostic-log setup while waiting for a pipe peer.
 
 - IPC rejects isolated Unicode surrogate escapes before dispatch, returning a typed refusal without leaving voice assignments from a failed submission.
