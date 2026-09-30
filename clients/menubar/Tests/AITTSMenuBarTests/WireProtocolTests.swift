@@ -16,6 +16,47 @@ final class WireProtocolTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testPriorityPresentationIncludesPreemption() {
+        let priorities = RequeuePriority.allCases
+        XCTAssertEqual(priorities.map(\.badgeLabel), [nil, "↑ Urgent", "⚡ Preempt"])
+        XCTAssertEqual(priorities.map(\.actionDescription), [
+            "Add to end of Queue", "Play next after current", "Interrupt current, then resume it"
+        ])
+    }
+
+    @MainActor
+    func testSuspendedClipsRemainUpcomingButTheCurrentClipDoesNot() throws {
+        let ports = InertApplicationPorts()
+        let suite = "ai-tts-suspended-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let state = AppState(speech: ports, documentEnqueuer: ports,
+                             currentSelectionEnqueuer: ports, clipboardEnqueuer: ports,
+                             defaults: defaults)
+        let suspended = try XCTUnwrap(Utterance(daemonJSON: [
+            "id": "suspended", "text": "document", "voice": "v", "state": "Paused"
+        ]))
+        let ready = try XCTUnwrap(Utterance(daemonJSON: [
+            "id": "ready", "text": "next", "voice": "v", "state": "Ready"
+        ]))
+        for currentState in ["Playing", "Paused"] {
+            let current = try XCTUnwrap(Utterance(daemonJSON: [
+                "id": "current", "text": "alert", "voice": "v", "state": currentState
+            ]))
+            state.applySnapshot(Snapshot(
+                status: DaemonStatus(playbackState: currentState.lowercased(), current: current,
+                                     counts: [:], voice: "v", engine: "fake"),
+                plan: [current, suspended, ready], input: [], history: [], voices: ["v"],
+                speed: 1, playbackRate: 1, captionsEnabledConfigured: true
+            ))
+            XCTAssertEqual(state.upcoming.map(\.id), ["suspended", "ready"])
+            XCTAssertFalse(state.canReorderQueue)
+            state.plan = [current, ready]
+            XCTAssertEqual(state.upcoming.map(\.id), ["ready"])
+            XCTAssertTrue(state.canReorderQueue)
+        }
+    }
+
     func testOnlyOneMenuBarInstanceCanHoldLock() throws {
         let lockURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("ai-tts-single-instance-\(UUID().uuidString).lock")

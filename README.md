@@ -20,8 +20,10 @@ ai-tts settings --set engine=kokoro-mlx
 
 Then use **Restart daemon** in the menu. Alternatively, an explicitly managed
 foreground daemon accepts `ai-tts daemon --engine kokoro-mlx`. The setting takes
-effect on the next daemon start; the status response reports the backend
-actually selected. Missing MLX, an unsupported runtime, or unavailable Metal
+effect on the next daemon start. If a saved voice is absent from the new engine,
+its catalog default is used and reported; the saved choice is retained for a
+later switch back. The status response reports the backend
+actually selected. Missing MLX or English language assets, an unsupported runtime, or unavailable Metal
 falls back to reference Kokoro with an operational log event. Upstream
 `kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.
 
@@ -538,7 +540,10 @@ ai-tts assign-voice claude-code --release
 ai-tts settings --set voice=bm_daniel
 ai-tts settings --set captions_enabled=true
 ai-tts settings --set input_interrupt_enabled=true
-ai-tts settings --set input_interrupt_resume=manual
+# default: resume microphone pauses once every input is idle
+ai-tts settings --set input_interrupt_resume=when_idle
+# opt out of automatic resume
+# ai-tts settings --set input_interrupt_resume=manual
 
 # agent-native MCP server: 100% JSONL, one JSON object per stdio line
 ai-tts-mcp

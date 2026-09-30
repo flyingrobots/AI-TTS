@@ -154,8 +154,8 @@ struct HistoryRow: View {
                 Text(detail)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                if item.priority == .urgent {
-                    PriorityBadge()
+                if item.priority != .normal {
+                    PriorityBadge(priority: item.priority)
                 }
                 Spacer()
                 if state.reportingID == item.id {
@@ -233,13 +233,14 @@ struct RequeueControl: View {
             Divider().frame(height: 17)
 
             Menu {
-                Button {
-                    state.requeue(id, priority: .normal)
-                } label: {
-                    Label("Normal — Add to end of Queue", systemImage: "checkmark")
-                }
-                Button("Urgent — Play next after current") {
-                    state.requeue(id, priority: .urgent)
+                ForEach(RequeuePriority.allCases, id: \.self) { priority in
+                    Button {
+                        state.requeue(id, priority: priority)
+                    } label: {
+                        let title = "\(priority.rawValue.capitalized) — \(priority.actionDescription)"
+                        if priority == .normal { Label(title, systemImage: "checkmark") }
+                        else { Text(title) }
+                    }
                 }
             } label: {
                 Image(systemName: "chevron.down")

@@ -26,12 +26,17 @@ _CODE_NODES = frozenset({"code_block", "fence"})
 _TABLE_CELL_NODES = frozenset({"th", "td"})
 _TERMINAL_PUNCTUATION = (".", "!", "?", ":", ";")
 _TASK_MARKER = re.compile(r"^\[[ xX]\][ \t]+")
-_FORMATTING_STARS = re.compile(r"(?<!\S)\*+\s*([^*\n]+?)\s*\*+(?!\S)")
+_FORMATTING_STARS = re.compile(
+    r"(?<!\S)\*+\s*([^*]+?)\s*\*+(?:[ \t]+(?=[.,!?;:]))?(?=$|[\s.,!?;:)\]])"
+)
 
 
 def _clean_spoken_text(text: str) -> str:
     """Strip loose formatting asterisks left unparsed by Markdown AST rules."""
-    return _FORMATTING_STARS.sub(r"\1", text)
+    return _FORMATTING_STARS.sub(
+        lambda match: match[1] if any(char.isalpha() for char in match[1]) else match[0],
+        text,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,14 +166,24 @@ def _nodes_of_type(node: SyntaxTreeNode, node_type: str) -> tuple[SyntaxTreeNode
 
 def _inline_text(node: SyntaxTreeNode) -> str:
     pieces: list[str] = []
-    for child in node.children:
-        if child.type in _INLINE_BREAK_NODES:
-            pieces.append(" ")
-        elif child.children:
-            pieces.append(_inline_text(child))
-        elif child.type != "html_inline":
+    prose: list[str] = []
+
+    def visit(child: SyntaxTreeNode) -> None:
+        if child.type == "code_inline":
+            pieces.append(_clean_spoken_text("".join(prose)))
+            prose.clear()
             pieces.append(child.content)
-    return _clean_spoken_text(re.sub(r"\s+", " ", "".join(pieces)).strip())
+        elif child.type in _INLINE_BREAK_NODES:
+            prose.append(" ")
+        elif child.children:
+            for descendant in child.children:
+                visit(descendant)
+        elif child.type != "html_inline":
+            prose.append(child.content)
+
+    visit(node)
+    pieces.append(_clean_spoken_text("".join(prose)))
+    return re.sub(r"\s+", " ", "".join(pieces)).strip()
 
 
 def _with_terminal_punctuation(text: str) -> str:

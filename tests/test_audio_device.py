@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import sys
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.application.audio_device import FakeAudioDevice
 from aitts.playback import SoundDeviceSink
 
@@ -483,3 +485,29 @@ async def test_stop_ramps_to_silence_without_consuming_more_source(tone: Path) -
     assert blocks[-1][-1, 0] == 0
     assert np.all(np.diff(blocks[-1][:, 0]) <= 0)
     assert sink.position_ms() == int(2048 / 24000 * 1000)
+
+
+@pytest.mark.oracle("driver underflows in the stop fade are included in per-stream diagnostics")
+async def test_stop_fade_underflow_is_recorded(tone: Path, tmp_path: Path) -> None:
+    device = FakeAudioDevice(identity="controlled-output")
+    streams = RecordingStreams(device)
+    evidence = ClipEvidence(tmp_path / "evidence")
+    sink = SoundDeviceSink(device=device, open_stream=streams, evidence=evidence)
+
+    def stop_then_underflow() -> None:
+        stream = streams.opened[-1]
+        stream.underflowed = len(stream.blocks) == 2
+        sink.stop()
+
+    streams.on_write = stop_then_underflow
+    sink.start(tone)
+    await sink.wait()
+    rows = [
+        json.loads(line)
+        for line in (evidence.root / tone.stem / "playback.jsonl").read_text().splitlines()
+    ]
+    assert [
+        (row["event"], row.get("underflows"))
+        for row in rows
+        if row["event"] in {"output_underflow", "stream_closing"}
+    ] == [("output_underflow", None), ("stream_closing", 1)]

@@ -89,7 +89,7 @@ def test_defaults_are_reported_before_anything_is_written(
     assert values["captions_enabled"] is False
     assert values["captions_enabled_configured"] is False
     assert values["input_interrupt_enabled"] is True
-    assert values["input_interrupt_resume"] == "manual"
+    assert values["input_interrupt_resume"] == "when_idle"
 
 
 def test_an_unknown_setting_is_refused_rather_than_ignored(
@@ -288,7 +288,7 @@ def test_an_unoffered_resume_policy_is_refused(settings: SettingsService, policy
         settings.apply({"input_interrupt_resume": policy})
 
     assert "manual" in str(raised.value)
-    assert settings.input_interrupt_resume() == "manual"
+    assert settings.input_interrupt_resume() == "when_idle"
 
 
 # -- the parsers, at their edges ------------------------------------------
@@ -340,3 +340,21 @@ def test_engine_preference_is_persisted_for_next_start(store: Store) -> None:
     with pytest.raises(ApiError, match="engine must be"):
         service.apply({"engine": "not-an-engine"})
     assert store.get_setting("engine", "kokoro") == "kokoro-mlx"
+
+
+def test_engine_switch_uses_a_supported_default_without_losing_saved_preference(
+    store: Store,
+) -> None:
+    environment = FakeEnvironment(voices=("bm_daniel", "af_custom"))
+    settings = SettingsService(store, environment)
+    settings.apply({"voice": "af_custom", "engine": "kokoro-mlx"})
+
+    # The next daemon starts with the MLX catalog, which lacks the extra voice.
+    mlx_settings = SettingsService(store, FakeEnvironment(voices=("bm_daniel", "af_heart")))
+    assert mlx_settings.speaking_voice() == "bm_daniel"
+    assert mlx_settings.values()["voice"] == "bm_daniel"
+
+    # A later restart with the original catalog honors the user's saved choice.
+    restored_settings = SettingsService(store, environment)
+    assert restored_settings.speaking_voice() == "af_custom"
+    assert restored_settings.values()["voice"] == "af_custom"

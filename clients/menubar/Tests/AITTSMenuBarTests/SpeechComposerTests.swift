@@ -1,6 +1,6 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
-// Test-Size: medium (in-memory composer, owned ports, bounded main-run-loop completion)
+// Test-Size: medium (in-memory composer, owned ports, event-driven completion)
 // Test-Oracle: imports remain editable until explicit submit; rejection retains the draft and explains failure
 
 import AITTSApplication
@@ -46,15 +46,27 @@ final class SpeechComposerTests: XCTestCase {
         XCTAssertFalse(composer.busy)
     }
 
+    // Test-Oracle: the selected interpretation remains selected across draft resets.
+    @MainActor
+    func testClearAndSuccessfulSubmissionPreserveTextInterpretation() {
+        let ports = ComposerPorts()
+        let composer = SpeechComposer(speech: ports, documents: ports, clipboard: ports, selection: ports)
+        composer.draft.contentFormat = .markdown
+        composer.draft.text = "**First draft**"
+        composer.clear()
+        XCTAssertEqual(composer.draft.contentFormat, .markdown)
+
+        composer.draft.contentFormat = .markdown
+        composer.draft.text = "**Second draft**"
+        drain { await composer.submit(playbackHeld: false) }
+        XCTAssertEqual(composer.draft.contentFormat, .markdown)
+    }
+
     @MainActor
     private func drain(_ operation: @escaping @MainActor () async -> Void) {
-        var finished = false
-        Task { await operation(); finished = true }
-        let deadline = Date().addingTimeInterval(2)
-        while !finished && Date() < deadline {
-            _ = RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.01))
-        }
-        XCTAssertTrue(finished, "Composer operation must complete within the owned run-loop deadline")
+        let finished = expectation(description: "Composer operation completed")
+        Task { await operation(); finished.fulfill() }
+        wait(for: [finished], timeout: 2)
     }
 }
 
