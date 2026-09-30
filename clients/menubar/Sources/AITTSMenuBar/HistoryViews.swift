@@ -170,18 +170,22 @@ struct HistoryRow: View {
             }
             .padding(.leading, 41)
 
-            DisclosureGroup("Provenance", isExpanded: $showingProvenance) {
+            ProvenanceButton(expanded: showingProvenance) {
+                showingProvenance.toggle()
+                if showingProvenance {
+                    state.provenanceDetails[item.id] = nil
+                    state.loadProvenance(item.id)
+                }
+            }
+            .frame(width: 140, height: 24)
+            .padding(.leading, 41)
+
+            if showingProvenance {
                 Text(state.provenanceDetails[item.id] ?? "Loading…")
                     .font(.system(.caption2, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.leading, 41)
-            .onChange(of: showingProvenance) { _, expanded in
-                if expanded {
-                    state.provenanceDetails[item.id] = nil
-                    state.loadProvenance(item.id)
-                }
+                    .padding(.leading, 41)
             }
 
             if let error = item.error {

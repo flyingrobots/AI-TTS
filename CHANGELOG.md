@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- History removal prunes cached provenance, and late requests cannot restore details for removed clips.
+
+- History exposes a clearly labeled Show/Hide provenance button with a full clickable target and selectable clip details.
 - Engine switches use and report a compatible default voice while preserving the saved preference for compatible engines.
 - MLX startup now falls back to reference Kokoro when required English language assets are missing.
 

@@ -89,6 +89,7 @@ final class AppState: ObservableObject {
 
     private let storageManager: any GeneratedStorageManaging
     private let evidenceExporter: any EvidenceExporting
+    private let provenanceLoader: any ProvenanceLoading
     private let speech: any SpeechServicePort
     private let documentEnqueuer: any DocumentEnqueueing
     private let currentSelectionEnqueuer: any CurrentSelectionEnqueueing
@@ -108,10 +109,12 @@ final class AppState: ObservableObject {
         clipboardEnqueuer: any ClipboardEnqueueing,
         defaults: UserDefaults,
         evidenceExporter: any EvidenceExporting = UnixSocketSpeechService(),
-        storageManager: any GeneratedStorageManaging = UnixSocketSpeechService()
+        storageManager: any GeneratedStorageManaging = UnixSocketSpeechService(),
+        provenanceLoader: (any ProvenanceLoading)? = nil
     ) {
         self.storageManager = storageManager
         self.evidenceExporter = evidenceExporter
+        self.provenanceLoader = provenanceLoader ?? BackgroundProvenanceLoader(exporter: evidenceExporter)
         self.speech = speech
         self.documentEnqueuer = documentEnqueuer
         self.currentSelectionEnqueuer = currentSelectionEnqueuer
@@ -162,12 +165,9 @@ final class AppState: ObservableObject {
     func loadProvenance(_ id: String) {
         guard provenanceDetails[id] == nil else { return }
         provenanceDetails[id] = "Loading…"
-        let exporter = evidenceExporter
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let text: String
-            do { text = try exporter.provenance(id: id) }
-            catch { text = "Provenance is unavailable. Close and reopen these details to retry." }
-            Task { @MainActor [weak self] in self?.provenanceDetails[id] = text }
+        provenanceLoader.load(id) { [weak self] text in
+            guard let self, self.history.contains(where: { $0.id == id }) else { return }
+            self.provenanceDetails[id] = text
         }
     }
 
@@ -315,6 +315,8 @@ final class AppState: ObservableObject {
         self.status = snapshot.status
         self.plan = snapshot.plan
         self.history = snapshot.history
+        let historyIDs = Set(snapshot.history.map(\.id))
+        self.provenanceDetails = self.provenanceDetails.filter { historyIDs.contains($0.key) }
         self.observeFailures(snapshot.history)
         self.speed = snapshot.speed
         self.playbackRate = snapshot.playbackRate
