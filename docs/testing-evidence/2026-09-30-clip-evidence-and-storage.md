@@ -81,3 +81,16 @@ retention defaults to Never. UI rendering and actual Finder/save-panel clicking
 were not automated. The original long-day subjective popping on the other machine
 still needs a captured report; the earlier synthetic paused-output regression is
 not proof that every source of audible popping has been eliminated.
+
+### Loose-emphasis assertion calibration (PR #26 follow-up)
+
+Change-kind: bug fix (missing evidence only; no production/test changes).
+
+For `test_markdown_speech_plan_strips_loose_formatting_asterisks`, temporarily
+replace `_clean_spoken_text` with the identity function. The unchanged assertion
+fails: actual `Here is * bold * text and ** spaced ** emphasis.` versus expected
+`Here is bold text and spaced emphasis.`. The check reaches its exact output
+assertion, so this is not a syntax/import failure. Restore the implementation;
+the targeted assertion and all 12 segmentation tests pass. This supplies the
+previously missing assertion-specific falsification record. Size: small; oracle:
+approved Markdown-to-speech projection, as declared by the suite.
