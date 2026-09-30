@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Manage Files lists generated storage and deletes individual or all eligible clips with their source and evidence. Opt-in 1/7/30/90-day retention defaults to Never. Clear History can also remove generated files while protecting active and queued work.
+
 - The menu shows model readiness and daemon PID/uptime, offers safe model reload and daemon restart, and provides Launch daemon, View Logs, and Quit when disconnected.
 
 - The menu footer’s voice selector changes the default for new submissions and confirms the change. Existing queued voices and explicit caller assignments retain their values.
@@ -27,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `input_interrupt_enabled` and `input_interrupt_resume` configure it.
 - **Chunk stepping.** Next and previous chunk join the transport for
   documents split into a nested clip queue, as `next_segment` and
-  `previous_segment` ops and as buttons that appear beside Skip only when the
-  current clip has chunks. Forwards gives up one chunk; backwards replays the
+  `previous_segment` ops and as buttons beside Skip that remain visible and disabled when the
+  current clip has no additional chunks. Forwards gives up one chunk; backwards replays the
   one before from its start.
 - **A window that reads a clip in full.** Captions show one chunk and the
   popover a few lines; the current clip and every History row now open their

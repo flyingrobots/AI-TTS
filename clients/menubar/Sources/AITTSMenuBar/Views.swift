@@ -48,6 +48,9 @@ struct PopoverView: View {
         .frame(width: 368, height: 500)
         .onAppear { state.startPolling(interval: 0.5) }
         .onDisappear { state.stopPolling() }
+        .sheet(isPresented: $state.showingStorage) {
+            GeneratedStorageSheet().environmentObject(state)
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsSheet(isPresented: $showingSettings)
                 .environmentObject(state)

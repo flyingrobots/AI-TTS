@@ -48,6 +48,7 @@ struct HistoryView: View {
             HStack(spacing: 8) {
                 TextField("Search history", text: $query)
                     .textFieldStyle(.roundedBorder)
+                Button("Manage Files…") { state.showingStorage = true }
                     .buttonStyle(.borderless)
                 Button("Clear history…") { confirmingClear = true }
                     .buttonStyle(.borderless)
@@ -89,10 +90,11 @@ struct HistoryView: View {
             isPresented: $confirmingClear,
             titleVisibility: .visible
         ) {
-            Button("Clear History", role: .destructive) { state.clearHistory() }
+            Button("Clear History Only", role: .destructive) { state.clearHistory() }
+            Button("Clear History and Generated Files", role: .destructive) { state.clearHistoryAndFiles() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("History records will be removed. Cached audio remains managed separately.")
+            Text("Choose whether to keep generated audio and evidence files. Files needed by current or queued playback are protected.")
         }
     }
 }

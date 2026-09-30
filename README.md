@@ -565,6 +565,36 @@ those same application boundaries. See
 
 Text is **confidential by default**: an utterance submitted without an explicit `--sensitivity public` can never be routed to a non-local engine. There is no non-local engine wired in; that is a feature.
 
+## History, reports, and generated files
+
+Open **History → Report…** beside a clip to save a local ZIP containing its
+original source, generated WAVs, caller arguments, generation environment,
+model/voice fingerprints, BLAKE3 source/audio identities, and per-file synthesis
+and playback logs. Playback sessions record pauses and resumes with their
+causes, stream reopenings, device changes, and output underruns. Reports are not
+uploaded. Older clips explicitly report evidence that was never captured.
+Expand **Provenance** to inspect these details without exporting.
+
+New artifacts live together under `~/Library/Application Support/ai-tts/cache/<artifact-id>/`.
+**Open Data Folder** opens the application data directory in Finder.
+**Manage Files**, available from History and the footer, shows generated storage
+usage and supports deleting one clip or all eligible files. Deletion includes
+its source copy and evidence; playback history remains available for requeueing.
+Queued, playing, paused, and unfinished synthesis artifacts are protected.
+
+Automatic expiry is opt-in: **Never** (default), **1**, **7**, **30**, or **90 days**
+since the most recent audio access or evidence activity. The daemon checks once
+a minute. The existing audio cache size limit independently applies; it can
+remove WAVs before expiry while retaining diagnostic sidecars. **Clear History**
+offers history-only deletion or history plus all eligible generated files.
+
+The footer also offers a default voice selector, separate model readiness and
+daemon PID/uptime indicators, **Reload Model**, and **Restart Daemon**. A voice
+change applies to new submissions unless an explicit voice or caller voice
+assignment overrides it; already submitted clips retain their resolved voice.
+Model reload waits for active synthesis to finish (the control is disabled while
+busy). Caption placement is selectable as **Top** or **Bottom** in Settings.
+
 ## Project status
 
 The v0.1.0 implementation is a release candidate, not a published release. The

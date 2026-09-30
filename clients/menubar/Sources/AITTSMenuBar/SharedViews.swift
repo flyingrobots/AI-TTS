@@ -68,6 +68,7 @@ struct ModelHealthFooter: View {
             }
             HStack {
                 Button("Open Data Folder", systemImage: "folder") { state.openDataFolder() }
+                Button("Manage Files…") { state.showingStorage = true }
                 Spacer()
                 Menu("Maintenance") {
                     Button("Reload Model") { state.reloadModel() }

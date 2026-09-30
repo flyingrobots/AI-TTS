@@ -45,6 +45,10 @@ final class AppState: ObservableObject {
     @Published var voiceNotice: String?
     @Published var reportingID: String?
     @Published var reportMessage: String?
+    @Published var showingStorage = false
+    @Published var storageSnapshot: GeneratedStorageSnapshot?
+    @Published var storageBusy = false
+    @Published var storageMessage: String?
     @Published var runtime: DaemonRuntime?
     @Published var maintenanceInProgress = false
     @Published var reachable = false
@@ -74,6 +78,7 @@ final class AppState: ObservableObject {
     /// Whether the current clip has chunks to step between.
     var currentIsChunked: Bool { (status?.current?.segmentCount ?? 1) > 1 }
 
+    private let storageManager: any GeneratedStorageManaging
     private let evidenceExporter: any EvidenceExporting
     private let speech: any SpeechServicePort
     private let documentEnqueuer: any DocumentEnqueueing
@@ -93,8 +98,10 @@ final class AppState: ObservableObject {
         currentSelectionEnqueuer: any CurrentSelectionEnqueueing,
         clipboardEnqueuer: any ClipboardEnqueueing,
         defaults: UserDefaults,
-        evidenceExporter: any EvidenceExporting = UnixSocketSpeechService()
+        evidenceExporter: any EvidenceExporting = UnixSocketSpeechService(),
+        storageManager: any GeneratedStorageManaging = UnixSocketSpeechService()
     ) {
+        self.storageManager = storageManager
         self.evidenceExporter = evidenceExporter
         self.speech = speech
         self.documentEnqueuer = documentEnqueuer
@@ -103,6 +110,44 @@ final class AppState: ObservableObject {
         self.defaults = defaults
         self.captionPosition = CaptionPosition(rawValue: defaults.string(forKey: "captionPosition") ?? "") ?? .bottom
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
+    }
+
+    func manageStorage(retentionDays: Int? = nil, deleting: [String]? = nil) {
+        guard !storageBusy else { return }
+        storageBusy = true
+        storageMessage = nil
+        let manager = storageManager
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let snapshot = try manager.storage(retentionDays: retentionDays, deleting: deleting)
+                Task { @MainActor [weak self] in
+                    self?.storageSnapshot = snapshot
+                    self?.storageMessage = snapshot.message
+                    self?.storageBusy = false
+                    self?.refresh()
+                }
+            } catch {
+                Task { @MainActor [weak self] in
+                    self?.storageBusy = false
+                    self?.storageMessage = "Could not update generated files. Check the daemon and retry."
+                }
+            }
+        }
+    }
+
+    func clearHistoryAndFiles() {
+        let manager = storageManager
+        queue.async { [weak self] in
+            var failure: String?
+            do { try manager.clearHistoryAndFiles() }
+            catch let SpeechServiceError.rejected(_, message) { failure = message }
+            catch { failure = "Could not clear history and generated files." }
+            Task { @MainActor [weak self] in
+                self?.lastError = failure
+                self?.provenanceDetails = [:]
+                self?.refresh()
+            }
+        }
     }
 
     func loadProvenance(_ id: String) {

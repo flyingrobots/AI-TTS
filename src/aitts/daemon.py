@@ -23,6 +23,7 @@ from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.filesystem_cache import FileAudioCache
+from aitts.adapters.generated_storage import GeneratedStorage
 from aitts.adapters.playback_schedule import ImmediatePlaybackSchedule
 from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
@@ -127,6 +128,7 @@ class Daemon:
         self._store = Store(home / "state.db")
         self._cache_dir = home / "cache"
         self._evidence = ClipEvidence(self._cache_dir)
+        self._generated_storage = GeneratedStorage(self._cache_dir)
         if isinstance(sink, SoundDeviceSink):
             sink.evidence = self._evidence
         self._cache = CacheController(self._store, FileAudioCache(self._cache_dir))
@@ -186,6 +188,7 @@ class Daemon:
             loop.create_task(self._supervise_playback(), name="aitts-playback"),
             loop.create_task(self._warm_model(), name="aitts-warmup"),
             loop.create_task(self._listener.run(), name="aitts-input"),
+            loop.create_task(self._expire_files_loop(), name="aitts-retention"),
         ]
         await self._server.start()
 
@@ -271,6 +274,7 @@ class Daemon:
             "export_evidence": self._op_export_evidence,
             "provenance": self._op_provenance,
             "restart_model": self._op_restart_model,
+            "storage": self._op_storage,
             "pause": self._op_pause,
             "resume": self._op_resume,
             "resume_when_input_idle": self._op_resume_when_input_idle,
@@ -459,6 +463,49 @@ class Daemon:
         return {
             "ok": True,
             "items": [self._serialize_utterance(u, history=True) for u in items],
+        }
+
+    def _protected_artifacts(self) -> set[str]:
+        protected = {Path(path).stem for path in self._store.protected_audio_paths()}
+        for item in self._store.input_queue() + self._store.playback_queue():
+            protected.add(item.id)
+            protected.update(segment.artifact_id for segment in self._store.segments(item.id))
+        return protected
+
+    async def _expire_files_loop(self) -> None:
+        while True:
+            try:
+                protected = self._protected_artifacts()
+                days = int(self._store.get_setting("retention_days", "0"))
+                expired = self._generated_storage.expired(protected, days)
+                if expired:
+                    self._generated_storage.remove(expired, protected)
+            except (OSError, ValueError):
+                log.warning("event=generated_file_retention_failed")
+            await asyncio.sleep(60)
+
+    async def _op_storage(self, payload: dict[str, Any]) -> dict[str, Any]:
+        days = payload.get("retention_days")
+        if days is not None:
+            if type(days) is not int or days not in {0, 1, 7, 30, 90}:
+                raise ApiError(BAD_REQUEST, "retention_days must be 0, 1, 7, 30, or 90")
+            self._store.set_setting("retention_days", str(days))
+        protected = self._protected_artifacts()
+        receipt: dict[str, int] | None = None
+        identities = payload.get("delete")
+        if identities is not None:
+            if not isinstance(identities, list) or not all(
+                isinstance(key, str) for key in identities
+            ):
+                raise ApiError(BAD_REQUEST, "delete must contain artifact ids")
+            receipt = self._generated_storage.remove(set(identities), protected)
+        entries = self._generated_storage.inventory(protected)
+        return {
+            "ok": True,
+            "entries": entries,
+            "total_bytes": sum(row["bytes"] for row in entries),
+            "retention_days": int(self._store.get_setting("retention_days", "0")),
+            "receipt": receipt,
         }
 
     async def _warm_model(self) -> None:
@@ -796,6 +843,21 @@ class Daemon:
             cleared = self._store.clear_pending()
             return {"ok": True, "cleared": cleared}
         if queue == "history":
+            delete_files = payload.get("delete_files", False)
+            if type(delete_files) is not bool:
+                raise ApiError(BAD_REQUEST, "delete_files must be a boolean")
+            if delete_files:
+                protected = self._protected_artifacts()
+                identities = {
+                    str(row["id"]) for row in self._generated_storage.inventory(protected)
+                }
+                receipt = self._generated_storage.remove(identities, protected)
+                if receipt["failed"]:
+                    raise ApiError(
+                        INTERNAL,
+                        "Some files could not be deleted; history was kept. "
+                        "Open Manage Files to retry.",
+                    )
             cleared = self._store.clear_history()
             self._server.broadcast({"event": "history_changed", "cleared": cleared})
             return {"ok": True, "cleared": cleared}

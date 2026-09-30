@@ -13,7 +13,7 @@ protocol DaemonTransport: Sendable {
 extension DaemonClient: DaemonTransport {}
 
 /// Outbound adapter from typed application requests to the daemon's NDJSON protocol.
-public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Sendable {
+public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, GeneratedStorageManaging, Sendable {
     private let transport: any DaemonTransport
 
     public init() {
@@ -130,6 +130,29 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Sen
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    public func storage(retentionDays: Int? = nil, deleting: [String]? = nil) throws -> GeneratedStorageSnapshot {
+        var payload: [String: Any] = ["op": "storage"]
+        if let retentionDays { payload["retention_days"] = retentionDays }
+        if let deleting { payload["delete"] = deleting }
+        let response = try request(payload)
+        guard let rows = response["entries"] as? [[String: Any]],
+              let total = response["total_bytes"] as? Int64,
+              let days = response["retention_days"] as? Int else { throw SpeechServiceError.invalidResponse }
+        let entries = try rows.map { row -> GeneratedFile in
+            guard let id = row["id"] as? String, let preview = row["preview"] as? String,
+                  let bytes = row["bytes"] as? Int64, let modified = row["modified_at"] as? Double,
+                  let protected = row["protected"] as? Bool else { throw SpeechServiceError.invalidResponse }
+            return GeneratedFile(id: id, preview: preview, bytes: bytes, modifiedAt: modified, protected: protected)
+        }
+        let receipt = response["receipt"] as? [String: Int]
+        let message = receipt.map { "Deleted \($0["removed"] ?? 0); protected \($0["protected"] ?? 0); failed \($0["failed"] ?? 0)." }
+        return GeneratedStorageSnapshot(entries: entries, totalBytes: total, retentionDays: days, message: message)
+    }
+
+    public func clearHistoryAndFiles() throws {
+        _ = try request(["op": "clear", "queue": "history", "delete_files": true])
     }
 
     public func restartModel() throws { _ = try request(["op": "restart_model"]) }
