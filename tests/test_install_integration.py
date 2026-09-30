@@ -375,3 +375,30 @@ def test_mcp_failure_still_attempts_other_selected_agents(
         "failed": True,
         "registrations": {"codex": env["AITTS_MCP_BIN"], "gemini": env["AITTS_MCP_BIN"]},
     }
+
+
+def test_failed_skill_render_preserves_installed_skill(
+    tmp_path: Path, sandbox: dict[str, str]
+) -> None:
+    installed = Path(sandbox["AITTS_CLAUDE_SKILLS_DIR"]) / "speak" / "SKILL.md"
+    installed.parent.mkdir(parents=True)
+    installed.write_bytes(b"working installed skill")
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    renderer = commands / "sed"
+    renderer.write_text(
+        "#!/bin/sh\n"
+        'case "$1" in\n'
+        '  *AI_TTS_BIN*) printf "partial replacement"; exit 9 ;;\n'
+        "esac\n"
+        'exec /usr/bin/sed "$@"\n'
+    )
+    renderer.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+
+    result = run(env, "skill", "--claude")
+
+    assert {
+        "failed": result.returncode != 0,
+        "skill": installed.read_bytes(),
+    } == {"failed": True, "skill": b"working installed skill"}

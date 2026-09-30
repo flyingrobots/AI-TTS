@@ -185,6 +185,8 @@ A failed registration does not trigger automatic removal of an existing entry.
 Other selected agents are still attempted, but any registration failure makes
 the command exit nonzero. If a host refuses to update an existing entry, inspect
 and reconcile it using that host's CLI before rerunning the installer.
+Skill replacement is also staged: a failed render preserves the installed
+`SKILL.md`, while a successful install replaces it with the generated version.
 
 ### Doing it by hand
 

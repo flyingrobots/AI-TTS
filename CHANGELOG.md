@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Skill upgrades render to a sibling temporary file before replacement, preserving the installed SKILL.md when rendering fails.
+
 - Failed MCP registration no longer removes an existing agent registration or reports success. Other selected agents are still attempted, and the installer exits nonzero if any registration fails.
 
 - Forced app upgrades build, package and sign a sibling candidate before atomically swapping it into place. Build failures preserve the installed app, and unsupported filesystems fail without deleting it.

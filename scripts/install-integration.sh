@@ -143,7 +143,7 @@ run_mcp_add() {
     esac
 }
 
-install_skill_for() {
+install_skill_for() (
     agent=$1
     destination="$(skills_dir_for "$agent")/$SKILL_NAME"
     binary=$(resolve_bin ai-tts)
@@ -165,9 +165,17 @@ install_skill_for() {
     # inserts the matched text and an unescaped | would end the expression.
     quoted=$(shell_quote "$binary")
     escaped=$(printf '%s' "$quoted" | sed -e 's/[&|\\]/\\&/g')
-    sed "s|<AI_TTS_BIN>|$escaped|g" "$SKILL_SOURCE" >"$destination/SKILL.md"
+    temporary=$(mktemp "$destination/.SKILL.md.XXXXXX")
+    trap 'rm -f -- "$temporary"' EXIT
+    trap 'exit 1' HUP INT TERM
+    sed "s|<AI_TTS_BIN>|$escaped|g" "$SKILL_SOURCE" >"$temporary"
+    chmod 644 "$temporary"
+    if [ -d "$destination/SKILL.md" ]; then
+        die "skill destination is a directory: $destination/SKILL.md"
+    fi
+    mv -f -- "$temporary" "$destination/SKILL.md"
     printf '  %-7s skill  -> %s/SKILL.md\n' "$agent" "$destination"
-}
+)
 
 install_mcp_for() {
     agent=$1

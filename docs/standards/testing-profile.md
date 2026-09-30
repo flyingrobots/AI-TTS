@@ -633,3 +633,17 @@ checks never execute a real agent CLI or change user configuration. Native
 add/update behavior remains the host's responsibility; the installer no longer
 performs destructive recovery after an arbitrary refusal. Retire only with a
 stronger calibrated registration-preservation and exit-status contract.
+
+
+## Installation audit: preserve skill on render failure
+
+Change-kind: bug fix. Shell redirection truncated the installed SKILL.md before
+rendering completed. A medium installer-boundary check uses an owned sed double
+that delegates quoting to real sed but emits partial output and fails during
+placeholder replacement. On unfixed code, the command failed while leaving
+partial bytes in the installed skill. The installer now renders into a sibling
+temporary file, publishes only on success, and scopes cleanup traps to the
+installation subprocess. The regression passes; existing first-install,
+reinstall, dry-run and awkward-path contracts remain green. No real skill
+directory or installed command participates. Retire only with a stronger
+calibrated generated-skill replacement contract.
