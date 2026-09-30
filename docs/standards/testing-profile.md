@@ -552,3 +552,23 @@ guard fails that check with zero. All seeds are restored. Repeated stop is
 harmless, and existing process-level bounded shutdown checks remain green.
 Oracle: exclusive playback ownership and durable paused position on shutdown.
 Retire only with a stronger calibrated daemon/device handoff contract.
+
+
+## Playback handoff audit: completion before thread retirement
+
+Change-kind: bug fix. SoundDeviceSink signalled completion after closing the
+stream and file, but start independently required the Python worker thread to
+be dead. A caller could await completion and still receive an overlapping-
+playback error on immediate reacquisition. Start now uses the same completion
+event as wait; no device or evidence work remains after that barrier.
+
+The medium public sink regression owns a WAV, recording output adapter, and
+thread scheduler. Its wrapper holds worker retirement after the real playback
+target returns. The unfixed next start raised RuntimeError after wait returned
+True. The fixed sink plays both copies fully. The same check gates initial
+worker entry and requires active-playback refusal; removing that guard fails
+the refusal assertion. Only the playback module's threading dependency
+reference is replaced, not process-wide threading. Both gates are released
+and workers joined during cleanup. Oracle: completion permits reacquisition
+while active playback remains exclusive. Retire only with a stronger
+calibrated completion/reacquisition contract.

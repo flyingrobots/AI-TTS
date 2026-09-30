@@ -253,7 +253,9 @@ class SoundDeviceSink:
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Play ``path`` on the default output device from ``position_ms``."""
-        if self._thread is not None and self._thread.is_alive():  # pragma: no cover
+        # Completion is the handoff barrier: the stream and file are closed
+        # before it is signalled. The old Python thread may still be returning.
+        if self._thread is not None and not self._ended.is_set():
             msg = "sink is already active; playback is strictly serialized"
             raise RuntimeError(msg)
         self._audio_path = path

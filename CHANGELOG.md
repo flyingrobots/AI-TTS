@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
+
 - Daemon shutdown retires active audio and its completion watcher before closing state or releasing ownership, preserving the final parent/child position for explicit resume.
 
 - Pause arriving during Restart device teardown now keeps playback silent; explicit Resume honors the requested restart from zero.

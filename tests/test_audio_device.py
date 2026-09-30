@@ -15,6 +15,8 @@ import contextlib
 import json
 import logging
 import sys
+import threading
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -123,6 +125,57 @@ async def test_sink_refreshes_the_device_list_before_opening_each_clip(tone: Pat
     assert first_refreshes >= 1
     assert device.refreshes > first_refreshes
     assert streams.refreshes_at_open == [1, 2]
+
+
+async def test_completed_sink_can_restart_before_worker_thread_retires(
+    tone: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Model descheduling after the worker target has signalled completion but
+    # before Python retires the thread. The output and audio file are owned.
+    # Retire only with a stronger calibrated completion/reacquisition contract.
+    begin = threading.Event()
+    release = threading.Event()
+    workers: list[threading.Thread] = []
+
+    def delayed_thread(
+        *, target: Callable[..., None], args: tuple[object, ...], daemon: bool
+    ) -> threading.Thread:
+        def run() -> None:
+            begin.wait()
+            target(*args)
+            release.wait()
+
+        worker = threading.Thread(target=run, daemon=daemon)
+        workers.append(worker)
+        return worker
+
+    # Replace this module's dependency reference, not process-wide threading.
+    monkeypatch.setattr(
+        "aitts.playback.threading",
+        SimpleNamespace(Thread=delayed_thread, Event=threading.Event, Lock=threading.Lock),
+    )
+    device = FakeAudioDevice(identity="owned-output")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    try:
+        sink.start(tone)
+        with pytest.raises(RuntimeError, match="sink is already active"):
+            sink.start(tone)
+        begin.set()
+        first = await sink.wait()
+        sink.start(tone)
+        second = await sink.wait()
+        assert (first, second, len(streams.opened), streams.frames) == (
+            True,
+            True,
+            2,
+            2 * _FRAMES,
+        )
+    finally:
+        begin.set()
+        release.set()
+        for worker in workers:
+            worker.join(timeout=1)
 
 
 async def test_unchanged_default_output_streams_the_clip_through_one_stream(tone: Path) -> None:
