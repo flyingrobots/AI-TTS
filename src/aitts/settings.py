@@ -144,7 +144,7 @@ class SettingsService:
 
     def input_interrupt_resume(self) -> str:
         """How a hold the listener's voice caused is released."""
-        return self._store.get_setting("input_interrupt_resume", "manual")
+        return self._store.get_setting("input_interrupt_resume", "when_idle")
 
     def speaking_voice(self) -> str:
         """Return the voice to speak with when a client names none."""
