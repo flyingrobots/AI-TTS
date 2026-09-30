@@ -140,6 +140,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
     private func render() {
         statusItem.button?.image = TrayIcon.frame(state: trayState, phase: phase)
+        statusItem.button?.setAccessibilityLabel(trayState.accessibilityLabel)
     }
 
     @objc private func togglePopover(_ sender: Any?) {

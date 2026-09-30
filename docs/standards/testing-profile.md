@@ -794,3 +794,22 @@ explicitly draws the initial state. Preferences and notifications are isolated;
 no installed daemon, socket or user preferences enter this assertion. Retire
 only with an equivalent native startup discoverability check. This tests the
 AppKit boundary, not VoiceOver traversal or physical display placement.
+
+
+## Native UI audit: status-item accessible identity
+
+Change-kind: bug fix. The owned native status button exposed an empty
+accessibilityLabel for unavailable, idle, playing, paused and synthesizing
+states. The new medium boundary test observed all five empty values before
+the fix and requires an app-identifying, state-specific label afterward.
+Existing startup-image coverage shares the same isolated setup without
+changing its oracle. Labels are applied whenever a tray frame renders.
+Retire only with an equivalent native accessibility discoverability contract.
+This is not a claim that real VoiceOver traversal has passed.
+
+Live preflight on 2026-09-30: the signed candidate launched against an owned
+daemon with FakeEngine/FakeSink and the installed app was restored. The installed
+daemon remained untouched. A menu-click probe exposed no popover; subsequent
+IOConsoleUsers inspection confirmed CGSSessionScreenIsLocked=Yes. Interactive
+acceptance remains pending an unlocked session. Only one display was connected,
+so cross-display acceptance also remains pending suitable hardware.
