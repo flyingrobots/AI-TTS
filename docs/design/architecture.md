@@ -334,7 +334,7 @@ is UTF-8 and contains exactly one JSON object. Request lines are limited to 1
 MiB including their newline. Malformed JSON, invalid UTF-8, non-object JSON,
 and over-limit lines receive a typed `bad_request`; they never become an empty
 response that a client might read as success (F2). A malformed line below the
-limit does not poison the connection, so a corrected next request can proceed.
+limit does not poison the connection, so a corrected next request can proceed. Decoded string values and object keys must be UTF-8 encodable: isolated surrogate escapes are rejected before dispatch or durable admission effects. Valid surrogate pairs remain accepted as their Unicode character.
 
 ```jsonc
 // submit — returns immediately with an id. THIS IS NOT "IT WAS SPOKEN".

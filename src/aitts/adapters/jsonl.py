@@ -24,10 +24,25 @@ def _reject_nonfinite(token: str) -> NoReturn:
     raise ValueError(msg)
 
 
+def _validate_unicode_strings(payload: object) -> None:
+    """Reject isolated surrogates without adding a recursive traversal limit."""
+    pending = [payload]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, str):
+            value.encode("utf-8")
+        elif isinstance(value, dict):
+            pending.extend(value.keys())
+            pending.extend(value.values())
+        elif isinstance(value, list):
+            pending.extend(value)
+
+
 def decode_json_object(line: bytes) -> dict[str, Any]:
     """Decode one UTF-8 JSON object or raise a transport-typed error."""
     try:
         payload: Any = json.loads(line.decode("utf-8"), parse_constant=_reject_nonfinite)
+        _validate_unicode_strings(payload)
     except (RecursionError, ValueError) as exc:
         msg = "not valid JSON"
         raise JsonlDecodeError(msg) from exc

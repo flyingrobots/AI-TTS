@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Private-file validation refuses unexpected FIFOs without blocking startup or diagnostic-log setup while waiting for a pipe peer.
+
+- IPC rejects isolated Unicode surrogate escapes before dispatch, returning a typed refusal without leaving voice assignments from a failed submission.
+
 - Recovery settles documents whose final child completed before the parent completion commit, preserving played duration and releasing the queue.
 
 - Updated frozen PyJWT to 2.15.1 for the recursive payload error-handling vulnerability CVE-2026-101918.

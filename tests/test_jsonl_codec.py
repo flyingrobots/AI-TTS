@@ -50,6 +50,7 @@ json_objects = st.dictionaries(unicode_text, json_values, max_size=8)
 
 @settings(max_examples=200, derandomize=True, database=None)
 @given(payload=json_objects)
+@example(payload={"text": "\U0001f600"})
 def test_generated_json_objects_round_trip_as_one_physical_line(payload: dict[str, Any]) -> None:
     encoded = encode_json_object(payload)
 
@@ -83,3 +84,13 @@ def test_generated_bytes_return_an_object_or_typed_decode_error(line: bytes) -> 
         outcome = ("object", isinstance(result, dict))
 
     assert outcome in {("typed_error", True), ("object", True)}
+
+
+@pytest.mark.parametrize(
+    "line",
+    [b'{"text":"\\ud800"}', b'{"nested":["\\udfff"]}', b'{"\\ud800":"value"}'],
+)
+@pytest.mark.oracle("wire strings and keys must represent UTF-8 encodable Unicode text")
+def test_decoder_rejects_isolated_surrogates_before_dispatch(line: bytes) -> None:
+    with pytest.raises(JsonlDecodeError, match="not valid JSON"):
+        decode_json_object(line)

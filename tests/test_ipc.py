@@ -1162,3 +1162,21 @@ async def test_model_reload_reports_readiness_and_recovers_from_failure(
     assert ready["runtime"]["model_state"] == "ready"
     assert ready["runtime"]["pid"] > 0
     assert ready["runtime"]["uptime_seconds"] >= 0
+
+
+@pytest.mark.parametrize("field", ["text", "source"])
+@pytest.mark.parametrize("surrogate", [chr(0xD800), chr(0xDFFF)], ids=["high", "low"])
+@pytest.mark.oracle(
+    "invalid Unicode submission is a typed refusal with no durable admission effects"
+)
+async def test_isolated_surrogate_submission_is_rejected_before_admission(
+    daemon: Daemon, field: str, surrogate: str
+) -> None:
+    payload = {"op": "submit", "text": "valid source", "source": "unicode-probe"}
+    payload[field] = surrogate
+    reply = await rpc(daemon.socket_path, payload)
+    assert {
+        "ok": reply["ok"],
+        "error": reply.get("error", {}).get("type"),
+        "voice_claims": daemon.store.voice_assignments(),
+    } == {"ok": False, "error": "bad_request", "voice_claims": []}

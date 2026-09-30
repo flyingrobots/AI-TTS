@@ -461,3 +461,54 @@ Played/20ms or Played/10ms. Recovery now settles paused composite parents when
 all children are terminal, after giving child failure propagation precedence.
 Its played position follows the same completed-child duration contract as
 normal completion. This recovers old durable prefixes without replaying audio.
+
+
+## Admission audit: reject isolated Unicode surrogates before side effects
+
+Change-kind: bug fix. Escaped isolated surrogates were accepted by JSON parsing
+but later failed SQLite/UTF-8 processing. Four real-IPC cases observed internal
+errors; malformed text also left a durable source voice claim. Three narrow
+codec regressions accepted malformed values, nested list values, and keys.
+All seven were observed red before the fix. The adapter now iteratively
+validates every decoded string and key before dispatch, keeping validation
+independent of Python recursion depth. Unicode encoding failure joins the
+existing typed bad-request path. A valid supplementary Unicode character is
+an explicit example in the existing generated round-trip property.
+
+The medium IPC cases own their temporary daemon, fake engine and socket. Their
+oracle is typed refusal with an empty voice register; codec cases use the
+explicit wire Unicode-text contract (stricter than JSON escape grammar alone).
+Retire only with equivalent calibrated validation before durable admission.
+
+
+## Admission audit: nonblocking private-file type validation
+
+Change-kind: bug fix. secure_existing_file opened a candidate read-only before
+fstat could reject non-regular files. An unexpected FIFO therefore waited for
+a writer indefinitely. Descriptor acquisition now uses O_NONBLOCK before the
+existing regular-file check; ordinary file privacy behavior is unchanged.
+
+A medium public-adapter regression creates an owned FIFO and calls validation
+in an isolated Python process. The original unfixed run reached its two-second liveness
+deadline (and was killed/reaped by subprocess.run); fixed code returns EINVAL.
+PR #43 review increased the subprocess deadline to ten seconds to allow slow
+interpreter startup within the medium test's fifteen-second ceiling. Removing
+O_NONBLOCK still reaches that ten-second deadline and fails; restored code
+returns promptly. This test-only observation change does not alter the oracle.
+The deadline bounds completion, not scheduling or an absence-of-events safety
+claim. No FIFO peer exists. Existing permissive-umask, sidecar, candidate and
+symlink privacy checks remain relevant. Retire only with an equivalent
+nonblocking descriptor-validation contract.
+
+
+## Admission audit CI follow-up: generated schema test sizing
+
+Change-kind: behavior change (test classification only). Required CI run
+36745318625 failed when the generated schema round-trip test exceeded the
+two-second small ceiling while Hypothesis lazily initialized NumPy's random
+state. Hypothesis reported a FlakyFailure after the timeout; the failed run
+was not retried into green. This generated check now uses the existing
+fifteen-second medium ceiling. The three example-based functions remain
+explicitly small. Strategies, example count, seed policy, oracle and assertions
+are unchanged; no new assertion or runtime behavior is introduced.
+Failure evidence: [Python job](https://github.com/flyingrobots/AI-TTS/actions/runs/36745318625/job/109989908799).

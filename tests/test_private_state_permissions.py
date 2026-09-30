@@ -9,6 +9,8 @@ import os
 import shutil
 import sqlite3
 import stat
+import subprocess
+import sys
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -176,3 +178,38 @@ def test_daemon_refuses_to_follow_a_symlinked_state_home(tmp_path: Path) -> None
         "target_mode": 0o750,
         "database_created_through_link": False,
     }
+
+
+@pytest.mark.oracle(
+    "private-file validation refuses non-regular entries without waiting for a peer"
+)
+def test_private_file_validation_refuses_fifo_without_blocking(tmp_path: Path) -> None:
+    # Retire only if an equivalent nonblocking descriptor-validation contract replaces it.
+    # A child process owns the liveness deadline; a failing open cannot hang pytest.
+    fifo = tmp_path / "unexpected-fifo"
+    os.mkfifo(fifo)
+    script = """
+import errno
+import sys
+from pathlib import Path
+from aitts.adapters.private_files import secure_existing_file
+try:
+    secure_existing_file(Path(sys.argv[1]))
+except OSError as error:
+    print("refused" if error.errno == errno.EINVAL else "wrong error")
+else:
+    print("accepted")
+"""
+    outcome: tuple[int | None, str]
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed interpreter/script and owned fixture path
+            [sys.executable, "-c", script, str(fifo)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        outcome = (result.returncode, result.stdout.strip())
+    except subprocess.TimeoutExpired:
+        outcome = (None, "blocked waiting for a FIFO peer")
+    assert outcome == (0, "refused")
