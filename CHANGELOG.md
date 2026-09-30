@@ -222,6 +222,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update the frozen PyJWT dependency to 2.14.0 to address ten published
+  security advisories, including empty HMAC JWK acceptance.
+
+- Microphone pauses now resume by default once no input device is active.
+  Explicit manual pauses and saved `manual` policies remain in effect.
+- Agents using the speak skill now enqueue requested speech while playback
+  is paused. Status guidance explains that speech is saved for later playback,
+  and the skill distinguishes queued speech from confirmed playback.
+
 - The sink's failure path is now tested rather than marked unreachable. A
   device that cannot be opened, a device that fails part-way through a clip,
   and cached audio evicted before the sink opened it all end that clip with an

@@ -493,7 +493,10 @@ ai-tts assign-voice claude-code --release
 ai-tts settings --set voice=bm_daniel
 ai-tts settings --set captions_enabled=true
 ai-tts settings --set input_interrupt_enabled=true
-ai-tts settings --set input_interrupt_resume=manual
+# default: resume microphone pauses once every input is idle
+ai-tts settings --set input_interrupt_resume=when_idle
+# opt out of automatic resume
+# ai-tts settings --set input_interrupt_resume=manual
 
 # agent-native MCP server: 100% JSONL, one JSON object per stdio line
 ai-tts-mcp
