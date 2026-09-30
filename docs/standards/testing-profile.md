@@ -760,3 +760,25 @@ app process. The existing registration-receipt test observed that unsupported
 statement where the action-only receipt was required. It now reports that the
 installer did not launch the app. README documents quit/reopen after upgrade
 and distinguishes manual operations from staged Make orchestration.
+
+
+## Installation audit: interrupted activation recovery
+
+Change-kind: bug fix. Eight small contract cases inject KeyboardInterrupt
+before and after bootout/bootstrap side effects, with prior service loaded
+or unloaded. All eight failed on the unfixed installer: new plist bytes
+survived, and service state could be stopped or use the replacement.
+The owned launchctl double retains the exact registered plist bytes, so a
+loaded replacement cannot masquerade as restored prior registration. Recovery
+now catches interruption, retires a possibly registered replacement, inspects
+actual service state, and reloads the prior configuration only when necessary.
+The original interrupt is still raised. Tests use only owned temporary files
+and a subprocess-boundary double; no installed service is accessed. Retire
+only when activation no longer replaces a live configuration, or an equivalent
+calibrated recovery contract replaces these cases. This does not establish
+resilience to repeated interruption, failed recovery commands, or power loss.
+A mutation omitting replacement retirement failed the exact registered-byte
+oracle after successful bootstrap followed by interruption. Bytecode was
+invalidated before mutation and restoration; restored eight-case suite passes.
+Full validation: 730 Python tests (258 small, 472 medium), 127 Swift tests,
+frozen lock, Ruff and mypy pass.

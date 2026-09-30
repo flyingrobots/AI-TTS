@@ -167,7 +167,8 @@ asking uv to replace the CLI environment. Preparation failure leaves the CLI
 untouched. Each artifact is published atomically, but the entire uv environment,
 app and service installation is not one filesystem transaction; a failure after
 uv succeeds does not automatically restore the previous CLI environment.
-If launchd rejects the replacement, the installer restores the previous plist
+If launchd rejects the replacement or activation is interrupted with Ctrl-C,
+the installer restores the previous plist
 and attempts to reload it if the service was previously loaded. A deliberately
 unloaded service remains unloaded. Failed recovery is reported; restoring a
 plist does not restore an older uv environment or prove daemon health.

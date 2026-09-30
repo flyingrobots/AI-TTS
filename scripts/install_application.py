@@ -40,9 +40,9 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
     elif loaded:
         message = "cannot replace a loaded launch agent without its previous plist"
         raise RuntimeError(message)
-    candidate.replace(output)
-    removed = False
+    bootstrap_attempted = False
     try:
+        candidate.replace(output)
         result = subprocess.run(  # noqa: S603 - resolved launchctl and fixed service label
             [launchctl, "bootout", f"{domain}/com.flyingrobots.ai-tts"],
             check=False,
@@ -51,16 +51,34 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
         )
         if loaded:
             result.check_returncode()
-        removed = result.returncode == 0
+        bootstrap_attempted = True
         subprocess.run(  # noqa: S603 - explicit installed plist
             [launchctl, "bootstrap", domain, str(output)], check=True
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, KeyboardInterrupt):
         if backup.exists():
             backup.replace(output)
         else:
-            output.unlink()
-        if loaded and removed:
+            output.unlink(missing_ok=True)
+        # A subprocess may complete its side effect before an interrupt reaches
+        # Python. Retire a possible replacement before restoring registration.
+        if bootstrap_attempted:
+            subprocess.run(  # noqa: S603 - fixed service being rolled back
+                [launchctl, "bootout", f"{domain}/com.flyingrobots.ai-tts"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        still_loaded = (
+            subprocess.run(  # noqa: S603 - inspect actual recovery state
+                [launchctl, "print", f"{domain}/com.flyingrobots.ai-tts"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        )
+        if loaded and not still_loaded:
             recovery = subprocess.run(  # noqa: S603 - the restored incumbent plist
                 [launchctl, "bootstrap", domain, str(output)], check=False
             )
