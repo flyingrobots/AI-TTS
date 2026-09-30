@@ -46,6 +46,22 @@ final class SpeechComposerTests: XCTestCase {
         XCTAssertFalse(composer.busy)
     }
 
+    // Test-Oracle: the selected interpretation remains selected across draft resets.
+    @MainActor
+    func testClearAndSuccessfulSubmissionPreserveTextInterpretation() {
+        let ports = ComposerPorts()
+        let composer = SpeechComposer(speech: ports, documents: ports, clipboard: ports, selection: ports)
+        composer.draft.contentFormat = .markdown
+        composer.draft.text = "**First draft**"
+        composer.clear()
+        XCTAssertEqual(composer.draft.contentFormat, .markdown)
+
+        composer.draft.contentFormat = .markdown
+        composer.draft.text = "**Second draft**"
+        drain { await composer.submit(playbackHeld: false) }
+        XCTAssertEqual(composer.draft.contentFormat, .markdown)
+    }
+
     @MainActor
     private func drain(_ operation: @escaping @MainActor () async -> Void) {
         let finished = expectation(description: "Composer operation completed")

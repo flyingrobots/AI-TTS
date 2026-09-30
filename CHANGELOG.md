@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clearing or successfully submitting a composer draft retains its chosen text interpretation, voice, and model.
+
 - Composer selection imports follow the latest external application activation; unavailable targets are cleared instead of reusing an older app.
 
 - Speech-composer provenance now identifies user composition while preserving import attribution and replay origin.

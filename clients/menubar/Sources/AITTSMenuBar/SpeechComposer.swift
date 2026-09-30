@@ -30,12 +30,13 @@ final class SpeechComposer: ObservableObject {
     }
 
     func clear() {
-        draft.text = ""
         let voice = draft.voice
         let engine = draft.engine
+        let contentFormat = draft.contentFormat
         draft = SpeechDraft()
         draft.voice = voice
         draft.engine = engine
+        draft.contentFormat = contentFormat
         notice = nil
         error = nil
     }
