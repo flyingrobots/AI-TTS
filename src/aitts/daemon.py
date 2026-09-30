@@ -151,6 +151,7 @@ class Daemon:
         self._controller: PlaybackController | None = None
         self._pool: SynthesisPool | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._exports: dict[asyncio.Task[dict[str, Any]], tuple[set[str], set[str]]] = {}
 
     @property
     def socket_path(self) -> Path:
@@ -223,6 +224,7 @@ class Daemon:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._tasks = []
+        await asyncio.gather(*self._exports, return_exceptions=True)
         self._store.close()
 
     # -- events ------------------------------------------------------------
@@ -345,7 +347,10 @@ class Daemon:
             "playback_held": held,
             "submission_disposition": ("spooled_until_resume" if held else "queued_for_playback"),
             "submission_guidance": (
-                "Speak freely: playback is paused, but speech is accepted and spooled until Resume."
+                "Speak freely: enqueue requested speech now, even while playback is paused. "
+                "Speech is accepted and saved for playback when the hold is released. "
+                "A microphone hold resumes automatically when input is idle if configured; "
+                "a manual pause waits for the listener. Report queued, not played, until Played."
                 if held
                 else "Speak freely: speech is accepted into the playback queue."
             ),
@@ -366,14 +371,6 @@ class Daemon:
             raise ApiError(BAD_REQUEST, "preempt must be a boolean")
         if preempt:
             priority = Priority.PREEMPT
-        source = payload.get("source")
-        voice = self._voices.resolve(
-            source=source if isinstance(source, str) else None,
-            requested=payload.get("voice") or None,
-        )
-        if voice not in self._engine.list_voices():
-            msg = f"unknown voice {voice!r}"
-            raise ApiError(BAD_REQUEST, msg)
         speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
         content_format: ContentFormat | None
         if "content_format" not in payload:
@@ -387,6 +384,14 @@ class Daemon:
         spoken_segments = prepare_speech_segments(text, content_format=content_format)
         if not spoken_segments:
             msg = "submit text contains no speakable content"
+            raise ApiError(BAD_REQUEST, msg)
+        source = payload.get("source")
+        voice = self._voices.resolve(
+            source=source if isinstance(source, str) else None,
+            requested=payload.get("voice") or None,
+        )
+        if voice not in self._engine.list_voices():
+            msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
         composite = spoken_segments != (text,)
         utt = self._store.submit(
@@ -479,6 +484,8 @@ class Daemon:
 
     def _protected_artifacts(self) -> set[str]:
         protected = {Path(path).stem for path in self._store.protected_audio_paths()}
+        for identities, _paths in self._exports.values():
+            protected.update(identities)
         for item in self._store.input_queue() + self._store.playback_queue():
             protected.add(item.id)
             protected.update(segment.artifact_id for segment in self._store.segments(item.id))
@@ -498,18 +505,18 @@ class Daemon:
 
     async def _op_storage(self, payload: dict[str, Any]) -> dict[str, Any]:
         days = payload.get("retention_days")
+        if days is not None and (type(days) is not int or days not in {0, 1, 7, 30, 90}):
+            raise ApiError(BAD_REQUEST, "retention_days must be 0, 1, 7, 30, or 90")
+        identities = payload.get("delete")
+        if identities is not None and (
+            not isinstance(identities, list) or not all(isinstance(key, str) for key in identities)
+        ):
+            raise ApiError(BAD_REQUEST, "delete must contain artifact ids")
         if days is not None:
-            if type(days) is not int or days not in {0, 1, 7, 30, 90}:
-                raise ApiError(BAD_REQUEST, "retention_days must be 0, 1, 7, 30, or 90")
             self._store.set_setting("retention_days", str(days))
         protected = self._protected_artifacts()
         receipt: dict[str, int] | None = None
-        identities = payload.get("delete")
         if identities is not None:
-            if not isinstance(identities, list) or not all(
-                isinstance(key, str) for key in identities
-            ):
-                raise ApiError(BAD_REQUEST, "delete must contain artifact ids")
             receipt = self._generated_storage.remove(set(identities), protected)
         entries = self._generated_storage.inventory(protected)
         return {
@@ -580,10 +587,13 @@ class Daemon:
             if isinstance(arguments, dict)
             else "Unknown (legacy clip)"
         )
-        for prefix, label in sources.items():
-            if item.source and item.source.startswith(prefix):
-                origin = label
-                break
+        if item.replay_of is not None:
+            origin = "History replay"
+        else:
+            for prefix, label in sources.items():
+                if item.source and item.source.startswith(prefix):
+                    origin = label
+                    break
         artifacts = [(Path(x.audio_path).stem if x.audio_path else x.artifact_id) for x in segments]
         if not artifacts:
             artifacts = [Path(item.audio_path).stem if item.audio_path else item.id]
@@ -637,18 +647,35 @@ class Daemon:
                     "audio_path": item.audio_path,
                 }
             ]
-        try:
-            return await asyncio.to_thread(
-                self._evidence.export,
+        report_item = self._serialize_utterance(item, history=True)
+
+        def export_report() -> dict[str, Any]:
+            return self._evidence.export(
                 Path(destination),
-                {
-                    **self._serialize_utterance(item, history=True),
-                    "provenance": self._provenance(item, segments),
-                },
+                {**report_item, "provenance": self._provenance(item, segments)},
                 clips,
             )
+
+        try:
+            worker = asyncio.create_task(asyncio.to_thread(export_report))
+            self._exports[worker] = (
+                {item.id, *(str(clip["artifact_id"]) for clip in clips)},
+                {str(clip["audio_path"]) for clip in clips if clip["audio_path"]},
+            )
+            worker.add_done_callback(self._export_finished)
+            # Cancelling a request cannot cancel filesystem work in a thread.
+            # The worker owns its pins until completion, independently of its caller.
+            return await asyncio.shield(worker)
         except (OSError, ValueError) as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
+
+    def _export_finished(self, worker: asyncio.Task[dict[str, Any]]) -> None:
+        self._exports.pop(worker)
+        if not worker.cancelled():
+            worker.exception()  # Retrieve failures even if the client stopped awaiting.
+
+    def _export_audio_paths(self) -> frozenset[str]:
+        return frozenset(path for _ids, paths in self._exports.values() for path in paths)
 
     async def _op_pause(self, payload: dict[str, Any]) -> dict[str, Any]:
         await self._require_controller().pause(
@@ -895,7 +922,7 @@ class Daemon:
     async def _op_purge_cache(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
         try:
-            report = self._cache.purge()
+            report = self._cache.purge(additional_protected=self._export_audio_paths())
         except OSError as exc:
             log.warning("event=cache_purge_inspection_failed")
             msg = "could not inspect audio cache"
@@ -1072,7 +1099,10 @@ class Daemon:
     def enforce_cache_limit(self) -> None:
         """Bring the cache back under its configured cap."""
         try:
-            report = self._cache.enforce(max_bytes=self._settings.cache_limit())
+            report = self._cache.enforce(
+                max_bytes=self._settings.cache_limit(),
+                additional_protected=self._export_audio_paths(),
+            )
         except OSError:
             log.warning("event=cache_inspection_failed")
             return

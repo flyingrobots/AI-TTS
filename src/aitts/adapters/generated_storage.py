@@ -23,7 +23,11 @@ class GeneratedStorage:
     def inventory(self, protected: set[str]) -> list[dict[str, Any]]:
         """Describe legacy WAVs and new per-clip directories as one entry each."""
         rows: dict[str, dict[str, Any]] = {}
-        for path in self.root.iterdir():
+        try:
+            members = list(self.root.iterdir())
+        except FileNotFoundError:
+            return []
+        for path in members:
             if path.is_symlink():
                 continue
             if path.is_dir():

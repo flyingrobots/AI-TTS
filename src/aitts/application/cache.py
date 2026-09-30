@@ -102,7 +102,9 @@ class CacheController:
         self._metadata = metadata
         self._cache = cache
 
-    def enforce(self, *, max_bytes: int) -> CacheEnforcementReport:
+    def enforce(
+        self, *, max_bytes: int, additional_protected: frozenset[str] = frozenset()
+    ) -> CacheEnforcementReport:
         """Evict least-recent terminal audio until at or below ``max_bytes``."""
         if max_bytes < 0:
             msg = "max_bytes must be non-negative"
@@ -111,7 +113,7 @@ class CacheController:
         before = self._cache.inventory()
         before_bytes = sum(entry.size_bytes for entry in before)
         remaining_bytes = before_bytes
-        protected = self._metadata.protected_audio_paths()
+        protected = self._metadata.protected_audio_paths() | additional_protected
         candidates = sorted(
             (entry for entry in before if str(entry.path) not in protected),
             key=lambda entry: (entry.last_access_ns, str(entry.path)),
@@ -141,10 +143,10 @@ class CacheController:
             failed_paths=tuple(failed),
         )
 
-    def purge(self) -> CachePurgeReport:
+    def purge(self, *, additional_protected: frozenset[str] = frozenset()) -> CachePurgeReport:
         """Remove all cached audio not owned by current or pending speech."""
         entries = self._cache.inventory()
-        protected_paths = self._metadata.protected_audio_paths()
+        protected_paths = self._metadata.protected_audio_paths() | additional_protected
         protected = tuple(entry for entry in entries if str(entry.path) in protected_paths)
         removed: list[CacheEntry] = []
         failed: list[CacheEntry] = []
