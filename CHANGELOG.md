@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- MLX startup now falls back to reference Kokoro when required English language assets are missing.
+
 ### Added
 
 - Optional `kokoro-mlx` backend on Apple Silicon/Python 3.12, selected through a persisted engine preference or daemon flag. Preparation precedes queued synthesis; unsupported installations fall back to reference Kokoro. Clip evidence fingerprints MLX assets and runtime versions.
