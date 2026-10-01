@@ -355,7 +355,7 @@ class Store:
         return _row_to_segment(row) if row else None
 
     def completed_segment_duration_ms(self, utt_id: str, before: int | None = None) -> int:
-        """Return duration already played before an optional child index."""
+        """Return duration of completed audio before an optional child index."""
         if before is None:
             row = self._db.execute(
                 "SELECT COALESCE(SUM(duration_ms), 0) AS duration FROM utterance_segments "
@@ -368,6 +368,15 @@ class Store:
                 "WHERE utterance_id = ? AND state = ? AND segment_index < ?",
                 (utt_id, State.PLAYED.value, before),
             ).fetchone()
+        return int(row["duration"]) if row is not None else 0
+
+    def playhead_offset_before_segment_ms(self, utt_id: str, before: int) -> int:
+        """Return elapsed document position, counting chunks skipped past."""
+        row = self._db.execute(
+            "SELECT COALESCE(SUM(duration_ms), 0) AS duration FROM utterance_segments "
+            "WHERE utterance_id = ? AND segment_index < ? AND state IN (?, ?)",
+            (utt_id, before, State.PLAYED.value, State.SKIPPED.value),
+        ).fetchone()
         return int(row["duration"]) if row is not None else 0
 
     def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
