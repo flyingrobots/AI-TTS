@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use. The card opens after the pointer rests on the button for 400 ms, so moving the pointer across History opens no cards and sends no daemon requests.
+
 ### Fixed
 
 - Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
