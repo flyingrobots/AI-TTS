@@ -750,21 +750,26 @@ async def test_stop_fade_underflow_is_recorded(tone: Path, tmp_path: Path) -> No
     ] == [("output_underflow", None), ("stream_closing", 1)]
 
 
+# The host buffer measured with the fix, 1024 frames at 48 kHz.
+_HOST_BUFFER_TARGET_SECONDS = 1024 / 48_000
+
+
 @pytest.mark.oracle(
     "CoreAudio overload report 2026-10-01 10:00:50: PageFaultsOnIOThread stalled the "
-    "I/O thread ~13.4 ms while the HAL buffer was 15 frames (0.3 ms per cycle)"
+    "I/O thread ~13.4 ms while the HAL buffer was 15 frames (0.3 ms per cycle); "
+    "measured: the HAL buffer equals the requested block in device-rate frames"
 )
+@pytest.mark.parametrize("device_rate", [44_100, 48_000, 96_000, 192_000])
 def test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, device_rate: int
 ) -> None:
     """Without a block size, PortAudio asked the HAL for 15-frame I/O cycles.
 
     Any stall longer than 0.3 ms then skipped a cycle, which is audible as a
     pop. A page fault on the I/O thread while another app activated lasted
-    about 13.4 ms. A fixed block size sets the HAL buffer. This asserts the
-    requested block duration at the stream rate; on the built-in speakers a
-    1024-frame block measured a 1024-frame host buffer (21.3 ms at 48 kHz),
-    which still exceeds the observed stall.
+    about 13.4 ms. On the built-in speakers the HAL buffer equalled the
+    requested block counted in device frames, for 24 and 48 kHz streams
+    alike, so the block's duration is set by the device rate, not the clip's.
     """
     from aitts.playback import _open_sounddevice_stream  # noqa: PLC0415
 
@@ -774,11 +779,21 @@ def test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall(
         def __init__(self, **kwargs: Any) -> None:
             opened.append(kwargs)
 
-    monkeypatch.setitem(sys.modules, "sounddevice", SimpleNamespace(OutputStream=FakeOutputStream))
+    def query_devices(*, kind: str) -> dict[str, Any]:
+        assert kind == "output"
+        return {"default_samplerate": float(device_rate)}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sounddevice",
+        SimpleNamespace(OutputStream=FakeOutputStream, query_devices=query_devices),
+    )
     _open_sounddevice_stream(samplerate=_SAMPLERATE, channels=1)
 
-    blocksize = opened[0].get("blocksize") or 0
-    observed_stall_seconds = 0.0134
-    assert blocksize / _SAMPLERATE > observed_stall_seconds, (
-        "PortAudio chooses its own minimum host buffer"
+    assert len(opened) == 1, "no output stream was constructed"
+    assert opened[0]["samplerate"] == _SAMPLERATE
+    host_buffer_seconds = (opened[0].get("blocksize") or 0) / device_rate
+    assert host_buffer_seconds >= _HOST_BUFFER_TARGET_SECONDS, (
+        f"the host buffer must last at least {_HOST_BUFFER_TARGET_SECONDS * 1000:.1f} ms "
+        f"at the device's {device_rate} Hz; requested {host_buffer_seconds * 1000:.1f} ms"
     )

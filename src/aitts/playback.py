@@ -183,10 +183,17 @@ class OutputStreamFactory(Protocol):
 
 # Left to choose, PortAudio asked CoreAudio for 15-frame I/O cycles (0.3 ms),
 # so any stall on the I/O thread skipped a cycle and popped. A page fault
-# while another app activated stalled it for about 13.4 ms. This block size
-# measured a 1024-frame (21.3 ms) host buffer on the built-in speakers, at the
-# cost of about 0.13 s more queued audio before pause and skip are heard.
-_HOST_BLOCK_FRAMES = 1024
+# while another app activated stalled it for about 13.4 ms. The HAL buffer
+# measured exactly the requested block counted in device-rate frames, for
+# 24 and 48 kHz streams alike, so the block is sized from the device's rate:
+# 1024 frames at 48 kHz gave 21.3 ms on the built-in speakers, at the cost
+# of about 0.13 s more queued audio before pause and skip are heard.
+_HOST_BUFFER_FRAMES_AT_48K = 1024
+
+
+def _host_block_frames(device_rate: float) -> int:
+    """Frames per block that give the device the 21.3 ms host buffer."""
+    return math.ceil(device_rate * _HOST_BUFFER_FRAMES_AT_48K / 48_000)
 
 
 def _open_sounddevice_stream(
@@ -195,8 +202,12 @@ def _open_sounddevice_stream(
     """Open a PortAudio stream on whatever it currently considers default."""
     import sounddevice as sd  # noqa: PLC0415 - keep audio deps out of test imports
 
+    device_rate = float(sd.query_devices(kind="output")["default_samplerate"])
     stream = sd.OutputStream(
-        samplerate=samplerate, channels=channels, dtype="float32", blocksize=_HOST_BLOCK_FRAMES
+        samplerate=samplerate,
+        channels=channels,
+        dtype="float32",
+        blocksize=_host_block_frames(device_rate),
     )
     return cast("AbstractContextManager[OutputStream]", stream)
 
