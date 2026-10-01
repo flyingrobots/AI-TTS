@@ -89,6 +89,39 @@ class RecordingStreams:
         return sum(stream.frames for stream in self.opened)
 
 
+class ClosingNotifications:
+    """Wraps a stream factory and reports, on the event loop, each stream it closes.
+
+    `sink.paused` only says a pause was requested. A test that resumes on it
+    can beat the worker to the close and keep playing through the old stream.
+    """
+
+    def __init__(self, streams: RecordingStreams) -> None:
+        self._streams = streams
+        self._loop = asyncio.get_running_loop()
+        self._closed: asyncio.Queue[None] = asyncio.Queue()
+
+    @contextlib.contextmanager
+    def open_stream(self, *, samplerate: int, channels: int) -> Any:
+        with self._streams(samplerate=samplerate, channels=channels) as stream:
+            try:
+                yield stream
+            finally:
+                self._loop.call_soon_threadsafe(self._closed.put_nowait, None)
+
+    async def next(self) -> None:
+        """Wait until the worker has closed one more stream."""
+        try:
+            await asyncio.wait_for(self._closed.get(), timeout=1)
+        except TimeoutError:
+            pytest.fail("the paused stream was never closed")
+
+
+def closing_notifications(streams: RecordingStreams) -> ClosingNotifications:
+    """Report each closed stream of ``streams``; call from the running event loop."""
+    return ClosingNotifications(streams)
+
+
 @pytest.fixture
 def tone(tmp_path: Path) -> Path:
     """Write one short mono WAV whose samples are a recognisable ramp."""
@@ -605,20 +638,27 @@ async def test_resumed_stream_fades_in_from_silence_at_the_held_position(tone: P
 
     device = FakeAudioDevice(identity="owned-output")
     streams = RecordingStreams(device)
-    sink = SoundDeviceSink(device=device, open_stream=streams)
+    closed = closing_notifications(streams)
+    sink = SoundDeviceSink(device=device, open_stream=closed.open_stream)
+    # Hold the audio thread just after the pause request. A resume issued on
+    # `sink.paused` alone would then always beat the close and keep playing
+    # through the original stream.
+    gate = threading.Event()
 
     def pause_after_one_block() -> None:
         if streams.frames >= SoundDeviceSink._BLOCK_FRAMES:
             streams.on_write = lambda: None
             sink.pause()
+            gate.wait(timeout=5)
 
     streams.on_write = pause_after_one_block
     sink.start(tone)
-    while not sink.paused:  # noqa: ASYNC110 - waiting on the sink's own audio thread
-        await asyncio.sleep(0.005)
+    gate.set()
+    await closed.next()
     sink.resume()
     assert await sink.wait() is True
 
+    assert len(streams.opened) == 2
     resumed = streams.opened[-1]
     assert_opens_softly(resumed)
     # Only the gain moves: after the fade-in, the resumed stream is the source
