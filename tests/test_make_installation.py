@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import plistlib
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -68,9 +69,15 @@ if args[:2] == ["run", "python"] and args[2].endswith("build_app_bundle.py"):
     output = Path(args[args.index("--output") + 1])
     output.mkdir(parents=True)
     (output / "version").write_text("new app")
+elif args[:1] == ["export"]:
+    # The lockfile export is offline and frozen, so the real uv runs it.
+    os.execv(os.environ["AITTS_TEST_REAL_UV"], ["uv", *args])
 elif args[:2] == ["tool", "install"]:
     (root / "cli-version").write_text("new cli")
     (root / "install-arguments.json").write_text(json.dumps(args))
+    if "--constraints" in args:
+        constraints = Path(args[args.index("--constraints") + 1])
+        (root / "constraints.txt").write_text(constraints.read_text())
 elif args[:3] == ["tool", "dir", "--bin"]:
     print(root / "bin")
 else:
@@ -85,11 +92,22 @@ else:
 from pathlib import Path
 root = Path(os.environ["AITTS_TEST_ROOT"])
 loaded = root / "service-loaded"
+# launchd finishes removing a booted-out service asynchronously: it stays
+# visible to this many `print` queries, and bootstrap fails with error 5.
+teardown = root / "teardown-remaining"
+lingering = int(teardown.read_text()) if teardown.exists() else 0
 args = sys.argv[1:]
 if args[0] == "print":
+    if lingering:
+        teardown.write_text(str(lingering - 1))
+        sys.exit(0)
     sys.exit(0 if loaded.exists() else 3)
 if args[0] == "bootout":
     loaded.unlink(missing_ok=True)
+    teardown.write_text(os.environ.get("AITTS_TEST_TEARDOWN_POLLS", "0"))
+elif args[0] == "bootstrap" and lingering:
+    print("Bootstrap failed: 5: Input/output error", file=sys.stderr)
+    sys.exit(5)
 elif args[0] == "bootstrap":
     payload = plistlib.loads(Path(args[-1]).read_bytes())
     refuse = os.environ.get("AITTS_TEST_BOOTSTRAP_FAILURE") == "1"
@@ -104,6 +122,9 @@ else:
     env = dict(os.environ, PATH=f"{commands}:/usr/bin:/bin")
     env["AITTS_TEST_ROOT"] = str(tmp_path)
     env["AITTS_TEST_PYTHON"] = sys.executable
+    real_uv = shutil.which("uv")
+    assert real_uv is not None, "uv is required to export the lockfile"
+    env["AITTS_TEST_REAL_UV"] = real_uv
     return env
 
 
@@ -200,3 +221,74 @@ def test_install_includes_the_english_model_in_the_daemon_environment(
         "https://github.com/explosion/spacy-models/releases/download/"
         "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
     ) in extras
+
+
+def test_install_resolves_the_daemon_environment_to_the_locked_versions(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: uv.lock is the tested runtime graph, so installation must not resolve past it.
+
+    `uv tool install` ignores uv.lock. Without constraints, huggingface-hub 2.0
+    made the resolver backtrack transformers to 4.12.2, whose tokenizers 0.10.3
+    cannot be built, and every fresh `make install` failed.
+    """
+    import tomllib  # noqa: PLC0415
+
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    assert "--constraints" in arguments, "the tool install resolves without the lockfile"
+
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+    lock = tomllib.loads((REPOSITORY / "uv.lock").read_text(encoding="utf-8"))
+    locked: dict[str, set[str]] = {}
+    for package in lock["package"]:
+        locked.setdefault(package["name"], set()).add(package["version"])
+    for name in ("kokoro", "transformers", "tokenizers", "huggingface-hub"):
+        assert name in pins, f"{name} is not constrained"
+        assert pins[name] in locked[name], f"{name}=={pins[name]} is not the locked version"
+
+
+def test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: `make install` installs this checkout's code.
+
+    uv caches a local package build keyed on its metadata, not its sources. With
+    the version unchanged at 0.1.0, a reinstall reported success and left the
+    daemon running the previous code.
+    """
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    assert "--reinstall-package" in arguments, "uv may install a stale cached build"
+    assert arguments[arguments.index("--reinstall-package") + 1] == "ai-tts"
+
+
+def test_install_waits_for_launchd_to_release_the_previous_service(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: launchd's observed behavior, where bootout returns before teardown completes.
+
+    Bootstrapping in that window failed with error 5 after every successful build.
+    """
+    agent = tmp_path / "agent.plist"
+    agent.write_bytes(
+        plistlib.dumps(
+            {"Label": "com.flyingrobots.ai-tts", "ProgramArguments": ["/old/ai-tts", "daemon"]}
+        )
+    )
+    (tmp_path / "service-loaded").write_text("running")
+    env = dict(install_environment, AITTS_TEST_TEARDOWN_POLLS="3")
+
+    result = run_installation(tmp_path, env)
+
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "service-loaded").exists()
+    assert plistlib.loads(agent.read_bytes())["ProgramArguments"][0] == str(
+        tmp_path / "bin" / "ai-tts"
+    )

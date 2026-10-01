@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from scripts.build_app_bundle import publish_app_bundle
@@ -22,7 +24,38 @@ SPACY_MODEL = (
 )
 
 
-def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> None:
+# launchd removes a booted-out service asynchronously, and bootstrapping the
+# same label before it has gone fails with error 5. Poll this many times, this
+# far apart, for it to leave.
+TEARDOWN_POLLS = 100
+TEARDOWN_POLL_SECONDS = 0.1
+
+
+class LaunchdTeardownTimeoutError(RuntimeError):
+    """The previous service was still loaded after the teardown allowance."""
+
+
+def _await_teardown(launchctl: str, service: str, polls: int) -> None:
+    for _ in range(polls):
+        still_loaded = (
+            subprocess.run(  # noqa: S603 - resolved launchctl and fixed service label
+                [launchctl, "print", service],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        )
+        if not still_loaded:
+            return
+        time.sleep(TEARDOWN_POLL_SECONDS)
+    message = f"launchd is still tearing down {service}; re-run once it has gone"
+    raise LaunchdTeardownTimeoutError(message)
+
+
+def activate_launch_agent(
+    *, launchctl: str, candidate: Path, output: Path, teardown_polls: int = TEARDOWN_POLLS
+) -> None:
     """Restore the previous configuration if launchd rejects its replacement."""
     domain = f"gui/{os.getuid()}"
     loaded = (
@@ -51,11 +84,17 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
         )
         if loaded:
             result.check_returncode()
+        _await_teardown(launchctl, f"{domain}/com.flyingrobots.ai-tts", teardown_polls)
         bootstrap_attempted = True
         subprocess.run(  # noqa: S603 - explicit installed plist
             [launchctl, "bootstrap", domain, str(output)], check=True
         )
-    except (OSError, subprocess.CalledProcessError, KeyboardInterrupt):
+    except (
+        OSError,
+        subprocess.CalledProcessError,
+        LaunchdTeardownTimeoutError,
+        KeyboardInterrupt,
+    ):
         if backup.exists():
             backup.replace(output)
         else:
@@ -69,6 +108,10 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            # Let that bootout land before deciding whether to reload the
+            # incumbent; a lingering replacement reads as still loaded.
+            with contextlib.suppress(LaunchdTeardownTimeoutError):
+                _await_teardown(launchctl, f"{domain}/com.flyingrobots.ai-tts", teardown_polls)
         still_loaded = (
             subprocess.run(  # noqa: S603 - inspect actual recovery state
                 [launchctl, "print", f"{domain}/com.flyingrobots.ai-tts"],
@@ -126,6 +169,26 @@ def install_application(
         render_launch_agent(
             executable=Path(tool_bin) / "ai-tts", output=candidate_agent, log_path=log_path
         )
+        # uv tool install ignores uv.lock; constrain it to the locked graph so
+        # a new upstream release cannot send the resolver somewhere untested.
+        constraints = Path(agent_staging) / "install-constraints.txt"
+        subprocess.run(  # noqa: S603 - fixed exporter writing to owned staging
+            [
+                uv,
+                "export",
+                "--frozen",
+                "--quiet",
+                "--no-dev",
+                "--no-hashes",
+                "--no-emit-project",
+                "--extra",
+                "kokoro",
+                "--output-file",
+                str(constraints),
+            ],
+            cwd=repository,
+            check=True,
+        )
         sys.stdout.write("==> installing the ai-tts and ai-tts-mcp executables\n")
         sys.stdout.flush()
         subprocess.run(  # noqa: S603 - fixed installer and explicit package arguments
@@ -134,8 +197,14 @@ def install_application(
                 "tool",
                 "install",
                 "--force",
+                # uv keys its cached build of a local package on metadata, not
+                # sources; with the version unchanged it reinstalls stale code.
+                "--reinstall-package",
+                "ai-tts",
                 "--python",
                 python_version,
+                "--constraints",
+                str(constraints),
                 "--with",
                 "kokoro>=0.9.4",
                 "--with",

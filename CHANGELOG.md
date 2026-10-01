@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
+
+- Playback no longer pops when another app activates mid-clip. Left to choose, PortAudio asked CoreAudio for 15-frame (0.3 ms) I/O cycles, so a 13 ms page fault on the audio thread skipped a cycle. The output stream now requests a host block sized from the output device's sample rate for a 21.3 ms I/O buffer: 1024 frames at 48 kHz, as measured on the built-in speakers. Other devices get the same duration at their own rate. The cost is about 0.13 s more delay before pause and skip are heard.
+
+- `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
+
+- `make install` rebuilds the ai-tts package on every run. uv reused its cached build of the checkout whenever the version stayed the same, so an install could report success while the daemon kept running the previous code.
+
+- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. If the old service has not left after ten seconds, it gives up with a reason and restores the previous configuration.
+
+- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
+
+- The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
+
+- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
+
 - Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
 
 - App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.

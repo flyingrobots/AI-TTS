@@ -60,6 +60,7 @@ struct ModelHealthFooter: View {
                     Spacer(minLength: 0)
                     Button { state.dismissError() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.borderless).help("Dismiss error")
+                        .accessibilityLabel("Dismiss error")
                 }
             }
             if let notice = state.voiceNotice {
@@ -67,6 +68,7 @@ struct ModelHealthFooter: View {
                     Text(notice).fixedSize(horizontal: false, vertical: true)
                     Button { state.voiceNotice = nil } label: { Image(systemName: "xmark") }
                         .buttonStyle(.borderless).help("Dismiss voice confirmation")
+                        .accessibilityLabel("Dismiss voice confirmation")
                 }
             }
             if let runtime = state.runtime {
