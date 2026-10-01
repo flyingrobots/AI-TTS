@@ -66,3 +66,19 @@ The real stream now opens with `blocksize=1024`. That makes each I/O cycle 21.3 
 
 - `test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall` (medium) replaces `sounddevice` with a recording fake and requires the requested block duration to exceed the observed stall. On unfixed code it failed with `PortAudio chooses its own minimum host buffer` (block size 0).
 - A real-device probe drove `SoundDeviceSink` ten times with 2 s of digital silence under each setting. Neither setting produced an overload. Without the memory pressure seen in the daemon, the stall did not reproduce on demand. The probe confirms that the new block size plays clips end to end on the device. The overload report and the buffer measurements are the evidence for the fix, and the listener's ear is the acceptance check.
+
+## Review round (Code Lawyer, 2026-10-01)
+
+Each regression test below was run red against its parent commit, then green on the fix commit.
+
+| Issue | Regression test | Parent (red) | Red output | Fix |
+|---|---|---|---|---|
+| A stop with less source left than the fade padded zeros while the gain was near one | `test_stop_near_the_end_fades_out_before_the_source_runs_out` | `e7f7ad5` | step 0.486 > 0.01 | `07a4cb3` |
+| A resume landing between the pause break and the close decision skipped the soft close | `test_a_pause_resumed_at_once_still_closes_its_stream_softly` | `07a4cb3` | paused stream 2048 frames, not 2400 silent | `aef3972` |
+| Interrupting an unfinished fade-in restarted the fade-out at gain 1.0 | `test_a_stop_during_the_fade_in_closes_from_the_gain_reached` | `aef3972` | step 0.224 > 0.01 | `a1e4ea9` |
+| The fixed 1024-frame block lasts 21.3 ms only on a 48 kHz device | `test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall[96000, 192000]` | `a1e4ea9` | 10.7 ms and 5.3 ms < 21.3 ms | `bfbee39` |
+| The original block-size fix | same test, all four rates | `861cf98` | requested 0.0 ms at every rate | `e7f7ad5` (fixed size) |
+| The resume test acted on `sink.paused`, not on the close | `test_resumed_stream_fades_in_from_silence_at_the_held_position` with the audio thread gated after `pause()` | old ordering | the clip continued in the original stream (12000 frames, not 9952) | `8f30198` |
+| The inherited pause-then-move test had the same race and could pass through the device-move path | `test_default_output_change_while_paused_is_adopted_on_resume`, gated | old ordering | first stream held 3 blocks, not 2 | `add4366` |
+
+The HAL buffer was measured again for the device-rate fix, with 24 and 48 kHz streams at block sizes 512, 1000, and 1024. Every case gave exactly the requested frame count at the device's 48 kHz, so the block is sized from the device's nominal rate, not the stream's.
