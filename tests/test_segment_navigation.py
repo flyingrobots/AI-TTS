@@ -62,19 +62,43 @@ async def playing_document(
 # -- forwards -------------------------------------------------------------
 
 
-async def test_next_chunk_abandons_only_the_current_chunk(store: Store, sink: FakeSink) -> None:
+async def test_next_chunk_advances_playhead_without_crediting_skipped_audio(
+    store: Store, sink: FakeSink
+) -> None:
     ctl, task, utt_id = await playing_document(store, sink)
     try:
+        first, second, _third = store.segments(utt_id)
+        assert first is not None
+        assert second is not None
+        assert first.duration_ms is not None
+        assert second.duration_ms is not None
         sink.advance_to(250)
 
         assert await ctl.next_segment() is True
 
         await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 1)
-        assert segment_states(store, utt_id) == [State.SKIPPED, State.PLAYING, State.READY]
-        # The document itself keeps playing; only a chunk was given up.
+        sink.advance_to(250)
+        assert await ctl.next_segment() is True
+        await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 2)
+        assert segment_states(store, utt_id) == [State.SKIPPED, State.SKIPPED, State.PLAYING]
+
+        # The document keeps playing on the third chunk after both earlier chunks were given up.
         parent = store.get(utt_id)
         assert parent is not None
         assert parent.state is State.PLAYING
+
+        sink.advance_to(250)
+        await ctl.pause()
+        paused = store.get(utt_id)
+        assert paused is not None
+        assert paused.played_ms == 250
+        assert ctl.current_position_ms() == first.duration_ms + second.duration_ms + 250
+
+        await ctl.skip()
+        skipped = store.get(utt_id)
+        assert skipped is not None
+        assert skipped.state is State.SKIPPED
+        assert skipped.played_ms == 250
     finally:
         task.cancel()
 
@@ -182,9 +206,8 @@ async def test_stepping_back_over_an_abandoned_chunk_does_not_credit_it_as_heard
         await ctl.previous_segment()
         await wait_for(lambda: ctl.current_segment is not None and ctl.current_segment.index == 0)
 
-        # Elapsed time counts what was actually played, and an abandoned chunk
-        # was not. The progress-bar consequence of that predates chunk stepping
-        # and is logged in the code smell journal rather than changed here.
+        # Replaying the abandoned chunk returns the playhead to its beginning;
+        # skipped time remains excluded from the amount of audio heard.
         assert ctl.current_position_ms() == 0
         parent = store.get(utt_id)
         assert parent is not None
