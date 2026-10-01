@@ -552,20 +552,47 @@ class PlaybackController:
         """Live playhead position for the current utterance, if there is one."""
         if self._current_id is None:
             return None
-        if self._current_segment_index is not None:
-            completed = self._store.completed_segment_duration_ms(
-                self._current_id,
-                before=self._current_segment_index,
-            )
-            if self._sink_active:
-                return completed + self._sink.position_ms()
-            segment = self._store.get_segment(self._current_id, self._current_segment_index)
-            segment_position = 0 if segment is None else segment.played_ms or 0
-            return completed + segment_position
+        position = self._current_segment_position_with_offset(include_skipped=True)
+        if position is not None:
+            return position
         if self._sink_active:
             return self._sink.position_ms()
         current = self._current()
         return current.played_ms if current is not None else None
+
+    def _current_heard_ms(self) -> int | None:
+        """Audio heard so far, excluding the duration of chunks skipped over."""
+        if self._current_id is None:
+            return None
+        position = self._current_segment_position_with_offset(include_skipped=False)
+        if position is not None:
+            return position
+        if self._sink_active:
+            return self._sink.position_ms()
+        current = self._current()
+        return current.played_ms if current is not None else None
+
+    def _current_segment_position_with_offset(self, *, include_skipped: bool) -> int | None:
+        """Add the active child's position to its document-relative offset."""
+        utt_id = self._current_id
+        if utt_id is None:
+            return None
+        segment_index = self._current_segment_index
+        if segment_index is None:
+            segments = self._store.segments(utt_id)
+            if not segments:
+                return None
+            unfinished = self._store.next_unfinished_segment(utt_id)
+            segment_index = len(segments) if unfinished is None else unfinished.index
+        if include_skipped:
+            offset = self._store.playhead_offset_before_segment_ms(utt_id, segment_index)
+        else:
+            offset = self._store.completed_segment_duration_ms(utt_id, before=segment_index)
+        segment = self._store.get_segment(utt_id, segment_index)
+        position = 0 if segment is None else segment.played_ms or 0
+        if self._sink_active:
+            position = self._sink.position_ms()
+        return offset + position
 
     def notify(self) -> None:
         """Tell the controller the plan may have changed."""
@@ -670,7 +697,7 @@ class PlaybackController:
             self._record_control("preempted", "priority_preempt")
             index = self._current_segment_index
             had_sink = self._sink_active
-            position = self.current_position_ms() or 0
+            position = self._current_heard_ms() or 0
             if index is None and self._store.segments(current.id):
                 position = self._store.completed_segment_duration_ms(current.id)
             await self._release_sink()
@@ -794,6 +821,7 @@ class PlaybackController:
                 played_ms=segment.duration_ms,
             )
             if self._store.next_unfinished_segment(parent.id) is None:
+                # Persist heard audio; skipped chunks affect the playhead only.
                 played_ms = self._store.completed_segment_duration_ms(parent.id)
                 self._store.transition(parent.id, State.PLAYED, played_ms=played_ms)
             return
@@ -881,7 +909,7 @@ class PlaybackController:
         self._store.set_setting("playback_held", "true")
         current = self._current()
         if current is not None and current.state is State.PLAYING:
-            position = self.current_position_ms()
+            position = self._current_heard_ms()
             if self._sink_active:
                 self._sink.pause()
                 if self._current_segment_index is not None:
@@ -978,7 +1006,7 @@ class PlaybackController:
         self._clear_interruption()
         current = self._current()
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
-            document_position = self.current_position_ms() or 0
+            document_position = self._current_heard_ms() or 0
             segment_position = (
                 self._sink.position_ms() if self._sink_active else current.played_ms or 0
             )
