@@ -573,6 +573,21 @@ final class AppState: ObservableObject {
         playbackRate = rate
         send(.setPlaybackRate(rate))
     }
+    var captionControlLabel: String {
+        captionsEnabled ? "CC: \(captionPosition.rawValue)" : "CC: Off"
+    }
+
+    func cycleCaptions() {
+        if !captionsEnabled {
+            setCaptionPosition(.bottom)
+            setCaptionsEnabled(true)
+        } else if captionPosition == .bottom {
+            setCaptionPosition(.top)
+        } else {
+            setCaptionsEnabled(false)
+        }
+    }
+
     func setCaptionsEnabled(_ enabled: Bool) {
         captionMigrationAttempted = true
         captionsEnabled = enabled

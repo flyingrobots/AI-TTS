@@ -28,7 +28,7 @@ final class ComposerActivationTests: XCTestCase {
         let state = try makeState()
         let notifications = NotificationCenter()
         state.capturePriorApplication(processIdentifier: 42)
-        var controller: SpeechComposerWindowController? = SpeechComposerWindowController(
+        var controller: SpeechSelectionTracker? = SpeechSelectionTracker(
             state: state, applicationNotifications: notifications, ownProcessIdentifier: -1)
         // This owned test process stands for an external app; the controller's own PID is injected.
         notifications.post(name: NSWorkspace.didActivateApplicationNotification, object: nil,
@@ -48,7 +48,7 @@ final class ComposerActivationTests: XCTestCase {
     func testOwnActivationKeepsTheExternalTargetButUnknownCaptureClearsIt() throws {
         let state = try makeState()
         let notifications = NotificationCenter()
-        let controller = SpeechComposerWindowController(
+        let controller = SpeechSelectionTracker(
             state: state, applicationNotifications: notifications)
         state.capturePriorApplication(processIdentifier: 42)
         notifications.post(name: NSWorkspace.didActivateApplicationNotification, object: nil,

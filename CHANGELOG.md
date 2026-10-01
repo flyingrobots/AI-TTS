@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
+
 ### Fixed
 
 - Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.

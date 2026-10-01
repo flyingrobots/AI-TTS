@@ -88,7 +88,11 @@ Service delegates to `EnqueueDocument` for immediate submission; the composer
 uses the same document reader but lets the user edit before submitting. Errors are local and actionable; unsupported or multiple files are
 rejected before anything is enqueued.
 
-The header's **Speak…** opens an editable composer. **Import Selection** is an
+The header's **Speak…** toggles an editable composer inline below playback,
+using the Queue/History area while open. Closing it restores the selected tab
+and keeps the draft. The bounded text editor and scrollable form fit the menu
+card; voice/model selection and file/clipboard/selection imports remain
+available. **Selection** is an
 explicit Accessibility fallback; its first use may need permission, and some
 applications do not expose selected text. The app remembers the last other
 application activated, including switches made while the composer is open.
@@ -150,6 +154,11 @@ The current card also exposes a playback-rate dropdown with exactly 0.5×,
 separate from voice-generation speed, which affects future synthesis.
 
 ## On-screen captions
+
+The playback **CC** button cycles **Off → Bottom → Top → Off** and labels the
+current mode. Off always enables at Bottom on the next press, regardless of
+previous placement. Bottom → Top changes local placement without toggling the
+daemon preference.
 
 Captions are off by default and persist as a shared daemon setting. The caption
 bubble beside playback rate pushes that setting through the same application

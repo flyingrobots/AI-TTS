@@ -94,15 +94,12 @@ final class SpeechComposer: ObservableObject {
 }
 
 @MainActor
-final class SpeechComposerWindowController: NSObject, NSWindowDelegate {
-    private let state: AppState
-    private var window: NSWindow?
+final class SpeechSelectionTracker: NSObject {
     private let applicationNotifications: NotificationCenter
     private var activationObserver: NSObjectProtocol?
 
     init(state: AppState, applicationNotifications: NotificationCenter? = nil,
          ownProcessIdentifier: Int32 = ProcessInfo.processInfo.processIdentifier) {
-        self.state = state
         self.applicationNotifications = applicationNotifications ?? NSWorkspace.shared.notificationCenter
         super.init()
         activationObserver = self.applicationNotifications.addObserver(
@@ -120,25 +117,6 @@ final class SpeechComposerWindowController: NSObject, NSWindowDelegate {
         if let activationObserver { applicationNotifications.removeObserver(activationObserver) }
     }
 
-    func update() {
-        guard state.showingComposer else { window?.orderOut(nil); return }
-        if window == nil {
-            let created = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 560),
-                                   styleMask: [.titled, .closable, .resizable, .miniaturizable],
-                                   backing: .buffered, defer: false)
-            created.title = "Speak — AI-TTS"
-            created.isReleasedWhenClosed = false
-            created.minSize = NSSize(width: 500, height: 400)
-            created.delegate = self
-            created.contentViewController = NSHostingController(
-                rootView: SpeechComposerView(composer: state.composer).environmentObject(state))
-            created.center()
-            window = created
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
-    }
-    func windowWillClose(_ notification: Notification) { state.showingComposer = false }
 }
 
 struct SpeechComposerView: View {
@@ -148,14 +126,18 @@ struct SpeechComposerView: View {
     @FocusState private var editorFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("What would you like to hear?").font(.headline)
+                Text("Speak").font(.headline)
                 Spacer()
-                Text("\(composer.draft.text.count) characters").foregroundStyle(.secondary)
+                Text("\(composer.draft.text.count) characters").font(.caption2).foregroundStyle(.secondary)
+                Button { state.showingComposer = false } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Close speech editor")
             }
             TextEditor(text: $composer.draft.text)
                 .font(.body)
+                .frame(height: 100)
                 .padding(6)
                 .background(.background)
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
@@ -163,9 +145,9 @@ struct SpeechComposerView: View {
                 .focused($editorFocused)
                 .disabled(composer.busy)
             HStack {
-                Button("Attach File…", systemImage: "paperclip") { importingFile = true }
-                Button("Paste Clipboard") { Task { await composer.pasteClipboard() } }
-                Button("Import Selection") { Task { await composer.importSelection() } }
+                Button("Attach…", systemImage: "paperclip") { importingFile = true }
+                Button("Paste") { Task { await composer.pasteClipboard() } }
+                Button("Selection") { Task { await composer.importSelection() } }
                 Spacer()
                 Button("Clear") { composer.clear() }
             }.disabled(composer.busy)
@@ -174,7 +156,7 @@ struct SpeechComposerView: View {
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     .help(composer.draft.origins.joined(separator: "\n"))
             }
-            HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
                 Picker("Voice", selection: $composer.draft.voice) {
                     Text("Daemon default").tag(String?.none)
                     ForEach(state.voices, id: \.self) { Text($0).tag(Optional($0)) }
@@ -208,7 +190,7 @@ struct SpeechComposerView: View {
                 .disabled(composer.busy || !state.reachable || composer.draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(16)
+        .padding(10)
         .onAppear { editorFocused = true }
         .fileImporter(isPresented: $importingFile,
                       allowedContentTypes: LocalSpeechDocumentReader.allowedContentTypes) { result in
