@@ -881,3 +881,17 @@ The installed run verifies crash recovery before and after manual reopen and
 normal Quit beyond the throttle interval while the daemon PID stays unchanged.
 A real logout/reboot remains a manual acceptance gap; the login promise is
 checked through the emitted Aqua `RunAtLoad` configuration and real bootstrap.
+
+## Guided local model setup
+
+Change-kind: feature. Settings and CLI discover, install and select curated local
+speech models. Medium tests enter through owned installer tools, private worker
+processes, startup selection and the real Unix socket; small CLI tests check the
+public setup projection. Native typed commands and model-state decoding have
+medium wire-contract tests. The [receipt](../testing-evidence/2026-10-01-local-model-setup.md)
+records falsification and installed Kokoro/MLX/Chatterbox acceptance. Downloads are
+staged, dependencies are hash checked against frozen exports, and offline warmup
+precedes publication. Cancellation preserves the incumbent and incomplete PCM
+streams cannot contaminate later clips. Physical listening, mouse-driven native
+setup acceptance, clean external-machine installation, and long-session memory
+behavior remain manual or future acceptance boundaries.

@@ -221,6 +221,32 @@ public struct SpeechEngine: Equatable, Sendable, Identifiable {
     }
 }
 
+/// A discoverable local model, including models whose runtime is not installed.
+public struct LocalSpeechModel: Equatable, Sendable, Identifiable {
+    public var id: String { name }
+    public let name: String
+    public let title: String
+    public let description: String
+    public let installed: Bool
+    public let selected: Bool
+    public let state: String
+    public let message: String
+    public let incompatible: String?
+    public var installing: Bool { state == "installing" }
+
+    public init(name: String, title: String, description: String, installed: Bool,
+                selected: Bool, state: String, message: String, incompatible: String? = nil) {
+        self.name = name
+        self.title = title
+        self.description = description
+        self.installed = installed
+        self.selected = selected
+        self.state = state
+        self.message = message
+        self.incompatible = incompatible
+    }
+}
+
 /// Everything a presentation adapter needs to render current speech state.
 public struct Snapshot: Equatable, Sendable {
     public let runtime: DaemonRuntime?
@@ -230,6 +256,7 @@ public struct Snapshot: Equatable, Sendable {
     public let history: [Utterance]
     public let voices: [String]
     public let engines: [SpeechEngine]
+    public let models: [LocalSpeechModel]
     public let speed: Double
     public let playbackRate: Double
     public let earconEnabled: Bool
@@ -256,10 +283,12 @@ public struct Snapshot: Equatable, Sendable {
         inputInterruptEnabled: Bool = true,
         inputInterruptResume: InputInterruptResume = .manual,
         runtime: DaemonRuntime? = nil,
-        engines: [SpeechEngine] = []
+        engines: [SpeechEngine] = [],
+        models: [LocalSpeechModel] = []
     ) {
         self.runtime = runtime
         self.engines = engines
+        self.models = models
         self.status = status
         self.plan = plan
         self.input = input

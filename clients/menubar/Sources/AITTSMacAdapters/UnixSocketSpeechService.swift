@@ -74,6 +74,12 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Gen
             payload = ["op": "requeue", "id": id, "priority": priority.rawValue]
         case .reorder(let ids):
             payload = ["op": "reorder", "ids": ids]
+        case .setEngine(let name):
+            payload = ["op": "settings", "set": ["engine": name]]
+        case .installModel(let name):
+            payload = ["op": "model_setup", "name": name]
+        case .cancelModelSetup:
+            payload = ["op": "cancel_model_setup"]
         case .setVoice(let voice):
             payload = ["op": "settings", "set": ["voice": voice]]
         case .setSynthesisSpeed(let speed):
@@ -376,6 +382,15 @@ extension Snapshot {
                       let voices = row["voices"] as? [String],
                       let state = row["state"] as? String else { return nil }
                 return SpeechEngine(name: name, isLocal: isLocal, voices: voices, state: state)
+            },
+            models: (json["models"] as? [[String: Any]] ?? []).compactMap { row in
+                guard let name = row["name"] as? String, let title = row["title"] as? String,
+                      let description = row["description"] as? String,
+                      let installed = row["installed"] as? Bool, let selected = row["selected"] as? Bool,
+                      let state = row["state"] as? String else { return nil }
+                return LocalSpeechModel(name: name, title: title, description: description,
+                    installed: installed, selected: selected, state: state,
+                    message: row["message"] as? String ?? "", incompatible: row["incompatible"] as? String)
             }
         )
     }

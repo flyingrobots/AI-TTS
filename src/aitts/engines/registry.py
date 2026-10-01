@@ -25,6 +25,12 @@ class EngineRegistry:
         self._locks = {name: threading.Lock() for name in engines}
         self._states = dict.fromkeys(engines, "cold")
 
+    def register(self, engine: Engine, *, prepared: bool = False) -> None:
+        """Publish a prepared installation while synthesis is quiescent."""
+        self.engines[engine.name] = engine
+        self._locks[engine.name] = threading.Lock()
+        self._states[engine.name] = "ready" if prepared else "cold"
+
     def state(self, name: str) -> str:
         """Read preparation status without waiting on a long model load."""
         return self._states[name]
