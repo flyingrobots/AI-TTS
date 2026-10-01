@@ -124,7 +124,9 @@ PortAudio callback records source progress and nonzero output separately, then
 was played, no download was allowed, and no automated suite ran concurrently
 with the five baseline trials below.
 
-| Trial | First source PCM scheduled at device (ms) | First nonzero audio scheduled at device (ms) |
+These are the **baseline trials, taken before the leading-zero skip**. The headline 194–205 ms comes from the later run described under "Leading-zero playback optimization". Table trials 1–5 are JSON `baseline_trials` entries 0–4. Both columns are submission-to-device times from PortAudio's scheduled output timestamp. The first column is when the first source PCM frame, zero or not, was scheduled (`phases.first_pcm_dac_ms`). The second is when the first nonzero sample was scheduled (`latency.scheduled_dac_ms`).
+
+| Trial | First source PCM scheduled at device (ms) | First nonzero source PCM scheduled at device (ms) |
 |---|---:|---:|
 | 1 | 152.09 | 332.06 |
 | 2 | 147.84 | 327.84 |
