@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from aitts.engine import SynthesisError
+from aitts.streaming import pcm16_frames
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -427,10 +428,9 @@ class KokoroEngine:
                 if samples.ndim != 1 or not np.all(np.isfinite(samples)):
                     msg = "streaming engine produced invalid mono samples"
                     raise SynthesisError(msg)  # noqa: TRY301 - all pipeline failures share the engine boundary
-                for offset in range(0, len(samples), 2400):
-                    frame = np.clip(samples[offset : offset + 2400], -1, 1 - 1 / 32768)
+                for frame in pcm16_frames(samples):
                     produced = True
-                    yield (frame * 32768).astype("<i2").tobytes()
+                    yield frame
         except Exception as exc:
             raise SynthesisError(str(exc)) from exc
         if not produced:

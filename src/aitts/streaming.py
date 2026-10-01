@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
     import numpy as np
@@ -29,6 +30,21 @@ FRAME_BYTES = 2
 # A transport close fades over 20 ms, as the file sink's soft close does.
 SOFT_FADE_FRAMES = SAMPLE_RATE // 50
 _WAV_HEADER_BYTES = 44
+# Engines hand playback 100 ms frames.
+FRAME_SAMPLES = SAMPLE_RATE // 10
+
+
+def pcm16_frames(samples: NDArray[np.floating]) -> Iterator[bytes]:
+    """Encode float samples as the wire format, in bounded ``FRAME_SAMPLES`` frames.
+
+    Samples are clipped to the largest value PCM16 can hold and truncated
+    toward zero, so every streaming engine quantizes identically.
+    """
+    import numpy as np  # noqa: PLC0415 - keep numpy off source transport imports
+
+    for offset in range(0, len(samples), FRAME_SAMPLES):
+        frame = np.clip(samples[offset : offset + FRAME_SAMPLES], -1, 1 - 1 / 32768)
+        yield (frame * 32768).astype("<i2").tobytes()
 
 
 class CircularAudioBuffer:
