@@ -782,3 +782,163 @@ oracle after successful bootstrap followed by interruption. Bytecode was
 invalidated before mutation and restoration; restored eight-case suite passes.
 Full validation: 730 Python tests (258 small, 472 medium), 127 Swift tests,
 frozen lock, Ruff and mypy pass.
+
+
+## Native UI audit: initial status-item visibility
+
+Change-kind: bug fix. An owned real NSStatusItem started with no image when the
+daemon was unavailable: StatusController initialized its cached state to error
+and skipped the first render as unchanged. The medium native contract test
+observed a nil image on unfixed code, then a rendered image after initialization
+explicitly draws the initial state. Preferences and notifications are isolated;
+no installed daemon, socket or user preferences enter this assertion. Retire
+only with an equivalent native startup discoverability check. This tests the
+AppKit boundary, not VoiceOver traversal or physical display placement.
+
+
+## Native UI audit: status-item accessible identity
+
+Change-kind: bug fix. The owned native status button exposed an empty
+accessibilityLabel for unavailable, idle, playing, paused and synthesizing
+states. The new medium boundary test observed all five empty values before
+the fix and requires an app-identifying, state-specific label afterward.
+Existing startup-image coverage shares the same isolated setup without
+changing its oracle. Labels are applied whenever a tray frame renders.
+Retire only with an equivalent native accessibility discoverability contract.
+This is not a claim that real VoiceOver traversal has passed.
+
+Live preflight on 2026-09-30: the signed candidate launched against an owned
+daemon with FakeEngine/FakeSink and the installed app was restored. The installed
+daemon remained untouched. The initial window-only probe did not inspect the
+popover beneath the menu-bar item and therefore cannot establish whether it
+opened. Subsequent IOConsoleUsers inspection confirmed
+CGSSessionScreenIsLocked=Yes. Interactive acceptance remains pending an unlocked
+session. Only one display was connected,
+so cross-display acceptance also remains pending suitable hardware.
+
+
+## Native UI audit: signed candidate acceptance receipt
+
+Change-kind: behavior change (documentation only). Candidate source `521b6b0`
+built as a release bundle with App Intents metadata and passed strict codesign
+verification. All 730 Python and 129 Swift tests passed, as did the frozen lock,
+Ruff, formatting and mypy. Required CI run 36755162505 passed that exact head.
+
+On 2026-09-30, a cross-process System Events probe read the signed candidate's
+native menu-item accessibility description. With a nonexistent owned socket it
+reported `AI-TTS: Needs attention`; after starting an isolated daemon it reported
+`AI-TTS: Ready`. Submitting fixed audit text, pausing and resuming through that
+daemon produced `AI-TTS: Speaking`, `AI-TTS: Playback paused`, then
+`AI-TTS: Speaking`. FakeEngine and FakeSink supplied deterministic silent
+speech; this is a real app/IPC/accessibility projection check, not acoustic
+acceptance or evidence that a person operated the UI controls. The property is
+AX description, not AX title: an earlier title-only probe was invalid for this
+control. An initial transition probe used the nonexistent `speak` IPC operation;
+correcting it to the documented `submit` operation allowed the full sequence.
+Neither exploratory probe failure was attributed to the product.
+
+The existing menu app had no open windows before each brief replacement. It was
+restored from its original installed bundle afterward; the installed daemon
+retained its original process throughout, and its queue was not used. All audit
+speech/state lived in an owned temporary daemon directory, removed afterward.
+
+| Live acceptance boundary | Current evidence | Remaining requirement |
+| --- | --- | --- |
+| Signed app startup and status accessibility | Observed unavailable, ready, speaking, paused, resumed states across processes | Human VoiceOver traversal remains open |
+| Popover, composer, Queue/History and settings controls | Native contract tests; resumed probe observed a popover beneath the menu-bar item | Complete control journeys against the signed candidate in an unlocked session |
+| Selection and host Services | Earlier TextEdit/NSPerformService receipts; adapter tests | Complete representative host and permission matrix |
+| App Intents | Generated metadata and installed indexing receipts | Execute an actual custom Shortcut against the candidate |
+| Cross-display sizing | Controlled native sizing tests | A second connected display and live move/resize checks |
+| Audible playback | Silent probe and adapter/lifecycle tests | Real engine/device acoustic acceptance |
+
+IOConsoleUsers reported `CGSSessionScreenIsLocked=Yes`; system display inventory
+showed one connected Studio Display. Unlock and second-display availability
+were requested. These limitations must not be promoted to passing acceptance.
+
+
+### Resumed native probe: distinguish automation failures from product failures
+
+On resume, the initial session query no longer contained the lock flag. A
+signed-candidate click followed by a process-wide accessibility listing exposed
+the popover beneath the status item, including Queue/History, the composer
+launcher, settings control and resize slider. Popovers are not required to
+appear in the application's window list; the earlier window-only probe was
+therefore an invalid observation of popover visibility.
+
+The expanded XCTest fixture still did not reliably expose SwiftUI controls.
+A diagnostic traversal exceeded its process deadline and left a pending
+System Events request. The owned probes were stopped and System Events was
+restarted; no result from that fixture counts as regression evidence. The
+experimental test remains outside the repository's automated suite.
+
+A separate direct Accessibility client is trusted and can inspect the signed
+app's status item. Further checks found the display asleep; after a bounded
+wake assertion, IOConsoleUsers explicitly reported the session locked again.
+No failed or empty UI observation from that state is attributed to the product.
+The ten explicit action-label changes remain a local draft pending a valid
+red/green check. Neither the lock nor the automation failure establishes that
+those changes fix the review finding.
+
+
+## Native UI audit: functional icon labels, verified across processes
+
+Change-kind: bug fix. The signed unfixed candidate (`521b6b0` native sources)
+exposed `Gear Shape` for Settings and symbol-derived names for other actions.
+Two opt-in large tests in `tests/test_native_ui_live.py` observed failures on
+that bundle, then passed against the corrected signed candidate. They inspect
+the actual cross-process Accessibility tree, not SwiftUI's backing NSButton
+properties. The expected action-name set covers Settings, queue removal,
+full-text/history actions, re-queue urgency, voice release/preview, voice
+confirmation dismissal, and both footer and toast error dismissal. Both
+unfixed dismissals read `Close`; the expected labels now read `Dismiss error`.
+
+The first draft attached a label only to the re-queue Menu. Live inspection
+found its title reverted to `Go Down` after later state updates. Naming the
+menu's image content preserves the action name across settings, voice changes
+and failures; the final regression checks the post-update title separately.
+All final assertion values were captured on the unfixed bundle before the
+corrected bundle passed. The two live cases completed in 3.25 seconds locally.
+
+The probe traverses only the explicitly selected application's accessibility
+elements, deduplicates using CFEqual, bounds traversal and messages, and uses
+owned temporary speech state with FakeEngine/FakeSink. It temporarily restarts
+an idle menu app and restores its bundle afterward; open app windows cause a
+skip. The installed daemon is never stopped or used for audit speech. A bounded
+caffeinate process keeps the display awake during the probe but cannot unlock
+macOS. The early window-only and in-process XCTest probes remain invalid
+observations and are not used as regression evidence.
+
+These tests are skipped by default because unattended CI does not establish
+an unlocked desktop and Accessibility authorization. To run them locally,
+build a signed candidate, then set its bundle path explicitly:
+
+```sh
+uv run --frozen python scripts/build_app_bundle.py --output dist/live-ui/AI-TTS.app
+AI_TTS_UI_CANDIDATE="$PWD/dist/live-ui/AI-TTS.app" uv run --frozen pytest -q tests/test_native_ui_live.py
+```
+
+Use the builder's `--force` option for an existing owned output. This validates
+native action metadata and specific navigation/state changes, not human
+VoiceOver traversal, acoustic playback, cross-display sizing or the remaining
+host/Shortcuts matrix. Retire these checks only with equivalent calibrated
+cross-process native action-discoverability coverage.
+
+
+## Native UI audit: reap a stubborn candidate before restoration
+
+Change-kind: bug fix (test harness). A medium session-boundary regression owns
+real child processes and substitutes incumbent discovery/restoration, so it
+never stops a user's app. The candidate installs SIGTERM-ignore before sending
+an explicit readiness handshake. Unfixed teardown restored the incumbent while
+the candidate remained alive: the restoration-time exit oracle observed false.
+Teardown now escalates after its three-second grace period and reaps the owned
+candidate before restoration. The same test passes. Retire with this session
+harness or equivalent calibrated process-ownership coverage.
+
+Additional signed-candidate acceptance on 2026-09-30 exercised the composer
+against an owned paused daemon: submitting `Owned composer acceptance.` produced
+that exact queue text with source `menubar-composer`, cleared the editor, and
+showed `Queued. Playback is paused; use Resume when you're ready.` (with the UI's
+curly apostrophe). FakeSink kept the probe silent. This does not establish file
+attachment, clipboard, host Services, custom Shortcut, human VoiceOver,
+cross-display or acoustic acceptance.
