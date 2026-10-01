@@ -24,10 +24,14 @@ upstream `generate_stream` API under the engine lock: phoneme chunks can become
 playable before later chunks finish; individual model chunks still require a
 complete forward pass.
 
-Validation: **638 Python tests passed**, 228 small / 410 medium. Measured class
+Each test count in this receipt is historical. It was taken at a different stack state and belongs to the section that reports it: 638 here, 634 in the leading-zero optimization run, 689 and 793 in the main reconciliation (the integrated stage and the combined stack), and 771 after the streaming review regressions on `954807b`. The 730 in the testing profile's installer section is main's count, not this branch's. The authoritative count for the current head is in the last section, "Merge with main and review round".
+
+Paths under `/tmp/` and `.git/codex-scratch/` are raw logs on the authoring machine. They are not in the repository and cannot be reproduced from it. The text summarizes the red output each one held.
+
+Validation for this section (historical): **638 Python tests passed**, 228 small / 410 medium. Measured class
 costs including fixtures: 0.51 s / 7.37 s, within 10 s / 45 s budgets. Full wall
 clock 8.32 s. Ruff, format checks, mypy (110 files), and diff checks passed.
-The full run is `/tmp/streaming-release-suite.log`.
+The full run is `/tmp/streaming-release-suite.log` (local only).
 
 New boundary coverage includes:
 
