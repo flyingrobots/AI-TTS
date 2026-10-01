@@ -222,8 +222,9 @@ class SoundDeviceSink:
 
     _BLOCK_FRAMES = 2048
     # A skip or pause fades over this long, then writes this much silence so
-    # the close truncates nothing audible. The silence exceeds the 78 ms
-    # output latency PortAudio reported on the built-in speakers.
+    # the close truncates nothing audible. Closing drains PortAudio's queue
+    # first; what it can cut is the host I/O buffer in flight, 21.3 ms with
+    # the block size above, which the silence covers several times over.
     _FADE_SECONDS = 0.02
     _CLOSE_SILENCE_SECONDS = 0.1
     # Consecutive readings agreeing on a new device before it is followed.

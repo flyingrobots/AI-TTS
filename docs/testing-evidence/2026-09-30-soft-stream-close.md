@@ -10,7 +10,7 @@ The CoreAudio truncation mechanism is inferred from the evidence above and from 
 
 ## Fix
 
-- Close: when a stream closes mid-clip (stop, pause, or device move), `SoundDeviceSink` writes one closing block. It holds the next 20 ms of source audio at the current rate, faded by a raised cosine, then 100 ms of silence, which exceeds the 78 to 121 ms output latency PortAudio reported. The fade reads ahead without moving the playhead, so resumption repeats nothing.
+- Close: when a stream closes mid-clip (stop, pause, or device move), `SoundDeviceSink` writes one closing block. It holds the next 20 ms of source audio at the current rate, faded by a raised cosine, then 100 ms of silence. Closing drains PortAudio's queue before it stops the output unit, so the silence does not need to cover PortAudio's total latency (78 to 248 ms across the measurements here). It needs to cover the host I/O buffer in flight, which the close can cut. That buffer is 21.3 ms with the block size chosen below. The fade reads ahead without moving the playhead, so resumption repeats nothing.
 - Open: a stream opened at a nonzero source position applies a 20 ms raised-cosine fade-in, starting from exactly zero gain. A stream opened at position zero is untouched because the clip already begins in silence.
 
 ## Assertions
@@ -62,7 +62,7 @@ Measured on the built-in speakers, with the per-process `kAudioDevicePropertyBuf
 | `blocksize=2048` | 2048 frames (42.7 ms) | 0.461 s |
 | `latency=0.1` | 1566 frames (32.6 ms) | 0.441 s |
 
-The real stream now opens with `blocksize=1024`. That makes each I/O cycle 21.3 ms instead of 0.3 ms, which is longer than the observed 13.4 ms stall. The cost is about 0.13 s more queued audio before pause and skip are heard. The 100 ms closing silence still exceeds one host buffer.
+The real stream now opens with `blocksize=1024`. That makes each I/O cycle 21.3 ms instead of 0.3 ms, which is longer than the observed 13.4 ms stall. The cost is about 0.13 s more queued audio before pause and skip are heard. The 100 ms closing silence covers one 21.3 ms host buffer several times over. It is not meant to cover the 0.248 s PortAudio latency, which drains before the output unit stops.
 
 - `test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall` (medium) replaces `sounddevice` with a recording fake and requires the requested block duration to exceed the observed stall. On unfixed code it failed with `PortAudio chooses its own minimum host buffer` (block size 0).
 - A real-device probe drove `SoundDeviceSink` ten times with 2 s of digital silence under each setting. Neither setting produced an overload. Without the memory pressure seen in the daemon, the stall did not reproduce on demand. The probe confirms that the new block size plays clips end to end on the device. The overload report and the buffer measurements are the evidence for the fix, and the listener's ear is the acceptance check.
