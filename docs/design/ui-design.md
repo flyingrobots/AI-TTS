@@ -115,6 +115,15 @@ These entry points are specified in
 product copy must keep live Accessibility/host compatibility distinct from the
 contract-tested behavior until installed-system acceptance passes.
 
+The menu-bar control exposes an accessibility label combining AI-TTS with its
+current state: Ready, Speaking, Playback paused, Preparing speech, or Needs
+attention. The unavailable state renders immediately at startup. These native
+control properties are tested; full VoiceOver traversal remains a live
+acceptance check. Icon-only history, queue, settings, voice and dismissal
+controls also carry explicit action names. The re-queue menu names its image
+content so later redraws retain the functional name instead of restoring the
+symbol's default name.
+
 ## Current playback
 
 The global **Pause** control is always visible, including while idle and while

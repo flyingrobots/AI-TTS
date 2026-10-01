@@ -11,6 +11,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
 
+- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
+
+- The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
+
+- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
+
+- Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
+
+- App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.
+
+- Agent integration preserves embedded and trailing newlines in executable paths instead of failing skill rendering or silently changing the path.
+
+- Installation reports launchd registration without claiming the daemon is healthy or running; `make doctor` remains the explicit status check.
+
+- If launchd rejects an updated service configuration, installation restores the prior plist and attempts to reload it only when the service was previously loaded. A loaded service without a recoverable plist is not stopped.
+
+- `make install` prepares the signed app and launch-agent plist before replacing the CLI, so build or preparation failures cannot partially upgrade the executable installation. Explicit app, plist, and log destinations are passed through consistently.
+
+- `make doctor` reports a failed daemon status check when the executable is found through uv rather than PATH.
+
+- Skill upgrades render to a sibling temporary file before replacement, preserving the installed SKILL.md when rendering fails.
+
+- Failed MCP registration no longer removes an existing agent registration or reports success. Other selected agents are still attempted, and the installer exits nonzero if any registration fails.
+
+- Forced app upgrades build, package and sign a sibling candidate before atomically swapping it into place. Build failures preserve the installed app, and unsupported filesystems fail without deleting it.
+
+- Forced launch-agent upgrades preserve the existing plist if validation or serialization fails, and publish only a complete replacement. Unforced installs refuse concurrent replacement.
+
 - Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
 
 - Daemon shutdown retires active audio and its completion watcher before closing state or releasing ownership, preserving the final parent/child position for explicit resume.

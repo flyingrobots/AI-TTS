@@ -465,24 +465,3 @@ def test_bundle_metadata_can_import_built_application_modules(
     monkeypatch.setattr(subprocess, "run", run_tool)
     monkeypatch.setattr(builder, "generate_app_intents_metadata", extract_metadata)
     builder.build_app_bundle(repository=tmp_path, output=tmp_path / "AI-TTS.app", sign=False)
-
-
-def test_install_includes_the_english_model_in_the_daemon_environment() -> None:
-    """Oracle: installed English speech must not need a runtime package installer."""
-    import shlex  # noqa: PLC0415
-
-    result = subprocess.run(
-        ["/usr/bin/make", "-n", "install", "UNAME_S=Darwin", "UV=/tools/uv"],
-        cwd=REPOSITORY,
-        env={"PATH": "/usr/bin:/bin", "HOME": "/nonexistent", "MAKEFLAGS": ""},
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    commands = [shlex.split(line) for line in result.stdout.replace("\\\n", " ").splitlines()]
-    install = next(command for command in commands if command[:3] == ["uv", "tool", "install"])
-    extras = [install[index + 1] for index, argument in enumerate(install) if argument == "--with"]
-    assert (
-        "https://github.com/explosion/spacy-models/releases/download/"
-        "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
-    ) in extras

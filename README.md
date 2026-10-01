@@ -162,6 +162,19 @@ make doctor          # is the daemon up, and what is wired in?
 make help            # every target
 ```
 
+`make install` prepares the signed app bundle and launch-agent plist before
+asking uv to replace the CLI environment. Preparation failure leaves the CLI
+untouched. Each artifact is published atomically, but the entire uv environment,
+app and service installation is not one filesystem transaction; a failure after
+uv succeeds does not automatically restore the previous CLI environment.
+If launchd rejects the replacement or activation is interrupted with Ctrl-C,
+the installer restores the previous plist
+and attempts to reload it if the service was previously loaded. A deliberately
+unloaded service remains unloaded. Failed recovery is reported; restoring a
+plist does not restore an older uv environment or prove daemon health.
+The installer does not launch or stop the menu app. After upgrading an already-
+running app, quit and reopen it to load the new bundle.
+
 `make install-all` does all three. `make uninstall` stops and removes the
 launchd agent and the executables, and deliberately leaves your speech history,
 cached audio, and installed app alone.
@@ -181,12 +194,20 @@ Supported: `--claude`, `--codex`, `--gemini`, `--all`. An agent whose CLI is
 not installed is skipped rather than failing the run, and `--dry-run` prints
 each host's own `mcp add` command so an unsupported agent can be wired up by
 hand.
+A failed registration does not trigger automatic removal of an existing entry.
+Other selected agents are still attempted, but any registration failure makes
+the command exit nonzero. If a host refuses to update an existing entry, inspect
+and reconcile it using that host's CLI before rerunning the installer.
+Skill replacement is also staged: a failed render preserves the installed
+`SKILL.md`, while a successful install replaces it with the generated version.
 
 ### Doing it by hand
 
-The Makefile is a convenience over three steps you can run yourself. Kokoro
-stays an optional, locally resolved dependency so this repository never vendors
-or redistributes its Python environment:
+The commands below expose the individual installation operations. Use
+`make install` for staged preparation and launch-agent recovery; running these
+steps manually does not provide that orchestration. Kokoro stays an optional,
+locally resolved dependency, so this repository never vendors or redistributes
+its Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
@@ -209,6 +230,18 @@ launchctl bootstrap "gui/$(id -u)" \
   "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist"
 open "$HOME/Applications/AI-TTS.app"
 ```
+
+The app builder also stages the complete bundle, including metadata and signing,
+before publication. A forced upgrade uses macOS atomic directory exchange, so
+build failures preserve the installed app and there is no delete/rename gap.
+Filesystems without the required rename support refuse the upgrade; the builder
+does not fall back to deleting the working app.
+
+The launch-agent renderer stages and flushes a complete plist before publishing
+it. With `--force`, a validation or write failure leaves the existing plist
+intact; without `--force`, an existing or concurrently installed plist is refused.
+Rendering a replacement does not reload launchd; use the bootout/bootstrap steps
+above to activate it.
 
 ### Local diagnostic log
 

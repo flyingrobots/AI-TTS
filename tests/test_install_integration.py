@@ -315,3 +315,121 @@ def test_the_rendered_mcp_command_survives_an_apostrophe(tmp_path: Path) -> None
     # Wrapping in single quotes without escaping embedded apostrophes makes the
     # printed command unpasteable.
     assert shell_words(command)[-1] == str(server)
+
+
+@pytest.mark.parametrize("agent", AGENTS)
+def test_failed_mcp_registration_preserves_incumbent_and_reports_failure(
+    tmp_path: Path, sandbox: dict[str, str], agent: str
+) -> None:
+    # Own the agent CLI and its registration; never invoke an installed agent.
+    incumbent = tmp_path / "registration"
+    incumbent.write_bytes(b"working registration")
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    host = commands / agent
+    host.write_text(
+        "#!/bin/sh\n"
+        'case "$2" in\n'
+        "  add) exit 9 ;;\n"
+        '  remove) /bin/rm -- "$AITTS_TEST_REGISTRATION"; exit 0 ;;\n'
+        "esac\n"
+        "exit 2\n"
+    )
+    host.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+    env["AITTS_TEST_REGISTRATION"] = str(incumbent)
+
+    result = run(env, "mcp", f"--{agent}")
+
+    assert {
+        "failed": result.returncode != 0,
+        "registration": incumbent.read_bytes() if incumbent.exists() else None,
+    } == {"failed": True, "registration": b"working registration"}
+
+
+def test_mcp_failure_still_attempts_other_selected_agents(
+    tmp_path: Path, sandbox: dict[str, str]
+) -> None:
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    registrations = tmp_path / "registrations"
+    registrations.mkdir()
+    for agent in AGENTS:
+        host = commands / agent
+        body = "#!/bin/sh\n"
+        if agent == "claude":
+            body += "exit 9\n"
+        else:
+            body += f'printf "%s" "$AITTS_MCP_BIN" > "$AITTS_TEST_REGISTRATIONS/{agent}"\n'
+        host.write_text(body)
+        host.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+    env["AITTS_TEST_REGISTRATIONS"] = str(registrations)
+
+    result = run(env, "mcp", "--all")
+
+    assert {
+        "failed": result.returncode != 0,
+        "registrations": {path.name: path.read_text() for path in registrations.iterdir()},
+    } == {
+        "failed": True,
+        "registrations": {"codex": env["AITTS_MCP_BIN"], "gemini": env["AITTS_MCP_BIN"]},
+    }
+
+
+def test_failed_skill_render_preserves_installed_skill(
+    tmp_path: Path, sandbox: dict[str, str]
+) -> None:
+    installed = Path(sandbox["AITTS_CLAUDE_SKILLS_DIR"]) / "speak" / "SKILL.md"
+    installed.parent.mkdir(parents=True)
+    installed.write_bytes(b"working installed skill")
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    renderer = commands / "sed"
+    renderer.write_text(
+        "#!/bin/sh\n"
+        'case "$1" in\n'
+        '  *AI_TTS_BIN*) printf "partial replacement"; exit 9 ;;\n'
+        "esac\n"
+        'exec /usr/bin/sed "$@"\n'
+    )
+    renderer.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+
+    result = run(env, "skill", "--claude")
+
+    assert {
+        "failed": result.returncode != 0,
+        "skill": installed.read_bytes(),
+    } == {"failed": True, "skill": b"working installed skill"}
+
+
+@pytest.mark.parametrize("name", ["line\nbreak/ai-tts", "ai-tts\n"])
+def test_skill_preserves_newlines_in_executable_path(
+    tmp_path: Path, sandbox: dict[str, str], name: str
+) -> None:
+    binary = tmp_path / name
+    env = dict(sandbox, AITTS_BIN=str(binary))
+
+    result = run(env, "skill", "--claude")
+
+    assert result.returncode == 0, result.stderr
+    installed = Path(env["AITTS_CLAUDE_SKILLS_DIR"]) / "speak" / "SKILL.md"
+    # The second fenced command is the complete status example. Parse it as a
+    # shell command, not physical lines: a quoted pathname may span lines.
+    status = installed.read_text().split("```bash\n")[2].split("```", 1)[0]
+    assert shell_words(status) == [str(binary), "status"]
+
+
+@pytest.mark.parametrize("name", ["line\nbreak/ai-tts-mcp", "ai-tts-mcp\n"])
+def test_mcp_dry_run_preserves_newlines_in_server_path(
+    tmp_path: Path, sandbox: dict[str, str], name: str
+) -> None:
+    server = tmp_path / name
+    env = dict(sandbox, AITTS_MCP_BIN=str(server))
+
+    result = run(env, "mcp", "--claude", "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    command = result.stdout.split("-> ", 1)[1].removesuffix(" (dry run)\n")
+    assert shell_words(command) == ["claude", "mcp", "add", "ai-tts", "--", str(server)]

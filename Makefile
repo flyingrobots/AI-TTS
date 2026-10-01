@@ -23,6 +23,7 @@ APP_BUNDLE     ?= $(HOME)/Applications/AI-TTS.app
 DIST           ?= dist
 MENUBAR        := clients/menubar
 LAUNCH_AGENT   := $(HOME)/Library/LaunchAgents/com.flyingrobots.ai-tts.plist
+LOG_PATH       ?= $(HOME)/Library/Logs/AI-TTS/daemon.log
 GUI_DOMAIN     := gui/$(shell id -u)
 SERVICE        := $(GUI_DOMAIN)/com.flyingrobots.ai-tts
 INSTALLER      := scripts/install-integration.sh
@@ -64,21 +65,11 @@ app: tools
 ## install: install the CLI and MCP server, the app, and the launchd agent
 install: export AITTS_APP := $(APP_BUNDLE)
 install: export AITTS_PLIST := $(LAUNCH_AGENT)
+install: export AITTS_LOG := $(LOG_PATH)
 install: tools
-	@printf '==> installing the ai-tts and ai-tts-mcp executables\n'
-	@uv tool install --force --python $(PYTHON_VERSION) --with "kokoro>=0.9.4" \
-		--with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
-	@printf '==> installing %s\n' "$$AITTS_APP"
-	@uv run python scripts/build_app_bundle.py --output "$$AITTS_APP" --force
-	@printf '==> installing the launchd user agent\n'
-	@uv run python scripts/render_launch_agent.py \
-		--executable "$$(uv tool dir --bin)/ai-tts" --force
-	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
-	@launchctl bootstrap "$(GUI_DOMAIN)" "$$AITTS_PLIST"
-	@printf '\nInstalled. The daemon is running; the menu-bar app is not.\n'
-	@printf 'Start it when you want it:  open %s\n' "$$AITTS_APP"
-	@printf 'Check the daemon:           make doctor\n'
-	@printf 'Wire up your agents:        make install-agents\n'
+	@uv run python -m scripts.install_application \
+		--app "$$AITTS_APP" --launch-agent "$$AITTS_PLIST" \
+		--log-path "$$AITTS_LOG" --python-version "$(PYTHON_VERSION)"
 
 ## install-mcp: register the MCP server with local agents (AGENTS="--claude")
 install-mcp:
@@ -117,7 +108,7 @@ doctor:
 	@if command -v ai-tts >/dev/null 2>&1; then \
 		ai-tts status || printf '  daemon is not answering (exit %s)\n' "$$?"; \
 	elif [ -x "$$(uv tool dir --bin 2>/dev/null)/ai-tts" ]; then \
-		"$$(uv tool dir --bin)/ai-tts" status || true; \
+		"$$(uv tool dir --bin)/ai-tts" status || printf '  daemon is not answering (exit %s)\n' "$$?"; \
 	else \
 		printf '  ai-tts is not installed; run: make install\n'; \
 	fi
