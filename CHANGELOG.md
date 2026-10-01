@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
+- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
 
-- Playback no longer pops when another app activates mid-clip. Left to choose, PortAudio asked CoreAudio for 15-frame (0.3 ms) I/O cycles, so a 13 ms page fault on the audio thread skipped a cycle. The output stream now uses a 1024-frame block, which measured a 21.3 ms host buffer, at the cost of about 0.13 s more delay before pause and skip are heard.
+- Playback no longer pops when another app activates mid-clip. Left to choose, PortAudio asked CoreAudio for 15-frame (0.3 ms) I/O cycles, so a 13 ms page fault on the audio thread skipped a cycle. The output stream now requests a host block sized from the output device's sample rate for a 21.3 ms I/O buffer: 1024 frames at 48 kHz, as measured on the built-in speakers. Other devices get the same duration at their own rate. The cost is about 0.13 s more delay before pause and skip are heard.
 
 - Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
 
