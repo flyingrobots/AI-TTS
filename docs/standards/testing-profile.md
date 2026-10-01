@@ -789,7 +789,7 @@ frozen lock, Ruff and mypy pass.
 
 ## September 30 streaming PCM extension
 
-Streaming coverage includes controlled first-frame admission, bounded callbacks,
+Change-kind: feature. Streaming coverage includes controlled first-frame admission, bounded callbacks,
 cache equivalence, native pause/resume and failures, nested live preemption,
 atomic readiness/publication and restart recovery. Seeded-fault calibration and
 silent hardware measurements are in the
