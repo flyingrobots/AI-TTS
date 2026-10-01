@@ -37,6 +37,32 @@ A scratch harness ran both the `origin/main` sink and the fixed sink on the long
 
 ## Validation
 
-- Full Python suite: 239 small and 458 medium tests passed. ruff and mypy are clean.
+- Full Python suite at the merge with main: 258 small and 475 medium tests passed. ruff and mypy are clean.
 
 Limits: the recording stream cannot show CoreAudio's truncation, so these tests prove the written signal, not the absence of a pop. Retire them if the sink stops closing the device between clips.
+
+## Mid-playback pop on app switch: 15-frame HAL buffer
+
+On 2026-10-01, the listener heard a pop while playback was running and Slack came to the front. The per-clip evidence for the clip that started at 10:00:45 showed one stream, zero PortAudio underflows, no device change, and a natural end. The unified log showed what happened:
+
+- 10:00:50.801: WindowServer made Slack the frontmost process.
+- 10:00:50.951: inside the daemon process, CoreAudio logged `HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload`.
+- coreaudiod's overload report gave `cause: PageFaultsOnIOThread`, `io_page_faults: 1`, and `multi_cycle_io_page_faults_duration: 322751` mach ticks (about 13.4 ms). It also gave `io_buffer_size: 15` and `other_active_clients: []`, so Slack was not playing audio.
+- Six more overloads in the daemon between 09:23 and 10:17 included four that coincided with a clip's stream opening. Those landed in Kokoro's leading silence.
+
+PortAudio does not count a skipped HAL cycle as an underflow, which is why the clip evidence looked clean.
+
+Measured on the built-in speakers, with the per-process `kAudioDevicePropertyBufferFrameSize` read while the stream was open:
+
+| `sd.OutputStream` request | HAL buffer | PortAudio latency |
+|---|---|---|
+| default, or `latency='high'` | 15 frames (0.3 ms) | 0.121 s |
+| `blocksize=512` | 512 frames (10.7 ms) | 0.141 s |
+| `blocksize=1024` | 1024 frames (21.3 ms) | 0.248 s |
+| `blocksize=2048` | 2048 frames (42.7 ms) | 0.461 s |
+| `latency=0.1` | 1566 frames (32.6 ms) | 0.441 s |
+
+The real stream now opens with `blocksize=1024`. That makes each I/O cycle 21.3 ms instead of 0.3 ms, which is longer than the observed 13.4 ms stall. The cost is about 0.13 s more queued audio before pause and skip are heard. The 100 ms closing silence still exceeds one host buffer.
+
+- `test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall` (medium) replaces `sounddevice` with a recording fake and requires the requested block duration to exceed the observed stall. On unfixed code it failed with `PortAudio chooses its own minimum host buffer` (block size 0).
+- A real-device probe drove `SoundDeviceSink` ten times with 2 s of digital silence under each setting. Neither setting produced an overload. Without the memory pressure seen in the daemon, the stall did not reproduce on demand. The probe confirms that the new block size plays clips end to end on the device. The overload report and the buffer measurements are the evidence for the fix, and the listener's ear is the acceptance check.

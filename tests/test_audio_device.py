@@ -653,3 +653,37 @@ async def test_stop_fade_underflow_is_recorded(tone: Path, tmp_path: Path) -> No
         for row in rows
         if row["event"] in {"output_underflow", "stream_closing"}
     ] == [("output_underflow", None), ("stream_closing", 1)]
+
+
+@pytest.mark.oracle(
+    "CoreAudio overload report 2026-10-01 10:00:50: PageFaultsOnIOThread stalled the "
+    "I/O thread ~13.4 ms while the HAL buffer was 15 frames (0.3 ms per cycle)"
+)
+def test_real_stream_requests_a_host_buffer_longer_than_an_observed_stall(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without a block size, PortAudio asked the HAL for 15-frame I/O cycles.
+
+    Any stall longer than 0.3 ms then skipped a cycle, which is audible as a
+    pop. A page fault on the I/O thread while another app activated lasted
+    about 13.4 ms. A fixed block size sets the HAL buffer. This asserts the
+    requested block duration at the stream rate; on the built-in speakers a
+    1024-frame block measured a 1024-frame host buffer (21.3 ms at 48 kHz),
+    which still exceeds the observed stall.
+    """
+    from aitts.playback import _open_sounddevice_stream  # noqa: PLC0415
+
+    opened: list[dict[str, Any]] = []
+
+    class FakeOutputStream:
+        def __init__(self, **kwargs: Any) -> None:
+            opened.append(kwargs)
+
+    monkeypatch.setitem(sys.modules, "sounddevice", SimpleNamespace(OutputStream=FakeOutputStream))
+    _open_sounddevice_stream(samplerate=_SAMPLERATE, channels=1)
+
+    blocksize = opened[0].get("blocksize") or 0
+    observed_stall_seconds = 0.0134
+    assert blocksize / _SAMPLERATE > observed_stall_seconds, (
+        "PortAudio chooses its own minimum host buffer"
+    )
