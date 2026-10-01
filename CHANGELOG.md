@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
+
 - The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
 
 - The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.

@@ -878,3 +878,47 @@ No failed or empty UI observation from that state is attributed to the product.
 The ten explicit action-label changes remain a local draft pending a valid
 red/green check. Neither the lock nor the automation failure establishes that
 those changes fix the review finding.
+
+
+## Native UI audit: functional icon labels, verified across processes
+
+Change-kind: bug fix. The signed unfixed candidate (`521b6b0` native sources)
+exposed `Gear Shape` for Settings and symbol-derived names for other actions.
+Two opt-in large tests in `tests/test_native_ui_live.py` observed failures on
+that bundle, then passed against the corrected signed candidate. They inspect
+the actual cross-process Accessibility tree, not SwiftUI's backing NSButton
+properties. The expected action-name set covers Settings, queue removal,
+full-text/history actions, re-queue urgency, voice release/preview, voice
+confirmation dismissal, and both footer and toast error dismissal. Both
+unfixed dismissals read `Close`; the expected labels now read `Dismiss error`.
+
+The first draft attached a label only to the re-queue Menu. Live inspection
+found its title reverted to `Go Down` after later state updates. Naming the
+menu's image content preserves the action name across settings, voice changes
+and failures; the final regression checks the post-update title separately.
+All final assertion values were captured on the unfixed bundle before the
+corrected bundle passed. The two live cases completed in 3.25 seconds locally.
+
+The probe traverses only the explicitly selected application's accessibility
+elements, deduplicates using CFEqual, bounds traversal and messages, and uses
+owned temporary speech state with FakeEngine/FakeSink. It temporarily restarts
+an idle menu app and restores its bundle afterward; open app windows cause a
+skip. The installed daemon is never stopped or used for audit speech. A bounded
+caffeinate process keeps the display awake during the probe but cannot unlock
+macOS. The early window-only and in-process XCTest probes remain invalid
+observations and are not used as regression evidence.
+
+These tests are skipped by default because unattended CI does not establish
+an unlocked desktop and Accessibility authorization. To run them locally,
+build a signed candidate, then set its bundle path explicitly:
+
+```sh
+uv run --frozen python scripts/build_app_bundle.py --output dist/live-ui/AI-TTS.app
+AI_TTS_UI_CANDIDATE="$PWD/dist/live-ui/AI-TTS.app" uv run --frozen pytest -q tests/test_native_ui_live.py
+```
+
+Use the builder's `--force` option for an existing owned output. This validates
+native action metadata and specific navigation/state changes, not human
+VoiceOver traversal, acoustic playback, cross-display sizing or the remaining
+host/Shortcuts matrix. Retire these checks only with equivalent calibrated
+cross-process native action-discoverability coverage.
