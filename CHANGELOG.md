@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
+
+- `make install` rebuilds the ai-tts package on every run. uv reused its cached build of the checkout whenever the version stayed the same, so an install could report success while the daemon kept running the previous code.
+
+- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. If the old service has not left after ten seconds, it gives up with a reason and restores the previous configuration.
+
 - Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
 
 - The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
