@@ -108,10 +108,10 @@ confidential, Normal-priority policy with daemon-resolved voice and speed.
 
 The macOS text Service receives selected text only after **Read Selection with
 AI-TTS** is invoked, without Accessibility trust or clipboard mutation. In the
-composer, **Import Selection** uses `SelectedTextReaderPort` through the
+composer, **Selection** uses `SelectedTextReaderPort` through the
 Accessibility adapter. It remembers the most recently activated external
 application, but queries its selection only on explicit import and fails when
-the focused element exposes none. **Paste Clipboard** is a separate explicit,
+the focused element exposes none. **Paste** is a separate explicit,
 non-mutating reader. Neither action polls selection state or synthesizes
 Command-C.
 
