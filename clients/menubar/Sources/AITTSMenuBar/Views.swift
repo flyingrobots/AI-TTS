@@ -208,10 +208,10 @@ struct PopoverHeader: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button(state.showingComposer ? "Close editor" : "Speak…", systemImage: "square.and.pencil") {
+            Button(state.composerToggleTitle, systemImage: "square.and.pencil") {
                 state.showingComposer.toggle()
             }
-                .help("Type, paste, or attach text to speak")
+                .help(state.composerToggleHelp)
             Button {
                 showingSettings = true
             } label: {

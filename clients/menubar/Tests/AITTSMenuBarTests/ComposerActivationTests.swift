@@ -23,6 +23,18 @@ final class ComposerActivationTests: XCTestCase {
                         defaults: defaults)
     }
 
+    // Test-Oracle: the header toggle's title and tooltip both describe the action a click performs.
+    // Retire only when the header stops toggling the inline composer.
+    @MainActor
+    func testComposerToggleTitleAndHelpDescribeTheNextAction() throws {
+        let state = try makeState()
+        XCTAssertEqual(state.composerToggleTitle, "Speak…")
+        XCTAssertEqual(state.composerToggleHelp, "Type, paste, or attach text to speak")
+        state.showingComposer = true
+        XCTAssertEqual(state.composerToggleTitle, "Close editor")
+        XCTAssertEqual(state.composerToggleHelp, "Close the speech editor and keep the draft")
+    }
+
     @MainActor
     func testExternalActivationReplacesTheSelectionTargetUntilObserverRetires() throws {
         let state = try makeState()

@@ -579,6 +579,12 @@ final class AppState: ObservableObject {
         showingComposer = false
     }
 
+    var composerToggleTitle: String { showingComposer ? "Close editor" : "Speak…" }
+
+    var composerToggleHelp: String {
+        showingComposer ? "Close the speech editor and keep the draft" : "Type, paste, or attach text to speak"
+    }
+
     var captionControlLabel: String {
         captionsEnabled ? "CC: \(captionPosition.rawValue)" : "CC: Off"
     }

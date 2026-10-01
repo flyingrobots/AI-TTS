@@ -38,3 +38,9 @@ remain manual UI verification limits. No installed app or daemon was replaced.
 Change-kind: bug fix. The inline composer replaces the tab bar and History in the popover body. The failure toast's open-History action still only set `selectedTab = .history`, so with the composer open it showed the composer and the failed item stayed hidden. The action now calls `AppState.revealHistory()`, which selects History and collapses the composer. The draft is kept.
 
 Regression: medium `SpeechFailureTests.testRevealingHistoryCollapsesTheInlineComposerAndKeepsTheDraft`. Oracle: after `revealHistory()`, History is selected, the composer is collapsed, and the draft text is unchanged. On parent `5f89043`, with the old toast body moved verbatim into `revealHistory()`, the test was observed red with one failure, `XCTAssertFalse failed - History is not rendered while the composer is open` (SpeechFailureTests.swift:66). The selected-tab and draft assertions passed. After the fix, all 131 Swift tests pass.
+
+## Review fix: the header toggle's tooltip follows its title
+
+Change-kind: bug fix, from an independent AGY review. Opening the editor changes the header button's title to "Close editor", but its tooltip still read "Type, paste, or attach text to speak". The title and tooltip now come from `AppState.composerToggleTitle` and `composerToggleHelp`, which both describe what the next click does.
+
+Regression: medium `ComposerActivationTests.testComposerToggleTitleAndHelpDescribeTheNextAction`. Oracle: the title and tooltip pair for both composer states. On parent `c5f10ee`, with the old constant tooltip moved into `composerToggleHelp`, the test was observed red with one failure, `XCTAssertEqual failed: ("Type, paste, or attach text to speak") is not equal to ("Close the speech editor and keep the draft")` (ComposerActivationTests.swift:35). After the fix, all 132 Swift tests pass.
