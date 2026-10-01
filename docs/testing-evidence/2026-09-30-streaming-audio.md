@@ -306,4 +306,8 @@ The merge was clean as text but not as behaviour. With output prepared, every co
 
 Refactor, with no red needed: both engines now frame and quantize through one `aitts.streaming.pcm16_frames` helper (CodeRabbit). The existing exact-byte tests are the characterization: `test_kokoro_yields_bounded_pcm_before_requesting_next_inference_result` covers the 32767 and -32768 boundaries and truncation, and the MLX chunk-length test covers the same for MLX. Both pass unchanged.
 
+Open decision, not changed: the callback stream still requests `blocksize=240`. By #57's measurement, the HAL buffer equals the requested block in device frames, so this is 5 ms at 48 kHz. That is shorter than the 13.4 ms stall behind the app-switch pop, which #57 fixed for file playback with a 21.3 ms host block. #57 measured that block's cost at about 0.13 s of extra output latency. Applying it here would trade away part of this PR's measured 194–205 ms first audio, which issue #33 is trying to reduce. That trade is the user's call.
+
+Authoritative validation for this head: **793 Python tests passed, 2 skipped** (262 small, 531 medium; 24.7 s wall clock). Ruff check, ruff format, and mypy (139 files) are clean. Swift did not change.
+
 A mutation that drops the 100 ms close silence fails the first test with `the stream closed before 100 ms of silence` (544 silent frames, not 2400). The fade spans min(20 ms, callback block), so a 10 ms test callback still ends its pause block at zero, as `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time` requires. A prepared device keeps playing silence after the session, so only a session that closes its own stream adds the 100 ms of silence.
