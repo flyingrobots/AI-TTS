@@ -236,7 +236,11 @@ Each row has:
   - **Urgent — Play next after current**
   - Preempt, to interrupt once ready;
 - a visible remove control;
-- **Provenance**, which loads caller/import/replay attribution on demand;
+- **Provenance**, which shows caller/import/replay attribution on hover in a
+  bounded, scrollable card without expanding the History row. Activating the
+  button also opens the card for keyboard/accessibility use. Details load on
+  demand, remain selectable, and the card stays open while the pointer is
+  inside it;
 - **Report…**, which saves a local ZIP with source, audio, and available evidence.
 
 Re-queue creates a new utterance and leaves the historical row unchanged. The

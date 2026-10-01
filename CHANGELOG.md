@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use.
+
 ### Fixed
 
 - Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.

@@ -103,6 +103,7 @@ struct HistoryRow: View {
     @EnvironmentObject var state: AppState
     let item: Utterance
     @State private var showingProvenance = false
+    @State private var provenanceDismissal: Task<Void, Never>?
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -173,22 +174,44 @@ struct HistoryRow: View {
             .padding(.leading, 41)
 
             ProvenanceButton(expanded: showingProvenance) {
-                showingProvenance.toggle()
                 if showingProvenance {
-                    state.provenanceDetails[item.id] = nil
-                    state.loadProvenance(item.id)
+                    showingProvenance = false
+                } else {
+                    openProvenance()
                 }
             }
-            .frame(width: 140, height: 24)
-            .padding(.leading, 41)
-
-            if showingProvenance {
-                Text(state.provenanceDetails[item.id] ?? "Loading…")
-                    .font(.system(.caption2, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 41)
+            .frame(width: 100, height: 24)
+            .onHover { hovering in
+                if hovering { openProvenance() }
+                else { dismissProvenanceAfterHover() }
             }
+            .popover(isPresented: $showingProvenance, arrowEdge: .trailing) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Provenance").font(.headline)
+                        Spacer()
+                        Button { showingProvenance = false } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Close provenance")
+                    }
+                    ScrollView {
+                        Text(state.provenanceDetails[item.id] ?? "Loading…")
+                            .font(.system(.caption2, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 220)
+                }
+                .padding(12)
+                .frame(width: 340)
+                .onHover { hovering in
+                    if hovering { provenanceDismissal?.cancel() }
+                    else { dismissProvenanceAfterHover() }
+                }
+            }
+            .padding(.leading, 41)
 
             if let error = item.error {
                 Text(error)
@@ -198,6 +221,28 @@ struct HistoryRow: View {
             }
         }
         .padding(.vertical, 2)
+        .onDisappear {
+            provenanceDismissal?.cancel()
+            showingProvenance = false
+        }
+    }
+
+    private func openProvenance() {
+        provenanceDismissal?.cancel()
+        guard !showingProvenance else { return }
+        state.provenanceDetails[item.id] = nil
+        state.loadProvenance(item.id)
+        showingProvenance = true
+    }
+
+    private func dismissProvenanceAfterHover() {
+        provenanceDismissal?.cancel()
+        provenanceDismissal = Task { @MainActor in
+            // Allow crossing the gap between the trigger and its floating card.
+            do { try await Task.sleep(for: .milliseconds(250)) }
+            catch { return }
+            showingProvenance = false
+        }
     }
 
     private var time: String {
