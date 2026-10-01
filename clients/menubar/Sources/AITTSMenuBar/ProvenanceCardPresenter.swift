@@ -18,6 +18,7 @@ struct TaskProvenanceCardScheduler: ProvenanceCardScheduling {
                   _ action: @escaping @MainActor () -> Void) -> @MainActor () -> Void {
         let task = Task { @MainActor in
             do { try await Task.sleep(for: delay) } catch { return }
+            guard !Task.isCancelled else { return }
             action()
         }
         return { task.cancel() }
@@ -39,6 +40,9 @@ final class ProvenanceCardPresenter: ObservableObject {
 
     private let scheduler: any ProvenanceCardScheduling
     private var cancelPending: (@MainActor () -> Void)?
+    // Scheduled work runs only if nothing was cancelled or rescheduled since,
+    // because a timer can finish sleeping before its cancellation is observed.
+    private var pendingGeneration = 0
     // The trigger and the card are separate windows, so one region's enter can
     // arrive before the other's exit. Dismissal depends on both, not the last event.
     private var triggerHovered = false
@@ -69,9 +73,7 @@ final class ProvenanceCardPresenter: ObservableObject {
         if hovering {
             cancelPendingWork()
             guard !isPresented else { return }
-            cancelPending = scheduler.schedule(after: Self.hoverIntentDelay) { [weak self] in
-                self?.present(open)
-            }
+            schedule(after: Self.hoverIntentDelay) { [weak self] in self?.present(open) }
         } else {
             scheduleDismissal()
         }
@@ -104,14 +106,23 @@ final class ProvenanceCardPresenter: ObservableObject {
     private func scheduleDismissal() {
         cancelPendingWork()
         guard isPresented, !triggerHovered, !cardHovered else { return }
-        cancelPending = scheduler.schedule(after: Self.dismissalGrace) { [weak self] in
-            guard let self else { return }
+        schedule(after: Self.dismissalGrace) { [weak self] in
+            guard let self, !self.triggerHovered, !self.cardHovered else { return }
+            self.isPresented = false
+        }
+    }
+
+    private func schedule(after delay: Duration, _ action: @escaping @MainActor () -> Void) {
+        let generation = pendingGeneration
+        cancelPending = scheduler.schedule(after: delay) { [weak self] in
+            guard let self, self.pendingGeneration == generation else { return }
             self.cancelPending = nil
-            if !self.triggerHovered && !self.cardHovered { self.isPresented = false }
+            action()
         }
     }
 
     private func cancelPendingWork() {
+        pendingGeneration &+= 1
         cancelPending?()
         cancelPending = nil
     }

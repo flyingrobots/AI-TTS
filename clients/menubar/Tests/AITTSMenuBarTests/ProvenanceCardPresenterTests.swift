@@ -83,6 +83,21 @@ final class ProvenanceCardPresenterTests: XCTestCase {
     }
 
     @MainActor
+    func testCancelledWorkThatWakesLateHasNoEffect() {
+        let scheduler = ManualCardScheduler()
+        let card = ProvenanceCardPresenter(scheduler: scheduler)
+        var loads = 0
+
+        card.triggerHover(true) { loads += 1 }
+        card.triggerHover(false) { loads += 1 }
+        // A timer can finish sleeping before its cancellation is observed.
+        scheduler.fireIncludingCancelled()
+
+        XCTAssertFalse(card.isPresented, "A cancelled open must not show the card")
+        XCTAssertEqual(loads, 0, "A cancelled open must not request details")
+    }
+
+    @MainActor
     func testPassingPointerNeitherOpensNorRequestsDetails() {
         let scheduler = ManualCardScheduler()
         let card = ProvenanceCardPresenter(scheduler: scheduler)
@@ -157,6 +172,18 @@ final class ManualCardScheduler: ProvenanceCardScheduling {
         var index = 0
         while index < entries.count {
             if !entries[index].cancelled && !entries[index].fired {
+                entries[index].fired = true
+                entries[index].action()
+            }
+            index += 1
+        }
+    }
+
+    /// Fire every unfired entry, cancelled or not, modelling timers that woke before cancellation.
+    func fireIncludingCancelled() {
+        var index = 0
+        while index < entries.count {
+            if !entries[index].fired {
                 entries[index].fired = true
                 entries[index].action()
             }
