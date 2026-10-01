@@ -15,7 +15,8 @@ alongside its fallback from this checkout:
 mkdir -p dist
 uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
   --extra kokoro --extra mlx --output-file dist/install-constraints.txt
-uv tool install --force --python 3.12 --constraints dist/install-constraints.txt \
+uv tool install --force --reinstall-package ai-tts --python 3.12 \
+  --constraints dist/install-constraints.txt \
   --with 'kokoro-mlx==0.1.2' \
   --with 'kokoro>=0.9.4' \
   --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' .
@@ -219,7 +220,8 @@ its Python environment:
 mkdir -p dist
 uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
   --extra kokoro --output-file dist/install-constraints.txt
-uv tool install --force --python 3.12 --constraints dist/install-constraints.txt \
+uv tool install --force --reinstall-package ai-tts --python 3.12 \
+  --constraints dist/install-constraints.txt \
   --with "kokoro>=0.9.4" \
   --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 
@@ -233,8 +235,10 @@ AI_TTS_BIN="$(uv tool dir --bin)/ai-tts"
 python3 scripts/render_launch_agent.py \
   --executable "$AI_TTS_BIN" \
   --force
-# bootout returns before launchd finishes; this waits before bootstrapping
-scripts/restart-launch-agent.sh "gui/$(id -u)/com.flyingrobots.ai-tts" "gui/$(id -u)" \
+launchctl bootout "gui/$(id -u)/com.flyingrobots.ai-tts" 2>/dev/null || true
+# bootout returns before launchd finishes; bootstrapping too early fails with error 5
+while launchctl print "gui/$(id -u)/com.flyingrobots.ai-tts" >/dev/null 2>&1; do sleep 0.1; done
+launchctl bootstrap "gui/$(id -u)" \
   "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist"
 open "$HOME/Applications/AI-TTS.app"
 ```

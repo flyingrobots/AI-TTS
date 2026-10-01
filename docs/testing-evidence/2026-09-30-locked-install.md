@@ -1,29 +1,40 @@
-# Locked tool install and launchd restart race
+# Locked, fresh tool install and launchd teardown wait
 
-Change-kind: bug fix (two faults, both in `make install`).
+Change-kind: bug fix (three faults, all in `make install`, now implemented in `scripts/install_application.py`).
+
+This fix first landed against the Makefile recipe. `main` then replaced that recipe with `scripts/install_application.py`, which still had all three faults, so the fixes were re-done there against its own install harness.
 
 ## Unlocked tool install
 
-`uv tool install` ignores `uv.lock`. After huggingface-hub 2.0.0 was published, a fresh resolve of `kokoro>=0.9.4` chose huggingface-hub 2.0.0 and backtracked transformers to 4.12.2, the last release without a `huggingface-hub<2` cap. Its tokenizers 0.10.3 failed its Rust build, so `make install` failed before installing anything. `uv pip compile` against `kokoro>=0.9.4` alone reproduced the selection (`transformers==4.12.2`, `tokenizers==0.10.3`, `huggingface-hub==2.0.0`), while the lock holds transformers 5.16.1, tokenizers 0.23.1, and huggingface-hub 1.29.0.
+`uv tool install` ignores `uv.lock`. After huggingface-hub 2.0.0 was published, a fresh resolve of `kokoro>=0.9.4` picked huggingface-hub 2.0.0 and backtracked transformers to 4.12.2, the last release without a `huggingface-hub<2` cap. That release's tokenizers 0.10.3 fails its Rust build, so `make install` failed before installing anything. Running `uv pip compile` on `kokoro>=0.9.4` alone reproduced the selection, while the lock holds transformers 5.16.1, tokenizers 0.23.1, and huggingface-hub 1.29.0.
 
-`make install` now exports the frozen lock (`--no-dev --no-hashes --no-emit-project --extra kokoro`) to `$(DIST)/install-constraints.txt` and passes it to `uv tool install --constraints`.
+The installer now exports the frozen lock (`--no-dev --no-hashes --no-emit-project --extra kokoro`) into its staging directory and passes it to `uv tool install --constraints`.
 
-- `test_install_resolves_the_daemon_environment_to_the_locked_versions` (tests/test_distribution.py) reads the commands from a controlled `make -n install`, requires the tool install to take the exported file as `--constraints`, and then runs the projected `uv export` against the real lockfile into a temporary path. Oracle: uv.lock is the tested runtime graph. Kokoro, transformers, tokenizers, and huggingface-hub must each be pinned to a locked version. Size: medium.
-- On the unfixed Makefile it failed with `the tool install resolves without the lockfile`. After the fix it passes.
-- Mutation: dropping `--extra kokoro` from the export failed with `kokoro is not constrained`. Restored and green.
-- Real installation: `make install` installed the executables with transformers 5.16.1.
+- `test_install_resolves_the_daemon_environment_to_the_locked_versions` (medium, tests/test_make_installation.py) runs the real Make entry point with owned tools. The fake `uv` delegates `export` to the real uv against the real lockfile and records the constraints the tool install received. Kokoro, transformers, tokenizers, and huggingface-hub must each be pinned to a locked version. Oracle: uv.lock is the tested runtime graph.
+  - On `main`'s installer it failed: `the tool install resolves without the lockfile`.
+  - Mutation: exporting the mlx extra instead of kokoro failed it.
 
-## Launchd restart race
+## Stale cached build
 
-`launchctl bootout` returns before launchd has removed the service. The immediate `bootstrap` then failed with `Bootstrap failed: 5: Input/output error`. This was seen twice on the real host today, and the 2026-09-29 launch-recovery receipt recorded it as an open limit. The restart now lives in `scripts/restart-launch-agent.sh`. It polls `launchctl print` every 0.1 s until the label is gone, then bootstraps. It gives up with a message naming the service after `AITTS_LAUNCHD_TEARDOWN_POLLS` polls (default 100).
+uv caches its build of a local package keyed on metadata, not sources. With the version unchanged at 0.1.0, a reinstall reported success while the daemon kept running the previous code. This was observed on the real host on 2026-09-30: the installed `playback.py` lacked the change just committed until `--reinstall-package ai-tts` was added. The tool install now always passes `--reinstall-package ai-tts`.
 
-- `tests/test_restart_launch_agent.py` runs the script against a PATH-injected fake `launchctl`. The fake keeps the service loaded for a set number of `print` queries after bootout and refuses bootstrap with error 5 until then. Oracle: launchd's observed bootout/bootstrap behavior. Size: medium.
-  - `test_restart_waits_for_the_old_service_to_leave_before_bootstrapping`: on the unfixed script (moved verbatim from the Makefile), the result was exit 5 with `Bootstrap failed: 5: Input/output error`.
-  - `test_restart_gives_up_with_a_reason_when_the_old_service_never_leaves`: on the unfixed script, stderr lacked the service name. With the fix, both tests pass. The give-up case makes at most four `print` calls and no bootstrap.
-- Real installation: after the fix, `make install` completed end to end, and `ai-tts status` reported `ok` with the 13 Ready items and the paused state preserved.
+- `test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build` (medium) requires that argument. Oracle: `make install` installs this checkout's code.
+  - On `main`'s installer it failed: `uv may install a stale cached build`.
+  - Mutation: removing the argument failed it.
+  - The owned harness cannot model uv's cache. The host observation above is the behavioral evidence.
+
+## Launchd teardown race
+
+`launchctl bootout` returns before launchd has removed the service, and the immediate `bootstrap` failed with `Bootstrap failed: 5: Input/output error`. This was seen twice on the real host on 2026-09-30, and the 2026-09-29 launch-recovery receipt records it as an open limit. `activate_launch_agent` now polls `launchctl print` every 0.1 s, up to 100 times, until the label has gone, and only then bootstraps. If the label never leaves, it raises `LaunchdTeardownTimeoutError` naming the service, and the existing rollback restores the previous plist. The rollback path waits the same way after booting out a replacement, before deciding whether to reload the incumbent.
+
+- `test_install_waits_for_launchd_to_release_the_previous_service` (medium): the fake launchctl keeps a booted-out service visible for three `print` queries and refuses bootstrap with error 5 until then. On `main`'s installer it failed with exit status 5. With the fix, the new plist loads.
+- `test_activation_gives_up_and_restores_when_the_old_service_never_leaves` (small): a service that never leaves causes a bounded failure naming the service, no bootstrap attempt, and the previous plist restored. On `main`'s installer it failed, because there was no wait to bound.
+- `test_rollback_reloads_the_prior_service_after_a_lingering_teardown` (small): the bootstrap is interrupted after loading the replacement, and the rollback's bootout lingers. The incumbent must still be reloaded.
+- Mutations: removing the pre-bootstrap wait failed the first two tests, and removing the rollback wait failed the third.
 
 ## Validation
 
-- Full Python suite: 239 small and 460 medium tests passed. `make lint` (ruff check, ruff format, mypy) and shellcheck were clean.
+- Full Python suite at the merge head: 260 small and 476 medium tests passed. `make lint` (ruff check, ruff format, mypy) is clean.
+- Real host on 2026-10-01: `make install` rebuilt `ai-tts` from the checkout, installed huggingface-hub 1.29.0, tokenizers 0.23.1, and transformers 5.16.1 (the locked versions), and bootstrapped the agent on the first attempt. `ai-tts status` then reported `ok`.
 
-Limits: the fake launchctl models the race; it does not reproduce launchd's internal timing. The lock test proves installation intent plus a real export. It does not perform a networked tool install in CI. Delete these tests if installation stops going through `uv tool install` or launchd.
+Limits: the fake launchctl models the race but not launchd's internal timing. CI does not perform a networked tool install. Retire these tests if installation leaves uv tool or launchd.
