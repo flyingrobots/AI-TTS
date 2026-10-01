@@ -88,16 +88,9 @@ Service delegates to `EnqueueDocument` for immediate submission; the composer
 uses the same document reader but lets the user edit before submitting. Errors are local and actionable; unsupported or multiple files are
 rejected before anything is enqueued.
 
-The header's **Speak…** opens an editable composer. **Import Selection** is an
-explicit Accessibility fallback; its first use may need permission, and some
-applications do not expose selected text. The app remembers the last other
-application activated, including switches made while the composer is open.
-Only clicking Import Selection reads that application's selection.
+The header's **Speak…** toggles an editable composer inline below playback. While it is open, the composer uses the Queue/History area and the header button reads **Close editor**. Closing it, with that button or the composer's × button, restores the selected tab and keeps the draft. The failure toast's History action also closes the composer, so the failed item is visible. The bounded text editor and the scrollable form fit inside the popover, and voice/model selection and file, clipboard, and selection imports remain available. **Selection** is an explicit Accessibility fallback: its first use may need permission, and some applications do not expose selected text. The app remembers the last other application activated, including switches made while the composer is open. Only clicking **Selection** reads that application's selection.
 
-**Paste Clipboard** reads the current text without replacing the pasteboard or
-issuing Command-C. **Attach File…** reads one supported text/Markdown/PDF file.
-Each import appends to the draft rather than submitting. **Speak** (⌘Return)
-submits the edited draft through `SpeechServicePort`, confidential and Normal.
+**Paste** reads the current text without replacing the pasteboard or issuing Command-C. **Attach…** reads one supported text/Markdown/PDF file. Each import appends to the draft instead of submitting it. **Speak** (⌘Return) submits the edited draft through `SpeechServicePort`, confidential and Normal.
 
 The Voice and Model pickers offer the daemon default or an explicit choice;
 the only explicit model is the currently active backend. A backend pin is
@@ -151,12 +144,9 @@ separate from voice-generation speed, which affects future synthesis.
 
 ## On-screen captions
 
-Captions are off by default and persist as a shared daemon setting. The caption
-bubble beside playback rate pushes that setting through the same application
-port used by other native controls. MCP can read or update the identical value,
-and a daemon settings event causes the menu app to refresh immediately. The
-bubble toggles a borderless, non-activating panel on the active display.
-Settings selects Top or Bottom placement; Bottom is the default. The panel floats across Spaces, ignores mouse events, and
+The playback **CC** button cycles **Off → Bottom → Top → Off** and labels the current mode. A press from Off always enables captions at Bottom, whatever the previous placement was. Bottom → Top changes the local placement without toggling the daemon preference.
+
+Captions are off by default and persist as a shared daemon setting. The **CC** button beside playback rate pushes that setting through the same application port used by other native controls. MCP can read or update the same value, and a daemon settings event makes the menu app refresh immediately. Enabling captions shows a borderless, non-activating panel on the active display. Settings, or the **CC** cycle, selects Top or Bottom placement; Bottom is the default. The panel floats across Spaces, ignores mouse events, and
 disappears whenever captions are disabled, the daemon is unreachable, or no
 clip is active. If LaunchServices started the accessory app hidden, the native
 adapter unhides it without activation immediately before ordering the caption
