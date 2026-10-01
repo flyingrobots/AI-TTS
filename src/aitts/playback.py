@@ -436,6 +436,9 @@ class SoundDeviceSink:
         fade = np.zeros((fade_frames, audio.channels), dtype="float32")
         if audible:
             fade[:audible] = self._render(audio, source_frame, audible, rate)
+            # Near the end there is less source than fade. Hold the last
+            # sample so the envelope, not the edge of the file, reaches zero.
+            fade[audible:] = fade[audible - 1]
         gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
         silence = np.zeros((silence_frames, audio.channels), dtype="float32")
         return np.concatenate([(gain[:, None] * fade).astype("float32"), silence])

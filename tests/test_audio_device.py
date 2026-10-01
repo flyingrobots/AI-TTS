@@ -629,6 +629,31 @@ async def test_resumed_stream_fades_in_from_silence_at_the_held_position(tone: P
     np.testing.assert_array_equal(output[_SOFT_OPEN_FRAMES:], expected[_SOFT_OPEN_FRAMES:])
 
 
+@pytest.mark.oracle(
+    "listener report: a stop pops when the close cuts audible output; review PRRT_kwDOUHyfMM6oCN3V"
+)
+async def test_stop_near_the_end_fades_out_before_the_source_runs_out(tmp_path: Path) -> None:
+    """A stop with less source left than the fade must still reach zero smoothly.
+
+    Padding the missing source with zeros while the gain was still near one
+    dropped from about 0.486 to silence in a single frame.
+    """
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    short = tmp_path / "short.wav"
+    # One full block plus 52 frames, ending at a steady 0.5.
+    sf.write(str(short), np.full(2100, 0.5, dtype="float32"), _SAMPLERATE, format="WAV")
+    device = FakeAudioDevice(identity="controlled-output")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    streams.on_write = sink.stop
+    sink.start(short)
+    assert await sink.wait() is False
+
+    assert_closes_softly(streams.opened[0])
+
+
 @pytest.mark.oracle("driver underflows in the stop fade are included in per-stream diagnostics")
 async def test_stop_fade_underflow_is_recorded(tone: Path, tmp_path: Path) -> None:
     device = FakeAudioDevice(identity="controlled-output")
