@@ -68,6 +68,8 @@ if args[:2] == ["run", "python"] and args[2].endswith("build_app_bundle.py"):
     output = Path(args[args.index("--output") + 1])
     output.mkdir(parents=True)
     (output / "version").write_text("new app")
+elif args[:2] == ["tool", "uninstall"]:
+    (root / "cli-version").unlink(missing_ok=True)
 elif args[:2] == ["tool", "install"]:
     (root / "cli-version").write_text("new cli")
     (root / "install-arguments.json").write_text(json.dumps(args))
@@ -77,6 +79,9 @@ else:
     sys.exit(8)
 """
     )
+    osascript = commands / "osascript"
+    osascript.write_text("#!/bin/sh\nexit 0\n")
+    osascript.chmod(0o755)
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -84,8 +89,10 @@ else:
         """import os, sys, plistlib
 from pathlib import Path
 root = Path(os.environ["AITTS_TEST_ROOT"])
-loaded = root / "service-loaded"
 args = sys.argv[1:]
+label = (plistlib.loads(Path(args[-1]).read_bytes())["Label"]
+         if args[0] == "bootstrap" else args[-1].split("/")[-1])
+loaded = root / ("menu-bar-loaded" if label.endswith(".menubar") else "service-loaded")
 if args[0] == "print":
     sys.exit(0 if loaded.exists() else 3)
 if args[0] == "bootout":
@@ -93,6 +100,10 @@ if args[0] == "bootout":
 elif args[0] == "bootstrap":
     payload = plistlib.loads(Path(args[-1]).read_bytes())
     refuse = os.environ.get("AITTS_TEST_BOOTSTRAP_FAILURE") == "1"
+    if (os.environ.get("AITTS_TEST_MENU_BAR_FAILURE") == "1"
+            and label.endswith(".menubar")
+            and payload["ProgramArguments"][0] != "/old/menu-bar"):
+        sys.exit(9)
     if refuse and payload["ProgramArguments"][0] != "/old/ai-tts":
         sys.exit(9)
     loaded.write_text("running")
@@ -183,7 +194,7 @@ def test_install_reports_registration_without_claiming_daemon_health(
     assert result.returncode == 0, result.stderr
     assert "daemon is registered" in result.stdout
     assert "daemon is running" not in result.stdout
-    assert "menu-bar app was not launched" in result.stdout
+    assert "menu-bar app is registered too" in result.stdout
 
 
 def test_install_includes_the_english_model_in_the_daemon_environment(
@@ -200,3 +211,105 @@ def test_install_includes_the_english_model_in_the_daemon_environment(
         "https://github.com/explosion/spacy-models/releases/download/"
         "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
     ) in extras
+
+
+# Retire only when installation no longer owns the menu-bar login/crash policy.
+def test_install_registers_independent_menu_bar_startup(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    payload = plistlib.loads((tmp_path / "com.flyingrobots.ai-tts.menubar.plist").read_bytes())
+    assert {
+        "label": payload["Label"],
+        "executable": payload["ProgramArguments"],
+        "login": payload["RunAtLoad"],
+        "restart": payload["KeepAlive"],
+        "session": payload["LimitLoadToSessionType"],
+        "managed": payload["EnvironmentVariables"],
+        "registered": (tmp_path / "menu-bar-loaded").exists(),
+        "daemon_registered": (tmp_path / "service-loaded").exists(),
+    } == {
+        "label": "com.flyingrobots.ai-tts.menubar",
+        "executable": [str(tmp_path / "AI-TTS.app" / "Contents" / "MacOS" / "AITTSMenuBar")],
+        "login": True,
+        "restart": {"SuccessfulExit": False},
+        "session": "Aqua",
+        "managed": {"AITTS_MENU_BAR_AGENT": "1"},
+        "registered": True,
+        "daemon_registered": True,
+    }
+
+
+@pytest.mark.parametrize("loaded", [False, True])
+def test_failed_menu_bar_activation_preserves_its_incumbent_and_registered_daemon(
+    tmp_path: Path, install_environment: dict[str, str], *, loaded: bool
+) -> None:
+    agent = tmp_path / "com.flyingrobots.ai-tts.menubar.plist"
+    previous = plistlib.dumps(
+        {"Label": "com.flyingrobots.ai-tts.menubar", "ProgramArguments": ["/old/menu-bar"]}
+    )
+    agent.write_bytes(previous)
+    if loaded:
+        (tmp_path / "menu-bar-loaded").write_text("running")
+    result = run_installation(tmp_path, dict(install_environment, AITTS_TEST_MENU_BAR_FAILURE="1"))
+    assert {
+        "failed": result.returncode != 0,
+        "configuration": agent.read_bytes(),
+        "ui_loaded": (tmp_path / "menu-bar-loaded").exists(),
+        "daemon_loaded": (tmp_path / "service-loaded").exists(),
+    } == {
+        "failed": True,
+        "configuration": previous,
+        "ui_loaded": loaded,
+        "daemon_loaded": True,
+    }
+
+
+def test_uninstall_removes_both_agents_and_preserves_the_app(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    result = subprocess.run(  # noqa: S603 - owned tools and installation destinations
+        [
+            "/usr/bin/make",
+            "--no-print-directory",
+            "uninstall",
+            f"APP_BUNDLE={tmp_path / 'AI-TTS.app'}",
+            f"LAUNCH_AGENT={tmp_path / 'agent.plist'}",
+        ],
+        cwd=REPOSITORY,
+        env=install_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert {
+        "exit": result.returncode,
+        "daemon_plist": (tmp_path / "agent.plist").exists(),
+        "ui_plist": (tmp_path / "com.flyingrobots.ai-tts.menubar.plist").exists(),
+        "daemon_loaded": (tmp_path / "service-loaded").exists(),
+        "ui_loaded": (tmp_path / "menu-bar-loaded").exists(),
+        "app": (tmp_path / "AI-TTS.app" / "version").read_text(),
+    } == {
+        "exit": 0,
+        "daemon_plist": False,
+        "ui_plist": False,
+        "daemon_loaded": False,
+        "ui_loaded": False,
+        "app": "new app",
+    }
+
+
+def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: Kokoro's supported Transformers 4 API avoids the obsolete Rust build."""
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    extras = [
+        arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
+    ]
+    assert "transformers>=4.46,<5" in extras

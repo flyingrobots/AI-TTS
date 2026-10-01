@@ -868,3 +868,16 @@ named public behavior is intentionally removed; changing internal class layout
 alone is not a reason to change the oracle. Hardware callback, multi-hour
 microphone holds, real power loss, and evidence-directory growth are explicit
 blind spots, not claims inferred from this suite.
+
+## October 1 independent menu-bar startup
+
+The distribution boundary now includes independently registered daemon and
+menu-bar launch agents, login startup, abnormal-exit recovery, intentional Quit,
+and supervised manual reopen. Owned-tool installation tests verify both
+registrations, rollback, and uninstall; Swift adapter tests control manual
+handoff and fallback. Falsification and installed launchd lifecycle receipts are
+recorded in [the startup evidence](../testing-evidence/2026-10-01-menu-bar-startup.md).
+The installed run verifies crash recovery before and after manual reopen and
+normal Quit beyond the throttle interval while the daemon PID stays unchanged.
+A real logout/reboot remains a manual acceptance gap; the login promise is
+checked through the emitted Aqua `RunAtLoad` configuration and real bootstrap.

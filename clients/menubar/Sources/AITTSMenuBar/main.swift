@@ -84,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 MainActor.assumeIsolated {
+    guard !MenuBarLaunchAgent().handOffIfInstalled() else { return }
     guard let instanceLock = SingleInstanceLock() else { return }
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)

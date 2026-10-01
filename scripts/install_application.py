@@ -6,28 +6,52 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from scripts.build_app_bundle import publish_app_bundle
-from scripts.render_launch_agent import render_launch_agent
+from scripts.render_launch_agent import MENU_BAR_LABEL, render_launch_agent, render_menu_bar_agent
 
 SPACY_MODEL = (
     "https://github.com/explosion/spacy-models/releases/download/"
     "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
 )
 
+BOOTSTRAP_RETRIES = 60
 
-def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> None:
+
+def _bootstrap_after_teardown(
+    *, launchctl: str, domain: str, output: Path
+) -> subprocess.CompletedProcess[bytes]:
+    """Allow at most six seconds for launchd to retire a booted-out job."""
+    for attempt in range(BOOTSTRAP_RETRIES + 1):
+        result = subprocess.run(  # noqa: S603 - resolved tool and explicit installed plist
+            [launchctl, "bootstrap", domain, str(output)],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != errno.EIO or attempt == BOOTSTRAP_RETRIES:
+            return result
+        time.sleep(0.1)
+    message = "unreachable bootstrap retry state"
+    raise AssertionError(message)
+
+
+def activate_launch_agent(
+    *, launchctl: str, candidate: Path, output: Path, label: str = "com.flyingrobots.ai-tts"
+) -> None:
     """Restore the previous configuration if launchd rejects its replacement."""
     domain = f"gui/{os.getuid()}"
     loaded = (
         subprocess.run(  # noqa: S603 - resolved launchctl and fixed service label
-            [launchctl, "print", f"{domain}/com.flyingrobots.ai-tts"],
+            [launchctl, "print", f"{domain}/{label}"],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -44,7 +68,7 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
     try:
         candidate.replace(output)
         result = subprocess.run(  # noqa: S603 - resolved launchctl and fixed service label
-            [launchctl, "bootout", f"{domain}/com.flyingrobots.ai-tts"],
+            [launchctl, "bootout", f"{domain}/{label}"],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -52,9 +76,9 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
         if loaded:
             result.check_returncode()
         bootstrap_attempted = True
-        subprocess.run(  # noqa: S603 - explicit installed plist
-            [launchctl, "bootstrap", domain, str(output)], check=True
-        )
+        _bootstrap_after_teardown(
+            launchctl=launchctl, domain=domain, output=output
+        ).check_returncode()
     except (OSError, subprocess.CalledProcessError, KeyboardInterrupt):
         if backup.exists():
             backup.replace(output)
@@ -64,14 +88,14 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
         # Python. Retire a possible replacement before restoring registration.
         if bootstrap_attempted:
             subprocess.run(  # noqa: S603 - fixed service being rolled back
-                [launchctl, "bootout", f"{domain}/com.flyingrobots.ai-tts"],
+                [launchctl, "bootout", f"{domain}/{label}"],
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
         still_loaded = (
             subprocess.run(  # noqa: S603 - inspect actual recovery state
-                [launchctl, "print", f"{domain}/com.flyingrobots.ai-tts"],
+                [launchctl, "print", f"{domain}/{label}"],
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -79,9 +103,7 @@ def activate_launch_agent(*, launchctl: str, candidate: Path, output: Path) -> N
             == 0
         )
         if loaded and not still_loaded:
-            recovery = subprocess.run(  # noqa: S603 - the restored incumbent plist
-                [launchctl, "bootstrap", domain, str(output)], check=False
-            )
+            recovery = _bootstrap_after_teardown(launchctl=launchctl, domain=domain, output=output)
             if recovery.returncode != 0:
                 sys.stderr.write(
                     "Previous plist restored, but launchd could not reload it; "
@@ -96,8 +118,9 @@ def install_application(
     """Stage the app and plist before asking uv to replace the installed CLI."""
     uv = shutil.which("uv")
     launchctl = shutil.which("launchctl")
-    if uv is None or launchctl is None:
-        message = "uv and launchctl are required to install AI-TTS"
+    osascript = shutil.which("osascript")
+    if uv is None or launchctl is None or osascript is None:
+        message = "uv, launchctl and osascript are required to install AI-TTS"
         raise RuntimeError(message)
     repository = Path(__file__).resolve().parents[1]
     if app.exists() and not app.is_dir():
@@ -105,6 +128,7 @@ def install_application(
         raise NotADirectoryError(message)
     app.parent.mkdir(parents=True, exist_ok=True)
     launch_agent.parent.mkdir(parents=True, exist_ok=True)
+    menu_bar_agent = launch_agent.with_name(f"{MENU_BAR_LABEL}.plist")
     with (
         tempfile.TemporaryDirectory(dir=app.parent, prefix=f".{app.name}-") as app_staging,
         tempfile.TemporaryDirectory(
@@ -113,6 +137,8 @@ def install_application(
     ):
         candidate_app = Path(app_staging) / app.name
         candidate_agent = Path(agent_staging) / launch_agent.name
+        candidate_menu_bar = Path(agent_staging) / menu_bar_agent.name
+        render_menu_bar_agent(app=app, output=candidate_menu_bar)
         sys.stdout.write("==> preparing the signed app bundle\n")
         sys.stdout.flush()
         subprocess.run(  # noqa: S603 - fixed executable and argument boundaries
@@ -140,15 +166,35 @@ def install_application(
                 "kokoro>=0.9.4",
                 "--with",
                 SPACY_MODEL,
+                "--with",
+                "transformers>=4.46,<5",
                 str(repository),
             ],
             check=True,
         )
         publish_app_bundle(candidate_app, app, force=True)
         activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
+        # Retire a manually launched incumbent so launchd owns the new process.
+        subprocess.run(  # noqa: S603 - fixed AppleScript, no interpolated user input
+            [
+                osascript,
+                "-e",
+                (
+                    'if application id "com.flyingrobots.ai-tts.menubar" is running then '
+                    'tell application id "com.flyingrobots.ai-tts.menubar" to quit'
+                ),
+            ],
+            check=True,
+        )
+        activate_launch_agent(
+            launchctl=launchctl,
+            candidate=candidate_menu_bar,
+            output=menu_bar_agent,
+            label=MENU_BAR_LABEL,
+        )
     sys.stdout.write(
-        "Installed. The daemon is registered with launchd; the menu-bar app was not launched.\n"
-        f"Start the app: open {app}\n"
+        "Installed. The daemon is registered with launchd; the menu-bar app is registered too.\n"
+        "Both start at login and recover abnormal exits. Normal menu-bar Quit stays closed.\n"
         "Check the daemon: make doctor\n"
         "Wire up your agents: make install-agents\n"
     )

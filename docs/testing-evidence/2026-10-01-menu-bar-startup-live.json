@@ -1,0 +1,28 @@
+[
+  {
+    "behavior": "abnormal exit restarts UI independently",
+    "old_pid": 17049,
+    "new_pid": 17474,
+    "daemon_pid": 17008
+  },
+  {
+    "behavior": "normal Quit remains closed beyond throttle interval",
+    "observation_seconds": 12,
+    "daemon_pid": 17008
+  },
+  {
+    "behavior": "manual reopen returns UI to launchd supervision",
+    "pid": 17511
+  },
+  {
+    "behavior": "crash recovery continues after manual reopen",
+    "old_pid": 17511,
+    "new_pid": 17658,
+    "daemon_pid": 17008
+  },
+  {
+    "behavior": "updated daemon exposes audio effects",
+    "ducking_enabled": true,
+    "earcon_enabled": false
+  }
+]

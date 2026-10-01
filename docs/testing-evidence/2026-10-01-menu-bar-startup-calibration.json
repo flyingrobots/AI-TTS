@@ -1,0 +1,166 @@
+[
+  {
+    "fault": "ui-label",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-label-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "ui-executable",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-executable-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "ui-login",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-login-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "ui-quit",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-quit-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "ui-session",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-session-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "ui-managed-marker",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-managed-marker-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "ui-registration",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-registration-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup"
+    ]
+  },
+  {
+    "fault": "service-label",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-service-label-red.log",
+    "failed_checks": [
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[False-False-bootout-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[False-False-bootstrap-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[False-True-bootout-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[False-True-bootstrap-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[True-False-bootout-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[True-False-bootstrap-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[True-True-bootout-com.flyingrobots.ai-tts.menubar]",
+      "FAILED tests/test_launch_agent_activation.py::test_interrupted_activation_recovers_prior_service[True-True-bootstrap-com.flyingrobots.ai-tts.menubar]"
+    ]
+  },
+  {
+    "fault": "ui-rollback",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-rollback-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_failed_menu_bar_activation_preserves_its_incumbent_and_registered_daemon[False]",
+      "FAILED tests/test_make_installation.py::test_failed_menu_bar_activation_preserves_its_incumbent_and_registered_daemon[True]"
+    ]
+  },
+  {
+    "fault": "ui-uninstall",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-uninstall-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_uninstall_removes_both_agents_and_preserves_the_app"
+    ]
+  },
+  {
+    "fault": "handoff-disabled",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-handoff-disabled-red.log",
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:36: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManualReopenHandsOffWithoutKillingRunningUI] : XCTAssertTrue failed"
+    ]
+  },
+  {
+    "fault": "handoff-recursion",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-handoff-recursion-red.log",
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:47: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManagedAndDevelopmentLaunchesStayLocal] : XCTAssertFalse failed",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:48: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManagedAndDevelopmentLaunchesStayLocal] : XCTAssertEqual failed: (\"1\") is not equal to (\"0\")"
+    ]
+  },
+  {
+    "fault": "handoff-development",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-handoff-development-red.log",
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:47: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManagedAndDevelopmentLaunchesStayLocal] : XCTAssertFalse failed",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:48: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManagedAndDevelopmentLaunchesStayLocal] : XCTAssertEqual failed: (\"1\") is not equal to (\"0\")"
+    ]
+  },
+  {
+    "fault": "handoff-restarts-running",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-handoff-restarts-running-red.log",
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:37: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManualReopenHandsOffWithoutKillingRunningUI] : XCTAssertEqual failed: (\"[[\"/bin/launchctl\", \"kickstart\", \"-k\", \"gui/42/com.flyingrobots.ai-tts.menubar\"]]\") is not equal to (\"[[\"/bin/launchctl\", \"kickstart\", \"gui/42/com.flyingrobots.ai-tts.menubar\"]]\")"
+    ]
+  },
+  {
+    "fault": "handoff-fallback",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-handoff-fallback-red.log",
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:36: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testManualReopenHandsOffWithoutKillingRunningUI] : XCTAssertTrue failed",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:58: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testUnavailableAgentPreservesStandaloneLaunch] : XCTAssertFalse failed",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MenuBarLaunchAgentTests.swift:58: error: -[AITTSMenuBarTests.MenuBarLaunchAgentTests testUnavailableAgentPreservesStandaloneLaunch] : XCTAssertFalse failed"
+    ]
+  },
+  {
+    "fault": "ui-stop-on-uninstall",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-ui-stop-on-uninstall-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_uninstall_removes_both_agents_and_preserves_the_app"
+    ]
+  },
+  {
+    "fault": "registration-report",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-registration-report-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health"
+    ]
+  },
+  {
+    "fault": "obsolete-kokoro-tokenizer-resolution",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-install-reliability-red.log",
+    "failed_checks": [
+      "FAILED tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels"
+    ]
+  },
+  {
+    "fault": "launchd-teardown-EIO",
+    "exit": 1,
+    "log": ".git/codex-scratch/menu-bar-startup-install-reliability-red.log",
+    "failed_checks": [
+      "FAILED tests/test_launch_agent_activation.py::test_activation_waits_for_launchd_teardown_before_registering_replacement"
+    ]
+  }
+]

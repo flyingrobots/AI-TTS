@@ -179,27 +179,37 @@ any other host rather than half-installing.
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
 make                 # build the menu-bar app into dist/
-make install         # install the CLI, MCP server, app, and launchd agent
+make install         # install the CLI, MCP server, app, and both launchd agents
 make install-agents  # wire it into every local coding agent found
 make doctor          # is the daemon up, and what is wired in?
 make help            # every target
 ```
 
-`make install` prepares the signed app bundle and launch-agent plist before
+`make install` prepares the signed app bundle and both launch-agent plists before
 asking uv to replace the CLI environment. Preparation failure leaves the CLI
 untouched. Each artifact is published atomically, but the entire uv environment,
 app and service installation is not one filesystem transaction; a failure after
 uv succeeds does not automatically restore the previous CLI environment.
+Installation selects a modern Transformers 4 tokenizer compatible with Kokoro,
+which avoids resolving the obsolete tokenizer source build on current macOS.
+Activation allows up to six seconds for launchd's bootout teardown to settle.
 If launchd rejects the replacement or activation is interrupted with Ctrl-C,
 the installer restores the previous plist
 and attempts to reload it if the service was previously loaded. A deliberately
 unloaded service remains unloaded. Failed recovery is reported; restoring a
 plist does not restore an older uv environment or prove daemon health.
-The installer does not launch or stop the menu app. After upgrading an already-
-running app, quit and reopen it to load the new bundle.
+The installer quits an already-running menu app and registers its own launch
+agent, `com.flyingrobots.ai-tts.menubar`, which starts the new bundle. The daemon
+and menu bar start independently at login and restart after abnormal exits.
+Choosing **Quit AI-TTS Menu Bar** exits normally and leaves it closed until you
+reopen it or log in again; the daemon continues running. Reopening the installed
+app hands control back to the registered agent so crash recovery continues.
+Development builds and installations without a registered agent run normally.
+Each agent activation rolls back independently: if menu-bar registration fails,
+the already-registered daemon remains available.
 
 `make install-all` does all three. `make uninstall` stops and removes the
-launchd agent and the executables, and deliberately leaves your speech history,
+two launchd agents and the executables, and deliberately leaves your speech history,
 cached audio, and installed app alone.
 
 Agent integrations take the agents by name, either through make or by calling
@@ -235,6 +245,7 @@ its Python environment:
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
 uv tool install --force --python 3.12 --with "kokoro>=0.9.4" \
+  --with "transformers>=4.46,<5" \
   --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 
 # build an ad-hoc-signed, checkout-independent menu-bar app
@@ -265,6 +276,25 @@ it. With `--force`, a validation or write failure leaves the existing plist
 intact; without `--force`, an existing or concurrently installed plist is refused.
 Rendering a replacement does not reload launchd; use the bootout/bootstrap steps
 above to activate it.
+
+### Menu bar startup
+
+The menu-bar agent runs the installed executable directly in the Aqua login
+session. `RunAtLoad` starts it at login; `KeepAlive` with `SuccessfulExit: false`
+recovers abnormal exits while respecting Quit. Launchd throttles repeated startup
+failures. The app does not supervise the daemon, and the daemon does not supervise
+the app.
+
+To reopen the app, open `~/Applications/AI-TTS.app` as usual. To turn off automatic
+menu-bar startup, remove its registration and plist:
+
+```sh
+launchctl bootout "gui/$(id -u)/com.flyingrobots.ai-tts.menubar"
+rm "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.menubar.plist"
+```
+
+The app can still be opened manually. `make install` registers startup again;
+`make uninstall` removes both agents.
 
 ### Local diagnostic log
 

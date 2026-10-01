@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Installation now starts the menu-bar app independently at login and recovers abnormal exits. Intentional Quit keeps it closed, and reopening restores crash recovery. Uninstall removes both launch agents.
+
 ### Fixed
+
+- Installation selects a modern Kokoro-compatible tokenizer and allows launchd teardown to settle before activating an updated service.
 
 - Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
 
