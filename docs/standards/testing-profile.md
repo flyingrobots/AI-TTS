@@ -33,8 +33,9 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 | large | 30 seconds | 120 seconds | explicit external boundary; none currently gate CI |
 
 `tests/conftest.py` rejects collection unless each test inherits exactly one
-size marker and one non-empty `oracle(...)` marker, then installs the class
-timeout. The policy and timeout gates have falsification receipts in
+size marker and its closest `oracle(...)` marker names one non-empty authority,
+then installs the class timeout. A test-level oracle replaces the module's for
+that test; the effective oracle is always exactly one. The policy and timeout gates have falsification receipts in
 `docs/testing-evidence/2026-09-03-policy-gates.md`.
 
 **Budgets are per class, not per suite.** They were a single 30-second
