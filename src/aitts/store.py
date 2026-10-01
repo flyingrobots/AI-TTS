@@ -1064,10 +1064,19 @@ class Store:
             if parent.state in (State.PLAYING, State.PAUSED):
                 self._db.execute("INSERT OR REPLACE INTO settings VALUES ('playback_held', 'true')")
             if job["segment_index"] is not None:
+                # A child the listener already skipped is finished, even though
+                # its generation never was (see synthesis_work_is_active).
+                placeholders = ",".join("?" * len(TERMINAL))
                 self._db.execute(
-                    "UPDATE utterance_segments SET state = ?, audio_path = NULL, played_ms = NULL "
-                    "WHERE utterance_id = ? AND segment_index = ?",
-                    (State.QUEUED.value, parent.id, job["segment_index"]),
+                    "UPDATE utterance_segments SET state = ?, audio_path = NULL, "  # noqa: S608
+                    "played_ms = NULL WHERE utterance_id = ? AND segment_index = ? "
+                    f"AND state NOT IN ({placeholders})",
+                    (
+                        State.QUEUED.value,
+                        parent.id,
+                        job["segment_index"],
+                        *(state.value for state in TERMINAL),
+                    ),
                 )
             if job["segment_index"] is None:
                 self._db.execute(
