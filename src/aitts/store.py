@@ -764,15 +764,23 @@ class Store:
         if work.segment_index is None:
             self.transition(work.utterance_id, State.FAILED, error=error)
             return
+        # A streamed child advertised readiness, and may be playing, before
+        # its generation finished; its failure is still its own.
+        live_states = (
+            (State.SYNTHESIZING, State.READY, State.PLAYING, State.PAUSED)
+            if self._streaming_job(work)
+            else (State.SYNTHESIZING,)
+        )
+        placeholders = ",".join("?" * len(live_states))
         self._db.execute(
-            "UPDATE utterance_segments SET state = ?, error = ? "
-            "WHERE utterance_id = ? AND segment_index = ? AND state = ?",
+            "UPDATE utterance_segments SET state = ?, error = ? "  # noqa: S608
+            f"WHERE utterance_id = ? AND segment_index = ? AND state IN ({placeholders})",
             (
                 State.FAILED.value,
                 error,
                 work.utterance_id,
                 work.segment_index,
-                State.SYNTHESIZING.value,
+                *(state.value for state in live_states),
             ),
         )
         self._db.execute(
