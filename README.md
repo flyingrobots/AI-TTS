@@ -71,8 +71,8 @@ MCP `enqueue_speech` and raw `submit` accept `preempt: true`. User and microphon
 holds take precedence; preemption never releases a hold. Clearing the playback
 queue also skips suspended clips without stopping the current alert. A daemon
 restart restores paused clips but requires Resume before any speech starts.
-The output stream drains a 5 ms fade to silence before a stopped device is
-reused. Synthesizing the alert and draining an audio block still take time;
+A stop fades the audio that would have played next over 20 ms, then holds
+silence before the device is released or reused. Synthesizing the alert and draining an audio block still take time;
 preemption is not a guarantee of zero latency.
 
 ## Why

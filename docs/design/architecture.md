@@ -184,8 +184,11 @@ stateDiagram-v2
   completed earlier document children remain intact.
 - **The physical callback device may outlive a logical playback session.**
   The daemon prepares silent output after model warmup. Exactly one logical
-  renderer owns it at a time; idle and held output is silence. Starvation and
-  stop use a 5 ms decay, with a fade on resumption. Inserted silence never moves
+  renderer owns it at a time; idle and held output is silence. Starvation uses a
+  5 ms decay. A stop, pause or route move fades the next 20 ms of source (or the
+  callback block, if shorter) without moving the playhead, as file playback does,
+  and a session that closes its own stream then plays 100 ms of silence. A
+  renderer opened mid-clip fades in over 20 ms from zero. Inserted silence never moves
   the source playhead. An initial run of exact digital zeros can be skipped in
   bounded memory reads; intentional pauses and nonzero seek positions are
   preserved, and the original cached WAV is unchanged. Evidence records skipped
