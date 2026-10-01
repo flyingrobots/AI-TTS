@@ -32,3 +32,9 @@ observer type name changed. The cycle test records its oracle and deletion
 criterion at the boundary. Physical pointer/keyboard traversal, file-picker
 presentation inside the installed popover, and multi-display visual layout
 remain manual UI verification limits. No installed app or daemon was replaced.
+
+## Review fix: the failure toast reveals History while composing
+
+Change-kind: bug fix. The inline composer replaces the tab bar and History in the popover body. The failure toast's open-History action still only set `selectedTab = .history`, so with the composer open it showed the composer and the failed item stayed hidden. The action now calls `AppState.revealHistory()`, which selects History and collapses the composer. The draft is kept.
+
+Regression: medium `SpeechFailureTests.testRevealingHistoryCollapsesTheInlineComposerAndKeepsTheDraft`. Oracle: after `revealHistory()`, History is selected, the composer is collapsed, and the draft text is unchanged. On parent `5f89043`, with the old toast body moved verbatim into `revealHistory()`, the test was observed red with one failure, `XCTAssertFalse failed - History is not rendered while the composer is open` (SpeechFailureTests.swift:66). The selected-tab and draft assertions passed. After the fix, all 131 Swift tests pass.

@@ -573,6 +573,12 @@ final class AppState: ObservableObject {
         playbackRate = rate
         send(.setPlaybackRate(rate))
     }
+    /// Shows History in the popover body, which the inline composer otherwise occupies.
+    func revealHistory() {
+        selectedTab = .history
+        showingComposer = false
+    }
+
     var captionControlLabel: String {
         captionsEnabled ? "CC: \(captionPosition.rawValue)" : "CC: Off"
     }

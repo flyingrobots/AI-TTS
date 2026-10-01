@@ -35,7 +35,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private let selectionTracker: SpeechSelectionTracker
     private lazy var failureToast = SpeechFailureToastController(state: state) { [weak self] in
         guard let self else { return }
-        self.state.selectedTab = .history
+        self.state.revealHistory()
         if !self.popover.isShown { self.togglePopover(nil) }
     }
     private var cancellables: Set<AnyCancellable> = []
