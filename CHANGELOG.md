@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Skip, stop, and pause no longer pop. The sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing the stream. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. Pause previously had no fade at all.
+- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
 
 - Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
 

@@ -191,7 +191,6 @@ async def test_unchanged_default_output_streams_the_clip_through_one_stream(tone
 
 
 async def test_default_output_change_mid_clip_reopens_without_losing_frames(tone: Path) -> None:
-    import numpy as np  # noqa: PLC0415 - audio deps stay off module import
 
     device = FakeAudioDevice(identity="macbook-speakers")
     streams = RecordingStreams(device)
@@ -212,9 +211,7 @@ async def test_default_output_change_mid_clip_reopens_without_losing_frames(tone
         "studio-display",
     ]
     # ...and the audio crossed the switch intact: every frame exactly once, in order.
-    assert streams.frames == _FRAMES
-    delivered = np.concatenate([block for stream in streams.opened for block in stream.blocks])
-    np.testing.assert_allclose(delivered, source_samples(tone), atol=1e-6)
+    assert_source_heard_once(streams, tone)
 
 
 async def test_default_output_change_while_paused_is_adopted_on_resume(tone: Path) -> None:
@@ -239,10 +236,7 @@ async def test_default_output_change_while_paused_is_adopted_on_resume(tone: Pat
     sink.resume()
     assert await sink.wait() is True
     assert streams.opened[-1].identity == "studio-display"
-    paused = streams.opened[0]
-    assert_closes_softly(paused)
-    # The paused stream's closing fade is not source audio.
-    assert streams.frames - len(paused.blocks[-1]) == _FRAMES
+    assert_source_heard_once(streams, tone)
 
 
 async def test_stop_during_a_device_change_does_not_reopen(tone: Path) -> None:
@@ -384,7 +378,7 @@ async def test_an_unreadable_first_read_still_follows_a_later_device_change(
     # Latching an unreadable baseline once and never revisiting it disabled
     # device following for the rest of the clip.
     assert any(stream.identity == "uid-B" for stream in streams.opened)
-    assert streams.frames == _FRAMES
+    assert_source_heard_once(streams, tone)
 
 
 # -- a device that fails mid-clip -----------------------------------------
@@ -483,7 +477,6 @@ async def test_repeated_pauses_release_output_and_resume_without_changing_sample
     tone: Path,
 ) -> None:
     """Oracle: a held player must not starve a running output stream or lose its place."""
-    import numpy as np  # noqa: PLC0415
 
     device = FakeAudioDevice(identity="owned-output")
     streams = RecordingStreams(device)
@@ -519,15 +512,8 @@ async def test_repeated_pauses_release_output_and_resume_without_changing_sample
         sink.resume()
         await sink.wait()
 
-    # Each paused stream closes with one fade-and-silence block that is not
-    # source audio. Every source frame is still heard exactly once.
-    paused, final = streams.opened[:-1], streams.opened[-1]
-    for stream in paused:
-        assert_closes_softly(stream)
-    np.testing.assert_array_equal(
-        np.concatenate([block for stream in paused for block in stream.blocks[:-1]] + final.blocks),
-        source_samples(tone),
-    )
+    assert len(streams.opened) == 3
+    assert_source_heard_once(streams, tone)
 
 
 # Closing a CoreAudio stream drains PortAudio's buffer, then stops the output
@@ -549,6 +535,35 @@ def assert_closes_softly(stream: RecordingStream) -> None:
     assert np.all(tail == 0), "the stream closes before its output has gone silent"
 
 
+def assert_source_heard_once(streams: RecordingStreams, path: Path) -> None:
+    """Every source frame is heard exactly once, in order, across every reopen.
+
+    Each stream but the last was interrupted and closes with one fade-and-
+    silence block that is not source audio. Each stream opened mid-clip fades
+    in, so its first frames carry a gain; everywhere else the samples are the
+    source's own.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    source = source_samples(path)
+    pieces = []
+    faded = np.zeros(len(source), dtype=bool)
+    offset = 0
+    for index, stream in enumerate(streams.opened):
+        last = index == len(streams.opened) - 1
+        if not last:
+            assert_closes_softly(stream)
+        if offset:
+            assert_opens_softly(stream)
+            faded[offset : offset + _SOFT_OPEN_FRAMES] = True
+        heard = np.concatenate(stream.blocks if last else stream.blocks[:-1])
+        pieces.append(heard)
+        offset += len(heard)
+    delivered = np.concatenate(pieces)
+    assert len(delivered) == len(source)
+    np.testing.assert_allclose(delivered[~faded], source[~faded], atol=1e-6)
+
+
 @pytest.mark.oracle(
     "listener report: skips pop because CoreAudio truncates the in-flight buffer at close"
 )
@@ -567,6 +582,51 @@ async def test_stop_fades_to_held_silence_without_consuming_more_source(tone: Pa
     # The fade starts from the sample that would have played next.
     np.testing.assert_allclose(stream.blocks[-1][0], source_samples(tone)[2048], atol=1e-6)
     assert sink.position_ms() == int(2048 / 24000 * 1000)
+
+
+_SOFT_OPEN_FRAMES = int(_SAMPLERATE * 0.02)
+
+
+def assert_opens_softly(stream: RecordingStream) -> None:
+    """The stream rises from silence instead of starting at full amplitude."""
+    import numpy as np  # noqa: PLC0415
+
+    output = np.concatenate(stream.blocks)[:, 0]
+    # The device was silent before this stream; its first sample is the step.
+    assert abs(output[0]) <= _FADE_MAX_STEP, "the stream starts mid-waveform"
+    assert np.max(np.abs(np.diff(output[:_SOFT_OPEN_FRAMES]))) <= _FADE_MAX_STEP
+
+
+@pytest.mark.oracle(
+    "listener report: a clip resumed mid-speech pops because its stream starts at full amplitude"
+)
+async def test_resumed_stream_fades_in_from_silence_at_the_held_position(tone: Path) -> None:
+    import numpy as np  # noqa: PLC0415
+
+    device = FakeAudioDevice(identity="owned-output")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    def pause_after_one_block() -> None:
+        if streams.frames >= SoundDeviceSink._BLOCK_FRAMES:
+            streams.on_write = lambda: None
+            sink.pause()
+
+    streams.on_write = pause_after_one_block
+    sink.start(tone)
+    while not sink.paused:  # noqa: ASYNC110 - waiting on the sink's own audio thread
+        await asyncio.sleep(0.005)
+    sink.resume()
+    assert await sink.wait() is True
+
+    resumed = streams.opened[-1]
+    assert_opens_softly(resumed)
+    # Only the gain moves: after the fade-in, the resumed stream is the source
+    # from the held position onward, with nothing repeated or skipped.
+    output = np.concatenate(resumed.blocks)
+    expected = source_samples(tone)[2048:]
+    assert len(output) == len(expected)
+    np.testing.assert_array_equal(output[_SOFT_OPEN_FRAMES:], expected[_SOFT_OPEN_FRAMES:])
 
 
 @pytest.mark.oracle("driver underflows in the stop fade are included in per-stream diagnostics")

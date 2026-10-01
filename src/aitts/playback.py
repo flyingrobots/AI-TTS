@@ -350,12 +350,18 @@ class SoundDeviceSink:
                 latency_seconds=getattr(stream, "latency", None),
                 block_frames=self._BLOCK_FRAMES,
             )
+            # A clip's own audio begins in silence; a stream opened mid-clip
+            # (resume, device move) would otherwise start at full amplitude.
+            fade_in = self._fade_in_gain(audio) if source_frame > 0 else None
+            faded_in = 0
             wrote_audio = False
+            moved = False
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
                     self._audio_event("output_device_changed")
                     log.info("event=audio_output_device_changed")
-                    return source_frame
+                    moved = True
+                    break
                 if self._pause_flag.is_set():
                     break
                 rate = self._current_rate()
@@ -365,14 +371,25 @@ class SoundDeviceSink:
                     max(1, math.ceil(remaining / rate)),
                 )
                 block = self._render(audio, source_frame, output_frames, rate)
+                if fade_in is not None and faded_in < len(fade_in):
+                    count = min(len(block), len(fade_in) - faded_in)
+                    block[:count] *= fade_in[faded_in : faded_in + count, None]
+                    faded_in += count
                 wrote_audio = True
                 self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
-            interrupted = self._stop_flag.is_set() or self._pause_flag.is_set()
+            interrupted = moved or self._stop_flag.is_set() or self._pause_flag.is_set()
             if interrupted and wrote_audio:
                 self._write_output(stream, self._soft_close(audio, source_frame))
         return source_frame
+
+    def _fade_in_gain(self, audio: Any) -> Any:  # noqa: ANN401 - soundfile handle in, numpy gain out
+        """Raised-cosine gain rising from silence over the fade length."""
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        fade_frames = max(2, int(audio.samplerate * self._FADE_SECONDS))
+        return (0.5 * (1 - np.cos(np.linspace(0.0, math.pi, fade_frames)))).astype("float32")
 
     def _render(self, audio: Any, source_frame: float, frames: int, rate: float) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
         """Resample ``frames`` output frames from ``source_frame`` at ``rate``."""
