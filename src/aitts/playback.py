@@ -36,7 +36,12 @@ if TYPE_CHECKING:
     from aitts.model import Utterance, UtteranceSegment
     from aitts.store import Store
 
-from aitts.streaming import PCMStreamRenderer, SpoolingPCMStream, StreamingRegistry
+from aitts.streaming import (
+    SOFT_FADE_FRAMES,
+    PCMStreamRenderer,
+    SpoolingPCMStream,
+    StreamingRegistry,
+)
 
 log = logging.getLogger(__name__)
 PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
@@ -507,12 +512,26 @@ class SoundDeviceSink:
     def _pcm_render(
         self, renderer: PCMStreamRenderer, reopen: threading.Event
     ) -> Callable[[Any, int, bool], bool]:
+        # A prepared device keeps playing silence after the session, so only a
+        # session that closes its own stream needs silence the close can cut.
+        close_silence = (
+            0 if self._prepared_output is not None else int(24000 * self._CLOSE_SILENCE_SECONDS)
+        )
+        silence_left: int | None = None
+
         def render(output: Any, frames: int, underflow: bool) -> bool:  # noqa: ANN401, FBT001 - native callback contract
+            nonlocal silence_left
             if underflow:
                 self._stream_underflows += 1
+            if silence_left is not None:
+                # Latched: a resume during the close still finishes it softly.
+                output.fill(0)
+                silence_left -= frames
+                return silence_left > 0
             if self._stop_flag.is_set() or self._pause_flag.is_set() or reopen.is_set():
-                output[:] = renderer.stop_block(frames)
-                return False
+                output[:] = renderer.close_block(frames, rate=self._current_rate())
+                silence_left = close_silence - (frames - min(frames, SOFT_FADE_FRAMES))
+                return silence_left > 0
             output[:] = renderer.render(frames, rate=self._current_rate())
             self._set_position_ms(renderer.position_frames / 24)
             return not renderer.ended and renderer.error is None

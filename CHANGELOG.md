@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Kokoro and Kokoro MLX speech starts playing from the first generated PCM while synthesis continues. A prepared callback device plays from a bounded memory ring, and a separate feeder spools the complete WAV for replay. Pause, rewind, and preemption keep their source offsets. Readiness and cache publication commit atomically, and restart recovery requeues unfinished generation with playback held. Other engines keep file playback. Transport closes on the callback path follow the same soft-close rule as file playback. They fade the next 20 ms of source, or the whole callback block if it is shorter, without moving the playhead. Near the end of a clip they hold the last sample. When the session closes its own stream, they then write 100 ms of silence.
+
 ### Fixed
 
 - Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.

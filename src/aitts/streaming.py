@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
 SAMPLE_RATE = 24_000
 FRAME_BYTES = 2
+# A transport close fades over 20 ms, as the file sink's soft close does.
+SOFT_FADE_FRAMES = SAMPLE_RATE // 50
 _WAV_HEADER_BYTES = 44
 
 
@@ -399,6 +401,44 @@ class PCMStreamRenderer:
         self._was_silent = count < frames
         self._last = float(output[-1, 0])
         self.ended = read.ended and len(self._pending) == 0
+        return output
+
+    def close_block(self, frames: int, *, rate: float = 1.0) -> NDArray[np.float32]:
+        """Fade what would play next to silence, without advancing source position.
+
+        This is the file sink's soft close on the callback path: the next
+        ``SOFT_FADE_FRAMES`` of source (or the whole block, if shorter) under a
+        raised cosine, then silence. The read-ahead comes from memory only, and
+        a later renderer seeks back to the unchanged playhead, so resumption
+        repeats nothing.
+        """
+        import numpy as np  # noqa: PLC0415 - keep numpy off source transport imports
+
+        output = np.zeros((frames, 1), dtype=np.float32)
+        fade = min(frames, SOFT_FADE_FRAMES)
+        # Underrun silence or untrimmed leading zeros: nothing is sounding.
+        if self._was_silent or self._trim_leading:
+            self._last = 0.0
+            return output
+        needed = max(0, math.ceil(fade * rate + self._phase) + 1 - len(self._pending))
+        read = self.source.read(needed)
+        if read.error is not None:
+            return self.stop_block(frames)
+        if read.pcm:
+            samples = np.frombuffer(read.pcm, dtype="<i2") / 32768.0
+            self._pending = np.concatenate((self._pending, samples))
+        usable = len(self._pending) - self._phase - (0 if read.ended else 1)
+        count = min(fade, max(0, math.ceil(usable / rate)))
+        ahead = np.full(fade, self._last, dtype=np.float32)
+        if count:
+            positions = self._phase + np.arange(count) * rate
+            ahead[:count] = np.interp(positions, np.arange(len(self._pending)), self._pending)
+            # Near the end there is less source than fade. Hold the last
+            # sample so the envelope, not the edge of the source, reaches zero.
+            ahead[count:] = ahead[count - 1]
+        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade)))
+        output[:fade, 0] = ahead * gain
+        self._last = 0.0
         return output
 
     def stop_block(self, frames: int) -> NDArray[np.float32]:

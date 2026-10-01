@@ -281,3 +281,16 @@ the reported acoustic popping.
 
 Validation after review fixes: Ruff check/format and mypy passed; all 771
 Python tests passed (260 small, 511 medium; 12.75 seconds wall clock).
+
+## Merge with main and review round (Code Lawyer, 2026-10-01)
+
+Change-kind: bug fix. `origin/main` was merged at `6428b58`. It brought #56 (installer), #57 (soft stream close and open, device-rate host block) and #64 (playhead versus heard position). The only textual conflict was the testing profile, and both sides were kept. The full suite passed on the merge: 785 passed, 2 skipped.
+
+The merge was clean as text but not as behaviour. With output prepared, every compatible 24 kHz mono WAV plays through the callback path, and #57's soft close and open existed only in the file path. The rows below port them to the callback path. They also fix the review threads that were still valid. Each regression test was run red on its parent commit, then green on the fix. The `tests/test_streaming_soft_transport.py` oracle is the [soft-stream-close receipt](2026-09-30-soft-stream-close.md).
+
+| Issue | Regression test | Parent (red) | Red output |
+|---|---|---|---|
+| A callback close ramped the last written sample over 5 ms, the stop ramp #57 retired | `test_stop_fades_the_upcoming_source_then_holds_silence_before_closing` | `6428b58` | 479 of 480 fade samples differ from the next 20 ms of source under a raised cosine (first: 0.2093 against 0.2057) |
+| With less source left than the fade, the close did not hold the last sample | `test_stop_near_the_end_holds_the_last_sample_under_the_fade` | `6428b58` | 479 of 480 samples differ; mutation padding zeros instead of holding: 379 of 480 differ |
+
+A mutation that drops the 100 ms close silence fails the first test with `the stream closed before 100 ms of silence` (544 silent frames, not 2400). The fade spans min(20 ms, callback block), so a 10 ms test callback still ends its pause block at zero, as `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time` requires. A prepared device keeps playing silence after the session, so only a session that closes its own stream adds the 100 ms of silence.
