@@ -102,7 +102,7 @@ struct HistoryView: View {
 struct HistoryRow: View {
     @EnvironmentObject var state: AppState
     let item: Utterance
-    @State private var showingProvenance = false
+    @StateObject private var provenanceCard = ProvenanceCardPresenter()
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -172,23 +172,37 @@ struct HistoryRow: View {
             }
             .padding(.leading, 41)
 
-            ProvenanceButton(expanded: showingProvenance) {
-                showingProvenance.toggle()
-                if showingProvenance {
-                    state.provenanceDetails[item.id] = nil
-                    state.loadProvenance(item.id)
+            ProvenanceButton(expanded: provenanceCard.isPresented) {
+                provenanceCard.activate(open: loadFreshProvenance)
+            }
+            .frame(width: 100, height: 24)
+            .onHover { hovering in
+                provenanceCard.triggerHover(hovering, open: loadFreshProvenance)
+            }
+            .popover(isPresented: provenanceCard.presentation, arrowEdge: .trailing) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Provenance").font(.headline)
+                        Spacer()
+                        Button { provenanceCard.close() } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Close provenance")
+                    }
+                    ScrollView {
+                        Text(state.provenanceDetails[item.id] ?? "Loading…")
+                            .font(.system(.caption2, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 220)
                 }
+                .padding(12)
+                .frame(width: 340)
+                .onHover { hovering in provenanceCard.cardHover(hovering) }
             }
-            .frame(width: 140, height: 24)
             .padding(.leading, 41)
-
-            if showingProvenance {
-                Text(state.provenanceDetails[item.id] ?? "Loading…")
-                    .font(.system(.caption2, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 41)
-            }
 
             if let error = item.error {
                 Text(error)
@@ -198,6 +212,13 @@ struct HistoryRow: View {
             }
         }
         .padding(.vertical, 2)
+        .onDisappear { provenanceCard.close() }
+    }
+
+    /// Each opening requests fresh details, which is also how a failed load is retried.
+    private func loadFreshProvenance() {
+        state.provenanceDetails[item.id] = nil
+        state.loadProvenance(item.id)
     }
 
     private var time: String {
