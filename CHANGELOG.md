@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
+
+- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. The restart lives in `scripts/restart-launch-agent.sh` and gives up with a reason after ten seconds.
+
 - Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
 
 - Daemon shutdown retires active audio and its completion watcher before closing state or releasing ownership, preserving the final parent/child position for explicit resume.

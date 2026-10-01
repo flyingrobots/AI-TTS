@@ -467,8 +467,8 @@ def test_bundle_metadata_can_import_built_application_modules(
     builder.build_app_bundle(repository=tmp_path, output=tmp_path / "AI-TTS.app", sign=False)
 
 
-def test_install_includes_the_english_model_in_the_daemon_environment() -> None:
-    """Oracle: installed English speech must not need a runtime package installer."""
+def _dry_run_install() -> list[list[str]]:
+    """Return the commands ``make install`` would run, one argv per command."""
     import shlex  # noqa: PLC0415
 
     result = subprocess.run(
@@ -479,10 +479,58 @@ def test_install_includes_the_english_model_in_the_daemon_environment() -> None:
         text=True,
         check=True,
     )
-    commands = [shlex.split(line) for line in result.stdout.replace("\\\n", " ").splitlines()]
+    return [shlex.split(line) for line in result.stdout.replace("\\\n", " ").splitlines()]
+
+
+def _option(command: list[str], name: str) -> str:
+    """Return the value given to ``name`` in ``command``."""
+    return command[command.index(name) + 1]
+
+
+def test_install_includes_the_english_model_in_the_daemon_environment() -> None:
+    """Oracle: installed English speech must not need a runtime package installer."""
+    commands = _dry_run_install()
     install = next(command for command in commands if command[:3] == ["uv", "tool", "install"])
     extras = [install[index + 1] for index, argument in enumerate(install) if argument == "--with"]
     assert (
         "https://github.com/explosion/spacy-models/releases/download/"
         "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
     ) in extras
+
+
+def test_install_resolves_the_daemon_environment_to_the_locked_versions(tmp_path: Path) -> None:
+    """Oracle: uv.lock is the tested runtime graph, so installation must not resolve past it.
+
+    `uv tool install` ignores uv.lock. Without constraints, huggingface-hub 2.0
+    made the resolver backtrack transformers to 4.12.2, whose tokenizers 0.10.3
+    cannot be built, and `make install` failed on a fresh resolve.
+    """
+    import tomllib  # noqa: PLC0415
+
+    commands = _dry_run_install()
+    install = next(command for command in commands if command[:3] == ["uv", "tool", "install"])
+    assert "--constraints" in install, "the tool install resolves without the lockfile"
+    export = next(command for command in commands if command[:2] == ["uv", "export"])
+    assert _option(export, "--output-file") == _option(install, "--constraints")
+    assert "--frozen" in export
+
+    # Run the projected export against the real lockfile, writing somewhere owned.
+    uv = shutil.which("uv")
+    assert uv is not None, "uv is required to export the lockfile"
+    constraints = tmp_path / "constraints.txt"
+    argv = [uv, *export[1:]]
+    argv[argv.index("--output-file") + 1] = str(constraints)
+    subprocess.run(argv, cwd=REPOSITORY, capture_output=True, check=True)  # noqa: S603
+
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in constraints.read_text(encoding="utf-8").splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+    lock = tomllib.loads((REPOSITORY / "uv.lock").read_text(encoding="utf-8"))
+    locked: dict[str, set[str]] = {}
+    for package in lock["package"]:
+        locked.setdefault(package["name"], set()).add(package["version"])
+    for name in ("kokoro", "transformers", "tokenizers", "huggingface-hub"):
+        assert name in pins, f"{name} is not constrained"
+        assert pins[name] in locked[name], f"{name}=={pins[name]} is not the locked version"

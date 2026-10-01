@@ -62,19 +62,27 @@ app: tools
 # -- install --------------------------------------------------------------
 
 ## install: install the CLI and MCP server, the app, and the launchd agent
+# uv tool install ignores uv.lock, so the install is constrained to the locked
+# graph; otherwise a new upstream release can send the resolver somewhere
+# untested (huggingface-hub 2.0 once dragged transformers back to 4.12.2).
 install: export AITTS_APP := $(APP_BUNDLE)
 install: export AITTS_PLIST := $(LAUNCH_AGENT)
+install: export AITTS_DIST := $(DIST)
+install: export AITTS_CONSTRAINTS := $(DIST)/install-constraints.txt
 install: tools
 	@printf '==> installing the ai-tts and ai-tts-mcp executables\n'
-	@uv tool install --force --python $(PYTHON_VERSION) --with "kokoro>=0.9.4" \
+	@mkdir -p -- "$$AITTS_DIST"
+	@uv export --frozen --quiet --no-dev --no-hashes --no-emit-project --extra kokoro \
+		--output-file "$$AITTS_CONSTRAINTS"
+	@uv tool install --force --python $(PYTHON_VERSION) --constraints "$$AITTS_CONSTRAINTS" \
+		--with "kokoro>=0.9.4" \
 		--with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 	@printf '==> installing %s\n' "$$AITTS_APP"
 	@uv run python scripts/build_app_bundle.py --output "$$AITTS_APP" --force
 	@printf '==> installing the launchd user agent\n'
 	@uv run python scripts/render_launch_agent.py \
 		--executable "$$(uv tool dir --bin)/ai-tts" --force
-	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
-	@launchctl bootstrap "$(GUI_DOMAIN)" "$$AITTS_PLIST"
+	@scripts/restart-launch-agent.sh "$(SERVICE)" "$(GUI_DOMAIN)" "$$AITTS_PLIST"
 	@printf '\nInstalled. The daemon is running; the menu-bar app is not.\n'
 	@printf 'Start it when you want it:  open %s\n' "$$AITTS_APP"
 	@printf 'Check the daemon:           make doctor\n'

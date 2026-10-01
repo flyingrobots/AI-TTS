@@ -572,3 +572,7 @@ reference is replaced, not process-wide threading. Both gates are released
 and workers joined during cleanup. Oracle: completion permits reacquisition
 while active playback remains exclusive. Retire only with a stronger
 calibrated completion/reacquisition contract.
+
+## Distribution audit: locked tool install and launchd restart
+
+Change-kind: bug fix. `make install` failed twice over. `uv tool install` ignored `uv.lock`, so huggingface-hub 2.0 backtracked transformers to an unbuildable 4.12.2. Then `bootstrap` raced launchd's asynchronous `bootout` and failed with error 5. A medium distribution test now requires the tool install to take a frozen-lock export as `--constraints` and runs that export against the real lock. It was red on the unfixed Makefile, and dropping the kokoro extra fails it. Two medium tests drive `scripts/restart-launch-agent.sh` against a fake launchctl that lingers after bootout. Both were red on the script moved verbatim from the Makefile. Oracle: uv.lock as the tested runtime graph, and launchd's observed bootout/bootstrap behavior. Receipt: `docs/testing-evidence/2026-09-30-locked-install.md`. Retire these when installation leaves uv tool or launchd.

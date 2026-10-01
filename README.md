@@ -12,7 +12,11 @@ The default backend remains `kokoro`. To install the optional native backend
 alongside its fallback from this checkout:
 
 ```sh
-uv tool install --force --python 3.12 --with 'kokoro-mlx==0.1.2' \
+mkdir -p dist
+uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
+  --extra kokoro --extra mlx --output-file dist/install-constraints.txt
+uv tool install --force --python 3.12 --constraints dist/install-constraints.txt \
+  --with 'kokoro-mlx==0.1.2' \
   --with 'kokoro>=0.9.4' \
   --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' .
 ai-tts settings --set engine=kokoro-mlx
@@ -190,7 +194,12 @@ or redistributes its Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
-uv tool install --force --python 3.12 --with "kokoro>=0.9.4" \
+# uv tool install ignores uv.lock, so constrain it to the locked versions
+mkdir -p dist
+uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
+  --extra kokoro --output-file dist/install-constraints.txt
+uv tool install --force --python 3.12 --constraints dist/install-constraints.txt \
+  --with "kokoro>=0.9.4" \
   --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 
 # build an ad-hoc-signed, checkout-independent menu-bar app
@@ -203,9 +212,8 @@ AI_TTS_BIN="$(uv tool dir --bin)/ai-tts"
 python3 scripts/render_launch_agent.py \
   --executable "$AI_TTS_BIN" \
   --force
-launchctl bootout "gui/$(id -u)" \
-  "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" \
+# bootout returns before launchd finishes; this waits before bootstrapping
+scripts/restart-launch-agent.sh "gui/$(id -u)/com.flyingrobots.ai-tts" "gui/$(id -u)" \
   "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist"
 open "$HOME/Applications/AI-TTS.app"
 ```
