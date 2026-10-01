@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use.
+- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use. The card opens after the pointer rests on the button for 400 ms, so moving the pointer across History opens no cards and sends no daemon requests.
 
 ### Fixed
 

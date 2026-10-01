@@ -60,6 +60,36 @@ final class ProvenanceCardPresenterTests: XCTestCase {
     }
 
     @MainActor
+    func testPassingPointerNeitherOpensNorRequestsDetails() {
+        let scheduler = ManualCardScheduler()
+        let card = ProvenanceCardPresenter(scheduler: scheduler)
+        var loads = 0
+
+        card.triggerHover(true) { loads += 1 }
+        card.triggerHover(false) { loads += 1 }
+        scheduler.firePending()
+
+        XCTAssertFalse(card.isPresented, "Crossing a row on the way elsewhere must not open its card")
+        XCTAssertEqual(loads, 0, "Crossing a row must not send a provenance request to the daemon")
+    }
+
+    @MainActor
+    func testRestingOnTheTriggerOpensAfterTheHoverIntentDelay() {
+        let scheduler = ManualCardScheduler()
+        let card = ProvenanceCardPresenter(scheduler: scheduler)
+        var loads = 0
+
+        card.triggerHover(true) { loads += 1 }
+        XCTAssertFalse(card.isPresented)
+        XCTAssertEqual(loads, 0)
+        XCTAssertEqual(scheduler.pendingDelays, [ProvenanceCardPresenter.hoverIntentDelay])
+
+        scheduler.firePending()
+        XCTAssertTrue(card.isPresented)
+        XCTAssertEqual(loads, 1)
+    }
+
+    @MainActor
     func testSystemDismissalAndRowRemovalCloseAndCancelPendingWork() {
         let scheduler = ManualCardScheduler()
         let card = ProvenanceCardPresenter(scheduler: scheduler)

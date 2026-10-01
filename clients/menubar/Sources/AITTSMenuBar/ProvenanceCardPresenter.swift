@@ -26,13 +26,14 @@ struct TaskProvenanceCardScheduler: ProvenanceCardScheduling {
 
 /// Decides when one History row's provenance card is shown.
 ///
-/// Hovering the trigger or activating it opens the card. Leaving the trigger
+/// Resting on the trigger or activating it opens the card. Leaving the trigger
 /// or the card dismisses it after a grace period, so the pointer can cross
 /// the gap between them. `open` runs exactly when the card goes from hidden
 /// to shown; the row uses it to request fresh details.
 @MainActor
 final class ProvenanceCardPresenter: ObservableObject {
     static let dismissalGrace: Duration = .milliseconds(250)
+    static let hoverIntentDelay: Duration = .milliseconds(400)
 
     @Published private(set) var isPresented = false
 
@@ -57,9 +58,15 @@ final class ProvenanceCardPresenter: ObservableObject {
         }
     }
 
-    func triggerHover(_ hovering: Bool, open: () -> Void) {
+    /// Hovering opens only after the pointer rests on the trigger, so sweeping
+    /// across History neither flashes cards nor sends a daemon request per row.
+    func triggerHover(_ hovering: Bool, open: @escaping () -> Void) {
         if hovering {
-            present(open)
+            cancelPendingWork()
+            guard !isPresented else { return }
+            cancelPending = scheduler.schedule(after: Self.hoverIntentDelay) { [weak self] in
+                self?.present(open)
+            }
         } else {
             scheduleDismissal()
         }
@@ -88,6 +95,7 @@ final class ProvenanceCardPresenter: ObservableObject {
 
     private func scheduleDismissal() {
         cancelPendingWork()
+        guard isPresented else { return }
         cancelPending = scheduler.schedule(after: Self.dismissalGrace) { [weak self] in
             self?.cancelPending = nil
             self?.isPresented = false
