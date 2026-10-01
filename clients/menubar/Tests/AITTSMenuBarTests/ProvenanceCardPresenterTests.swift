@@ -60,6 +60,29 @@ final class ProvenanceCardPresenterTests: XCTestCase {
     }
 
     @MainActor
+    func testDismissalFollowsWhereThePointerIsNotTheLastEventDelivered() {
+        let scheduler = ManualCardScheduler()
+        let card = ProvenanceCardPresenter(scheduler: scheduler)
+        card.activate {}
+        card.triggerHover(true) {}
+
+        // The trigger and the card are separate windows; enter may precede the matching exit.
+        card.cardHover(true)
+        card.triggerHover(false) {}
+        scheduler.firePending()
+        XCTAssertTrue(card.isPresented, "The pointer is inside the card")
+
+        card.triggerHover(true) {}
+        card.cardHover(false)
+        scheduler.firePending()
+        XCTAssertTrue(card.isPresented, "The pointer is back on the trigger")
+
+        card.triggerHover(false) {}
+        scheduler.firePending()
+        XCTAssertFalse(card.isPresented, "The pointer left both regions")
+    }
+
+    @MainActor
     func testPassingPointerNeitherOpensNorRequestsDetails() {
         let scheduler = ManualCardScheduler()
         let card = ProvenanceCardPresenter(scheduler: scheduler)

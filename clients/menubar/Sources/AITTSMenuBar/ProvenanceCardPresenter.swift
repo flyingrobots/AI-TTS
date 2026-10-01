@@ -39,6 +39,10 @@ final class ProvenanceCardPresenter: ObservableObject {
 
     private let scheduler: any ProvenanceCardScheduling
     private var cancelPending: (@MainActor () -> Void)?
+    // The trigger and the card are separate windows, so one region's enter can
+    // arrive before the other's exit. Dismissal depends on both, not the last event.
+    private var triggerHovered = false
+    private var cardHovered = false
 
     init(scheduler: any ProvenanceCardScheduling = TaskProvenanceCardScheduler()) {
         self.scheduler = scheduler
@@ -61,6 +65,7 @@ final class ProvenanceCardPresenter: ObservableObject {
     /// Hovering opens only after the pointer rests on the trigger, so sweeping
     /// across History neither flashes cards nor sends a daemon request per row.
     func triggerHover(_ hovering: Bool, open: @escaping () -> Void) {
+        triggerHovered = hovering
         if hovering {
             cancelPendingWork()
             guard !isPresented else { return }
@@ -73,6 +78,7 @@ final class ProvenanceCardPresenter: ObservableObject {
     }
 
     func cardHover(_ hovering: Bool) {
+        cardHovered = hovering
         if hovering {
             cancelPendingWork()
         } else {
@@ -83,6 +89,8 @@ final class ProvenanceCardPresenter: ObservableObject {
     /// Close now and forget any pending work, e.g. the close button or row removal.
     func close() {
         cancelPendingWork()
+        // A closed card's window is gone, so its exit event may never arrive.
+        cardHovered = false
         isPresented = false
     }
 
@@ -95,10 +103,11 @@ final class ProvenanceCardPresenter: ObservableObject {
 
     private func scheduleDismissal() {
         cancelPendingWork()
-        guard isPresented else { return }
+        guard isPresented, !triggerHovered, !cardHovered else { return }
         cancelPending = scheduler.schedule(after: Self.dismissalGrace) { [weak self] in
-            self?.cancelPending = nil
-            self?.isPresented = false
+            guard let self else { return }
+            self.cancelPending = nil
+            if !self.triggerHovered && !self.cardHovered { self.isPresented = false }
         }
     }
 
