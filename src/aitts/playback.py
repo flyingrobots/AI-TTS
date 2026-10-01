@@ -933,7 +933,9 @@ class PlaybackController:
         """Release the live device before the daemon closes its store and spools."""
         async with self._transport_lock:
             current = self._current()
-            if current is not None and not current.is_terminal:
+            # An existing hold already captured the playhead; holding again
+            # would erase a microphone hold's durable reason.
+            if current is not None and not current.is_terminal and not self.held:
                 await self._hold(reason=None, cause="daemon_shutdown")
             await self.stop()
 
