@@ -116,7 +116,6 @@ final class SpeechSelectionTracker: NSObject {
     deinit {
         if let activationObserver { applicationNotifications.removeObserver(activationObserver) }
     }
-
 }
 
 struct SpeechComposerView: View {
