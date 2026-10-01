@@ -654,6 +654,42 @@ async def test_stop_near_the_end_fades_out_before_the_source_runs_out(tmp_path: 
     assert_closes_softly(streams.opened[0])
 
 
+@pytest.mark.oracle(
+    "listener report: a stop pops when the close cuts audible output; review PRRT_kwDOUHyfMM6oCN3N"
+)
+async def test_a_stop_during_the_fade_in_closes_from_the_gain_reached(tmp_path: Path) -> None:
+    """At 192 kHz the fade-in outlasts a block; the fade-out must start where it stopped.
+
+    Restarting the closing envelope at full gain jumped from about 0.55 of the
+    signal to all of it.
+    """
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    rate = 192_000
+    steady = tmp_path / "steady.wav"
+    sf.write(str(steady), np.full(rate, 0.5, dtype="float32"), rate, format="WAV")
+    device = FakeAudioDevice(identity="macbook-speakers")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    def move_then_stop_inside_the_fade_in() -> None:
+        if len(streams.opened) == 1:
+            device.identity = "studio-display"
+        else:
+            sink.stop()
+
+    streams.on_write = move_then_stop_inside_the_fade_in
+    sink.start(steady)
+    assert await sink.wait() is False
+
+    reopened = streams.opened[1]
+    assert len(reopened.blocks[0]) == SoundDeviceSink._BLOCK_FRAMES
+    assert reopened.blocks[0][-1, 0] < 0.5 * 0.9, "the first block ended inside the fade-in"
+    assert_opens_softly(reopened)
+    assert_closes_softly(reopened)
+
+
 class _PausedOnceEvent(threading.Event):
     """Reports a pause to its first query only, as if resume landed straight after."""
 

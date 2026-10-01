@@ -395,7 +395,14 @@ class SoundDeviceSink:
                 self._set_position_ms(source_frame / self._samplerate * 1000)
             interrupted = moved or paused or self._stop_flag.is_set()
             if interrupted and wrote_audio:
-                self._write_output(stream, self._soft_close(audio, source_frame))
+                # Close from the gain the next frame would have had, so an
+                # unfinished fade-in turns into a fade-out without a jump.
+                opening_gain = (
+                    float(fade_in[faded_in])
+                    if fade_in is not None and faded_in < len(fade_in)
+                    else 1.0
+                )
+                self._write_output(stream, self._soft_close(audio, source_frame, opening_gain))
         return source_frame
 
     def _fade_in_gain(self, audio: Any) -> Any:  # noqa: ANN401 - soundfile handle in, numpy gain out
@@ -423,7 +430,7 @@ class SoundDeviceSink:
             ]
         ).astype("float32")
 
-    def _soft_close(self, audio: Any, source_frame: float) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
+    def _soft_close(self, audio: Any, source_frame: float, opening_gain: float = 1.0) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
         """Fade out what would have played next, then hold silence until close.
 
         Closing drains PortAudio's buffer and then stops the CoreAudio output
@@ -443,7 +450,7 @@ class SoundDeviceSink:
             # Near the end there is less source than fade. Hold the last
             # sample so the envelope, not the edge of the file, reaches zero.
             fade[audible:] = fade[audible - 1]
-        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
+        gain = opening_gain * 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
         silence = np.zeros((silence_frames, audio.channels), dtype="float32")
         return np.concatenate([(gain[:, None] * fade).astype("float32"), silence])
 
