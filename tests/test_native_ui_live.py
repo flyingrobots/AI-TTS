@@ -96,7 +96,11 @@ async def candidate_session(candidate: Path, probe: Path, socket: Path) -> Async
         try:
             if app is not None and app.returncode is None:
                 app.terminate()
-                await asyncio.wait_for(app.wait(), 3)
+                try:
+                    await asyncio.wait_for(app.wait(), 3)
+                except TimeoutError:
+                    app.kill()
+                    await app.wait()
         finally:
             if incumbent:
                 await command("/usr/bin/open", str(incumbent[1]))

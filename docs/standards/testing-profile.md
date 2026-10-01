@@ -922,3 +922,23 @@ native action metadata and specific navigation/state changes, not human
 VoiceOver traversal, acoustic playback, cross-display sizing or the remaining
 host/Shortcuts matrix. Retire these checks only with equivalent calibrated
 cross-process native action-discoverability coverage.
+
+
+## Native UI audit: reap a stubborn candidate before restoration
+
+Change-kind: bug fix (test harness). A medium session-boundary regression owns
+real child processes and substitutes incumbent discovery/restoration, so it
+never stops a user's app. The candidate installs SIGTERM-ignore before sending
+an explicit readiness handshake. Unfixed teardown restored the incumbent while
+the candidate remained alive: the restoration-time exit oracle observed false.
+Teardown now escalates after its three-second grace period and reaps the owned
+candidate before restoration. The same test passes. Retire with this session
+harness or equivalent calibrated process-ownership coverage.
+
+Additional signed-candidate acceptance on 2026-09-30 exercised the composer
+against an owned paused daemon: submitting `Owned composer acceptance.` produced
+that exact queue text with source `menubar-composer`, cleared the editor, and
+showed `Queued. Playback is paused; use Resume when you're ready.` (with the UI's
+curly apostrophe). FakeSink kept the probe silent. This does not establish file
+attachment, clipboard, host Services, custom Shortcut, human VoiceOver,
+cross-display or acoustic acceptance.
