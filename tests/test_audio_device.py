@@ -250,24 +250,32 @@ async def test_default_output_change_mid_clip_reopens_without_losing_frames(tone
 async def test_default_output_change_while_paused_is_adopted_on_resume(tone: Path) -> None:
     device = FakeAudioDevice(identity="macbook-speakers")
     streams = RecordingStreams(device)
-    sink = SoundDeviceSink(device=device, open_stream=streams)
+    closed = closing_notifications(streams)
+    sink = SoundDeviceSink(device=device, open_stream=closed.open_stream)
+    # Hold the audio thread just after the pause request; acting on
+    # `sink.paused` alone would then always beat the close.
+    gate = threading.Event()
 
     def pause_after_one_block() -> None:
         if streams.frames >= SoundDeviceSink._BLOCK_FRAMES:
             streams.on_write = lambda: None
             sink.pause()
+            gate.wait(timeout=5)
 
     streams.on_write = pause_after_one_block
 
     sink.start(tone)
-    while not sink.paused:  # noqa: ASYNC110 - waiting on the sink's own audio thread
-        await asyncio.sleep(0.005)
+    gate.set()
+    await closed.next()
     device.identity = "studio-display"
 
     # A held player owns no running stream. Resume must adopt the new device
     # within this clip, rather than opening a starving stream while paused.
     sink.resume()
     assert await sink.wait() is True
+    # The pause, not the device move, released the first stream: one source
+    # block, then its closing block.
+    assert len(streams.opened[0].blocks) == 2
     assert streams.opened[-1].identity == "studio-display"
     assert_source_heard_once(streams, tone)
 
