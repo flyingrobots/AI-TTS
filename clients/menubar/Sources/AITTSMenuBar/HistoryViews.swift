@@ -102,8 +102,7 @@ struct HistoryView: View {
 struct HistoryRow: View {
     @EnvironmentObject var state: AppState
     let item: Utterance
-    @State private var showingProvenance = false
-    @State private var provenanceDismissal: Task<Void, Never>?
+    @StateObject private var provenanceCard = ProvenanceCardPresenter()
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -173,24 +172,19 @@ struct HistoryRow: View {
             }
             .padding(.leading, 41)
 
-            ProvenanceButton(expanded: showingProvenance) {
-                if showingProvenance {
-                    showingProvenance = false
-                } else {
-                    openProvenance()
-                }
+            ProvenanceButton(expanded: provenanceCard.isPresented) {
+                provenanceCard.activate(open: loadFreshProvenance)
             }
             .frame(width: 100, height: 24)
             .onHover { hovering in
-                if hovering { openProvenance() }
-                else { dismissProvenanceAfterHover() }
+                provenanceCard.triggerHover(hovering, open: loadFreshProvenance)
             }
-            .popover(isPresented: $showingProvenance, arrowEdge: .trailing) {
+            .popover(isPresented: provenanceCard.presentation, arrowEdge: .trailing) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Provenance").font(.headline)
                         Spacer()
-                        Button { showingProvenance = false } label: {
+                        Button { provenanceCard.close() } label: {
                             Image(systemName: "xmark")
                         }
                         .buttonStyle(.borderless)
@@ -206,10 +200,7 @@ struct HistoryRow: View {
                 }
                 .padding(12)
                 .frame(width: 340)
-                .onHover { hovering in
-                    if hovering { provenanceDismissal?.cancel() }
-                    else { dismissProvenanceAfterHover() }
-                }
+                .onHover { hovering in provenanceCard.cardHover(hovering) }
             }
             .padding(.leading, 41)
 
@@ -221,28 +212,13 @@ struct HistoryRow: View {
             }
         }
         .padding(.vertical, 2)
-        .onDisappear {
-            provenanceDismissal?.cancel()
-            showingProvenance = false
-        }
+        .onDisappear { provenanceCard.close() }
     }
 
-    private func openProvenance() {
-        provenanceDismissal?.cancel()
-        guard !showingProvenance else { return }
+    /// Each opening requests fresh details, which is also how a failed load is retried.
+    private func loadFreshProvenance() {
         state.provenanceDetails[item.id] = nil
         state.loadProvenance(item.id)
-        showingProvenance = true
-    }
-
-    private func dismissProvenanceAfterHover() {
-        provenanceDismissal?.cancel()
-        provenanceDismissal = Task { @MainActor in
-            // Allow crossing the gap between the trigger and its floating card.
-            do { try await Task.sleep(for: .milliseconds(250)) }
-            catch { return }
-            showingProvenance = false
-        }
     }
 
     private var time: String {
