@@ -11,7 +11,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
 
-- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. The restart lives in `scripts/restart-launch-agent.sh` and gives up with a reason after ten seconds.
+- `make install` rebuilds the ai-tts package on every run. uv reused its cached build of the checkout whenever the version stayed the same, so an install could report success while the daemon kept running the previous code.
+
+- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. If the old service has not left after ten seconds, it gives up with a reason and restores the previous configuration.
+
+- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
+
+- The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
+
+- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
+
+- Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
+
+- App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.
+
+- Agent integration preserves embedded and trailing newlines in executable paths instead of failing skill rendering or silently changing the path.
+
+- Installation reports launchd registration without claiming the daemon is healthy or running; `make doctor` remains the explicit status check.
+
+- If launchd rejects an updated service configuration, installation restores the prior plist and attempts to reload it only when the service was previously loaded. A loaded service without a recoverable plist is not stopped.
+
+- `make install` prepares the signed app and launch-agent plist before replacing the CLI, so build or preparation failures cannot partially upgrade the executable installation. Explicit app, plist, and log destinations are passed through consistently.
+
+- `make doctor` reports a failed daemon status check when the executable is found through uv rather than PATH.
+
+- Skill upgrades render to a sibling temporary file before replacement, preserving the installed SKILL.md when rendering fails.
+
+- Failed MCP registration no longer removes an existing agent registration or reports success. Other selected agents are still attempted, and the installer exits nonzero if any registration fails.
+
+- Forced app upgrades build, package and sign a sibling candidate before atomically swapping it into place. Build failures preserve the installed app, and unsupported filesystems fail without deleting it.
+
+- Forced launch-agent upgrades preserve the existing plist if validation or serialization fails, and publish only a complete replacement. Unforced installs refuse concurrent replacement.
 
 - Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
 

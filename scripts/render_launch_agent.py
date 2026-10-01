@@ -9,6 +9,7 @@ import argparse
 import os
 import plistlib
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -26,13 +27,15 @@ def _ensure_private_log_directory(path: Path) -> None:
         os.close(descriptor)
 
 
-def render_launch_agent(*, executable: Path, output: Path, log_path: Path) -> Path:
+def render_launch_agent(
+    *, executable: Path, output: Path, log_path: Path, force: bool = False
+) -> Path:
     """Write a shell-free launch-agent plist using absolute installed paths."""
     for name, path in (("executable", executable), ("output", output), ("log_path", log_path)):
         if not path.is_absolute():
             msg = f"{name} must be an absolute path: {path}"
             raise ValueError(msg)
-    if output.exists():
+    if output.exists() and not force:
         msg = f"refusing to replace existing launch agent: {output}"
         raise FileExistsError(msg)
 
@@ -47,9 +50,18 @@ def render_launch_agent(*, executable: Path, output: Path, log_path: Path) -> Pa
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     _ensure_private_log_directory(log_path.parent)
-    with output.open("wb") as stream:
-        plistlib.dump(payload, stream, sort_keys=True)
-    output.chmod(0o644)
+    with tempfile.TemporaryDirectory(dir=output.parent, prefix=f".{output.name}-") as staging:
+        candidate = Path(staging) / output.name
+        with candidate.open("wb") as stream:
+            plistlib.dump(payload, stream, sort_keys=True)
+            stream.flush()
+            os.fchmod(stream.fileno(), 0o644)
+            os.fsync(stream.fileno())
+        if force:
+            candidate.replace(output)
+        else:
+            # Publish without overwriting a file created since the early check.
+            os.link(candidate, output)
     return output
 
 
@@ -72,11 +84,16 @@ def main(argv: list[str] | None = None) -> int:
     executable = args.executable.expanduser().resolve()
     output = args.output.expanduser().resolve()
     log_path = args.log_path.expanduser().absolute()
-    if output.exists():
-        if not args.force:
+    if output.exists() and not args.force:
+        parser.error(f"output already exists: {output}; pass --force to replace it")
+    try:
+        render_launch_agent(
+            executable=executable, output=output, log_path=log_path, force=args.force
+        )
+    except FileExistsError:
+        if not args.force and output.exists():
             parser.error(f"output already exists: {output}; pass --force to replace it")
-        output.unlink()
-    render_launch_agent(executable=executable, output=output, log_path=log_path)
+        raise
     sys.stdout.write(f"{output}\n")
     return 0
 

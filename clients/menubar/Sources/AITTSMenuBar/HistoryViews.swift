@@ -141,6 +141,7 @@ struct HistoryRow: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Read the whole thing in its own window")
+                .accessibilityLabel("Read full text")
                 Button {
                     state.removeHistory(item.id)
                 } label: {
@@ -148,6 +149,7 @@ struct HistoryRow: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Remove from history")
+                .accessibilityLabel("Remove from history")
             }
 
             HStack(spacing: 6) {
@@ -244,6 +246,7 @@ struct RequeueControl: View {
                 }
             } label: {
                 Image(systemName: "chevron.down")
+                    .accessibilityLabel("Choose re-queue urgency")
                     .font(.system(size: 9, weight: .semibold))
                     .frame(width: 20, height: 20)
             }
