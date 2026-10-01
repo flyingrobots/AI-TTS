@@ -572,3 +572,7 @@ reference is replaced, not process-wide threading. Both gates are released
 and workers joined during cleanup. Oracle: completion permits reacquisition
 while active playback remains exclusive. Retire only with a stronger
 calibrated completion/reacquisition contract.
+
+## Playback audit: soft stream close
+
+Change-kind: bug fix with an approved contract change. Skips popped because closing a CoreAudio stream can truncate the in-flight hardware buffer, and the old 5 ms stop ramp was shorter than that buffer. Pause had no fade at all. Stop and pause now write a 20 ms raised-cosine fade of the upcoming source, without advancing the playhead, followed by 100 ms of silence. The stop test that pinned the 120-frame ramp was replaced, with the user's approval. Two pause tests keep their frame-conservation oracles but exclude the closing block. All three now require a bounded step and held trailing silence, and all three were red on unfixed code. Removing the silence or the fade fails each one. Oracle: the listener report and CoreAudio close behavior. Receipt: `docs/testing-evidence/2026-09-30-soft-stream-close.md`. The absence of an audible pop is accepted by ear on the installed build.

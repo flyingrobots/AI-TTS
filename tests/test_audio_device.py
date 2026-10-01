@@ -239,7 +239,10 @@ async def test_default_output_change_while_paused_is_adopted_on_resume(tone: Pat
     sink.resume()
     assert await sink.wait() is True
     assert streams.opened[-1].identity == "studio-display"
-    assert streams.frames == _FRAMES
+    paused = streams.opened[0]
+    assert_closes_softly(paused)
+    # The paused stream's closing fade is not source audio.
+    assert streams.frames - len(paused.blocks[-1]) == _FRAMES
 
 
 async def test_stop_during_a_device_change_does_not_reopen(tone: Path) -> None:
@@ -516,13 +519,40 @@ async def test_repeated_pauses_release_output_and_resume_without_changing_sample
         sink.resume()
         await sink.wait()
 
+    # Each paused stream closes with one fade-and-silence block that is not
+    # source audio. Every source frame is still heard exactly once.
+    paused, final = streams.opened[:-1], streams.opened[-1]
+    for stream in paused:
+        assert_closes_softly(stream)
     np.testing.assert_array_equal(
-        np.concatenate([block for stream in streams.opened for block in stream.blocks]),
+        np.concatenate([block for stream in paused for block in stream.blocks[:-1]] + final.blocks),
         source_samples(tone),
     )
 
 
-async def test_stop_ramps_to_silence_without_consuming_more_source(tone: Path) -> None:
+# Closing a CoreAudio stream drains PortAudio's buffer, then stops the output
+# unit, which can cut the hardware buffer still in flight. Whatever is cut
+# must be silence, or the listener hears a pop on every skip and pause.
+_SOFT_CLOSE_SILENCE_FRAMES = int(_SAMPLERATE * 0.1)
+# Largest sample-to-sample step accepted in a fade of this fixture's ramp.
+_FADE_MAX_STEP = 0.01
+
+
+def assert_closes_softly(stream: RecordingStream) -> None:
+    """The stream's output fades without a step and ends in held silence."""
+    import numpy as np  # noqa: PLC0415
+
+    output = np.concatenate(stream.blocks)[:, 0]
+    assert np.max(np.abs(np.diff(output))) <= _FADE_MAX_STEP, "the fade has an audible step"
+    tail = output[-_SOFT_CLOSE_SILENCE_FRAMES:]
+    assert len(tail) == _SOFT_CLOSE_SILENCE_FRAMES
+    assert np.all(tail == 0), "the stream closes before its output has gone silent"
+
+
+@pytest.mark.oracle(
+    "listener report: skips pop because CoreAudio truncates the in-flight buffer at close"
+)
+async def test_stop_fades_to_held_silence_without_consuming_more_source(tone: Path) -> None:
     import numpy as np  # noqa: PLC0415
 
     device = FakeAudioDevice(identity="controlled-output")
@@ -531,12 +561,11 @@ async def test_stop_ramps_to_silence_without_consuming_more_source(tone: Path) -
     streams.on_write = sink.stop
     sink.start(tone)
     assert await sink.wait() is False
-    blocks = streams.opened[0].blocks
-    assert len(blocks) == 2
-    assert len(blocks[-1]) == 120  # 5 ms at this fixture's 24 kHz
-    assert blocks[-1][0, 0] == blocks[0][-1, 0]
-    assert blocks[-1][-1, 0] == 0
-    assert np.all(np.diff(blocks[-1][:, 0]) <= 0)
+    stream = streams.opened[0]
+    assert len(stream.blocks) == 2
+    assert_closes_softly(stream)
+    # The fade starts from the sample that would have played next.
+    np.testing.assert_allclose(stream.blocks[-1][0], source_samples(tone)[2048], atol=1e-6)
     assert sink.position_ms() == int(2048 / 24000 * 1000)
 
 

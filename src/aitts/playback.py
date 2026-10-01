@@ -200,6 +200,11 @@ class SoundDeviceSink:
     """
 
     _BLOCK_FRAMES = 2048
+    # A skip or pause fades over this long, then writes this much silence so
+    # the close truncates nothing audible. The silence exceeds the 78 ms
+    # output latency PortAudio reported on the built-in speakers.
+    _FADE_SECONDS = 0.02
+    _CLOSE_SILENCE_SECONDS = 0.1
     # Consecutive readings agreeing on a new device before it is followed.
     # A single disagreeing reading is noise; two in a row is a decision. The
     # same confirmation idea guards the input-activity reading.
@@ -326,8 +331,6 @@ class SoundDeviceSink:
         A pause also closes the stream. Returns the frame reached, so the
         caller can resume without repeating or dropping source audio.
         """
-        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
-
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
         self._opened_on = self._device.default_output_identity()
@@ -347,47 +350,68 @@ class SoundDeviceSink:
                 latency_seconds=getattr(stream, "latency", None),
                 block_frames=self._BLOCK_FRAMES,
             )
-            last_sample = None
+            wrote_audio = False
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
                     self._audio_event("output_device_changed")
                     log.info("event=audio_output_device_changed")
                     return source_frame
                 if self._pause_flag.is_set():
-                    return source_frame
+                    break
                 rate = self._current_rate()
                 remaining = len(audio) - source_frame
                 output_frames = min(
                     self._BLOCK_FRAMES,
                     max(1, math.ceil(remaining / rate)),
                 )
-                source_positions = source_frame + np.arange(output_frames) * rate
-                first_source = int(source_frame)
-                final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
-                audio.seek(first_source)
-                source = audio.read(
-                    final_source - first_source + 1,
-                    dtype="float32",
-                    always_2d=True,
-                )
-                relative_positions = source_positions - first_source
-                source_axis = np.arange(len(source))
-                block = np.column_stack(
-                    [
-                        np.interp(relative_positions, source_axis, source[:, channel])
-                        for channel in range(audio.channels)
-                    ]
-                ).astype("float32")
-                last_sample = block[-1]
+                block = self._render(audio, source_frame, output_frames, rate)
+                wrote_audio = True
                 self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
-            if self._stop_flag.is_set() and last_sample is not None:
-                # End at silence without consuming source frames that must be
-                # heard after resumption. Device close drains this short tail.
-                ramp = np.linspace(1.0, 0.0, max(2, int(audio.samplerate * 0.005)))
-                self._write_output(stream, (ramp[:, None] * last_sample).astype("float32"))
+            interrupted = self._stop_flag.is_set() or self._pause_flag.is_set()
+            if interrupted and wrote_audio:
+                self._write_output(stream, self._soft_close(audio, source_frame))
         return source_frame
+
+    def _render(self, audio: Any, source_frame: float, frames: int, rate: float) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
+        """Resample ``frames`` output frames from ``source_frame`` at ``rate``."""
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        source_positions = source_frame + np.arange(frames) * rate
+        first_source = int(source_frame)
+        final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
+        audio.seek(first_source)
+        source = audio.read(final_source - first_source + 1, dtype="float32", always_2d=True)
+        relative_positions = source_positions - first_source
+        source_axis = np.arange(len(source))
+        return np.column_stack(
+            [
+                np.interp(relative_positions, source_axis, source[:, channel])
+                for channel in range(audio.channels)
+            ]
+        ).astype("float32")
+
+    def _soft_close(self, audio: Any, source_frame: float) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
+        """Fade out what would have played next, then hold silence until close.
+
+        Closing drains PortAudio's buffer and then stops the CoreAudio output
+        unit, which can cut the hardware buffer still in flight. Cutting speech
+        is an audible pop; cutting the trailing silence is not. The fade reads
+        ahead without moving the playhead, so resumption repeats nothing.
+        """
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        fade_frames = max(2, int(audio.samplerate * self._FADE_SECONDS))
+        silence_frames = int(audio.samplerate * self._CLOSE_SILENCE_SECONDS)
+        rate = self._current_rate()
+        audible = min(fade_frames, max(0, math.ceil((len(audio) - source_frame) / rate)))
+        fade = np.zeros((fade_frames, audio.channels), dtype="float32")
+        if audible:
+            fade[:audible] = self._render(audio, source_frame, audible, rate)
+        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
+        silence = np.zeros((silence_frames, audio.channels), dtype="float32")
+        return np.concatenate([(gain[:, None] * fade).astype("float32"), silence])
 
     def _write_output(self, stream: OutputStream, block: Any) -> None:  # noqa: ANN401 - a numpy block of PCM frames
         if stream.write(block):

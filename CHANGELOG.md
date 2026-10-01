@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Skip, stop, and pause no longer pop. The sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing the stream. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. Pause previously had no fade at all.
+
 - Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
 
 - Daemon shutdown retires active audio and its completion watcher before closing state or releasing ownership, preserving the final parent/child position for explicit resume.
