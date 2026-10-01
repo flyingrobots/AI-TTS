@@ -57,6 +57,14 @@ def falling_cosine(frames: int) -> np.ndarray:
     return 0.5 * (1 + np.cos(np.linspace(0.0, np.pi, frames)))
 
 
+def rising_cosine(frames: int) -> np.ndarray:
+    return 0.5 * (1 - np.cos(np.linspace(0.0, np.pi, frames)))
+
+
+_HELD_MS = 500
+_HELD_FRAME = _HELD_MS * SAMPLE_RATE // 1000
+
+
 async def test_stop_fades_the_upcoming_source_then_holds_silence_before_closing(
     tmp_path: Path,
 ) -> None:
@@ -122,6 +130,61 @@ async def test_stop_near_the_end_holds_the_last_sample_under_the_fade(tmp_path: 
             held * falling_cosine(_FADE),
             atol=1e-6,
             err_msg="with less source than fade, the last sample is held under the envelope",
+        )
+    finally:
+        sink.stop()
+        source.release()
+
+
+async def test_a_mid_clip_open_fades_in_from_silence_at_the_held_position(
+    tmp_path: Path,
+) -> None:
+    samples = tone(SAMPLE_RATE)
+    device = BlockDevice()
+    source = SpoolingPCMStream(tmp_path / "candidate.wav")
+    sink = SoundDeviceSink(device=FakeAudioDevice(), open_callback_stream=device.open)
+    try:
+        source.append(samples.tobytes())
+        sink.start_stream(source, artifact_id="resume", position_ms=_HELD_MS)
+        assert await asyncio.to_thread(device.opened.wait, 1)
+        assert source.wait_buffered(_BLOCK + 1, timeout=1)
+        opening, running = device.block_of(_BLOCK)
+        assert running is True
+        heard = samples[_HELD_FRAME : _HELD_FRAME + _BLOCK] / 32768.0
+        np.testing.assert_allclose(
+            opening[:_FADE, 0],
+            heard[:_FADE] * rising_cosine(_FADE),
+            atol=1e-6,
+            err_msg="a stream opened mid-clip must fade in over 20 ms from exact zero",
+        )
+        np.testing.assert_allclose(opening[_FADE:, 0], heard[_FADE:], atol=1e-6)
+    finally:
+        sink.stop()
+        source.release()
+
+
+async def test_a_stop_during_the_fade_in_closes_from_the_gain_reached(tmp_path: Path) -> None:
+    samples = tone(SAMPLE_RATE)
+    device = BlockDevice()
+    source = SpoolingPCMStream(tmp_path / "candidate.wav")
+    sink = SoundDeviceSink(device=FakeAudioDevice(), open_callback_stream=device.open)
+    partial = _FADE // 2
+    try:
+        source.append(samples.tobytes())
+        sink.start_stream(source, artifact_id="interrupted", position_ms=_HELD_MS)
+        assert await asyncio.to_thread(device.opened.wait, 1)
+        assert source.wait_buffered(_BLOCK + 1, timeout=1)
+        device.block_of(partial)
+        sink.stop()
+        closing, _ = device.block_of(_BLOCK)
+        start = _HELD_FRAME + partial
+        upcoming = samples[start : start + _FADE] / 32768.0
+        reached = rising_cosine(_FADE)[partial]
+        np.testing.assert_allclose(
+            closing[:_FADE, 0],
+            upcoming * reached * falling_cosine(_FADE),
+            atol=1e-6,
+            err_msg="the close must start from the gain the fade-in had reached",
         )
     finally:
         sink.stop()

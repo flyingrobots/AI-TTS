@@ -353,6 +353,16 @@ class PCMStreamRenderer:
         self.underruns = 0
         self.skipped_silence_frames = 0
         self._trim_leading = skip_leading_silence and position_frames == 0
+        # A clip's own audio begins in silence; a renderer opened mid-clip
+        # (resume, route move, preemption restore) fades in from exact zero.
+        self._fade_in = (
+            np.empty(0, dtype=np.float32)
+            if position_frames == 0
+            else (0.5 * (1 - np.cos(np.linspace(0.0, math.pi, SOFT_FADE_FRAMES)))).astype(
+                np.float32
+            )
+        )
+        self._faded_in = 0
 
     def render(self, frames: int, *, rate: float = 1.0) -> NDArray[np.float32]:
         """Fill missing audio with a short decay to silence, without consuming time."""
@@ -383,7 +393,11 @@ class PCMStreamRenderer:
         if count:
             positions = self._phase + np.arange(count) * rate
             output[:count, 0] = np.interp(positions, np.arange(len(self._pending)), self._pending)
-            if self._was_silent:
+            if self._faded_in < len(self._fade_in):
+                take = min(count, len(self._fade_in) - self._faded_in)
+                output[:take, 0] *= self._fade_in[self._faded_in : self._faded_in + take]
+                self._faded_in += take
+            elif self._was_silent:
                 ramp = min(count, 120)
                 output[:ramp, 0] *= np.linspace(0.0, 1.0, ramp)
             advanced = min(count * rate, len(self._pending) - self._phase)
@@ -436,7 +450,12 @@ class PCMStreamRenderer:
             # Near the end there is less source than fade. Hold the last
             # sample so the envelope, not the edge of the source, reaches zero.
             ahead[count:] = ahead[count - 1]
-        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade)))
+        # Close from the gain the next frame would have had, so an unfinished
+        # fade-in turns into a fade-out without a jump.
+        opening = (
+            float(self._fade_in[self._faded_in]) if self._faded_in < len(self._fade_in) else 1.0
+        )
+        gain = opening * 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade)))
         output[:fade, 0] = ahead * gain
         self._last = 0.0
         return output
