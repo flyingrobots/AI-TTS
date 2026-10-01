@@ -654,6 +654,40 @@ async def test_stop_near_the_end_fades_out_before_the_source_runs_out(tmp_path: 
     assert_closes_softly(streams.opened[0])
 
 
+class _PausedOnceEvent(threading.Event):
+    """Reports a pause to its first query only, as if resume landed straight after."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._queries = 0
+
+    def is_set(self) -> bool:
+        self._queries += 1
+        return self._queries == 1
+
+
+@pytest.mark.oracle(
+    "listener report: a stop pops when the close cuts audible output; review PRRT_kwDOUHyfMM6oCN3H"
+)
+async def test_a_pause_resumed_at_once_still_closes_its_stream_softly(tone: Path) -> None:
+    """The pause that ended the stream decides the close, not a later reading of the flag."""
+    device = FakeAudioDevice(identity="owned-output")
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    def pause_then_resume_immediately() -> None:
+        streams.on_write = lambda: None
+        # Script the race window: paused at the loop check, resumed afterwards.
+        sink._pause_flag = _PausedOnceEvent()
+
+    streams.on_write = pause_then_resume_immediately
+    sink.start(tone)
+    assert await sink.wait() is True
+
+    assert len(streams.opened) == 2
+    assert_source_heard_once(streams, tone)
+
+
 @pytest.mark.oracle("driver underflows in the stop fade are included in per-stream diagnostics")
 async def test_stop_fade_underflow_is_recorded(tone: Path, tmp_path: Path) -> None:
     device = FakeAudioDevice(identity="controlled-output")

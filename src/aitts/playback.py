@@ -366,6 +366,9 @@ class SoundDeviceSink:
             faded_in = 0
             wrote_audio = False
             moved = False
+            # Latched where the loop breaks: a resume can clear the flag
+            # before the close is chosen, and this stream still ends mid-clip.
+            paused = False
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
                     self._audio_event("output_device_changed")
@@ -373,6 +376,7 @@ class SoundDeviceSink:
                     moved = True
                     break
                 if self._pause_flag.is_set():
+                    paused = True
                     break
                 rate = self._current_rate()
                 remaining = len(audio) - source_frame
@@ -389,7 +393,7 @@ class SoundDeviceSink:
                 self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
-            interrupted = moved or self._stop_flag.is_set() or self._pause_flag.is_set()
+            interrupted = moved or paused or self._stop_flag.is_set()
             if interrupted and wrote_audio:
                 self._write_output(stream, self._soft_close(audio, source_frame))
         return source_frame
