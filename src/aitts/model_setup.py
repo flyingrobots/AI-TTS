@@ -14,9 +14,9 @@ import signal
 import subprocess
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 
-from aitts.adapters.private_files import ensure_private_directory
+from aitts.adapters.private_files import PRIVATE_FILE_MODE, ensure_private_directory
 from aitts.engines.managed import runtime_environment
 from aitts.model_catalog import MODELS, WORKER_PROTOCOL_VERSION
 
@@ -158,16 +158,13 @@ class RuntimeInstaller:
                 raise ModelSetupError(message)
             manifest = runtimes / f".{name}-{uuid.uuid4().hex}.json"
             try:
-                with manifest.open("x", encoding="utf-8") as stream:
-                    os.fchmod(stream.fileno(), 0o600)
-                    json.dump(
-                        {
-                            "directory": root.name,
-                            "revision": MODELS[name].revision,
-                            "worker_protocol": WORKER_PROTOCOL_VERSION,
-                        },
-                        stream,
-                    )
+                with _create_private(manifest) as stream:
+                    payload = {
+                        "directory": root.name,
+                        "revision": MODELS[name].revision,
+                        "worker_protocol": WORKER_PROTOCOL_VERSION,
+                    }
+                    stream.write(json.dumps(payload).encode())
                     stream.flush()
                     os.fsync(stream.fileno())
                 manifest.replace(runtimes / f"{name}.json")
@@ -212,6 +209,14 @@ class RuntimeInstaller:
                     process.wait(timeout=2)
                 # Setup contains no submitted speech; retain only bounded, owner-only tool output.
                 diagnostic_path = self.home / "model-runtimes/setup.log"
-                with diagnostic_path.open("wb") as stream:
-                    os.fchmod(stream.fileno(), 0o600)
+                diagnostic_path.unlink(missing_ok=True)
+                with _create_private(diagnostic_path) as stream:
                     stream.write(tail[-_LOG_LIMIT:])
+
+
+def _create_private(path: Path) -> BinaryIO:
+    """Exclusively create an owner-only file without following a planted final symlink."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+    stream = os.fdopen(os.open(path, flags, PRIVATE_FILE_MODE), "wb")
+    os.fchmod(stream.fileno(), PRIVATE_FILE_MODE)
+    return stream

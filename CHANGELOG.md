@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Guided model setup checks every downloaded model file against a SHA-256 digest pinned in the catalog before any file is loaded, so a substituted or corrupted download (including pickled torch weights) is rejected instead of deserialized.
 
+- Guided setup creates its diagnostic log and runtime manifest exclusively with owner-only permissions and never writes through a symlink planted at either path.
+
 ### Changed
 
 - Installation now starts the menu-bar app independently at login and recovers abnormal exits. Intentional Quit keeps it closed, and reopening restores crash recovery. Uninstall removes both launch agents.

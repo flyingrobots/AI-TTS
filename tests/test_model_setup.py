@@ -161,6 +161,23 @@ def test_installer_failure_keeps_diagnostics_private_and_bounded(tmp_path: Path)
     assert stat.S_IMODE(log.stat().st_mode) == 0o600
 
 
+def test_installer_diagnostics_never_write_through_a_planted_symlink(tmp_path: Path) -> None:
+    (tmp_path / "model-runtimes").mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(b"owned bytes")
+    (tmp_path / "model-runtimes/setup.log").symlink_to(outside)
+    with pytest.raises(ModelSetupError):
+        RuntimeInstaller(tmp_path).run(
+            [sys.executable, "-c", "import sys; print('owned diagnostic'); sys.exit(1)"],
+            {},
+            threading.Event(),
+        )
+    log = tmp_path / "model-runtimes/setup.log"
+    assert outside.read_bytes() == b"owned bytes"
+    assert not log.is_symlink()
+    assert stat.S_IMODE(log.stat().st_mode) == 0o600
+
+
 def test_kokoro_language_resources_fit_native_path_limit_in_long_mac_home(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
