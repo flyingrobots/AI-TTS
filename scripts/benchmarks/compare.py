@@ -157,7 +157,7 @@ def main() -> int:
         "orders": orders,
         "observations": observations,
         "decisions": decisions,
-        "gate": "at least five same-machine paired medians; all but one must exceed3x to fail",
+        "gate": "at least five same-machine paired medians; all but one must exceed 3x to fail",
     }
     (args.output / "comparison.json").write_text(json.dumps(report, indent=2) + "\n")
     failures = [name for name, decision in decisions.items() if decision["failed"]]
