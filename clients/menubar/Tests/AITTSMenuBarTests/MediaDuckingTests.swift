@@ -199,6 +199,53 @@ final class MediaDuckingTests: XCTestCase {
     }
 
     @MainActor
+    func testPendingSpeechProcessIsRetriedWithoutAnotherSnapshot() async {
+        let route = OwnedDuckingRoute()
+        var attempts = 0
+        let created = expectation(description: "route created once the daemon is registered")
+        let controller = MediaDuckingController(create: { _ in
+            attempts += 1
+            if attempts == 1 { throw MediaDuckingRouteError.speechProcessPending }
+            created.fulfill()
+            return route
+        }, defaultOutput: { 1 }, lookupRetryDelay: {})
+        controller.update(enabled: true, speaking: true, daemonPID: 12)
+        XCTAssertEqual(controller.status, "Waiting for the speech output process.")
+        await fulfillment(of: [created], timeout: 1)
+        XCTAssertEqual(attempts, 2)
+        XCTAssertEqual(route.gains, [true])
+        controller.close()
+        XCTAssertEqual(route.closed, 1)
+    }
+
+    @MainActor
+    func testPauseCancelsAPendingSpeechProcessRetry() async {
+        var attempts = 0
+        var resume: CheckedContinuation<Void, Never>?
+        let delayEntered = expectation(description: "lookup retry scheduled")
+        let delayExited = expectation(description: "lookup retry released")
+        let controller = MediaDuckingController(create: { _ in
+            attempts += 1
+            throw MediaDuckingRouteError.speechProcessPending
+        }, defaultOutput: { 1 }, lookupRetryDelay: {
+            await withCheckedContinuation { continuation in
+                resume = continuation
+                delayEntered.fulfill()
+            }
+            delayExited.fulfill()
+        })
+        controller.update(enabled: true, speaking: true, daemonPID: 12)
+        await fulfillment(of: [delayEntered], timeout: 1)
+        controller.update(enabled: true, speaking: false, daemonPID: 12)
+        resume?.resume()
+        await fulfillment(of: [delayExited], timeout: 1)
+        await Task.yield()
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(controller.status, "Ready to lower other apps during speech.")
+        controller.close()
+    }
+
+    @MainActor
     func testRetryReplacesARouteStillWaitingForDelivery() {
         var routes: [OwnedDuckingRoute] = []
         let controller = MediaDuckingController(create: { _ in

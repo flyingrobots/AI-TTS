@@ -3,8 +3,17 @@
 
 import Foundation
 
-public enum MediaDuckingRouteError: Error {
+public enum MediaDuckingRouteError: LocalizedError {
     case deliveryInterrupted
+    /// Core Audio has not registered the daemon yet; it does once its output opens.
+    case speechProcessPending
+
+    public var errorDescription: String? {
+        switch self {
+        case .deliveryInterrupted: return "Other-app audio delivery stopped."
+        case .speechProcessPending: return "Waiting for the speech output process."
+        }
+    }
 }
 
 public protocol MediaDuckingRoute: AnyObject {
@@ -23,6 +32,8 @@ public final class MediaDuckingController {
     private let create: (Int32) throws -> any MediaDuckingRoute
     private let defaultOutput: () throws -> UInt32
     private let releaseDelay: () async throws -> Void
+    private let lookupRetryDelay: () async throws -> Void
+    private var lookupRetryTask: Task<Void, Never>?
     private var route: (any MediaDuckingRoute)?
     private var activationTask: Task<Void, Never>?
     private var ready = false
@@ -34,14 +45,18 @@ public final class MediaDuckingController {
     public init(
         create: @escaping (Int32) throws -> any MediaDuckingRoute,
         defaultOutput: @escaping () throws -> UInt32,
-        releaseDelay: @escaping () async throws -> Void = { try await Task.sleep(nanoseconds: 200_000_000) }
+        releaseDelay: @escaping () async throws -> Void = { try await Task.sleep(nanoseconds: 200_000_000) },
+        lookupRetryDelay: @escaping () async throws -> Void = { try await Task.sleep(nanoseconds: 250_000_000) }
     ) {
         self.create = create
         self.defaultOutput = defaultOutput
         self.releaseDelay = releaseDelay
+        self.lookupRetryDelay = lookupRetryDelay
     }
 
     public func update(enabled: Bool, speaking: Bool, daemonPID: Int32?) {
+        lookupRetryTask?.cancel()
+        lookupRetryTask = nil
         guard enabled && speaking, let daemonPID, daemonPID > 0 else {
             restore(status: enabled ? "Ready to lower other apps during speech." : "Ducking is off.")
             return
@@ -68,11 +83,29 @@ public final class MediaDuckingController {
                 publish("Waiting for other-app audio. Allow system-audio access if macOS prompts.")
             }
             beginActivation()
+        } catch MediaDuckingRouteError.speechProcessPending {
+            // The menu can see Playing before the daemon opens its output. That
+            // lookup succeeds shortly, so try again rather than wait for Retry.
+            route?.close()
+            route = nil
+            publish(MediaDuckingRouteError.speechProcessPending.localizedDescription)
+            scheduleLookupRetry(daemonPID: daemonPID)
         } catch {
             route?.close()
             route = nil
             failed = true
             publish(error.localizedDescription)
+        }
+    }
+
+    private func scheduleLookupRetry(daemonPID: Int32) {
+        lookupRetryTask?.cancel()
+        let ticket = generation
+        lookupRetryTask = Task { [weak self, lookupRetryDelay] in
+            do { try await lookupRetryDelay() } catch { return }
+            guard let self, !Task.isCancelled, self.generation == ticket else { return }
+            self.lookupRetryTask = nil
+            self.update(enabled: true, speaking: true, daemonPID: daemonPID)
         }
     }
 
@@ -91,6 +124,8 @@ public final class MediaDuckingController {
     /// Use for application shutdown, when there may be no run loop left for a ramp.
     public func close() {
         generation += 1
+        lookupRetryTask?.cancel()
+        lookupRetryTask = nil
         activationTask?.cancel()
         activationTask = nil
         ready = false
