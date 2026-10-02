@@ -246,6 +246,11 @@ class SoundDeviceSink:
     """
 
     _BLOCK_FRAMES = 2048
+    # An interrupted cue fades over this long, then writes this much silence,
+    # so closing the stream cuts nothing audible. These match the soft close
+    # that interrupted speech uses on the base branch's merge with main.
+    _FADE_SECONDS = 0.02
+    _CLOSE_SILENCE_SECONDS = 0.1
     # Consecutive readings agreeing on a new device before it is followed.
     # A single disagreeing reading is noise; two in a row is a decision. The
     # same confirmation idea guards the input-activity reading.
@@ -594,8 +599,25 @@ class SoundDeviceSink:
         )
         for start in range(0, len(cue), self._BLOCK_FRAMES):
             if self._stop_flag.is_set() or self._pause_flag.is_set():
-                break
+                self._write_output(stream, self._close_cue(cue[start:], samplerate, channels))
+                return
             stream.write(cue[start : start + self._BLOCK_FRAMES].astype("float32"))
+
+    def _close_cue(self, remaining: Any, samplerate: int, channels: int) -> Any:  # noqa: ANN401 - numpy frames in and out
+        """Fade the rest of an interrupted cue like interrupted speech, then hold silence.
+
+        The close can cut the host buffer in flight, so the stream must end in
+        silence rather than mid-waveform.
+        """
+        import numpy as np  # noqa: PLC0415
+
+        fade_frames = max(2, int(samplerate * self._FADE_SECONDS))
+        fade = np.zeros((fade_frames, channels))
+        audible = min(fade_frames, len(remaining))
+        fade[:audible] = remaining[:audible]
+        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
+        silence = np.zeros((int(samplerate * self._CLOSE_SILENCE_SECONDS), channels))
+        return np.concatenate([gain[:, None] * fade, silence]).astype("float32")
 
     def _device_moved_from(self, opened_on: str | None) -> bool:
         """Whether the OS default output has moved away from ``opened_on``.
