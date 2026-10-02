@@ -711,6 +711,9 @@ class SoundDeviceSink:
         fade = np.zeros((fade_frames, channels))
         audible = min(fade_frames, len(remaining))
         fade[:audible] = remaining[:audible]
+        if audible:
+            # Hold the last sample so the envelope, not the cue's edge, reaches zero.
+            fade[audible:] = fade[audible - 1]
         gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
         silence = np.zeros((int(samplerate * self._CLOSE_SILENCE_SECONDS), channels))
         return np.concatenate([gain[:, None] * fade, silence]).astype("float32")

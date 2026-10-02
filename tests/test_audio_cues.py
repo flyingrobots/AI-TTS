@@ -289,3 +289,32 @@ def test_callback_close_during_the_cue_fades_the_rest_of_the_cue(
         assert renderer.position_frames == 0
     finally:
         source.close()
+
+
+@pytest.mark.medium
+@pytest.mark.oracle(
+    "soft stream close receipt (2026-09-30-soft-stream-close.md): with less left than the "
+    "fade, the last sample is held so the envelope, not the edge, reaches zero"
+)
+async def test_file_sink_cue_close_holds_the_last_sample_when_little_remains(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 480)
+    device = FakeAudioDevice()
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    def stop_after_first_cue_block() -> None:
+        if len(streams.opened[0].blocks) == 1:
+            sink.stop()
+
+    streams.on_write = stop_after_first_cue_block
+    # A cue that does not end at zero, with 100 frames left after the first block.
+    sink.set_prefix(struct.pack("<2148h", *([8192] * 2148)))
+    sink.start(path)
+    assert await asyncio.wait_for(sink.wait(), 1) is False
+    written = np.concatenate(streams.opened[0].blocks)[:, 0]
+    assert np.all(written[:2048] == 0.25)
+    assert np.max(np.abs(np.diff(written))) <= 0.01, "the fade has an audible step"
+    assert np.all(written[-2400:] == 0)
