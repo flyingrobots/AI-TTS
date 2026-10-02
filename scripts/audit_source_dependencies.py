@@ -17,6 +17,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+# A bound on followed pages, so a service that keeps returning tokens fails the job.
+_MAX_OSV_PAGES = 100
+
 
 @dataclass(frozen=True)
 class SourcePin:
@@ -91,17 +94,11 @@ def merge_source_audit(
             {"commit": pin.commit},
             {"package": {"ecosystem": "PyPI", "name": pin.name}, "version": pin.version},
         ]
-        responses = [query(request) for request in requests]
-        vulnerabilities = []
-        for response in responses:
-            if not isinstance(response, dict) or set(response) - {"vulns"}:
-                message = "unexpected OSV response"
-                raise ValueError(message)
-            findings = response.get("vulns", [])
-            if not isinstance(findings, list):
-                message = "invalid OSV vulnerability list"
-                raise ValueError(message)  # noqa: TRY004 - malformed service evidence
-            vulnerabilities.extend(findings)
+        queries: list[dict[str, Any]] = []
+        responses: list[object] = []
+        vulnerabilities: list[object] = []
+        for request in requests:
+            _query_all_pages(request, query, queries, responses, vulnerabilities)
         records.append(
             {
                 "name": pin.name,
@@ -110,7 +107,7 @@ def merge_source_audit(
                 "audit_method": "osv_commit_and_package",
                 "source_url": pin.url,
                 "source_sha256": pin.sha256,
-                "queries": requests,
+                "queries": queries,
                 "responses": responses,
                 "limitation": (
                     "No known findings does not establish source security or advisory coverage."
@@ -118,6 +115,38 @@ def merge_source_audit(
             }
         )
     return {**pypi_audit, "dependencies": [*dependencies, *records]}
+
+
+def _query_all_pages(
+    request: dict[str, Any],
+    query: Callable[[dict[str, Any]], object],
+    queries: list[dict[str, Any]],
+    responses: list[object],
+    vulnerabilities: list[object],
+) -> None:
+    """Follow OSV's ``next_page_token`` until the last page, keeping every page."""
+    payload = request
+    for _ in range(_MAX_OSV_PAGES):
+        queries.append(payload)
+        response = query(payload)
+        responses.append(response)
+        if not isinstance(response, dict) or set(response) - {"vulns", "next_page_token"}:
+            message = "unexpected OSV response"
+            raise ValueError(message)
+        findings = response.get("vulns", [])
+        if not isinstance(findings, list):
+            message = "invalid OSV vulnerability list"
+            raise ValueError(message)  # noqa: TRY004 - malformed service evidence
+        vulnerabilities.extend(findings)
+        token = response.get("next_page_token")
+        if token is None:
+            return
+        if not isinstance(token, str) or not token:
+            message = "invalid OSV page token"
+            raise ValueError(message)
+        payload = {**request, "page_token": token}
+    message = f"OSV query did not finish within {_MAX_OSV_PAGES} pages"
+    raise ValueError(message)
 
 
 def query_osv(payload: dict[str, Any]) -> dict[str, Any]:

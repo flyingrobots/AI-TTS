@@ -351,7 +351,7 @@ extension Snapshot {
             playbackRate: (json["settings"] as? [String: Any])?["playback_rate"] as? Double
                 ?? 1.0,
             earconEnabled: (json["settings"] as? [String: Any])?["earcon_enabled"] as? Bool ?? false,
-            duckingEnabled: (json["settings"] as? [String: Any])?["ducking_enabled"] as? Bool ?? true,
+            duckingEnabled: (json["settings"] as? [String: Any])?["ducking_enabled"] as? Bool ?? false,
             captionsEnabled: (json["settings"] as? [String: Any])?["captions_enabled"]
                 as? Bool ?? false,
             captionsEnabledConfigured: (json["settings"] as? [String: Any])?[

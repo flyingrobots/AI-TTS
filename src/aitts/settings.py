@@ -105,7 +105,7 @@ class SettingsService:
             "captions_enabled": self.captions_enabled(),
             "captions_enabled_configured": self._store.has_setting("captions_enabled"),
             "earcon_enabled": self._store.get_setting("earcon_enabled", "false") == "true",
-            "ducking_enabled": self._store.get_setting("ducking_enabled", "true") == "true",
+            "ducking_enabled": self._store.get_setting("ducking_enabled", "false") == "true",
             "input_interrupt_enabled": self.input_interrupt_enabled(),
             "input_interrupt_resume": self.input_interrupt_resume(),
         }
@@ -157,10 +157,10 @@ class SettingsService:
         return lambda: self._write_engine(value)
 
     def _write_engine(self, name: str) -> None:
+        # The saved voice is kept even when this engine lacks it: speaking_voice()
+        # reports a speakable default, and switching back restores the user's choice.
         self._store.set_setting("engine", name)
         self._environment.select_engine(name)
-        if self._store.get_setting("voice", "") not in self._environment.available_voices():
-            self._store.set_setting("voice", self._environment.default_voice())
 
     # -- individual reads, for callers that want one value ----------------
 

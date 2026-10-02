@@ -112,6 +112,10 @@ def configured_engines(
     if name == "fake":
         engines[name] = select_engine(name)
     if name not in engines:
-        msg = f"engine {name!r} is not configured in this daemon"
-        raise ValueError(msg)
+        if override is not None:
+            msg = f"engine {name!r} is not configured in this daemon"
+            raise ValueError(msg)
+        # A live selection persists, but its adapter's environment may be absent at launch.
+        log.warning("event=configured_engine_unavailable fallback=kokoro")
+        name = "kokoro"
     return engines[name], engines

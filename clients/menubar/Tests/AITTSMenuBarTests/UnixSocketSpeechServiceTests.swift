@@ -247,15 +247,15 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
 
     func testAudioEffectPreferencesDecodeDefaultsAndExplicitValues() throws {
         var configured = snapshotResponse
-        configured["settings"] = ["earcon_enabled": true, "ducking_enabled": false]
+        configured["settings"] = ["earcon_enabled": true, "ducking_enabled": true]
         let transport = RecordingDaemonTransport(responses: [snapshotResponse, configured])
         let service = UnixSocketSpeechService(transport: transport)
         let defaults = try service.snapshot()
         XCTAssertFalse(defaults.earconEnabled)
-        XCTAssertTrue(defaults.duckingEnabled)
+        XCTAssertFalse(defaults.duckingEnabled)
         let explicit = try service.snapshot()
         XCTAssertTrue(explicit.earconEnabled)
-        XCTAssertFalse(explicit.duckingEnabled)
+        XCTAssertTrue(explicit.duckingEnabled)
     }
 
     private var snapshotResponse: [String: Any] {

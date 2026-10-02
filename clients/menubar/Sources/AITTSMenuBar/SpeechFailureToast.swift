@@ -67,6 +67,7 @@ private struct SpeechFailureToast: View {
                 Spacer()
                 Button(action: dismiss) { Image(systemName: "xmark") }
                     .buttonStyle(.borderless).help("Dismiss error")
+                    .accessibilityLabel("Dismiss error")
             }
             Text(notice.detail).font(.caption).lineLimit(3)
             Button("View History", action: openHistory).buttonStyle(.borderless)

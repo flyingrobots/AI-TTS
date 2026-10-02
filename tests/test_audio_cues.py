@@ -5,9 +5,13 @@
 
 import asyncio
 import contextlib
+import logging
+import math
 import struct
+import threading
 import wave
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -159,3 +163,158 @@ async def test_callback_sink_emits_cue_before_live_speech(tmp_path: Path) -> Non
             device.block()
         sink.close_output()
         source.close()
+
+
+def _write_mono(path: Path, frames: int, rate: int = 24000) -> None:
+    with wave.open(str(path), "wb") as wav:
+        wav.setparams((1, 2, rate, 0, "NONE", "not compressed"))
+        wav.writeframes(struct.pack(f"<{frames}h", *([8192] * frames)))
+
+
+async def _uninterrupted_cue(path: Path, speech_frames: int) -> Any:
+    """The cue exactly as this file stream plays it when nothing interrupts it."""
+    streams = RecordingStreams(FakeAudioDevice())
+    sink = SoundDeviceSink(device=FakeAudioDevice(), open_stream=streams)
+    sink.set_prefix(earcon_pcm())
+    sink.start(path)
+    assert await asyncio.wait_for(sink.wait(), 1)
+    return np.concatenate(streams.opened[0].blocks)[:-speech_frames, 0]
+
+
+@pytest.mark.medium
+@pytest.mark.oracle(
+    "soft stream close receipt (2026-09-30-soft-stream-close.md): an interrupted stream "
+    "fades what plays next over 20 ms, then holds 100 ms of exact silence"
+)
+@pytest.mark.parametrize("interrupt", ["stop", "pause"])
+async def test_file_sink_cue_interrupted_mid_waveform_closes_softly(
+    tmp_path: Path, interrupt: str
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 480, rate=48000)
+    cue = await _uninterrupted_cue(path, 480)
+    silence = 4800  # 100 ms at 48 kHz
+    device = FakeAudioDevice()
+    streams = RecordingStreams(device)
+    closed = threading.Event()
+
+    @contextlib.contextmanager
+    def open_stream(*, samplerate: int, channels: int) -> Any:
+        with streams(samplerate=samplerate, channels=channels) as stream:
+            try:
+                yield stream
+            finally:
+                closed.set()
+
+    sink = SoundDeviceSink(device=device, open_stream=open_stream)
+
+    def interrupt_after_first_cue_block() -> None:
+        if len(streams.opened) == 1 and len(streams.opened[0].blocks) == 1:
+            getattr(sink, interrupt)()
+
+    streams.on_write = interrupt_after_first_cue_block
+    sink.set_prefix(earcon_pcm())
+    sink.start(path)
+    try:
+        assert await asyncio.to_thread(closed.wait, 1)
+    finally:
+        sink.stop()
+        sink.resume()
+        await sink.wait()
+    written = np.concatenate(streams.opened[0].blocks)[:, 0]
+    first = len(streams.opened[0].blocks[0])
+    np.testing.assert_array_equal(written[:first], cue[:first])
+    assert np.max(np.abs(cue[first - 48 : first])) > 0.05, "the fixture must interrupt the cue"
+    assert len(written) >= first + silence, "the stream closes before its output has gone silent"
+    assert np.all(written[-silence:] == 0), "the stream closes before its output has gone silent"
+    closing = written[first:-silence]
+    assert closing[0] == pytest.approx(cue[first], abs=1e-6), "the fade starts at the next sample"
+    assert np.all(np.abs(closing) <= np.abs(cue[first : first + len(closing)]) + 1e-6)
+    assert np.max(np.abs(np.diff(written))) <= np.max(np.abs(np.diff(cue))) + 1e-6
+    assert sink.position_ms() == 0
+
+
+@pytest.mark.medium
+@pytest.mark.oracle("sounddevice.write reports inserted output; cue writes are output too")
+async def test_file_sink_reports_an_underflow_while_writing_the_cue(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 480)
+    device = FakeAudioDevice()
+    streams = RecordingStreams(device)
+
+    def underflow_on_the_cue_block() -> None:
+        stream = streams.opened[-1]
+        stream.underflowed = len(stream.blocks) == 1
+
+    streams.on_write = underflow_on_the_cue_block
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    sink.set_prefix(earcon_pcm())
+    with caplog.at_level(logging.WARNING, logger="aitts.playback"):
+        sink.start(path)
+        assert await asyncio.wait_for(sink.wait(), 1)
+    events = [record.getMessage() for record in caplog.records if record.name == "aitts.playback"]
+    assert events == ["event=audio_output_underflow"]
+
+
+@pytest.mark.medium
+@pytest.mark.oracle(
+    "soft stream close receipt (2026-09-30-soft-stream-close.md): close_block fades what "
+    "would play next over a 20 ms raised cosine, holding the last sample when less remains"
+)
+@pytest.mark.parametrize("heard", [960, 2200])
+def test_callback_close_during_the_cue_fades_the_rest_of_the_cue(
+    tmp_path: Path, heard: int
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 4800)
+    source = SpoolingPCMStream.from_cached(path)
+    try:
+        cue = np.frombuffer(earcon_pcm(), dtype="<i2").astype(np.float32) / 32768.0
+        renderer = PCMStreamRenderer(source, skip_leading_silence=True, prefix_pcm=earcon_pcm())
+        assert source.wait_buffered(4800, timeout=1)
+        played = renderer.render(heard)[:, 0]
+        np.testing.assert_array_equal(played, cue[:heard])
+        assert np.max(np.abs(cue[heard - 48 : heard])) > 0.005, "the fixture must close mid-cue"
+        closing = renderer.close_block(2400)[:, 0]
+        fade = 480  # SOFT_FADE_FRAMES: 20 ms at 24 kHz
+        ahead = np.full(fade, cue[-1], dtype=np.float32)
+        remaining = cue[heard : heard + fade]
+        ahead[: len(remaining)] = remaining
+        ahead[len(remaining) :] = remaining[-1]
+        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade)))
+        np.testing.assert_allclose(closing[:fade], ahead * gain, atol=1e-6)
+        assert np.all(closing[fade:] == 0)
+        assert renderer.position_frames == 0
+    finally:
+        source.close()
+
+
+@pytest.mark.medium
+@pytest.mark.oracle(
+    "soft stream close receipt (2026-09-30-soft-stream-close.md): with less left than the "
+    "fade, the last sample is held so the envelope, not the edge, reaches zero"
+)
+async def test_file_sink_cue_close_holds_the_last_sample_when_little_remains(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 480)
+    device = FakeAudioDevice()
+    streams = RecordingStreams(device)
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+
+    def stop_after_first_cue_block() -> None:
+        if len(streams.opened[0].blocks) == 1:
+            sink.stop()
+
+    streams.on_write = stop_after_first_cue_block
+    # A cue that does not end at zero, with 100 frames left after the first block.
+    sink.set_prefix(struct.pack("<2148h", *([8192] * 2148)))
+    sink.start(path)
+    assert await asyncio.wait_for(sink.wait(), 1) is False
+    written = np.concatenate(streams.opened[0].blocks)[:, 0]
+    assert np.all(written[:2048] == 0.25)
+    assert np.max(np.abs(np.diff(written))) <= 0.01, "the fade has an audible step"
+    assert np.all(written[-2400:] == 0)

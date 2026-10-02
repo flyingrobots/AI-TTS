@@ -1,5 +1,6 @@
 {
-  "status": "user accepted streaming release at measured latency; under-150-ms target deferred to issue #33",
+  "status": "user accepted streaming release at measured latency; under-150-ms target deferred to issue #33; these readings predate the 2026-10-01 device-rate host block (about +33 ms stream.latency) and have not been re-measured",
+  "callback_blocksize_frames": 240,
   "hardware": {
     "chip": "Apple M5 Pro",
     "memory_bytes": 68719476736,
@@ -35,7 +36,10 @@
     "Scheduled DAC estimate adds outputBufferDacTime-currentTime to submission-to-callback duration; not an acoustic microphone measurement.",
     "Every callback fills output with zero after collecting its reading; no generated speech was played.",
     "Completion uses a terminal-state event; no 5 ms status polling. No test suite or mutation run overlapped these five trials.",
-    "Earlier sentence-stream trial overlapped full-suite setup and is excluded from acceptance evidence."
+    "Earlier sentence-stream trial overlapped full-suite setup and is excluded from acceptance evidence.",
+    "latency.scheduled_dac_ms: submission to the scheduled device time of the first nonzero sample. This is the reading behind the README's 194-205 ms (trials) and the 328-376 ms baseline (baseline_trials).",
+    "phases.first_pcm_dac_ms: submission to the scheduled device time of the first source PCM frame, zero or not. It is diagnostic and does not support the README figure.",
+    "Every 'log' path under /tmp/ in experiments is a raw log on the authoring machine. None is in the repository, and none can be reproduced from it; each finding is summarized beside its path."
   ],
   "baseline_trials": [
     {

@@ -28,6 +28,10 @@ A real logout/reboot was not performed. Login configuration is checked through t
 
 Green logs are `.git/codex-scratch/menu-bar-startup-{python,swift,lint,installation}-green.log`.
 
+## Merge-up of main
+
+Main's #56 fixed the same two installer defects differently: `uv export --frozen` constraints from `uv.lock`, and `_await_teardown`, which polls `launchctl print` for up to ten seconds before bootstrap. The merge keeps main's installer and drops this PR's bootstrap EIO retry; `_await_teardown` now takes the launch agent's label, so the menu-bar agent waits for teardown too. The paragraphs above that describe the six-second EIO retry and the `transformers>=4.46,<5` pin record what this PR did before the merge-up, not current behavior.
+
 ## Audit fixes
 
 Change-kind: bug fix. The installer sent `quit` to a running menu app and bootstrapped the menu-bar agent at once. The agent's `RunAtLoad` instance could then find the old process still holding `SingleInstanceLock` and return with exit 0, which `KeepAlive {SuccessfulExit: false}` treats as an intentional Quit, so the menu bar stayed closed after a successful install. The installer now polls `application id … is running` up to 100 times, 0.1 seconds apart, and fails the install if the old UI has not exited.
