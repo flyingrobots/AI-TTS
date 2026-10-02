@@ -197,4 +197,40 @@ final class MediaDuckingTests: XCTestCase {
         controller.update(enabled: true, speaking: true, daemonPID: 12)
         XCTAssertEqual(attempts, 2)
     }
+
+    @MainActor
+    func testRetryReplacesARouteStillWaitingForDelivery() {
+        var routes: [OwnedDuckingRoute] = []
+        let controller = MediaDuckingController(create: { _ in
+            let route = OwnedDuckingRoute()
+            route.readiness = { try await Task.sleep(nanoseconds: 60_000_000_000) }
+            routes.append(route)
+            return route
+        }, defaultOutput: { 1 })
+        controller.update(enabled: true, speaking: true, daemonPID: 12)
+        XCTAssertTrue(controller.status.hasPrefix("Waiting"))
+        controller.retry()
+        controller.update(enabled: true, speaking: true, daemonPID: 12)
+        XCTAssertEqual(routes.count, 2)
+        XCTAssertEqual(routes.map(\.closed), [1, 0])
+        controller.close()
+        XCTAssertEqual(routes.map(\.closed), [1, 1])
+    }
+
+    @MainActor
+    func testRetryKeepsARouteThatIsAlreadyDelivering() async {
+        let route = OwnedDuckingRoute()
+        var attempts = 0
+        let active = expectation(description: "native delivery confirmed")
+        let controller = MediaDuckingController(create: { _ in attempts += 1; return route }, defaultOutput: { 1 })
+        controller.onStatus = { if $0 == "Other apps are lowered during speech." { active.fulfill() } }
+        controller.update(enabled: true, speaking: true, daemonPID: 12)
+        await fulfillment(of: [active], timeout: 1)
+        controller.onStatus = nil
+        controller.retry()
+        controller.update(enabled: true, speaking: true, daemonPID: 12)
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(route.closed, 0)
+        controller.close()
+    }
 }

@@ -76,7 +76,17 @@ public final class MediaDuckingController {
         }
     }
 
-    public func retry() { failed = false }
+    /// Clear a failure, and drop a route still waiting for delivery so the next
+    /// update builds a fresh tap. A route already delivering is kept.
+    public func retry() {
+        failed = false
+        guard !ready, route != nil else { return }
+        activationTask?.cancel()
+        activationTask = nil
+        route?.close()
+        route = nil
+        process = nil
+    }
 
     /// Use for application shutdown, when there may be no run loop left for a ramp.
     public func close() {
