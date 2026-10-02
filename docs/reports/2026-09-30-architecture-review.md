@@ -730,7 +730,7 @@ uv sync --frozen --dev --python 3.14
 git worktree add --detach /tmp/ai-tts-benchmark-reference 0290f3cf3a0c3930256f42f31500bda59c1eabeb
 uv run python scripts/run_with_deadline.py 240 .venv/bin/python -m scripts.benchmarks.compare --baseline-root /tmp/ai-tts-benchmark-reference --output dist/benchmarks/paired
 uv run python scripts/run_with_deadline.py 360 .venv/bin/python -m scripts.benchmarks.run --suite soak --seconds 300 --interval 0.05 --output dist/benchmarks/soak.json
-uv run pytest tests/test_benchmark_cases.py tests/test_benchmark_metrics.py tests/test_benchmark_report.py
+uv run pytest tests/test_benchmark_cases.py tests/test_benchmark_metrics.py tests/test_benchmark_report.py tests/test_benchmark_mlx.py tests/test_benchmark_reference.py
 ```
 
 For the optional native lane, use a Python 3.12 environment with the recorded
