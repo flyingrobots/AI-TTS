@@ -6,7 +6,10 @@ The user approved shipping prompt 3 with measured 194–205 ms startup and track
 the original under-150-ms target separately in
 [issue #33](https://github.com/flyingrobots/AI-TTS/issues/33). The agreed benchmark
 is an eight-word sentence on this Mac using the fastest supported local backend.
-This acceptance does not claim that 150 ms was achieved. The installed application
+This acceptance does not claim that 150 ms was achieved. The 194–205 ms readings
+used a 240-frame callback block. They predate the device-rate host block adopted on
+2026-10-01, which raised the stream's reported output latency by about 33 ms, and
+they have not been re-measured. The installed application
 remains on the earlier committed release; this change has not been installed.
 
 ## Contract and validation

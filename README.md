@@ -55,7 +55,9 @@ underflows and skipped leading frames alongside synthesis and transport logs.
 
 On the measured M5 Pro with Studio Display Speakers, the eight-word MLX workload
 reached first nonzero scheduled device output in **194–205 ms** after warmup.
-This remains above the 150 ms optimization target; see the
+Those readings predate the 21.3 ms host block the callback stream now requests,
+which raised the stream's reported output latency by about 33 ms; they have not
+been re-measured. This remains above the 150 ms optimization target; see the
 [streaming acceptance receipt](docs/testing-evidence/2026-09-30-streaming-audio.md).
 The measurements used silent hardware callbacks, not an acoustic recording.
 

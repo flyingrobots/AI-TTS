@@ -1,5 +1,6 @@
 {
-  "status": "user accepted streaming release at measured latency; under-150-ms target deferred to issue #33",
+  "status": "user accepted streaming release at measured latency; under-150-ms target deferred to issue #33; these readings predate the 2026-10-01 device-rate host block (about +33 ms stream.latency) and have not been re-measured",
+  "callback_blocksize_frames": 240,
   "hardware": {
     "chip": "Apple M5 Pro",
     "memory_bytes": 68719476736,
