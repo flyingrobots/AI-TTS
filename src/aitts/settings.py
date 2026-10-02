@@ -105,7 +105,7 @@ class SettingsService:
             "captions_enabled": self.captions_enabled(),
             "captions_enabled_configured": self._store.has_setting("captions_enabled"),
             "earcon_enabled": self._store.get_setting("earcon_enabled", "false") == "true",
-            "ducking_enabled": self._store.get_setting("ducking_enabled", "true") == "true",
+            "ducking_enabled": self._store.get_setting("ducking_enabled", "false") == "true",
             "input_interrupt_enabled": self.input_interrupt_enabled(),
             "input_interrupt_resume": self.input_interrupt_resume(),
         }

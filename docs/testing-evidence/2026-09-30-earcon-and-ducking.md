@@ -4,7 +4,7 @@ Change-kind: feature
 
 ## Delivered behavior
 
-The user chose **other apps only**, with system-audio permission and a setting **on by default**. Persisted `ducking_enabled` defaults to true; `earcon_enabled` defaults to false. Native Settings and CLI accept both controls, including `settings set earcon on|off` and `settings set ducking on|off`. There is no master-volume fallback or microphone capture.
+The user chose **other apps only**, with system-audio permission. The setting was first delivered on by default; on 2026-10-02 James changed it to opt-in and **off by default** (see "Ducking off by default" below). Persisted `ducking_enabled` and `earcon_enabled` both default to false. Native Settings and CLI accept both controls, including `settings set earcon on|off` and `settings set ducking on|off`. There is no master-volume fallback or microphone capture.
 
 The cue is 100 ms of 880 Hz, 24 kHz mono PCM16 with a sine-squared envelope and 12% peak gain. It precedes a new document once, does not repeat between chunks or on resume, does not inherit speech speed, and advances no source time. Cached speech is unchanged. Both callback streaming and legacy file output support it; the file path resamples it to the stream's rate and duplicates it across channels.
 
@@ -70,3 +70,15 @@ Oracles: the soft stream close receipt (`2026-09-30-soft-stream-close.md`) on th
 After the merge, the callback path closes through `PCMStreamRenderer.close_block`. While the chime was sounding, that method saw `_was_silent` or `_trim_leading` and returned zeros at once, a step from up to 0.12 to silence on a pause or skip during the chime. Change-kind: bug fix. `test_callback_close_during_the_cue_fades_the_rest_of_the_cue[960, 2200]` (medium) requires the close to fade the remaining cue under the 20 ms raised cosine, holding the cue's last sample when less than 20 ms remains, then exact silence, with the source playhead unmoved. Oracle: the soft stream close receipt's `close_block` contract. On the merge commit `eb62603` it failed with `close_block` returning 0.0 where 0.103 was expected (476 of 480 fade samples wrong at 960 frames heard, 182 of 480 at 2200). The fix makes `close_block` fade the remaining prefix first.
 
 AGY's strict review of `2cf1912` approved with one verified P4: the file stream's `_close_cue` padded zeros, not the last sample, when less than 20 ms of cue remained. The built-in chime ends at exactly zero, so it was not audible with the shipped cue. Change-kind: bug fix. `test_file_sink_cue_close_holds_the_last_sample_when_little_remains` (medium) uses a cue that ends at 0.25 with 100 frames left after the first block. It requires no step above 0.01 and exact closing silence. On parent `2cf1912` it failed with a 0.2246 step.
+
+## Ducking off by default (2026-10-02)
+
+Change-kind: deliberate behavior change, approved by James on 2026-10-02. Other-app ducking is now opt-in and off by default. Reason: until [#70](https://github.com/flyingrobots/AI-TTS/issues/70) validates the tap's buffer on hardware, a missed tap cycle would glitch every other app's audio. Only the default changes: a saved `ducking_enabled=true` is still honored.
+
+The default flips in four places: `SettingsService.values()` in `src/aitts/settings.py`, the `Snapshot` initializer default in `SpeechModels.swift`, `AppState.duckingEnabled` in `AppState.swift`, and the snapshot decoder's fallback for a daemon that omits the key in `UnixSocketSpeechService.swift`.
+
+James approved changing these existing assertions from on to off: `test_audio_effect_preferences_have_defaults_and_persist[ducking_enabled-False]` and the `ducking_enabled` value in `tests/test_ipc.py::test_cache_cap_setting_immediately_evicts_only_terminal_audio`. The decoder's Swift test `testAudioEffectPreferencesDecodeDefaultsAndExplicitValues` pinned the same default. Its missing-key case now expects off, and its explicit case now sends `ducking_enabled: true`, so it still proves an explicit value overrides the default.
+
+New tests: `test_an_existing_saved_ducking_opt_in_survives_the_off_default` (small; a stored `"true"` reads back as true), and `DuckingDefaultTests` (medium XCTest: a snapshot without the preference is off; `AppState` starts off and honors a saved opt-in from the daemon).
+
+Red on parent `f1da305`, before the defaults changed: the settings test failed with `assert True is False`; the IPC test failed on the settings response; and the three Swift tests failed with `XCTAssertFalse failed` (`DuckingDefaultTests.swift:18` and `:31`, `UnixSocketSpeechServiceTests.swift:255`). The saved-opt-in test passed on both sides, as a preservation check. Green after the change: 891 Python tests passed (2 opt-in live UI tests skipped) and 162 Swift tests passed.

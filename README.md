@@ -843,12 +843,14 @@ The extra pins immutable upstream source archives: Chatterbox's dependency-only 
 
 ### Speech chime and other-app volume
 
-Settings includes **Chime before speech** (off by default) and **Lower other apps during speech** (on by default). Both preferences are saved by the daemon:
+Settings includes **Chime before speech** and **Lower other apps during speech**. Both are off by default; opt in under Settings or with the CLI. Both preferences are saved by the daemon:
 
 ```bash
 ai-tts settings set earcon on
-ai-tts settings set ducking off
+ai-tts settings set ducking on
 ```
+
+Ducking stays off by default until the tap's hardware buffer is validated ([#70](https://github.com/flyingrobots/AI-TTS/issues/70)). Until then, a missed tap cycle would glitch every other app's audio.
 
 The 100 ms chime plays once before a new document, without repeating on resume or between its chunks. It is excluded from saved audio and the clip's playhead.
 
