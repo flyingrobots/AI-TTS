@@ -33,8 +33,9 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 | large | 30 seconds | 120 seconds | explicit external boundary; none currently gate CI |
 
 `tests/conftest.py` rejects collection unless each test inherits exactly one
-size marker and one non-empty `oracle(...)` marker, then installs the class
-timeout. The policy and timeout gates have falsification receipts in
+size marker and its closest `oracle(...)` marker names one non-empty authority,
+then installs the class timeout. A test-level oracle replaces the module's for
+that test; the effective oracle is always exactly one. The policy and timeout gates have falsification receipts in
 `docs/testing-evidence/2026-09-03-policy-gates.md`.
 
 **Budgets are per class, not per suite.** They were a single 30-second
@@ -573,6 +574,9 @@ and workers joined during cleanup. Oracle: completion permits reacquisition
 while active playback remains exclusive. Retire only with a stronger
 calibrated completion/reacquisition contract.
 
+## Playback audit: soft stream close and open
+
+Change-kind: bug fix with an approved contract change. Skips popped because closing a CoreAudio stream can truncate the in-flight hardware buffer, and the old 5 ms stop ramp was shorter than that buffer. Pause and device-move closes had no fade, and streams opened mid-clip started at full amplitude. Every mid-clip close now writes a 20 ms raised-cosine fade of the upcoming source, without advancing the playhead, followed by 100 ms of silence. Every mid-clip open fades in over 20 ms. The stop test that pinned the 120-frame ramp was replaced, with the user's approval. Four reopen tests keep their frame-conservation oracle through `assert_source_heard_once`, which excludes the closing block and the fade-in window. A new resume test was red on unfixed code. Removing the silence, the fade-out, the fade-in, or the device-move close each fails the corresponding tests. On real Kokoro speech, the written tail at a skip went from a peak of 0.127 to exact silence. A separate mid-playback pop on app activation traced to a CoreAudio overload: a page fault on the I/O thread stalled it for 13.4 ms, while PortAudio's default request held the HAL buffer at 15 frames (0.3 ms). The real stream now requests a block sized from the output device's rate for a 21.3 ms host buffer (1024 frames at 48 kHz, as measured on the built-in speakers). A medium test at the `sounddevice` boundary requires that duration at 44.1, 48, 96, and 192 kHz device rates. It was red on parent `861cf98` at every rate (`requested 0.0 ms`) and on parent `a1e4ea9` at 96 and 192 kHz. The review round added red-on-parent regressions for the short-tail fade, the pause latch, and the interrupted fade-in. It also fixed two pause tests that resumed on `sink.paused` rather than the stream's close, each shown red with the audio thread gated. Parent SHAs are in the receipt. Oracle: the listener report, CoreAudio close behavior, and the CoreAudio overload report. Receipt: `docs/testing-evidence/2026-09-30-soft-stream-close.md`. The absence of an audible pop is accepted by ear on the installed build.
 
 ## Installation audit: preserve launch agent on failed replacement
 
@@ -785,7 +789,7 @@ frozen lock, Ruff and mypy pass.
 
 ## September 30 streaming PCM extension
 
-Streaming coverage includes controlled first-frame admission, bounded callbacks,
+Change-kind: feature. Streaming coverage includes controlled first-frame admission, bounded callbacks,
 cache equivalence, native pause/resume and failures, nested live preemption,
 atomic readiness/publication and restart recovery. Seeded-fault calibration and
 silent hardware measurements are in the
@@ -794,50 +798,242 @@ accepted measured startup latency and deferred the original 150 ms optimization
 target to issue #33. Physical route changes and long-session acoustic acceptance
 remain outside the hermetic suite.
 
+## Native UI audit: initial status-item visibility
+
+Change-kind: bug fix. An owned real NSStatusItem started with no image when the
+daemon was unavailable: StatusController initialized its cached state to error
+and skipped the first render as unchanged. The medium native contract test
+observed a nil image on unfixed code, then a rendered image after initialization
+explicitly draws the initial state. Preferences and notifications are isolated;
+no installed daemon, socket or user preferences enter this assertion. Retire
+only with an equivalent native startup discoverability check. This tests the
+AppKit boundary, not VoiceOver traversal or physical display placement.
+
+
+## Native UI audit: status-item accessible identity
+
+Change-kind: bug fix. The owned native status button exposed an empty
+accessibilityLabel for unavailable, idle, playing, paused and synthesizing
+states. The new medium boundary test observed all five empty values before
+the fix and requires an app-identifying, state-specific label afterward.
+Existing startup-image coverage shares the same isolated setup without
+changing its oracle. Labels are applied whenever a tray frame renders.
+Retire only with an equivalent native accessibility discoverability contract.
+This is not a claim that real VoiceOver traversal has passed.
+
+Live preflight on 2026-09-30: the signed candidate launched against an owned
+daemon with FakeEngine/FakeSink and the installed app was restored. The installed
+daemon remained untouched. The initial window-only probe did not inspect the
+popover beneath the menu-bar item and therefore cannot establish whether it
+opened. Subsequent IOConsoleUsers inspection confirmed
+CGSSessionScreenIsLocked=Yes. Interactive acceptance remains pending an unlocked
+session. Only one display was connected,
+so cross-display acceptance also remains pending suitable hardware.
+
+
+## Native UI audit: signed candidate acceptance receipt
+
+Change-kind: behavior change (documentation only). Candidate source `521b6b0`
+built as a release bundle with App Intents metadata and passed strict codesign
+verification. All 730 Python and 129 Swift tests passed, as did the frozen lock,
+Ruff, formatting and mypy. Required CI run 36755162505 passed that exact head.
+
+On 2026-09-30, a cross-process System Events probe read the signed candidate's
+native menu-item accessibility description. With a nonexistent owned socket it
+reported `AI-TTS: Needs attention`; after starting an isolated daemon it reported
+`AI-TTS: Ready`. Submitting fixed audit text, pausing and resuming through that
+daemon produced `AI-TTS: Speaking`, `AI-TTS: Playback paused`, then
+`AI-TTS: Speaking`. FakeEngine and FakeSink supplied deterministic silent
+speech; this is a real app/IPC/accessibility projection check, not acoustic
+acceptance or evidence that a person operated the UI controls. The property is
+AX description, not AX title: an earlier title-only probe was invalid for this
+control. An initial transition probe used the nonexistent `speak` IPC operation;
+correcting it to the documented `submit` operation allowed the full sequence.
+Neither exploratory probe failure was attributed to the product.
+
+The existing menu app had no open windows before each brief replacement. It was
+restored from its original installed bundle afterward; the installed daemon
+retained its original process throughout, and its queue was not used. All audit
+speech/state lived in an owned temporary daemon directory, removed afterward.
+
+| Live acceptance boundary | Current evidence | Remaining requirement |
+| --- | --- | --- |
+| Signed app startup and status accessibility | Observed unavailable, ready, speaking, paused, resumed states across processes | Human VoiceOver traversal remains open |
+| Popover, composer, Queue/History and settings controls | Native contract tests; resumed probe observed a popover beneath the menu-bar item | Complete control journeys against the signed candidate in an unlocked session |
+| Selection and host Services | Earlier TextEdit/NSPerformService receipts; adapter tests | Complete representative host and permission matrix |
+| App Intents | Generated metadata and installed indexing receipts | Execute an actual custom Shortcut against the candidate |
+| Cross-display sizing | Controlled native sizing tests | A second connected display and live move/resize checks |
+| Audible playback | Silent probe and adapter/lifecycle tests | Real engine/device acoustic acceptance |
+
+IOConsoleUsers reported `CGSSessionScreenIsLocked=Yes`; system display inventory
+showed one connected Studio Display. Unlock and second-display availability
+were requested. These limitations must not be promoted to passing acceptance.
+
+
+### Resumed native probe: distinguish automation failures from product failures
+
+On resume, the initial session query no longer contained the lock flag. A
+signed-candidate click followed by a process-wide accessibility listing exposed
+the popover beneath the status item, including Queue/History, the composer
+launcher, settings control and resize slider. Popovers are not required to
+appear in the application's window list; the earlier window-only probe was
+therefore an invalid observation of popover visibility.
+
+The expanded XCTest fixture still did not reliably expose SwiftUI controls.
+A diagnostic traversal exceeded its process deadline and left a pending
+System Events request. The owned probes were stopped and System Events was
+restarted; no result from that fixture counts as regression evidence. The
+experimental test remains outside the repository's automated suite.
+
+A separate direct Accessibility client is trusted and can inspect the signed
+app's status item. Further checks found the display asleep; after a bounded
+wake assertion, IOConsoleUsers explicitly reported the session locked again.
+No failed or empty UI observation from that state is attributed to the product.
+The ten explicit action-label changes remain a local draft pending a valid
+red/green check. Neither the lock nor the automation failure establishes that
+those changes fix the review finding.
+
+
+## Native UI audit: functional icon labels, verified across processes
+
+Change-kind: bug fix. The signed unfixed candidate (`521b6b0` native sources)
+exposed `Gear Shape` for Settings and symbol-derived names for other actions.
+Two opt-in large tests in `tests/test_native_ui_live.py` observed failures on
+that bundle, then passed against the corrected signed candidate. They inspect
+the actual cross-process Accessibility tree, not SwiftUI's backing NSButton
+properties. The expected action-name set covers Settings, queue removal,
+full-text/history actions, re-queue urgency, voice release/preview, voice
+confirmation dismissal, and both footer and toast error dismissal. Both
+unfixed dismissals read `Close`; the expected labels now read `Dismiss error`.
+
+The first draft attached a label only to the re-queue Menu. Live inspection
+found its title reverted to `Go Down` after later state updates. Naming the
+menu's image content preserves the action name across settings, voice changes
+and failures; the final regression checks the post-update title separately.
+All final assertion values were captured on the unfixed bundle before the
+corrected bundle passed. The two live cases completed in 3.25 seconds locally.
+
+The probe traverses only the explicitly selected application's accessibility
+elements, deduplicates using CFEqual, bounds traversal and messages, and uses
+owned temporary speech state with FakeEngine/FakeSink. It temporarily restarts
+an idle menu app and restores its bundle afterward; open app windows cause a
+skip. The installed daemon is never stopped or used for audit speech. A bounded
+caffeinate process keeps the display awake during the probe but cannot unlock
+macOS. The early window-only and in-process XCTest probes remain invalid
+observations and are not used as regression evidence.
+
+These tests are skipped by default because unattended CI does not establish
+an unlocked desktop and Accessibility authorization. To run them locally,
+build a signed candidate, then set its bundle path explicitly:
+
+```sh
+uv run --frozen python scripts/build_app_bundle.py --output dist/live-ui/AI-TTS.app
+AI_TTS_UI_CANDIDATE="$PWD/dist/live-ui/AI-TTS.app" uv run --frozen pytest -q tests/test_native_ui_live.py
+```
+
+Use the builder's `--force` option for an existing owned output. This validates
+native action metadata and specific navigation/state changes, not human
+VoiceOver traversal, acoustic playback, cross-display sizing or the remaining
+host/Shortcuts matrix. Retire these checks only with equivalent calibrated
+cross-process native action-discoverability coverage.
+
+
+## Native UI audit: reap a stubborn candidate before restoration
+
+Change-kind: bug fix (test harness). A medium session-boundary regression owns
+real child processes and substitutes incumbent discovery/restoration, so it
+never stops a user's app. The candidate installs SIGTERM-ignore before sending
+an explicit readiness handshake. Unfixed teardown restored the incumbent while
+the candidate remained alive: the restoration-time exit oracle observed false.
+Teardown now escalates after its three-second grace period and reaps the owned
+candidate before restoration. The same test passes. Retire with this session
+harness or equivalent calibrated process-ownership coverage.
+
+Additional signed-candidate acceptance on 2026-09-30 exercised the composer
+against an owned paused daemon: submitting `Owned composer acceptance.` produced
+that exact queue text with source `menubar-composer`, cleared the editor, and
+showed `Queued. Playback is paused; use Resume when you're ready.` (with the UI's
+curly apostrophe). FakeSink kept the probe silent. This does not establish file
+attachment, clipboard, host Services, custom Shortcut, human VoiceOver,
+cross-display or acoustic acceptance.
+
+## Distribution audit: locked, fresh tool install and launchd teardown wait
+
+Change-kind: bug fix. `scripts/install_application.py` had three faults. First, `uv tool install` ignored `uv.lock`, so huggingface-hub 2.0 backtracked transformers to an unbuildable 4.12.2. Second, uv reused its cached build of the unchanged 0.1.0 checkout and installed stale code. Third, `bootstrap` raced launchd's asynchronous `bootout` and failed with error 5, both on install and in the rollback. Three medium Make-entry-point tests on the owned install harness cover the problem. One requires constraints exported from the real frozen lock, one requires `--reinstall-package ai-tts`, and one requires that a lingering teardown is waited out. Two small activation tests cover a service that never leaves (bounded failure, plist restored, no bootstrap) and a rollback whose teardown lingers (the incumbent is still reloaded). Every new test was red on `main`'s installer, and each targeted mutation fails its test. Oracle: uv.lock as the tested runtime graph, the checkout as the installed code, and launchd's observed bootout and bootstrap behavior. Receipt: `docs/testing-evidence/2026-09-30-locked-install.md`.
+
+## Streaming merge with main: callback-path soft close (Code Lawyer, 2026-10-01)
+
+Change-kind: bug fix. Main was first merged at merge commit `6428b58`. From then on, every compatible WAV played through the prepared callback path, which still closed with the 5 ms last-sample ramp that #57 retired. The receipt is `docs/testing-evidence/2026-09-30-streaming-audio.md`, under "Merge with main and review round". Each paragraph below is one fix.
+
+Soft close (`4caca36`). Two medium tests in `tests/test_streaming_soft_transport.py` drive a real `SoundDeviceSink` through a manual callback device with 1024-frame blocks. One requires the close to match the next 20 ms of source under a raised cosine, keep the playhead still, and play at least 100 ms of silence before the stream reports finished. The other requires the last sample to be held when less source than the fade remains. Both were red on parent `6428b58` (479 of 480 fade samples differ). Mutations that drop the silence, or that pad with zeros instead of holding, each fail their test. Oracle: the soft-stream-close receipt.
+
+Soft open (`9095255`). A renderer opened at a nonzero position must fade in over 20 ms with a raised cosine from exact zero, then match the source exactly. A stop during that fade-in must close from the gain it reached. Both were red on parent `4caca36` (478 of 480 samples differ). A mutation forcing the opening gain to 1.0 fails the second test. Underrun recovery keeps its 5 ms ramp. Oracle: the soft-stream-close receipt.
+
+Streamed-child failure (`d557e58`). In `tests/test_streaming_store_review.py`, a generation failure in a streamed child, Ready or Playing, must mark that child Failed with its own error. On parent `9095255` both cases left it `(Cancelled, None)`. Oracle: the architecture lifecycle.
+
+Skipped child through recovery (`f234c91`). Restart recovery must leave a streamed child Skipped when the listener skipped it before a crash. On parent `d557e58` recovery requeued it. Oracle: the architecture lifecycle.
+
+Shutdown during a microphone hold (`ce3b123`). In `tests/test_streaming_shutdown_hold.py`, a controller shut down during a microphone hold must leave a restarted controller with `interrupted_at` set and the paused playhead kept. On parent `f234c91` the shutdown hold cleared the reason. Oracle: the controller's durable-interruption contract.
+
+Callback host block (`fd3e9f0`, approved by the user). `test_callback_stream_requests_a_host_buffer_longer_than_an_observed_stall` is a medium test at the `sounddevice` boundary. It requires at least 21.3 ms at 44.1, 48, 96 and 192 kHz device rates. On parent `7391f74` it requested 5.4, 5.0, 2.5 and 1.2 ms. Measured on the 48 kHz built-in speakers with a 24 kHz callback stream, the cost is about +33 ms (`stream.latency` 44.8 to 77.4 ms), not the 0.13 s measured for the blocking stream. Oracle: the CoreAudio overload report and the HAL buffer measurements.
+
+Unwrapped adapter error (`b91d33c`). The small `test_invalid_stream_samples_raise_the_adapter_error_unwrapped` requires Kokoro's stream adapter to raise its own `SynthesisError` without wrapping it in a second one. It was red on parent `0ba2b01`. Oracle: the engine boundary contract.
+
+## Native UI: inline speech composer and caption cycle
+
+Change-kind: behavior change, which the user requested directly. Speak now opens an inline composer in the popover instead of a separate window, and CC cycles Off, Bottom, Top, Off. The medium `WireProtocolTests.testCaptionCycleStartsAtBottomEvenAfterPreviouslyUsingTop` checks the full cycle, the persisted placement, and the exact daemon enable commands. Falsification: run against the old boolean toggle extracted into the same method, it had six failing assertions. The review round added two bug-fix regressions, each red on its parent. `SpeechFailureTests.testRevealingHistoryCollapsesTheInlineComposerAndKeepsTheDraft` covers the failure toast's History action being hidden by the open composer (parent `5f89043`). `ComposerActivationTests.testComposerToggleTitleAndHelpDescribeTheNextAction` covers a tooltip that did not follow the header button's title (parent `c5f10ee`). Oracle: the user's requested cycle order and the popover's rule that the composer and History share one body. Installed-popover layout, file-picker presentation, and pointer or keyboard traversal remain manual. Receipt: `docs/testing-evidence/2026-09-30-inline-composer-caption-cycle.md`.
+
+## History provenance hover card
+
+Change-kind: behavior change, with a Code Lawyer refactor and three bug fixes on top. The PR moved History provenance from inline expansion into a bounded popover card. The open/dismiss rules now live in `ProvenanceCardPresenter`, which takes an injected scheduling port. `ProvenanceCardPresenterTests` is a medium XCTest file that drives a manual scheduler, so no wall clock participates. Its oracle is the ui-design History provenance bullet. The tests cover the activation toggle, the 250 ms dismissal grace, the card holding itself open, system dismissal and row removal, the 400 ms hover intent (a passing pointer neither opens a card nor sends a daemon request), dismissal by pointer location under either cross-window enter/exit order, and timers that wake after cancellation. Each bug-fix test was red on its parent (`4bbb758`, `2336145`, `f15024d`). Four seeded presenter mutations each failed a refactor test. Physical pointer travel, AppKit's actual event order, popover placement across displays, and VoiceOver remain manual. Receipt: `docs/testing-evidence/2026-09-30-provenance-hover-card.md`.
 
 ## September 30 multi-engine extension
 
-Per-clip backend selection, child routing, legacy database migration, independent
-model readiness, and local HTTP synthesis have owned boundary tests. Sensitivity
-is enforced both before admission and before rendering. The composer consumes the
-same model/voice catalog. See the [receipt](../testing-evidence/2026-09-30-multi-engine.md)
-for seeded-fault calibration, suite costs and real offline Chatterbox inference
-from the frozen install. Source archives have exact identity checks and separately
-labeled OSV commit/package advisory queries; registry packages retain strict
-hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory
-responses cannot establish source security or advisory-database coverage.
+Change-kind: feature, with the Code Lawyer bug fixes below. Per-clip backend selection, child routing, legacy database migration, independent model readiness, and local HTTP synthesis have owned boundary tests. Sensitivity is enforced both before admission and before rendering. The composer consumes the same model/voice catalog. See the [receipt](../testing-evidence/2026-09-30-multi-engine.md) for seeded-fault calibration, suite costs and real offline Chatterbox inference from the frozen install.
+
+Source archives have exact identity checks and separately labeled OSV commit/package advisory queries; registry packages retain strict hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory responses cannot establish source security or advisory-database coverage.
+
+Startup warmup isolation. Change-kind: bug fix. The medium `test_startup_warmup_holds_only_its_own_engines_clips` requires a clip for another registered engine to reach Ready while the startup engine's warmup is still blocked, and the startup engine's own clip to stay Queued until warmup finishes. It was red on parent `518fb9f`. Oracle: the PR's independent per-engine preparation contract and the existing warmup admission oracle. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Unconfigured saved default. Change-kind: bug fix. The medium, parametrized `test_saved_default_missing_from_startup_environment_falls_back_to_kokoro` requires a persisted `chatterbox` or `openai-audio` default to start on Kokoro when its environment variables are absent, while an explicit override still raises. It was red on parent `2986fb7`. Oracle: the existing MLX startup fallback contract. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Fixed-speed default submissions. Change-kind: bug fix. The medium `test_fixed_speed_engine_speaks_default_submissions_despite_a_saved_speed` requires a submission without a speed to be accepted at the engine's supported speed, an explicit unsupported speed to be refused, and the saved speed to survive. It was red on parent `eaf2da2`. Oracle: the PR's Chatterbox generation-speed contract. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Non-finite local server audio. Change-kind: bug fix. The medium, parametrized `test_nonfinite_float_samples_never_publish_an_artifact` requires a loopback response with a NaN, +Inf or -Inf sample to raise `SynthesisError` and leave no artifact. It was red on parent `d9b1799`. Oracle: the adapter's complete, playable WAV contract. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Saved voice across live switches. Change-kind: bug fix. The medium `test_live_switch_away_and_back_keeps_the_saved_voice` requires a live switch to an engine without the saved voice to report that engine's default, and a switch back to report the saved voice again. It was red on parent `d1287ae`. Oracle: the CHANGELOG's saved-preference invariant, which the existing restart-path test also guards. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Reloading a failed non-default engine. Change-kind: bug fix. The medium `test_restart_model_recovers_a_failed_engine_that_is_not_the_default` requires `restart_model` with an `engine` name to recover that failed engine without changing the default, and refuses an unregistered name. It was red on parent `983eb59`. Oracle: the registry's restart-to-retry contract. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Paginated OSV source audit. Change-kind: bug fix. The small `test_paginated_osv_response_keeps_every_page_of_findings` requires a `next_page_token` to be followed with `page_token`, and every page's findings, queries and responses to be retained. It was red on parent `35c8669`. Oracle: OSV's `/v1/query` pagination contract. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Composer model reconciliation. Change-kind: bug fix. The medium XCTest `SpeechDraftTests.testModelMissingFromAReconnectedCatalogReturnsToTheDaemonDefault` requires a draft model missing from the catalog to return to the daemon default, so the submission names no unavailable engine. It failed to compile on parent `d823715`, then failed behaviorally against an empty method body. Oracle: the daemon accepts only registered engine names. The SwiftUI `onChange` wiring remains manual. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Bounded sample validation. Change-kind: bug fix. The medium, parametrized `test_sample_validation_decodes_in_bounded_blocks` spies on `soundfile.SoundFile.read` and requires every decode to request at most 65,536 frames, and validation to stop at the first block with a non-finite sample. It was red on parent `5a0d78e`. Oracle: the review's decode-size bound for byte-limited responses. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
 
 ## September 30 earcon and media ducking
 
-Cue generation and actual sink output, persisted controls, native gain ramps,
-readiness, active delivery loss and route ownership have controlled boundary
-checks and falsification receipts. A native process-tap probe measured 30% gain
-and unity restoration on this Mac's eight-channel output. See the
-[earcon and ducking receipt](../testing-evidence/2026-09-30-earcon-and-ducking.md).
-Permission denial, physical route switching and long-session acoustic behavior
-remain manual acceptance gaps. Hardware measurements do not gate CI.
+Cue generation and actual sink output, persisted controls, native gain ramps, readiness, active delivery loss and route ownership have controlled boundary checks and falsification receipts. A native process-tap probe measured 30% gain and unity restoration on this Mac's eight-channel output. See the [earcon and ducking receipt](../testing-evidence/2026-09-30-earcon-and-ducking.md). Permission denial, physical route switching and long-session acoustic behavior remain manual acceptance gaps. Hardware measurements do not gate CI.
 
+Code Lawyer review, 2026-10-01 (bug fixes; each regression test red on its parent, then green): an interrupted file-stream chime now fades and holds closing silence (red at `2abae3e`, fixed in `f946016`); chime writes count underflows (red at `f946016`, fixed in `994b922`); Retry replaces a route still waiting for delivery (red at `994b922`, fixed in `ce8660b`); and a not-yet-registered daemon process is retried automatically instead of marking ducking failed (red at `ce8660b` with compile-only scaffolding, fixed in `9162e61`). The receipt's review section has the red output. After the merge-up with main (`eb62603`), a callback-path close during the chime fades the rest of the chime instead of returning zeros (`test_callback_close_during_the_cue_fades_the_rest_of_the_cue`, medium, red at `eb62603`).
+
+Ducking off by default, 2026-10-02. Change-kind: deliberate behavior change, approved by James, until #70 validates the tap's buffer on hardware. With his approval, the two Python default assertions and the Swift decoder test's default case were changed from on to off. New `DuckingDefaultTests` (medium) and `test_an_existing_saved_ducking_opt_in_survives_the_off_default` (small) pin the off default and the preserved saved opt-in. Red at parent `f1da305`. The receipt's "Ducking off by default" section has the details.
 
 ## September 30 terminal dashboard
 
-The optional terminal client has real-daemon Pilot tests for rendering,
-transport/chunk controls, queue editing, replay, reconnect and daemon-independent
-exit. Owned socket tests cover framing and subscription lifetime; actual sink
-callbacks feed the opt-in dBFS meter. See the
-[terminal receipt](../testing-evidence/2026-09-30-terminal-dashboard.md) for
-falsification, rendered previews, suite costs and the expanded dependency audit.
-Acoustic level calibration and every terminal emulator/size remain outside CI.
+The optional terminal client has real-daemon Pilot tests for rendering, transport/chunk controls, queue editing, replay, reconnect and daemon-independent exit. Owned socket tests cover framing and subscription lifetime; actual sink callbacks feed the opt-in dBFS meter. See the [terminal receipt](../testing-evidence/2026-09-30-terminal-dashboard.md) for falsification, rendered previews, suite costs and the expanded dependency audit. Acoustic level calibration and every terminal emulator/size remain outside CI.
 
+The terminal dashboard's review round adds regression tests at the daemon socket. They cover the admission event for work queued behind a busy worker, and replies longer than the 1 MiB request limit. A CLI regression test covers the exit status after a crash. A controlled clock now drives the `dd` confirmation window. Parent SHAs and red output are in the receipt's review-round table.
+
+Queue-move direction. Change-kind: deliberate behavior change, approved by James. `J` moves a clip down and `K` moves it up, matching `j`/`k`. The pinned Pilot test's first step was changed with that approval. It was red on parent `b87e53a`, then green. Receipt: `docs/testing-evidence/2026-09-30-terminal-dashboard.md`.
 
 ## September 30 paragraph navigation
 
-Medium-length paragraph plans now have exact plain/Markdown/legacy boundary
-examples, CRLF and threshold checks, generated token-conservation/size invariants,
-and an actual daemon next/previous transport journey. Eight seeded faults and
-observed-red examples are recorded in the
-[paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
-The established word-count policy and explicit Markdown section behavior remain;
-this change does not claim language-independent semantic paragraph detection.
+Medium-length paragraph plans now have exact plain/Markdown/legacy boundary examples, CRLF and threshold checks, generated token-conservation/size invariants, and an actual daemon next/previous transport journey. Eight seeded faults and observed-red examples are recorded in the [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md). The established word-count policy and explicit Markdown section behavior remain; this change does not claim language-independent semantic paragraph detection.
+
+## October 1 paragraph audit
+
+The Code Lawyer audit of PR #39 found the long-document branch of paragraph grouping untested: a seeded fault restoring the old long-path loop survived the full suite. `test_long_document_exposes_each_paragraph_group` now pins it, and its observed-red output on the seeded fault is in the [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
 
 ## September 30 architecture performance baseline
 

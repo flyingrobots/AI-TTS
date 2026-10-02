@@ -304,7 +304,7 @@ public final class OtherAudioTap: MediaDuckingRoute {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyTranslatePIDToProcessObject, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
         try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, UInt32(MemoryLayout<Int32>.size), &pid, &size, &process), "Find speech process")
-        guard process != 0 else { throw AudioTapError.unavailable("Waiting for the speech output process.") }
+        guard process != 0 else { throw MediaDuckingRouteError.speechProcessPending }
         return process
     }
 

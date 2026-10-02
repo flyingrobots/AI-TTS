@@ -16,7 +16,9 @@ from tests.test_ipc import rpc
 
 pytestmark = [
     pytest.mark.medium,
-    pytest.mark.oracle("PROMPTS.md prompt 7: ordinary paragraphs become durable transport chunks"),
+    pytest.mark.oracle(
+        "README paragraph navigation: ordinary paragraphs become durable transport chunks"
+    ),
 ]
 
 

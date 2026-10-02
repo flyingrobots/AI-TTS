@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from aitts.engine import SynthesisError
 from aitts.engines.kokoro import VOICES, KokoroAssets
+from aitts.streaming import pcm16_frames
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -89,18 +90,13 @@ class KokoroMlxEngine:
         self, text: str, voice: str, speed: float
     ) -> Generator[bytes, None, None]:
         """Yield bounded PCM as upstream phoneme chunks finish, under one model lock."""
-        import numpy as np  # noqa: PLC0415
-
         with self._lock:
             model = self._prepared_model(voice)
             try:
                 for audio in model.generate_stream(
                     text, voice=voice, speed=speed, sample_rate=_SAMPLE_RATE
                 ):
-                    samples = self._validated_samples(audio, _SAMPLE_RATE)
-                    for offset in range(0, len(samples), 2400):
-                        frame = np.clip(samples[offset : offset + 2400], -1, 1 - 1 / 32768)
-                        yield (frame * 32768).astype("<i2").tobytes()
+                    yield from pcm16_frames(self._validated_samples(audio, _SAMPLE_RATE))
             except Exception as exc:
                 msg = "MLX streaming synthesis failed"
                 raise SynthesisError(msg) from exc

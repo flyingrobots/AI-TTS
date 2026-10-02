@@ -358,6 +358,8 @@ def test_tui_cli_uses_selected_socket_without_starting_daemon(
     launched: list[Path] = []
 
     class Terminal:
+        return_code = 0  # Textual's value after a clean exit
+
         def __init__(self, socket_path: Path) -> None:
             self.path = socket_path
 
@@ -369,6 +371,32 @@ def test_tui_cli_uses_selected_socket_without_starting_daemon(
     monkeypatch.setitem(sys.modules, "aitts.tui.app", module)
     assert main(["--socket", "/owned/terminal.sock", "tui"]) == EXIT_OK
     assert launched == [Path("/owned/terminal.sock")]
+
+
+@pytest.mark.oracle("Textual App.return_code is 1 after an unhandled exception; 0 means success")
+def test_tui_crash_is_a_failing_exit_status(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from textual.app import App, ComposeResult  # noqa: PLC0415 - optional terminal dependency
+
+    class Crashing(App[None]):
+        def __init__(self, socket_path: Path) -> None:
+            super().__init__()
+            del socket_path
+
+        def compose(self) -> ComposeResult:
+            message = "owned dashboard crash"
+            raise RuntimeError(message)
+
+        def run(self) -> None:  # type: ignore[override]
+            # Headless keeps the test away from the real terminal.
+            super().run(headless=True)
+
+    module = types.ModuleType("aitts.tui.app")
+    module.SpeechTUI = Crashing  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "aitts.tui.app", module)
+    assert main(["--socket", "/owned/terminal.sock", "tui"]) == EXIT_DAEMON_ERROR
+    assert "owned dashboard crash" in capsys.readouterr().err
 
 
 def test_tui_missing_extra_explains_installation(
