@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A submit response's `eligible_engines` lists registered engine names (for example `["kokoro"]`) instead of the `["local"]` placeholder, and the settings `engine` value reports the engine actually selected in the running daemon rather than the stored preference.
+
 - Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
 
 - History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use. The card opens after the pointer rests on the button for 400 ms, so moving the pointer across History opens no cards and sends no daemon requests.
