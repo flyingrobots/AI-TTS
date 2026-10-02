@@ -49,6 +49,17 @@ final class MenuBarLaunchAgentTests: XCTestCase {
         }
     }
 
+    // CodeRabbit PRRT_kwDOUHyfMM6oPaqg: a hung launchctl must not block startup.
+    func testHungKickstartFallsBackToStandaloneLaunchWithinItsDeadline() {
+        let started = Date()
+        let launcher = MenuBarLaunchAgent(home: home, executablePath: executable, managed: false) { _, _ in
+            // An owned child that never exits stands in for a hung launchctl.
+            try MenuBarLaunchAgent.runProcess("/bin/sleep", ["30"], deadline: 0.2)
+        }
+        XCTAssertFalse(launcher.handOffIfInstalled())
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+    }
+
     func testUnavailableAgentPreservesStandaloneLaunch() {
         for failsWithError in [false, true] {
             let launcher = MenuBarLaunchAgent(home: home, executablePath: executable, managed: false) { _, _ in
