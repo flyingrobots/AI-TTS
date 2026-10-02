@@ -490,6 +490,34 @@ def test_install_resolves_the_daemon_environment_to_the_locked_versions(
         assert pins[name] in locked[name], f"{name}=={pins[name]} is not the locked version"
 
 
+def test_install_includes_the_terminal_dashboard_at_its_locked_versions(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: README "Terminal dashboard": `ai-tts tui` works after `make install`.
+
+    The installer requested only the daemon's extras, so the installed CLI had
+    no Textual. The README's fallback, `uv tool install --force '.[tui]'`,
+    replaced the whole tool environment without Kokoro, its English model or
+    the lock constraints, which broke speech.
+    """
+    import tomllib  # noqa: PLC0415
+
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    package = arguments[-1]
+    assert package.endswith("[tui]"), f"the tool install omits the tui extra: {package}"
+
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+    lock = tomllib.loads((REPOSITORY / "uv.lock").read_text(encoding="utf-8"))
+    locked = {package["name"]: package["version"] for package in lock["package"]}
+    assert pins.get("textual") == locked["textual"], "Textual is not pinned to the lock"
+
+
 def test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build(
     tmp_path: Path, install_environment: dict[str, str]
 ) -> None:

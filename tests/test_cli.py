@@ -399,9 +399,14 @@ def test_tui_crash_is_a_failing_exit_status(
     assert "owned dashboard crash" in capsys.readouterr().err
 
 
+@pytest.mark.oracle(
+    "README 'Terminal dashboard': make install provides the TUI, and a bare "
+    "uv tool install of the tui extra drops Kokoro and the lock constraints"
+)
 def test_tui_missing_extra_explains_installation(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """A missing Textual must not send the user to an environment-replacing reinstall."""
     original_import = builtins.__import__
 
     def without_textual(name: str, *args: Any, **kwargs: Any) -> Any:
@@ -412,4 +417,6 @@ def test_tui_missing_extra_explains_installation(
 
     monkeypatch.setattr(builtins, "__import__", without_textual)
     assert main(["tui"]) == EXIT_DAEMON_ERROR
-    assert "ai-tts[tui]" in capsys.readouterr().err
+    hint = capsys.readouterr().err
+    assert "make install" in hint
+    assert "uv tool install" not in hint, f"the hint suggests a reinstall that drops Kokoro: {hint}"

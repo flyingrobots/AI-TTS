@@ -280,6 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `make install` now installs the terminal dashboard. The tool install includes the `tui` extra, and Textual is pinned to `uv.lock`, so `ai-tts tui` works straight after installing. The README's previous instruction, `uv tool install --force '.[tui]'`, replaced the whole tool environment without Kokoro, its English model or the lock constraints, which broke speech. The README now warns against it and offers `uv run --extra tui ai-tts tui` for trying it from a checkout.
+
 - Installation waits for a quit menu-bar app to exit before registering its launch agent, so the new instance doesn't lose the single-instance lock and stay closed. It retires the running app with SIGTERM rather than an AppleScript quit, so no Automation permission prompt appears; an app that is still running after ten seconds produces a warning instead of a failed install. The menu-bar app treats SIGTERM as a normal Quit, so ducked media is restored when the installer or `launchctl bootout` stops it.
 
 - `make uninstall` reports failure and keeps the menu-bar plist when launchd cannot stop a loaded menu-bar agent. Reopening the installed app falls back to a standalone launch if `launchctl kickstart` hangs for more than two seconds, and a stalled `ps` or `kill` during installation can no longer hold up the install.

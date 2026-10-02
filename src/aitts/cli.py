@@ -371,7 +371,13 @@ def main(argv: list[str] | None = None) -> int:
         except ModuleNotFoundError as exc:
             if exc.name not in {"textual", "rich"}:
                 raise
-            sys.stderr.write("Install the terminal UI with: uv tool install 'ai-tts[tui]'\n")
+            # Not a bare `uv tool install`: it would replace the whole tool
+            # environment without Kokoro, its English model and the lock pins.
+            sys.stderr.write(
+                "The terminal UI is not installed. From the AI-TTS checkout, run "
+                "`make install`, or try it without installing: "
+                "`uv run --extra tui ai-tts tui`.\n"
+            )
             return EXIT_DAEMON_ERROR
         app = SpeechTUI(args.socket or default_socket())
         app.run()

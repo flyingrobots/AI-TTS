@@ -14,12 +14,12 @@ alongside its fallback from this checkout:
 ```sh
 mkdir -p dist
 uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
-  --extra kokoro --extra mlx --output-file dist/install-constraints.txt
+  --extra kokoro --extra mlx --extra tui --output-file dist/install-constraints.txt
 uv tool install --force --reinstall-package ai-tts --python 3.12 \
   --constraints dist/install-constraints.txt \
   --with 'kokoro-mlx==0.1.2' \
   --with 'kokoro>=0.9.4' \
-  --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' .
+  --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' '.[tui]'
 ```
 
 Use **Restart daemon** once after installing the extra so its startup catalog can discover MLX. Then select it for future clips:
@@ -229,11 +229,11 @@ its Python environment:
 # uv tool install ignores uv.lock, so constrain it to the locked versions
 mkdir -p dist
 uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
-  --extra kokoro --output-file dist/install-constraints.txt
+  --extra kokoro --extra tui --output-file dist/install-constraints.txt
 uv tool install --force --reinstall-package ai-tts --python 3.12 \
   --constraints dist/install-constraints.txt \
   --with "kokoro>=0.9.4" \
-  --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
+  --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" ".[tui]"
 
 # build an ad-hoc-signed, checkout-independent menu-bar app
 python3 scripts/build_app_bundle.py \
@@ -877,14 +877,15 @@ With the menu-bar app running on macOS 14.2 or newer, ducking lowers other apps 
 
 ### Terminal dashboard
 
-Install the optional terminal interface from this checkout:
+`make install` includes the terminal dashboard and its Textual dependency, pinned to `uv.lock`, so after installing:
 
 ```bash
-uv tool install --force '.[tui]'
 ai-tts tui
 # Or connect to a particular daemon:
 ai-tts --socket /path/to/ai-tts.sock tui
 ```
+
+To try it from a checkout without installing, run `uv run --extra tui ai-tts tui`. Do not run a bare `uv tool install --force '.[tui]'`: it replaces the whole tool environment without Kokoro, its English model or the lock constraints, and the daemon can no longer speak.
 
 The dashboard shows current text, voice, playback speed, elapsed/total time and chunk position, with separate queue and history tables. Its dBFS bar measures samples sent to the audio device; sinks that cannot measure output show “Audio level unavailable.” Playback telemetry is opt-in on the subscription connection and does not change the event stream for existing clients.
 
