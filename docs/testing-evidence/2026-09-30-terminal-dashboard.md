@@ -124,9 +124,10 @@ Raw red/green and full-suite logs are under `.git/codex-scratch/tui-shutdown-*`.
 
 ## Review round (Code Lawyer, 2026-10-01)
 
-Change-kind: bug fixes, plus one deliberate wire addition (the admission event). Each regression test below was run red on its parent commit and green on the fix commit.
+Change-kind: bug fixes, plus one deliberate wire addition (the admission event). Each regression test below was run red on its parent commit and green on the fix commit. The CLI fix also gave the existing `test_tui_cli_uses_selected_socket_without_starting_daemon` fake a `return_code = 0`, Textual's value after a clean exit. Its assertions are unchanged.
 
 | Issue | Regression test | Parent (red) | Red output | Fix |
 |---|---|---|---|---|
 | A clip queued behind a busy worker or warmup produced no event, so subscribers such as the dashboard did not show it until a worker claimed it | `test_submission_behind_a_busy_worker_is_published[submit, requeue]` (medium) | `a33ce35` | `no admission event for the waiting clip: []`; with only the submit path fixed, the requeue case still failed the same way | `3279d5b` |
-| The async client capped replies at the 1 MiB request limit, so a snapshot with a few long texts disconnected the dashboard on every retry | `test_reply_longer_than_the_request_line_limit_is_delivered` (medium) | `3279d5b` | `DaemonUnreachableError: Cannot communicate with the daemon: Separator is not found, and chunk exceed the limit` | this commit |
+| The async client capped replies at the 1 MiB request limit, so a snapshot with a few long texts disconnected the dashboard on every retry | `test_reply_longer_than_the_request_line_limit_is_delivered` (medium) | `3279d5b` | `DaemonUnreachableError: Cannot communicate with the daemon: Separator is not found, and chunk exceed the limit` | `5d8e76e` |
+| `ai-tts tui` exited 0 after the dashboard crashed, although Textual set `App.return_code` to 1 | `test_tui_crash_is_a_failing_exit_status` (medium; a real headless Textual app whose `compose` raises) | `5d8e76e` | `assert 0 == 1` where `0 = main(['--socket', '/owned/terminal.sock', 'tui'])` | this commit |
