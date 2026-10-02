@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -111,3 +112,30 @@ def test_activation_waits_for_launchd_teardown_before_registering_replacement(
     monkeypatch.setattr(time, "sleep", lambda _seconds: None)
     activate_launch_agent(launchctl="/owned/launchctl", candidate=candidate, output=output)
     assert (output.read_bytes(), loaded) == (b"replacement", b"replacement")
+
+
+# Retire only when activation no longer runs launchctl bootstrap itself.
+def test_rejected_bootstrap_reports_launchd_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Oracle: launchctl's own rejection message reaches the installer's stderr."""
+    output = tmp_path / "agent.plist"
+    candidate = tmp_path / "candidate.plist"
+    candidate.write_bytes(b"replacement")
+    diagnostic = "Bootstrap failed: 9: owned launchd diagnostic\n"
+
+    def launchctl(arguments: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        if arguments[1] != "bootstrap":
+            return subprocess.CompletedProcess(arguments, 3)
+        # A child writes to an inherited stderr; a piped one goes to the caller.
+        if kwargs.get("stderr") is subprocess.PIPE:
+            return subprocess.CompletedProcess(arguments, 9, stderr=diagnostic.encode())
+        sys.stderr.write(diagnostic)
+        if kwargs.get("check"):
+            raise subprocess.CalledProcessError(9, arguments)
+        return subprocess.CompletedProcess(arguments, 9)
+
+    monkeypatch.setattr("scripts.install_application.subprocess.run", launchctl)
+    with pytest.raises(subprocess.CalledProcessError):
+        activate_launch_agent(launchctl="/owned/launchctl", candidate=candidate, output=output)
+    assert diagnostic in capsys.readouterr().err

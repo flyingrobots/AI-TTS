@@ -64,6 +64,9 @@ def _bootstrap_after_teardown(
             stderr=subprocess.PIPE,
         )
         if result.returncode != errno.EIO or attempt == BOOTSTRAP_RETRIES:
+            # Retried EIO noise stays quiet; the final rejection keeps launchd's reason.
+            if result.returncode != 0 and result.stderr:
+                sys.stderr.write(result.stderr.decode(errors="replace"))
             return result
         time.sleep(0.1)
     message = "unreachable bootstrap retry state"
