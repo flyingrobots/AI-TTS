@@ -150,6 +150,9 @@ if args[0] == "print":
         teardown.write_text(str(lingering - 1))
         sys.exit(0)
     sys.exit(0 if loaded.exists() else 3)
+if (args[0] == "bootout" and label.endswith(".menubar")
+        and os.environ.get("AITTS_TEST_MENU_BAR_BOOTOUT_FAILURE") == "1"):
+    sys.exit(9)
 if args[0] == "bootout":
     loaded.unlink(missing_ok=True)
     teardown.write_text(os.environ.get("AITTS_TEST_TEARDOWN_POLLS", "0"))
@@ -397,6 +400,35 @@ def test_uninstall_removes_both_agents_and_preserves_the_app(
         "ui_loaded": False,
         "app": "new app",
     }
+
+
+# Retire only when uninstall no longer boots out the menu-bar agent itself.
+def test_uninstall_reports_a_menu_bar_agent_that_launchd_keeps_loaded(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: CodeRabbit PRRT_kwDOUHyfMM6oPaqr; no uninstall success over a live agent."""
+    plist = tmp_path / "com.flyingrobots.ai-tts.menubar.plist"
+    plist.write_bytes(plistlib.dumps({"Label": "com.flyingrobots.ai-tts.menubar"}))
+    (tmp_path / "menu-bar-loaded").write_text("running")
+    result = subprocess.run(  # noqa: S603 - owned tools and installation destinations
+        [
+            "/usr/bin/make",
+            "--no-print-directory",
+            "uninstall",
+            f"APP_BUNDLE={tmp_path / 'AI-TTS.app'}",
+            f"LAUNCH_AGENT={tmp_path / 'agent.plist'}",
+        ],
+        cwd=REPOSITORY,
+        env=dict(install_environment, AITTS_TEST_MENU_BAR_BOOTOUT_FAILURE="1"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert {
+        "failed": result.returncode != 0,
+        "reported": "com.flyingrobots.ai-tts.menubar" in result.stderr,
+        "plist_kept": plist.exists(),
+    } == {"failed": True, "reported": True, "plist_kept": True}
 
 
 def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
