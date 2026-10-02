@@ -97,6 +97,7 @@ class OpenAIAudioEngine:
 
     def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
         """POST one speech request and publish only a complete, playable WAV result."""
+        import numpy as np  # noqa: PLC0415 - loaded only by actual audio synthesis
         import soundfile as sf  # noqa: PLC0415 - loaded only by actual audio synthesis
 
         payload = json.dumps(
@@ -125,6 +126,9 @@ class OpenAIAudioEngine:
             with sf.SoundFile(str(out_path)) as audio:
                 if audio.format not in {"WAV", "WAVEX"} or audio.frames <= 0:
                     msg = "local speech endpoint did not return a nonempty WAV"
+                    raise SynthesisError(msg)  # noqa: TRY301 - remove the failed artifact
+                if not np.isfinite(audio.read(dtype="float32")).all():
+                    msg = "local speech endpoint returned non-finite audio samples"
                     raise SynthesisError(msg)  # noqa: TRY301 - remove the failed artifact
                 return int(audio.frames * 1000 / audio.samplerate)
         except Exception as exc:

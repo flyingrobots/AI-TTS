@@ -157,6 +157,24 @@ def test_failed_response_never_leaves_a_usable_artifact(tmp_path: Path, failure:
         assert not output.exists()
 
 
+@pytest.mark.parametrize("sample", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_float_samples_never_publish_an_artifact(tmp_path: Path, sample: float) -> None:
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    samples = np.full(2400, 0.25, dtype=np.float32)
+    samples[1200] = sample
+    encoded = io.BytesIO()
+    sf.write(encoded, samples, 24000, format="WAV", subtype="FLOAT")
+    with local_server(encoded.getvalue()) as (url, requests):
+        engine = OpenAIAudioEngine(url, "model", "voice")
+        output = tmp_path / "candidate.wav"
+        with pytest.raises(SynthesisError, match="non-finite"):
+            engine.synthesize("Owned private text", "voice", 1, output)
+    assert len(requests) == 1
+    assert not output.exists()
+
+
 def test_redirect_does_not_forward_source_to_another_server(tmp_path: Path) -> None:
     with (
         local_server(wav_bytes()) as (destination, forwarded),
