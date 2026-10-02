@@ -924,7 +924,9 @@ Blocks shorter than 20 words join a neighbor, keeping a short heading or closing
 line attached to useful speech. Ordinary short clips and single paragraphs retain
 their identity; existing explicit Markdown section boundaries still apply.
 
-Long paragraphs keep the 180-word target and 220-word ceiling. Plain text stays
+Long documents also break at each paragraph group, so five 50-word paragraphs
+give five chunks rather than being packed toward 180 words. A single paragraph
+longer than that keeps the 180-word target and 220-word ceiling. Plain text stays
 literal, Markdown is projected before paragraph grouping, and the stored parent
 source is unchanged. LF and CRLF paragraph breaks work. Use `next-chunk` /
 `prev-chunk`, the menu's chunk buttons, or `n` / `p` in the terminal dashboard.

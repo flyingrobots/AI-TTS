@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Paragraph-level chunk navigation for ordinary responses of at least 60 words. Substantial paragraphs become separate clips, small blocks stay attached to neighbors, and short single clips retain their identity.
 
+- Long documents (over 180 words) now break at every paragraph group of at least 20 words too, instead of packing paragraphs toward the 180-word target. Five 50-word paragraphs give five chunks where they used to give two.
+
 - `ai-tts tui` provides an optional Textual dashboard with live progress and measured output level, chunk controls, Vim-style queue editing, and one-key history replay. It reconnects to the daemon and can close without stopping speech.
 
 - Optional pre-speech chime, once per document, and default-on other-app ducking while the menu-bar app is running. Settings and CLI save both preferences. macOS system-audio routing lowers other apps to 30%, restores them when speech pauses or ends, and keeps AI-TTS volume unchanged.
