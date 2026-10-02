@@ -3,6 +3,7 @@
 
 """The paired comparator measures only the exact, unmodified pinned reference source."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -20,7 +21,12 @@ GIT = "/usr/bin/git"
 
 
 def git(root: Path, *args: str) -> str:
-    """Run git in an owned scratch repository, isolated from user hooks and signing."""
+    """Run git in an owned scratch repository, isolated from user hooks and signing.
+
+    Inherited GIT_* variables are dropped: a hook's GIT_DIR overrides `-C` and
+    would otherwise commit this fixture into the repository running the tests.
+    """
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     return subprocess.check_output(  # noqa: S603 - fixed binary and owned repository
         [
             GIT,
@@ -37,6 +43,7 @@ def git(root: Path, *args: str) -> str:
             *args,
         ],
         text=True,
+        env=environment,
     ).strip()
 
 
@@ -69,3 +76,22 @@ def test_untracked_source_module_is_rejected(tmp_path: Path) -> None:
     commit = reference(tmp_path)
     (tmp_path / "src" / "aitts" / "injected.py").write_text("SLOW = True\n")
     assert not reference_is_clean(tmp_path, commit)
+
+
+def test_inherited_git_environment_cannot_redirect_the_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Git hooks export GIT_DIR, which overrides `-C`; a pre-push run must not
+    # inspect, or write to, the repository that launched it.
+    decoy = tmp_path / "decoy"
+    decoy.mkdir()
+    decoy_head = reference(decoy)
+    monkeypatch.setenv("GIT_DIR", str(decoy / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(decoy))
+    target = tmp_path / "target"
+    target.mkdir()
+    commit = reference(target)
+    (target / "src" / "aitts" / "injected.py").write_text("SLOW = True\n")
+    assert not reference_is_clean(target, commit)
+    assert reference_is_clean(decoy, decoy_head)
+    assert git(decoy, "rev-parse", "HEAD") == decoy_head

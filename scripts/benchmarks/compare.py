@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import subprocess
 import sys
@@ -20,8 +21,10 @@ REFERENCE_COMMIT = "0290f3cf3a0c3930256f42f31500bda59c1eabeb"
 
 def reference_is_clean(root: Path, commit: str) -> bool:
     """Accept only the pinned commit with no modified, added or untracked reference source."""
+    # An inherited GIT_DIR (as in git hooks) overrides `-C` and would inspect another repository.
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     revision = subprocess.check_output(  # noqa: S603 - read-only source identity
-        ["/usr/bin/git", "-C", str(root), "rev-parse", "HEAD"], text=True
+        ["/usr/bin/git", "-C", str(root), "rev-parse", "HEAD"], text=True, env=environment
     ).strip()
     # `git diff HEAD` ignores untracked files, and an untracked module is importable.
     dirty = subprocess.check_output(  # noqa: S603 - reject modified reference code
@@ -36,6 +39,7 @@ def reference_is_clean(root: Path, commit: str) -> bool:
             "src",
         ],
         text=True,
+        env=environment,
     )
     return revision == commit and not dirty
 

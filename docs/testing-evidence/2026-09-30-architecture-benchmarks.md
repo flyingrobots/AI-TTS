@@ -165,3 +165,20 @@ E       AssertionError: assert not True
 ```
 
 The check now uses `git status --porcelain --untracked-files=all -- src`, which still honors the reference's own `.gitignore` (so `__pycache__` written by earlier runs does not count). All four cases pass: a clean pin is accepted, and another commit, a tracked edit, and an untracked module are rejected. A real detached checkout of `0290f3c` is still accepted.
+
+Change-kind: bug fix to the benchmark instrument and its test fixture. Git hooks export `GIT_DIR`, which overrides `git -C`. The first push of the fix above ran the new tests inside the pre-push hook, and the fixture's `git init/add/commit` wrote a local commit into the repository running the tests. That commit was never pushed, and the working-tree files were verified byte-identical to the last good commit. `reference_is_clean` had the same defect: it would inspect the launching repository instead of the named reference. The new `test_inherited_git_environment_cannot_redirect_the_check` sets `GIT_DIR`/`GIT_WORK_TREE` to an owned decoy repository. On parent `d13adeb` it was observed red twice, once per defect. First, the fixture's commit was redirected into the decoy:
+
+```text
+E   subprocess.CalledProcessError: Command '['/usr/bin/git', '-C', '.../target', ..., 'commit', '--quiet', '-m', 'reference']' returned non-zero exit status 1.
+FAILED tests/test_benchmark_reference.py::test_inherited_git_environment_cannot_redirect_the_check
+```
+
+Second, with only the fixture corrected, the comparator inspected the clean decoy and accepted the dirty target:
+
+```text
+>       assert not reference_is_clean(target, commit)
+E       AssertionError: assert not True
+FAILED tests/test_benchmark_reference.py::test_inherited_git_environment_cannot_redirect_the_check
+```
+
+Both now drop inherited `GIT_*` variables before invoking git. All five reference tests pass, including a run with `GIT_DIR`/`GIT_WORK_TREE` pointed at a nonexistent path, and the real `0290f3c` checkout is still accepted.
