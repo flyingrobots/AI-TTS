@@ -45,6 +45,7 @@ from aitts.streaming import (
 
 log = logging.getLogger(__name__)
 PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
+_METER_STALE_SECONDS = 0.25
 # Recorded as the cause of a hold the listener's own voice took.
 _LISTENER = "listener_speaking"
 # How long the plan loop waits to be woken. notify() is the real signal; these
@@ -298,6 +299,7 @@ class SoundDeviceSink:
         """Create the sink; nothing is opened until :meth:`start`."""
         self._open_callback_stream = open_callback_stream or _open_pcm_callback_stream
         self._prefix_pcm = b""
+        self._meter = (0.0, 0.0)
         self._live_pcm: SpoolingPCMStream | None = None
         self.evidence = evidence
         self.playback_session = ""
@@ -323,6 +325,15 @@ class SoundDeviceSink:
         self._opened_on: str | None = None
         self._pending_device: str | None = None
         self._pending_confirmations = 0
+
+    def audio_peak(self) -> float:
+        """Report a recent output-block peak, never a fabricated activity animation."""
+        level, observed = self._meter
+        return level if time.monotonic() - observed < _METER_STALE_SECONDS else 0.0
+
+    def _measure_output(self, block: Any) -> None:  # noqa: ANN401 - audio ndarray boundary
+        peak = float(max(abs(block.min()), abs(block.max()))) if block.size else 0.0
+        self._meter = (min(1.0, peak) if math.isfinite(peak) else 0.0, time.monotonic())
 
     def set_prefix(self, pcm: bytes) -> None:
         """Queue a 24 kHz mono PCM16 cue for the next serialized playback session."""
@@ -546,6 +557,7 @@ class SoundDeviceSink:
                 silence_left = close_silence - (frames - min(frames, SOFT_FADE_FRAMES))
                 return silence_left > 0
             output[:] = renderer.render(frames, rate=self._current_rate())
+            self._measure_output(output)
             self._set_position_ms(renderer.position_frames / 24)
             return not renderer.ended and renderer.error is None
 
@@ -608,6 +620,7 @@ class SoundDeviceSink:
                     block[:count] *= fade_in[faded_in : faded_in + count, None]
                     faded_in += count
                 wrote_audio = True
+                self._measure_output(block)
                 self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
@@ -697,7 +710,9 @@ class SoundDeviceSink:
             if self._stop_flag.is_set() or self._pause_flag.is_set():
                 self._write_output(stream, self._close_cue(cue[start:], samplerate, channels))
                 return
-            self._write_output(stream, cue[start : start + self._BLOCK_FRAMES].astype("float32"))
+            block = cue[start : start + self._BLOCK_FRAMES].astype("float32")
+            self._measure_output(block)
+            self._write_output(stream, block)
 
     def _close_cue(self, remaining: Any, samplerate: int, channels: int) -> Any:  # noqa: ANN401 - numpy frames in and out
         """Fade the rest of an interrupted cue like interrupted speech, then hold silence.
