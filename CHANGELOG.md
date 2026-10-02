@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Installation selects a modern Kokoro-compatible tokenizer and allows launchd teardown to settle before activating an updated service.
 
+- Installation waits for a quit menu-bar app to exit before registering its launch agent, so the new instance doesn't lose the single-instance lock and stay closed.
+
 - Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
 
 - App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.

@@ -66,3 +66,9 @@ real lifecycle semantics, not every macOS release.
 - Plain `make install`: passed; both daemon and menu bar running afterward.
 
 Green logs are `.git/codex-scratch/menu-bar-startup-{python,swift,lint,installation}-green.log`.
+
+## Audit fixes
+
+Change-kind: bug fix. The installer sent `quit` to a running menu app and bootstrapped the menu-bar agent at once. The agent's `RunAtLoad` instance could then find the old process still holding `SingleInstanceLock` and return with exit 0, which `KeepAlive {SuccessfulExit: false}` treats as an intentional Quit, so the menu bar stayed closed after a successful install. The installer now polls `application id … is running` up to 100 times, 0.1 seconds apart, and fails the install if the old UI has not exited.
+
+`test_install_waits_for_the_quit_menu_bar_to_exit_before_registering_it` is medium and enters through `make install`. Its owned osascript keeps an incumbent alive for two probes after quit, and its owned launchctl records `lock-lost` if the menu-bar bootstrap happens while the incumbent is alive. The oracle is the single-instance lock contract in `clients/menubar/Sources/AITTSMenuBar/main.swift`. It failed on parent `9081f2d` with `AssertionError: assert 'lock-lost' == 'running'`.

@@ -15,7 +15,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from scripts.build_app_bundle import publish_app_bundle
+from scripts.build_app_bundle import BUNDLE_IDENTIFIER, publish_app_bundle
 from scripts.render_launch_agent import MENU_BAR_LABEL, render_launch_agent, render_menu_bar_agent
 
 SPACY_MODEL = (
@@ -24,6 +24,32 @@ SPACY_MODEL = (
 )
 
 BOOTSTRAP_RETRIES = 60
+
+# The quit reply can arrive before the old UI exits and releases its
+# single-instance lock. Poll this many times, this far apart, for it to leave.
+QUIT_POLLS = 100
+QUIT_POLL_SECONDS = 0.1
+
+
+def _quit_menu_bar(osascript: str) -> None:
+    """Retire a running UI so the registered agent's instance can take the lock."""
+    application = f'application id "{BUNDLE_IDENTIFIER}"'
+    subprocess.run(  # noqa: S603 - fixed AppleScript, no interpolated user input
+        [osascript, "-e", f"if {application} is running then tell {application} to quit"],
+        check=True,
+    )
+    for _ in range(QUIT_POLLS):
+        running = subprocess.run(  # noqa: S603 - fixed AppleScript, no interpolated user input
+            [osascript, "-e", f"{application} is running"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if running == "false":
+            return
+        time.sleep(QUIT_POLL_SECONDS)
+    message = "the menu-bar app is still quitting; re-run once it has exited"
+    raise RuntimeError(message)
 
 
 def _bootstrap_after_teardown(
@@ -175,17 +201,7 @@ def install_application(
         publish_app_bundle(candidate_app, app, force=True)
         activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
         # Retire a manually launched incumbent so launchd owns the new process.
-        subprocess.run(  # noqa: S603 - fixed AppleScript, no interpolated user input
-            [
-                osascript,
-                "-e",
-                (
-                    'if application id "com.flyingrobots.ai-tts.menubar" is running then '
-                    'tell application id "com.flyingrobots.ai-tts.menubar" to quit'
-                ),
-            ],
-            check=True,
-        )
+        _quit_menu_bar(osascript)
         activate_launch_agent(
             launchctl=launchctl,
             candidate=candidate_menu_bar,

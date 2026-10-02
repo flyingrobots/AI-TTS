@@ -80,8 +80,29 @@ else:
 """
     )
     osascript = commands / "osascript"
-    osascript.write_text("#!/bin/sh\nexit 0\n")
+    osascript.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     osascript.chmod(0o755)
+    # An empty incumbent-ui file is a running UI. Quit leaves it alive for two
+    # more "is running" probes, modelling teardown after the quit reply.
+    osascript.with_suffix(".py").write_text(
+        """import os, sys
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+script = sys.argv[-1]
+incumbent = root / "incumbent-ui"
+if script.endswith(" to quit"):
+    if incumbent.exists():
+        incumbent.write_text("2")
+elif script.endswith(" is running"):
+    if incumbent.exists() and incumbent.read_text() == "0":
+        incumbent.unlink()
+    elif incumbent.exists() and incumbent.read_text():
+        incumbent.write_text(str(int(incumbent.read_text()) - 1))
+    print("true" if incumbent.exists() else "false")
+else:
+    sys.exit(8)
+"""
+    )
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -106,7 +127,9 @@ elif args[0] == "bootstrap":
         sys.exit(9)
     if refuse and payload["ProgramArguments"][0] != "/old/ai-tts":
         sys.exit(9)
-    loaded.write_text("running")
+    # RunAtLoad starts the UI now; a live incumbent still holds its lock.
+    lost = label.endswith(".menubar") and (root / "incumbent-ui").exists()
+    loaded.write_text("lock-lost" if lost else "running")
 else:
     sys.exit(8)
 """
@@ -239,6 +262,17 @@ def test_install_registers_independent_menu_bar_startup(
         "registered": True,
         "daemon_registered": True,
     }
+
+
+# Retire only when installation no longer quits a running UI before registering it.
+def test_install_waits_for_the_quit_menu_bar_to_exit_before_registering_it(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: the registered UI must not lose the single-instance lock to its predecessor."""
+    (tmp_path / "incumbent-ui").write_text("")
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "menu-bar-loaded").read_text() == "running"
 
 
 @pytest.mark.parametrize("loaded", [False, True])

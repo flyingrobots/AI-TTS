@@ -881,3 +881,5 @@ The installed run verifies crash recovery before and after manual reopen and
 normal Quit beyond the throttle interval while the daemon PID stays unchanged.
 A real logout/reboot remains a manual acceptance gap; the login promise is
 checked through the emitted Aqua `RunAtLoad` configuration and real bootstrap.
+
+Bug fix: the installer now waits, up to ten seconds, for a quit menu app to exit before registering its agent, so the registered instance does not lose the single-instance lock and exit as if the user had quit it. The medium Make-entrypoint regression test failed on parent `9081f2d`; [the startup evidence](../testing-evidence/2026-10-01-menu-bar-startup.md#audit-fixes) records it.
