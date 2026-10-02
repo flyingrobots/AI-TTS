@@ -280,6 +280,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Streaming playback no longer crackles when live synthesis falls behind, for example when several history items are replayed at once and synthesize at the same time.
+  - **Fade:** an underrun now fades the real upcoming audio over the 20 ms raised cosine used everywhere else. Previously it ramped a held sample over 5 ms.
+  - **Rebuffer:** playback then stays silent until 300 ms is buffered, instead of restarting on every scrap.
+  - **Resume:** it fades back in over 20 ms from the frames it faded out, so nothing is lost.
+
+  A trickling synthesis previously restarted on every callback (30 restarts in 30 callbacks in the regression test). It now produces one clean gap. A fully written stream that is only waiting for publication plays to its end instead of counting as an underrun.
+
 - `make install` now installs the terminal dashboard. The tool install includes the `tui` extra, and Textual is pinned to `uv.lock`, so `ai-tts tui` works straight after installing. The README's previous instruction, `uv tool install --force '.[tui]'`, replaced the whole tool environment without Kokoro, its English model or the lock constraints, which broke speech. The README now warns against it and offers `uv run --extra tui ai-tts tui` for trying it from a checkout.
 
 - Installation waits for a quit menu-bar app to exit before registering its launch agent, so the new instance doesn't lose the single-instance lock and stay closed. It retires the running app with SIGTERM rather than an AppleScript quit, so no Automation permission prompt appears; an app that is still running after ten seconds produces a warning instead of a failed install. The menu-bar app treats SIGTERM as a normal Quit, so ducked media is restored when the installer or `launchctl bootout` stops it.
