@@ -17,7 +17,7 @@ from aitts.segmentation import prepare_speech_segments, segment_text
 pytestmark = [
     pytest.mark.small,
     pytest.mark.oracle(
-        "composite-document contract in architecture section 8 and PROMPTS.md prompt 7"
+        "composite-document contract in architecture section 8 and README paragraph navigation"
     ),
 ]
 
