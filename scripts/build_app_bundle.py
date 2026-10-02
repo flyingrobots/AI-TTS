@@ -376,6 +376,10 @@ def assemble_app_bundle(*, binary: Path, output: Path, version: str) -> Path:
     info: dict[str, Any] = {
         "CFBundleDevelopmentRegion": "en",
         "CFBundleDisplayName": "AI-TTS",
+        "NSAudioCaptureUsageDescription": (
+            "AI-TTS lowers other apps while speech plays. Audio stays on this Mac "
+            "and is not recorded or sent anywhere."
+        ),
         "CFBundleExecutable": EXECUTABLE_NAME,
         "CFBundleIdentifier": BUNDLE_IDENTIFIER,
         "CFBundleInfoDictionaryVersion": "6.0",

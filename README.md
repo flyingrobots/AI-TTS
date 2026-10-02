@@ -841,6 +841,21 @@ The directory must contain the complete local snapshot. Synthesis never download
 
 The extra pins immutable upstream source archives: Chatterbox's dependency-only [PR 486](https://github.com/resemble-ai/chatterbox/pull/486) and Perth's upstream fix for removed `pkg_resources` (not yet published to PyPI). Their revisions and archive hashes are checked in the lock and source-audit policy. CI uses strict hashed PyPI auditing for the remaining graph and separately records OSV commit and package queries for both source dependencies, then checks the combined SBOM and license inventory. No known advisory findings is not a source-security guarantee; source-query coverage is disclosed in the retained evidence. The [native acceptance receipt](docs/testing-evidence/2026-09-30-multi-engine.md) records real offline inference with the frozen Python 3.12 graph.
 
+### Speech chime and other-app volume
+
+Settings includes **Chime before speech** and **Lower other apps during speech**. Both are off by default; opt in under Settings or with the CLI. Both preferences are saved by the daemon:
+
+```bash
+ai-tts settings set earcon on
+ai-tts settings set ducking on
+```
+
+Ducking stays off by default until the tap's hardware buffer is validated ([#70](https://github.com/flyingrobots/AI-TTS/issues/70)). Until then, a missed tap cycle would glitch every other app's audio.
+
+The 100 ms chime plays once before a new document, without repeating on resume or between its chunks. It is excluded from saved audio and the clip's playhead.
+
+With the menu-bar app running on macOS 14.2 or newer, ducking lowers other apps on the default output to 30% during speech. AI-TTS speech keeps its normal volume. macOS may request system-audio permission; Settings provides the route status, **Audio Privacy Settings**, and **Retry**. Audio passes through in memory and is not recorded. Pause, completion, disconnection, disabling the preference, and quitting restore other apps. An idle source stays unmuted until audio arrives. Headless daemon playback does not perform this native menu-bar routing.
+
 ## Licence
 
 Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

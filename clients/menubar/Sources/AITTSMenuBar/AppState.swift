@@ -62,6 +62,9 @@ final class AppState: ObservableObject {
     @Published var selectedTab: PlaybackTab = .queue
     private var knownFailedIDs: Set<String>?
     @Published var voiceAssignments: [VoiceAssignment] = []
+    @Published var earconEnabled = false
+    @Published var duckingEnabled = false
+    @Published var duckingStatus = "Ducking is available while the menu-bar app is running."
     @Published var inputInterruptEnabled = true
     @Published var inputInterruptResume: InputInterruptResume = .manual
     /// The full text the listener asked to read, shown in its own window.
@@ -90,6 +93,7 @@ final class AppState: ObservableObject {
     /// Whether the current clip has chunks to step between.
     var currentIsChunked: Bool { (status?.current?.segmentCount ?? 1) > 1 }
 
+    private let mediaDucking: MediaDuckingController?
     private let storageManager: any GeneratedStorageManaging
     private let evidenceExporter: any EvidenceExporting
     private let provenanceLoader: any ProvenanceLoading
@@ -113,8 +117,10 @@ final class AppState: ObservableObject {
         defaults: UserDefaults,
         evidenceExporter: any EvidenceExporting = UnixSocketSpeechService(),
         storageManager: any GeneratedStorageManaging = UnixSocketSpeechService(),
-        provenanceLoader: (any ProvenanceLoading)? = nil
+        provenanceLoader: (any ProvenanceLoading)? = nil,
+        mediaDucking: MediaDuckingController? = nil
     ) {
+        self.mediaDucking = mediaDucking
         self.composer = SpeechComposer(speech: speech)
         self.storageManager = storageManager
         self.evidenceExporter = evidenceExporter
@@ -126,6 +132,7 @@ final class AppState: ObservableObject {
         self.defaults = defaults
         self.captionPosition = CaptionPosition(rawValue: defaults.string(forKey: "captionPosition") ?? "") ?? .bottom
         self.captionsEnabled = defaults.bool(forKey: "captionsEnabled")
+        mediaDucking?.onStatus = { [weak self] status in self?.duckingStatus = status }
     }
 
     func manageStorage(retentionDays: Int? = nil, deleting: [String]? = nil) {
@@ -312,6 +319,7 @@ final class AppState: ObservableObject {
         self.runtime = snapshot?.runtime
         guard let snapshot else {
             self.status = nil
+            mediaDucking?.update(enabled: duckingEnabled, speaking: false, daemonPID: nil)
             return
         }
         self.statusObservedAt = observedAt
@@ -325,11 +333,35 @@ final class AppState: ObservableObject {
         self.observeFailures(snapshot.history)
         self.speed = snapshot.speed
         self.playbackRate = snapshot.playbackRate
+        self.earconEnabled = snapshot.earconEnabled
+        self.duckingEnabled = snapshot.duckingEnabled
+        updateDucking()
         self.applyCaptionSettings(snapshot)
         self.voiceAssignments = snapshot.voiceAssignments
         self.inputInterruptEnabled = snapshot.inputInterruptEnabled
         self.inputInterruptResume = snapshot.inputInterruptResume
         if !snapshot.voices.isEmpty { self.voices = snapshot.voices }
+    }
+
+    private func updateDucking() {
+        mediaDucking?.update(
+            enabled: duckingEnabled,
+            speaking: status?.playbackState == "playing",
+            daemonPID: runtime.flatMap { Int32(exactly: $0.pid) }
+        )
+    }
+
+    func retryDucking() {
+        mediaDucking?.retry()
+        updateDucking()
+    }
+
+    func stopDucking() { mediaDucking?.close() }
+
+    func openAudioPrivacySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func observeFailures(_ history: [Utterance]) {
@@ -421,6 +453,12 @@ final class AppState: ObservableObject {
     func nextChunk() { send(.nextSegment) }
     func previousChunk() { send(.previousSegment) }
     func resumeWhenInputIdle() { send(.resumeWhenInputIdle) }
+    func setEarconEnabled(_ enabled: Bool) {
+        send(.setEarconEnabled(enabled))
+    }
+    func setDuckingEnabled(_ enabled: Bool) {
+        send(.setDuckingEnabled(enabled))
+    }
     func setInputInterruptEnabled(_ enabled: Bool) {
         inputInterruptEnabled = enabled
         send(.setInputInterruptEnabled(enabled))

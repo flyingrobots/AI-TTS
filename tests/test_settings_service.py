@@ -370,3 +370,38 @@ def test_engine_switch_uses_a_supported_default_without_losing_saved_preference(
     restored_settings = SettingsService(store, environment)
     assert restored_settings.speaking_voice() == "af_custom"
     assert restored_settings.values()["voice"] == "af_custom"
+
+
+@pytest.mark.parametrize(
+    ("key", "default"), [("earcon_enabled", False), ("ducking_enabled", False)]
+)
+def test_audio_effect_preferences_have_defaults_and_persist(
+    settings: SettingsService,
+    store: Store,
+    environment: FakeEnvironment,
+    key: str,
+    *,
+    default: bool,
+) -> None:
+    assert settings.values()[key] is default
+    settings.apply({key: not default})
+    restored = SettingsService(store, environment)
+    assert restored.values()[key] is not default
+
+
+@pytest.mark.parametrize("key", ["earcon_enabled", "ducking_enabled"])
+def test_invalid_audio_preference_does_not_partially_apply(
+    settings: SettingsService, key: str
+) -> None:
+    before = settings.values()
+    with pytest.raises(ApiError, match="boolean"):
+        settings.apply({"speed": 1.5, key: "on"})
+    assert settings.values() == before
+
+
+def test_an_existing_saved_ducking_opt_in_survives_the_off_default(
+    store: Store, environment: FakeEnvironment
+) -> None:
+    """Oracle: James's 2026-10-02 decision changes only the default, not saved choices."""
+    store.set_setting("ducking_enabled", "true")
+    assert SettingsService(store, environment).values()["ducking_enabled"] is True

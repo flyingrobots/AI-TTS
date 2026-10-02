@@ -1,0 +1,51 @@
+[
+  {
+    "fault": "duck_gain",
+    "exit_code": 1,
+    "assertion_failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/DuckingGainTests.swift:19: error: -[AITTSMenuBarTests.DuckingGainTests testStereoGainRampsToDuckAndBackWithoutChangingChannels] : XCTAssertEqualWithAccuracy failed: (\"0.3\") is not equal to (\"0.15\") +/- (\"1e-05\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/DuckingGainTests.swift:20: error: -[AITTSMenuBarTests.DuckingGainTests testStereoGainRampsToDuckAndBackWithoutChangingChannels] : XCTAssertEqualWithAccuracy failed: (\"-0.15\") is not equal to (\"-0.075\") +/- (\"1e-05\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/DuckingGainTests.swift:26: error: -[AITTSMenuBarTests.DuckingGainTests testStereoGainRampsToDuckAndBackWithoutChangingChannels] : XCTAssertEqualWithAccuracy failed: (\"0.305\") is not equal to (\"0.155\") +/- (\"1e-05\")"
+    ]
+  },
+  {
+    "fault": "duck_ramp",
+    "exit_code": 1,
+    "assertion_failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/DuckingGainTests.swift:17: error: -[AITTSMenuBarTests.DuckingGainTests testStereoGainRampsToDuckAndBackWithoutChangingChannels] : XCTAssertEqualWithAccuracy failed: (\"0.15\") is not equal to (\"0.495\") +/- (\"1e-05\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/DuckingGainTests.swift:18: error: -[AITTSMenuBarTests.DuckingGainTests testStereoGainRampsToDuckAndBackWithoutChangingChannels] : XCTAssertEqualWithAccuracy failed: (\"-0.075\") is not equal to (\"-0.2475\") +/- (\"1e-05\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/DuckingGainTests.swift:26: error: -[AITTSMenuBarTests.DuckingGainTests testStereoGainRampsToDuckAndBackWithoutChangingChannels] : XCTAssertEqualWithAccuracy failed: (\"0.5\") is not equal to (\"0.155\") +/- (\"1e-05\")"
+    ]
+  },
+  {
+    "fault": "duck_restore",
+    "exit_code": 1,
+    "assertion_failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:73: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"[true, true]\") is not equal to (\"[true, false]\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:73: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"[true, true]\") is not equal to (\"[true, false]\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:73: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"[true, true]\") is not equal to (\"[true, false]\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:52: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseRestoresBeforeClosingAndResumeCancelsOldClose] : XCTAssertEqual failed: (\"[true, true]\") is not equal to (\"[true, false]\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:59: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseRestoresBeforeClosingAndResumeCancelsOldClose] : XCTAssertEqual failed: (\"[true, true, true]\") is not equal to (\"[true, false, true]\")"
+    ]
+  },
+  {
+    "fault": "duck_cleanup",
+    "exit_code": 1,
+    "assertion_failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:74: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"0\") is not equal to (\"1\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:76: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"0\") is not equal to (\"1\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:74: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"0\") is not equal to (\"1\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:76: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"0\") is not equal to (\"1\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:74: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"0\") is not equal to (\"1\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:76: error: -[AITTSMenuBarTests.MediaDuckingTests testPauseDisableAndDisconnectRestoreAndReleaseTheRoute] : XCTAssertEqual failed: (\"0\") is not equal to (\"1\")"
+    ]
+  },
+  {
+    "fault": "duck_retry",
+    "exit_code": 1,
+    "assertion_failures": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:108: error: -[AITTSMenuBarTests.MediaDuckingTests testFailureDoesNotRepeatedlyRequestPermissionUntilRetry] : XCTAssertEqual failed: (\"2\") is not equal to (\"1\")",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/MediaDuckingTests.swift:112: error: -[AITTSMenuBarTests.MediaDuckingTests testFailureDoesNotRepeatedlyRequestPermissionUntilRetry] : XCTAssertEqual failed: (\"3\") is not equal to (\"2\")"
+    ]
+  }
+]

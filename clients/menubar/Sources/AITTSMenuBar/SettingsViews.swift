@@ -63,6 +63,24 @@ struct SettingsView: View {
 
                 Divider()
 
+                Text("Playback").font(.caption.smallCaps()).foregroundStyle(.secondary)
+                Toggle("Chime before speech", isOn: Binding(
+                    get: { state.earconEnabled }, set: { state.setEarconEnabled($0) }
+                ))
+                Toggle("Lower other apps during speech", isOn: Binding(
+                    get: { state.duckingEnabled }, set: { state.setDuckingEnabled($0) }
+                ))
+                if state.duckingEnabled {
+                    Text(state.duckingStatus).font(.caption2).foregroundStyle(.secondary)
+                    HStack {
+                        Button("Audio Privacy Settings") { state.openAudioPrivacySettings() }
+                        Button("Retry") { state.retryDucking() }
+                    }
+                    .font(.caption)
+                }
+                Text("Ducking uses macOS system-audio permission. AI-TTS volume stays unchanged.")
+                    .font(.caption2).foregroundStyle(.secondary)
+
                 Text("When you speak").font(.caption.smallCaps()).foregroundStyle(.secondary)
                 InputInterruptSettings()
 

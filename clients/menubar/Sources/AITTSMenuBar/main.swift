@@ -46,7 +46,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 selectionEnqueuer: selectionEnqueuer,
                 source: "macos-clipboard:text"
             ),
-            defaults: .standard
+            defaults: .standard,
+            mediaDucking: MediaDuckingController(
+                create: { pid in
+                    guard #available(macOS 14.2, *) else {
+                        throw AudioTapError.unavailable("Other-app ducking requires macOS 14.2 or later.")
+                    }
+                    return try OtherAudioTap(daemonPID: pid)
+                },
+                defaultOutput: {
+                    guard #available(macOS 14.2, *) else { return 0 }
+                    return try OtherAudioTap.defaultOutputDevice()
+                }
+            )
         )
         serviceProvider = MacServiceProvider(
             selectionEnqueuer: selectionEnqueuer,
@@ -57,6 +69,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         )
         super.init()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        state.stopDucking()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

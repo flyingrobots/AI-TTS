@@ -722,6 +722,8 @@ async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
                 "speed": 1.0,
                 "playback_rate": 1.0,
                 "cache_max_bytes": 4,
+                "earcon_enabled": False,
+                "ducking_enabled": False,
                 "captions_enabled": False,
                 "captions_enabled_configured": False,
                 "input_interrupt_enabled": True,

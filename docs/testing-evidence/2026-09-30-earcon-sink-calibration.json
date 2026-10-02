@@ -1,0 +1,23 @@
+[
+  {
+    "fault": "file-cue-omitted",
+    "test": "test_file_sink_emits_cue_once_at_native_rate",
+    "exit_code": 1,
+    "evidence": ".git/codex-scratch/file-cue-omitted.log",
+    "result": "named assertion failed"
+  },
+  {
+    "fault": "live-cue-omitted",
+    "test": "test_callback_sink_emits_cue_before_live_speech",
+    "exit_code": 1,
+    "evidence": ".git/codex-scratch/live-cue-omitted.log",
+    "result": "named assertion failed"
+  },
+  {
+    "fault": "file-cue-repeats",
+    "test": "test_file_sink_emits_cue_once_at_native_rate",
+    "exit_code": 1,
+    "evidence": ".git/codex-scratch/file-cue-repeats.log",
+    "result": "named assertion failed"
+  }
+]

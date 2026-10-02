@@ -232,6 +232,8 @@ public struct Snapshot: Equatable, Sendable {
     public let engines: [SpeechEngine]
     public let speed: Double
     public let playbackRate: Double
+    public let earconEnabled: Bool
+    public let duckingEnabled: Bool
     public let captionsEnabled: Bool
     public let captionsEnabledConfigured: Bool
     public let voiceAssignments: [VoiceAssignment]
@@ -246,6 +248,8 @@ public struct Snapshot: Equatable, Sendable {
         voices: [String],
         speed: Double,
         playbackRate: Double,
+        earconEnabled: Bool = false,
+        duckingEnabled: Bool = false,
         captionsEnabled: Bool = false,
         captionsEnabledConfigured: Bool = false,
         voiceAssignments: [VoiceAssignment] = [],
@@ -263,6 +267,8 @@ public struct Snapshot: Equatable, Sendable {
         self.voices = voices
         self.speed = speed
         self.playbackRate = playbackRate
+        self.earconEnabled = earconEnabled
+        self.duckingEnabled = duckingEnabled
         self.captionsEnabled = captionsEnabled
         self.captionsEnabledConfigured = captionsEnabledConfigured
         self.voiceAssignments = voiceAssignments
