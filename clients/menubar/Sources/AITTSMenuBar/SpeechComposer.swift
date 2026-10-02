@@ -183,6 +183,10 @@ struct SpeechComposerView: View {
                 .onChange(of: modelVoices) { _, voices in
                     composer.draft.reconcileVoice(with: voices)
                 }
+                .onChange(of: localModels.map(\.name)) { _, names in
+                    // Resetting the model fires the engine handler above, which reconciles the voice.
+                    composer.draft.reconcileEngine(with: names)
+                }
                 Picker("Text", selection: $composer.draft.contentFormat) {
                     Text("Plain text").tag(SpeechContentFormat.plainText)
                     Text("Markdown").tag(SpeechContentFormat.markdown)
