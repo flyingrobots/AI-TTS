@@ -4,65 +4,27 @@ Change-kind: feature
 
 ## Policy and prompt interpretation
 
-Prompt 7 requests paragraph navigation around 60 words, including both two- and
-three-paragraph 100-word examples, while suggesting a 40-word paragraph minimum.
-A strict per-paragraph minimum of 40 cannot produce three chunks from 100 words.
-The implemented policy therefore uses a **60-word document/section threshold**
-and **20-word paragraph-group minimum**, as stated in the progress update.
-Tiny leading/intermediate blocks join the following block; a short tail joins
-the preceding group. Ordinary text below the threshold or without paragraph
-breaks remains exact. Existing explicit Markdown section behavior is preserved.
+Prompt 7 requests paragraph navigation around 60 words, including both two- and three-paragraph 100-word examples, while suggesting a 40-word paragraph minimum. A strict per-paragraph minimum of 40 cannot produce three chunks from 100 words. The implemented policy therefore uses a **60-word document/section threshold** and **20-word paragraph-group minimum**, as stated in the progress update. Tiny leading/intermediate blocks join the following block; a short tail joins the preceding group. Ordinary text below the threshold or without paragraph breaks remains exact. Existing explicit Markdown section behavior is preserved.
 
-Long paragraphs still use the 180-word target and 220-word maximum. LF, CRLF and
-whitespace-only blank lines delimit paragraphs. Markdown projection precedes
-grouping; literal plain text retains its syntax. The parent source is unchanged,
-and existing clip plans are not retroactively rewritten.
+Long paragraphs still use the 180-word target and 220-word maximum. LF, CRLF and whitespace-only blank lines delimit paragraphs. Markdown projection precedes grouping; literal plain text retains its syntax. The parent source is unchanged, and existing clip plans are not retroactively rewritten.
 
 ## Red/green and falsification
 
-Eleven newly added cases failed against the original segmenter, with named
-assertion failures for 100-word two/three-paragraph plans in plain, Markdown and
-legacy modes; LF/CRLF/whitespace separators; tiny-block attachment; and rendered
-Markdown heading/blockquote boundaries. Receipt:
-`.git/codex-scratch/paragraph-segmentation-red.log`.
+Eleven newly added cases failed against the original segmenter, with named assertion failures for 100-word two/three-paragraph plans in plain, Markdown and legacy modes; LF/CRLF/whitespace separators; tiny-block attachment; and rendered Markdown heading/blockquote boundaries. Receipt: `.git/codex-scratch/paragraph-segmentation-red.log`.
 
-Restored behavior passes those cases, an explicit atomic 15-word sentence, and
-60 deterministic generated paragraph layouts checking exact token order,
-nonempty children and the existing 220-word ceiling. Eight seeded faults detect
-disabled medium paragraph grouping, an excessive paragraph minimum, an early
-document threshold, dropped tail, unbounded paragraphs, reversed source order,
-split short clips and empty children. See
-[calibration](2026-09-30-paragraph-calibration.json). All sources were restored.
+Restored behavior passes those cases, an explicit atomic 15-word sentence, and 60 deterministic generated paragraph layouts checking exact token order, nonempty children and the existing 220-word ceiling. Eight seeded faults detect disabled medium paragraph grouping, an excessive paragraph minimum, an early document threshold, dropped tail, unbounded paragraphs, reversed source order, split short clips and empty children. See [calibration](2026-09-30-paragraph-calibration.json). All sources were restored.
 
-An owned FakeEngine/FakeSink daemon test submits the 100-word source through the
-actual socket, observes two durable children and an unchanged parent, then
-performs next and previous chunk operations. Owned sink-start events establish
-completion; no audio hardware or polling sleeps are used. Disabling paragraph
-grouping makes this admission-boundary assertion fail.
+An owned FakeEngine/FakeSink daemon test submits the 100-word source through the actual socket, observes two durable children and an unchanged parent, then performs next and previous chunk operations. Owned sink-start events establish completion; no audio hardware or polling sleeps are used. Disabling paragraph grouping makes this admission-boundary assertion fail.
 
-No schema migration, model change, Swift change or dependency change is needed.
-This prompt remains one feature commit and one PR on top of the terminal feature.
-No issue is fully closed by this change. Acoustic performance and semantic
-paragraph detection beyond the existing word-count policy are not claimed.
+No schema migration, model change, Swift change or dependency change is needed. This prompt remains one feature commit and one PR on top of the terminal feature. No issue is fully closed by this change. Acoustic performance and semantic paragraph detection beyond the existing word-count policy are not claimed.
 
-Final local checks: **742 Python tests**, Ruff, formatting and mypy pass. Small
-and medium tier costs are 0.64 s and 12.07 s, wall 13.22 s. Receipt:
-`.git/codex-scratch/paragraph-final-python.log`. Swift and the frozen dependency
-graph are unchanged from the preceding passing PR #38 checks.
+Final local checks: **742 Python tests**, Ruff, formatting and mypy pass. Small and medium tier costs are 0.64 s and 12.07 s, wall 13.22 s. Receipt: `.git/codex-scratch/paragraph-final-python.log`. Swift and the frozen dependency graph are unchanged from the preceding passing PR #38 checks.
 
 ## Reconciliation with reviewed main
 
-The five open feature commits were replayed onto main `6482b49`, preserving
-merged review corrections from prompts 1 and 2 and the existing native UI work.
-The paragraph test conflict retains both literal-Markdown regressions from main
-and the new paragraph cases. No assertion was dropped to complete the rebase.
+The five open feature commits were replayed onto main `6482b49`, preserving merged review corrections from prompts 1 and 2 and the existing native UI work. The paragraph test conflict retains both literal-Markdown regressions from main and the new paragraph cases. No assertion was dropped to complete the rebase.
 
-The combined tree passed 793 Python tests (271 small, 522 medium; 0.79/12.85
-seconds by tier, 14.18 seconds wall clock), Ruff, formatting for 216 files,
-and mypy for 138 files. Its 142 Swift tests passed with warnings as errors after
-the model-picker API correction recorded in the multi-engine receipt.
-The original per-feature red and seeded-fault receipts remain historical
-evidence; these integration results do not claim new native acoustic acceptance.
+The combined tree passed 793 Python tests (271 small, 522 medium; 0.79/12.85 seconds by tier, 14.18 seconds wall clock), Ruff, formatting for 216 files, and mypy for 138 files. Its 142 Swift tests passed with warnings as errors after the model-picker API correction recorded in the multi-engine receipt. The original per-feature red and seeded-fault receipts remain historical evidence; these integration results do not claim new native acoustic acceptance.
 
 ## Reproduced red on the parent segmenter
 

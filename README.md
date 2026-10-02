@@ -914,19 +914,8 @@ and **s** skips. **Tab** switches tables and **Enter** replays selected history.
 **q** closes the dashboard while the daemon keeps running. Disconnections and
 command failures appear in the status line; the dashboard reconnects automatically.
 
-
 ### Paragraph navigation
 
-Responses of at least 60 words can now split at blank-line paragraph boundaries,
-even when the whole response is under the previous 180-word target. Two 50-word
-paragraphs become two chunks; three roughly 33-word paragraphs become three.
-Blocks shorter than 20 words join a neighbor, keeping a short heading or closing
-line attached to useful speech. Ordinary short clips and single paragraphs retain
-their identity; existing explicit Markdown section boundaries still apply.
+Responses of at least 60 words can now split at blank-line paragraph boundaries, even when the whole response is under the previous 180-word target. Two 50-word paragraphs become two chunks; three roughly 33-word paragraphs become three. Blocks shorter than 20 words join a neighbor, keeping a short heading or closing line attached to useful speech. Ordinary short clips and single paragraphs retain their identity; existing explicit Markdown section boundaries still apply.
 
-Long documents also break at each paragraph group, so five 50-word paragraphs
-give five chunks rather than being packed toward 180 words. A single paragraph
-longer than that keeps the 180-word target and 220-word ceiling. Plain text stays
-literal, Markdown is projected before paragraph grouping, and the stored parent
-source is unchanged. LF and CRLF paragraph breaks work. Use `next-chunk` /
-`prev-chunk`, the menu's chunk buttons, or `n` / `p` in the terminal dashboard.
+Long documents also break at each paragraph group, so five 50-word paragraphs give five chunks rather than being packed toward 180 words. A single paragraph longer than that keeps the 180-word target and 220-word ceiling. Plain text stays literal, Markdown is projected before paragraph grouping, and the stored parent source is unchanged. LF and CRLF paragraph breaks work. Use `next-chunk` / `prev-chunk`, the menu's chunk buttons, or `n` / `p` in the terminal dashboard.
