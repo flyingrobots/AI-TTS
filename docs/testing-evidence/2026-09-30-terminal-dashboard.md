@@ -90,6 +90,8 @@ remains. See [summary](2026-09-30-tui-dependency-summary.json); raw reports and 
 command transcript are in `.git/codex-scratch/tui-audit/`. No advisory result
 establishes absence of undisclosed vulnerabilities. `uv build --offline` passes.
 
+Stale lock (Code Lawyer, 2026-10-01): the summary's `lock_sha256` is `510e5022…022f`, but `uv.lock` at the PR head `a33ce35` hashes to `29be5818…2075`. The audit therefore describes a different lock file. Its counts and its zero-vulnerability result are not evidence for the lock this PR ships. The audit must be re-run against the current `uv.lock` before it can count as acceptance evidence. The summary is left as recorded rather than rewritten with a hash it was not computed from.
+
 ## Limits
 
 Tests use owned sockets, FakeEngine/FakeSink or controlled real sink callbacks;
