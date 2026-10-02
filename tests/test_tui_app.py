@@ -60,7 +60,8 @@ async def test_vim_selection_reorder_and_double_delete_use_clip_identity(daemon:
     async with app.run_test(size=(100, 35)) as pilot:
         await asyncio.wait_for(app.updated.wait(), 1)
         await pilot.pause()
-        await pilot.press("j", "J")
+        # J moves the selected clip down and K moves it up, matching j/k.
+        await pilot.press("J")
         plan = (await client.request({"op": "snapshot"}))["plan"]
         assert [item["id"] for item in plan] == [second["id"], first["id"]]
         await pilot.press("K")
