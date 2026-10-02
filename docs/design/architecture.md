@@ -430,13 +430,7 @@ limit does not poison the connection, so a corrected next request can proceed. D
 
 Admission publishes `state_changed` with `from` null and `to` `Queued`, for a submission and for a history replay. Without it, a clip queued behind busy workers or startup warmup stays invisible to subscribers until a worker claims it.
 
-`playback_progress` is optional and defaults off. Opted-in subscribers receive
-samples at approximately 10 Hz. `id` and `position_ms` can be null when idle;
-`audio_peak` is a linear output-block peak in [0, 1], null when the active sink
-cannot measure it, and zero while held/idle. Native sink measurements older than
-250 ms read as zero. These samples are transient and dropped for readers whose
-write backlog exceeds 64 KiB; state-change events remain on the ordinary stream.
-No audio samples or additional source text are included in meter events.
+`playback_progress` is optional and defaults off. Opted-in subscribers receive samples at approximately 10 Hz. `id` and `position_ms` can be null when idle; `audio_peak` is a linear output-block peak in [0, 1], null when the active sink cannot measure it, and zero while held/idle. Native sink measurements older than 250 ms read as zero. These samples are transient and dropped for readers whose write backlog exceeds 64 KiB; state-change events remain on the ordinary stream. No audio samples or additional source text are included in meter events.
 
 `content_format` is `plain_text` or `markdown`. Maintained CLI, MCP, and native
 clients always send it; CLI and MCP speech default to `plain_text`. For wire

@@ -817,15 +817,8 @@ and unity restoration on this Mac's eight-channel output. See the
 Permission denial, physical route switching and long-session acoustic behavior
 remain manual acceptance gaps. Hardware measurements do not gate CI.
 
-
 ## September 30 terminal dashboard
 
-The optional terminal client has real-daemon Pilot tests for rendering,
-transport/chunk controls, queue editing, replay, reconnect and daemon-independent
-exit. Owned socket tests cover framing and subscription lifetime; actual sink
-callbacks feed the opt-in dBFS meter. See the
-[terminal receipt](../testing-evidence/2026-09-30-terminal-dashboard.md) for
-falsification, rendered previews, suite costs and the expanded dependency audit.
-Acoustic level calibration and every terminal emulator/size remain outside CI.
+The optional terminal client has real-daemon Pilot tests for rendering, transport/chunk controls, queue editing, replay, reconnect and daemon-independent exit. Owned socket tests cover framing and subscription lifetime; actual sink callbacks feed the opt-in dBFS meter. See the [terminal receipt](../testing-evidence/2026-09-30-terminal-dashboard.md) for falsification, rendered previews, suite costs and the expanded dependency audit. Acoustic level calibration and every terminal emulator/size remain outside CI.
 
 The terminal dashboard's review round adds regression tests at the daemon socket. They cover the admission event for work queued behind a busy worker, and replies longer than the 1 MiB request limit. A CLI regression test covers the exit status after a crash. A controlled clock now drives the `dd` confirmation window. Parent SHAs and red output are in the receipt's review-round table.
