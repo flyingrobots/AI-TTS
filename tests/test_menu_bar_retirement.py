@@ -48,3 +48,27 @@ def test_a_ui_that_ignores_sigterm_is_reported_without_failing_installation(
         "probes": signals.count(["-0", "4242"]),
         "warned": "menu-bar app (PID 4242) did not exit" in capsys.readouterr().err,
     } == {"terminated": [["-TERM", "4242"]], "probes": 3, "warned": True}
+
+
+@pytest.mark.parametrize("hung", ["/owned/ps", "-TERM", "-0"])
+def test_a_hung_process_tool_cannot_block_installation(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], hung: str
+) -> None:
+    """Oracle: CodeRabbit PRRT_kwDOUHyfMM6oPaqw; each process command has a deadline."""
+
+    def processes(arguments: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if hung in {arguments[0], arguments[1]}:
+            # A hung tool returns only through the caller's own deadline.
+            if kwargs.get("timeout") is None:
+                pytest.fail(f"{arguments} would block installation forever")
+            raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+        if arguments[0] == "/owned/ps":
+            return subprocess.CompletedProcess(arguments, 0, stdout=f" 4242 {EXECUTABLE}\n")
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr("scripts.install_application.subprocess.run", processes)
+    monkeypatch.setattr("scripts.install_application.time.sleep", lambda _seconds: None)
+
+    retire_menu_bar(ps="/owned/ps", kill="/owned/kill", executable=EXECUTABLE, polls=3)
+
+    assert "warning: " in capsys.readouterr().err

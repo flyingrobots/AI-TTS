@@ -133,7 +133,12 @@ uninstall: export AITTS_MENU_BAR_PLIST := $(MENU_BAR_AGENT)
 uninstall: export AITTS_APP := $(APP_BUNDLE)
 uninstall:
 	@printf '==> stopping and removing both launchd agents\n'
-	@launchctl bootout "$(MENU_BAR_SERVICE)" 2>/dev/null || true
+	@if launchctl print "$(MENU_BAR_SERVICE)" >/dev/null 2>&1 && \
+		! launchctl bootout "$(MENU_BAR_SERVICE)" 2>/dev/null; then \
+		printf 'launchd could not stop %s; its plist was left in place\n' \
+			"$(MENU_BAR_SERVICE)" >&2; \
+		exit 1; \
+	fi
 	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
 	@rm -f -- "$$AITTS_PLIST" "$$AITTS_MENU_BAR_PLIST"
 	@printf '==> removing the executables\n'

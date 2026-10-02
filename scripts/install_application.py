@@ -34,10 +34,28 @@ TEARDOWN_POLL_SECONDS = 0.1
 # exits. Poll this many times, this far apart, for it to leave.
 QUIT_POLLS = 100
 QUIT_POLL_SECONDS = 0.1
+# A stalled ps or kill must not defeat that bounded wait.
+PROCESS_COMMAND_SECONDS = 5.0
 
 
 class LaunchdTeardownTimeoutError(RuntimeError):
     """The previous service was still loaded after the teardown allowance."""
+
+
+def _still_running(kill: str, pid: str) -> bool:
+    """Probe with signal 0; a stalled probe counts as still running."""
+    try:
+        return (
+            subprocess.run(  # noqa: S603 - resolved kill, a PID from ps
+                [kill, "-0", pid],
+                check=False,
+                stderr=subprocess.DEVNULL,
+                timeout=PROCESS_COMMAND_SECONDS,
+            ).returncode
+            == 0
+        )
+    except subprocess.TimeoutExpired:
+        return True
 
 
 def retire_menu_bar(*, ps: str, kill: str, executable: Path, polls: int = QUIT_POLLS) -> None:
@@ -49,27 +67,37 @@ def retire_menu_bar(*, ps: str, kill: str, executable: Path, polls: int = QUIT_P
     processes running the installed executable are touched; a development
     build elsewhere is left alone.
     """
-    listing = subprocess.run(  # noqa: S603 - resolved ps, fixed arguments
-        [ps, "-x", "-o", "pid=,args="], check=True, capture_output=True, text=True
-    ).stdout
+    try:
+        listing = subprocess.run(  # noqa: S603 - resolved ps, fixed arguments
+            [ps, "-x", "-o", "pid=,args="],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=PROCESS_COMMAND_SECONDS,
+        ).stdout
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(
+            "warning: could not list processes to retire a running menu-bar app; "
+            "if one is running, quit it, then run: "
+            f"launchctl kickstart gui/{os.getuid()}/{MENU_BAR_LABEL}\n"
+        )
+        return
     pids = []
     for line in listing.splitlines():
         pid, _, arguments = line.strip().partition(" ")
         if arguments == str(executable) or arguments.startswith(f"{executable} "):
             pids.append(pid)
     for pid in pids:
-        subprocess.run(  # noqa: S603 - resolved kill, a PID from ps
-            [kill, "-TERM", pid], check=False, stderr=subprocess.DEVNULL
-        )
+        # A stalled kill is treated as sent; the liveness polls below decide.
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            subprocess.run(  # noqa: S603 - resolved kill, a PID from ps
+                [kill, "-TERM", pid],
+                check=False,
+                stderr=subprocess.DEVNULL,
+                timeout=PROCESS_COMMAND_SECONDS,
+            )
     for _ in range(polls):
-        pids = [
-            pid
-            for pid in pids
-            if subprocess.run(  # noqa: S603 - resolved kill, a PID from ps
-                [kill, "-0", pid], check=False, stderr=subprocess.DEVNULL
-            ).returncode
-            == 0
-        ]
+        pids = [pid for pid in pids if _still_running(kill, pid)]
         if not pids:
             return
         time.sleep(QUIT_POLL_SECONDS)
