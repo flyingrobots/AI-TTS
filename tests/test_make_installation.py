@@ -86,30 +86,50 @@ else:
     sys.exit(8)
 """
     )
+    # Installation must not send Apple events, which need Automation consent.
+    # This owned osascript also shadows the real one, which could quit a real UI.
     osascript = commands / "osascript"
-    osascript.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
+    osascript.write_text('#!/bin/sh\ntouch "$AITTS_TEST_ROOT/osascript-invoked"\nexit 1\n')
     osascript.chmod(0o755)
-    # An empty incumbent-ui file is a running UI. Quit leaves it alive for two
-    # more "is running" probes, modelling teardown after the quit reply.
-    osascript.with_suffix(".py").write_text(
-        """import os, sys
+    # The owned process table: an incumbent-ui JSON file is a running UI, next
+    # to a development build and an unrelated process that must not be touched.
+    # SIGTERM leaves the UI alive for two more liveness probes, like AppKit
+    # teardown.
+    for tool, source in {
+        "ps": """import json, os
 from pathlib import Path
 root = Path(os.environ["AITTS_TEST_ROOT"])
-script = sys.argv[-1]
+print("    1 /sbin/launchd")
+print("   77 /development/.build/debug/AITTSMenuBar")
 incumbent = root / "incumbent-ui"
-if script.endswith(" to quit"):
-    if incumbent.exists():
-        incumbent.write_text("2")
-elif script.endswith(" is running"):
-    if incumbent.exists() and incumbent.read_text() == "0":
-        incumbent.unlink()
-    elif incumbent.exists() and incumbent.read_text():
-        incumbent.write_text(str(int(incumbent.read_text()) - 1))
-    print("true" if incumbent.exists() else "false")
-else:
-    sys.exit(8)
-"""
-    )
+if incumbent.exists():
+    process = json.loads(incumbent.read_text())
+    print(f" {process['pid']} {process['args']}")
+""",
+        "kill": """import json, os, sys
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+signal, pid = sys.argv[1:]
+with (root / "signals").open("a") as journal:
+    journal.write(f"{signal} {pid}\\n")
+incumbent = root / "incumbent-ui"
+process = json.loads(incumbent.read_text()) if incumbent.exists() else None
+if process is None or process["pid"] != pid:
+    sys.exit(1)
+if signal == "-TERM":
+    process["remaining"] = 2
+elif signal == "-0" and process.get("remaining") == 0:
+    incumbent.unlink()
+    sys.exit(1)
+elif signal == "-0" and process.get("remaining") is not None:
+    process["remaining"] -= 1
+incumbent.write_text(json.dumps(process))
+""",
+    }.items():
+        shim = commands / tool
+        shim.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
+        shim.chmod(0o755)
+        shim.with_suffix(".py").write_text(source)
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -290,10 +310,32 @@ def test_install_waits_for_the_quit_menu_bar_to_exit_before_registering_it(
     tmp_path: Path, install_environment: dict[str, str]
 ) -> None:
     """Oracle: the registered UI must not lose the single-instance lock to its predecessor."""
-    (tmp_path / "incumbent-ui").write_text("")
+    write_incumbent_ui(tmp_path)
     result = run_installation(tmp_path, install_environment)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "menu-bar-loaded").read_text() == "running"
+
+
+def write_incumbent_ui(tmp_path: Path) -> None:
+    """Run the installed UI in the owned process table, as a manual launch would."""
+    executable = tmp_path.resolve() / "AI-TTS.app" / "Contents" / "MacOS" / "AITTSMenuBar"
+    (tmp_path / "incumbent-ui").write_text(json.dumps({"pid": "4242", "args": str(executable)}))
+
+
+# Retire only when installation no longer retires a running UI itself.
+def test_install_retires_the_running_ui_by_signal_without_apple_events(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: James's decision F; quitting needs no Automation consent and spares other builds."""
+    write_incumbent_ui(tmp_path)
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    signals = (tmp_path / "signals").read_text().splitlines()
+    assert {
+        "osascript": (tmp_path / "osascript-invoked").exists(),
+        "terminated": [line for line in signals if line.startswith("-TERM")],
+        "probed": {line.split()[1] for line in signals},
+    } == {"osascript": False, "terminated": ["-TERM 4242"], "probed": {"4242"}}
 
 
 @pytest.mark.parametrize("loaded", [False, True])

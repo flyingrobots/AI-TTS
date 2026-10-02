@@ -15,7 +15,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from scripts.build_app_bundle import BUNDLE_IDENTIFIER, publish_app_bundle
+from scripts.build_app_bundle import publish_app_bundle
 from scripts.render_launch_agent import MENU_BAR_LABEL, render_launch_agent, render_menu_bar_agent
 
 SPACY_MODEL = (
@@ -30,8 +30,8 @@ SPACY_MODEL = (
 TEARDOWN_POLLS = 100
 TEARDOWN_POLL_SECONDS = 0.1
 
-# The quit reply can arrive before the old UI exits and releases its
-# single-instance lock. Poll this many times, this far apart, for it to leave.
+# A terminated UI releases its single-instance lock only when its process
+# exits. Poll this many times, this far apart, for it to leave.
 QUIT_POLLS = 100
 QUIT_POLL_SECONDS = 0.1
 
@@ -40,25 +40,42 @@ class LaunchdTeardownTimeoutError(RuntimeError):
     """The previous service was still loaded after the teardown allowance."""
 
 
-def _quit_menu_bar(osascript: str) -> None:
-    """Retire a running UI so the registered agent's instance can take the lock."""
-    application = f'application id "{BUNDLE_IDENTIFIER}"'
-    subprocess.run(  # noqa: S603 - fixed AppleScript, no interpolated user input
-        [osascript, "-e", f"if {application} is running then tell {application} to quit"],
-        check=True,
-    )
-    for _ in range(QUIT_POLLS):
-        running = subprocess.run(  # noqa: S603 - fixed AppleScript, no interpolated user input
-            [osascript, "-e", f"{application} is running"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        if running == "false":
+def retire_menu_bar(*, ps: str, kill: str, executable: Path, polls: int = QUIT_POLLS) -> None:
+    """SIGTERM the installed UI so the registered agent's instance can take the lock.
+
+    Signals need no Automation consent, unlike an Apple event quit. Only
+    processes running the installed executable are touched; a development
+    build elsewhere is left alone.
+    """
+    listing = subprocess.run(  # noqa: S603 - resolved ps, fixed arguments
+        [ps, "-x", "-o", "pid=,args="], check=True, capture_output=True, text=True
+    ).stdout
+    pids = []
+    for line in listing.splitlines():
+        pid, _, arguments = line.strip().partition(" ")
+        if arguments == str(executable) or arguments.startswith(f"{executable} "):
+            pids.append(pid)
+    for pid in pids:
+        subprocess.run(  # noqa: S603 - resolved kill, a PID from ps
+            [kill, "-TERM", pid], check=False, stderr=subprocess.DEVNULL
+        )
+    for _ in range(polls):
+        pids = [
+            pid
+            for pid in pids
+            if subprocess.run(  # noqa: S603 - resolved kill, a PID from ps
+                [kill, "-0", pid], check=False, stderr=subprocess.DEVNULL
+            ).returncode
+            == 0
+        ]
+        if not pids:
             return
         time.sleep(QUIT_POLL_SECONDS)
-    message = "the menu-bar app is still quitting; re-run once it has exited"
-    raise RuntimeError(message)
+    sys.stderr.write(
+        f"warning: the menu-bar app (PID {', '.join(pids)}) did not exit after SIGTERM; "
+        "the registered agent cannot start it while it runs. Quit it, then run: "
+        f"launchctl kickstart gui/{os.getuid()}/{MENU_BAR_LABEL}\n"
+    )
 
 
 def _await_teardown(launchctl: str, service: str, polls: int) -> None:
@@ -171,9 +188,10 @@ def install_application(
     """Stage the app and plist before asking uv to replace the installed CLI."""
     uv = shutil.which("uv")
     launchctl = shutil.which("launchctl")
-    osascript = shutil.which("osascript")
-    if uv is None or launchctl is None or osascript is None:
-        message = "uv, launchctl and osascript are required to install AI-TTS"
+    ps = shutil.which("ps")
+    kill = shutil.which("kill")
+    if uv is None or launchctl is None or ps is None or kill is None:
+        message = "uv, launchctl, ps and kill are required to install AI-TTS"
         raise RuntimeError(message)
     repository = Path(__file__).resolve().parents[1]
     if app.exists() and not app.is_dir():
@@ -252,7 +270,7 @@ def install_application(
         publish_app_bundle(candidate_app, app, force=True)
         activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
         # Retire a manually launched incumbent so launchd owns the new process.
-        _quit_menu_bar(osascript)
+        retire_menu_bar(ps=ps, kill=kill, executable=app / "Contents" / "MacOS" / "AITTSMenuBar")
         activate_launch_agent(
             launchctl=launchctl,
             candidate=candidate_menu_bar,
