@@ -1,0 +1,276 @@
+{
+  "status": "user accepted streaming release at measured latency; under-150-ms target deferred to issue #33; these readings predate the 2026-10-01 device-rate host block (about +33 ms stream.latency) and have not been re-measured",
+  "callback_blocksize_frames": 240,
+  "hardware": {
+    "chip": "Apple M5 Pro",
+    "memory_bytes": 68719476736,
+    "os": "macOS 27.0 arm64",
+    "output_device": {
+      "name": "Studio Display Speakers",
+      "native_sample_rate": 48000,
+      "suggested_low_latency_seconds": 0.023625,
+      "suggested_high_latency_seconds": 0.03295833333333333
+    }
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "kokoro-mlx": "0.1.2",
+    "mlx": "0.32.3",
+    "numpy": "2.5.2",
+    "sounddevice": "0.5.6",
+    "huggingface-hub": "1.29.0"
+  },
+  "workload": {
+    "text": "This is a controlled streaming speech latency test.",
+    "word_count": 8,
+    "voice": "bm_daniel",
+    "speed": 1,
+    "engine": "kokoro-mlx",
+    "model": "mlx-community/Kokoro-82M-bf16"
+  },
+  "method": [
+    "Offline cached assets; model inference primed and output device prepared before timing.",
+    "Start before submission over an owned Unix socket; use actual PortAudio callback and default output device.",
+    "First PCM is observed only after the new sink session begins and its source playhead advances.",
+    "Leading digital zeros are skipped by playback only; the WAV preserves every generated sample. Pauses after the first nonzero sample are retained.",
+    "Scheduled DAC estimate adds outputBufferDacTime-currentTime to submission-to-callback duration; not an acoustic microphone measurement.",
+    "Every callback fills output with zero after collecting its reading; no generated speech was played.",
+    "Completion uses a terminal-state event; no 5 ms status polling. No test suite or mutation run overlapped these five trials.",
+    "Earlier sentence-stream trial overlapped full-suite setup and is excluded from acceptance evidence.",
+    "latency.scheduled_dac_ms: submission to the scheduled device time of the first nonzero sample. This is the reading behind the README's 194-205 ms (trials) and the 328-376 ms baseline (baseline_trials).",
+    "phases.first_pcm_dac_ms: submission to the scheduled device time of the first source PCM frame, zero or not. It is diagnostic and does not support the README figure.",
+    "Every 'log' path under /tmp/ in experiments is a raw log on the authoring machine. None is in the repository, and none can be reproduced from it; each finding is summarized beside its path."
+  ],
+  "baseline_trials": [
+    {
+      "trial": 0,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 302.7696249773726,
+        "scheduled_dac_ms": 332.0581670268439,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.7199169960804284,
+        "engine_start_ms": 2.747999969869852,
+        "first_pcm_ms": 114.8646249785088,
+        "sink_start_ms": 116.49245797889307,
+        "first_pcm_dac_ms": 152.08733396138996
+      }
+    },
+    {
+      "trial": 1,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 298.5646660090424,
+        "scheduled_dac_ms": 327.83600001130253,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.7199169960804284,
+        "engine_start_ms": 1.7596250399947166,
+        "first_pcm_ms": 115.61983299907297,
+        "sink_start_ms": 116.57499999273568,
+        "first_pcm_dac_ms": 147.84008299466223
+      }
+    },
+    {
+      "trial": 2,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 298.60245902091265,
+        "scheduled_dac_ms": 327.87845795974135,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.7199169960804284,
+        "engine_start_ms": 1.6440419713035226,
+        "first_pcm_ms": 116.4990839897655,
+        "sink_start_ms": 117.68049997044727,
+        "first_pcm_dac_ms": 147.85741799278185
+      }
+    },
+    {
+      "trial": 3,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 345.2215829747729,
+        "scheduled_dac_ms": 374.5019159396179,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.7199169960804284,
+        "engine_start_ms": 4.41483297618106,
+        "first_pcm_ms": 157.63449994847178,
+        "sink_start_ms": 159.17108295252547,
+        "first_pcm_dac_ms": 194.5643340004608
+      }
+    },
+    {
+      "trial": 4,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 346.66845796164125,
+        "scheduled_dac_ms": 375.94874895876274,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.7199169960804284,
+        "engine_start_ms": 4.879415966570377,
+        "first_pcm_ms": 159.2510410118848,
+        "sink_start_ms": 161.19012498529628,
+        "first_pcm_dac_ms": 196.0090000065975
+      }
+    }
+  ],
+  "trials": [
+    {
+      "trial": 0,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 171.08954198192805,
+        "scheduled_dac_ms": 200.36879094550386,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.5409999759867787,
+        "engine_start_ms": 7.60183302918449,
+        "first_pcm_ms": 166.4892080007121,
+        "sink_start_ms": 168.89870801242068,
+        "first_pcm_dac_ms": 200.36083296872675
+      }
+    },
+    {
+      "trial": 1,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 176.08691699570045,
+        "scheduled_dac_ms": 205.36408305633813,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.5409999759867787,
+        "engine_start_ms": 5.777208018116653,
+        "first_pcm_ms": 161.86154203023762,
+        "sink_start_ms": 163.3235000190325,
+        "first_pcm_dac_ms": 195.50137495389208
+      }
+    },
+    {
+      "trial": 2,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 166.8591249617748,
+        "scheduled_dac_ms": 196.14562601782382,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.5409999759867787,
+        "engine_start_ms": 4.560333967674524,
+        "first_pcm_ms": 162.4967500101775,
+        "sink_start_ms": 164.55679200589657,
+        "first_pcm_dac_ms": 196.1384589667432
+      }
+    },
+    {
+      "trial": 3,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 166.73816699767485,
+        "scheduled_dac_ms": 196.0136669804342,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.5409999759867787,
+        "engine_start_ms": 4.420124983880669,
+        "first_pcm_ms": 157.2860829764977,
+        "sink_start_ms": 159.0625419630669,
+        "first_pcm_dac_ms": 196.00687496131286
+      }
+    },
+    {
+      "trial": 4,
+      "state": "Played",
+      "latency": {
+        "callback_ms": 164.56366598140448,
+        "scheduled_dac_ms": 193.84795799851418,
+        "driver_underflow": false
+      },
+      "error": null,
+      "phases": {
+        "refresh_ms": 1.5409999759867787,
+        "engine_start_ms": 4.8216659924946725,
+        "first_pcm_ms": 158.81512500345707,
+        "sink_start_ms": 160.57658300269395,
+        "first_pcm_dac_ms": 193.84066597558558
+      }
+    }
+  ],
+  "experiments": {
+    "qos_and_low_latency": {
+      "adopted": false,
+      "log": "/tmp/ai-tts-stream-qos-trial.log",
+      "finding": "No material improvement; thread user-initiated QoS and low device latency left scheduled output delay about 29 ms."
+    },
+    "python_switch_interval_1ms": {
+      "adopted": false,
+      "log": "/tmp/ai-tts-stream-gil-trial.log",
+      "finding": "No material improvement."
+    },
+    "inference_after_idle": {
+      "log": "/tmp/ai-tts-mlx-idle-trial.log",
+      "consecutive_thread_ms": [
+        94.02,
+        93.27,
+        93.57,
+        93.61,
+        93.04,
+        93.25
+      ],
+      "after_3_65_seconds_idle_ms": [
+        159.83,
+        163.13,
+        165.45,
+        164.88,
+        163.56
+      ],
+      "finding": "Slowdown reproduces without an audio device or daemon."
+    },
+    "float16_weights": {
+      "adopted": false,
+      "log": "/tmp/ai-tts-mlx-fp16-trial.log",
+      "finding": "No reliable latency improvement, so no precision change shipped."
+    },
+    "small_gpu_wakeup_matmul": {
+      "adopted": false,
+      "log": "/tmp/ai-tts-mlx-wake-trial.log",
+      "finding": "No reliable latency improvement."
+    },
+    "compiled_albert_and_projections": {
+      "adopted": false,
+      "log": "/tmp/ai-tts-mlx-compile-trial.log",
+      "finding": "No reliable idle latency improvement; first compilation added startup cost."
+    },
+    "idle_profile": {
+      "log": "/tmp/ai-tts-mlx-idle-profile.log",
+      "warm_ms": 98,
+      "idle_ms": 155,
+      "finding": "The same 10507 calls slowed across both Python-side model preparation and final native evaluation. No audio device was involved."
+    },
+    "prepared_weightnorm": {
+      "adopted": false,
+      "log": "/tmp/ai-tts-mlx-weightnorm-trial.log",
+      "finding": "Preparing 89 normalized weights slightly improved consecutive inference but did not reliably meet the idle target."
+    }
+  },
+  "follow_up": "https://github.com/flyingrobots/AI-TTS/issues/33"
+}

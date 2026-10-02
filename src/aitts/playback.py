@@ -20,12 +20,14 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
+from aitts.adapters.callback_output import PreparedCallbackOutput
 from aitts.adapters.diagnostic_logging import utterance_trace
 from aitts.adapters.platform_audio import platform_audio_device
 from aitts.application.playback_schedule import PlaybackCheckpoint
 from aitts.model import Priority, State
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from contextlib import AbstractContextManager
 
     from aitts.adapters.clip_evidence import ClipEvidence
@@ -33,6 +35,13 @@ if TYPE_CHECKING:
     from aitts.application.playback_schedule import PlaybackSchedulePort
     from aitts.model import Utterance, UtteranceSegment
     from aitts.store import Store
+
+from aitts.streaming import (
+    SOFT_FADE_FRAMES,
+    PCMStreamRenderer,
+    SpoolingPCMStream,
+    StreamingRegistry,
+)
 
 log = logging.getLogger(__name__)
 PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
@@ -212,6 +221,51 @@ def _open_sounddevice_stream(
     return cast("AbstractContextManager[OutputStream]", stream)
 
 
+class CallbackStreamFactory(Protocol):
+    """Open a device callback which reads only PCM memory, never files or inference."""
+
+    def __call__(
+        self,
+        *,
+        samplerate: int,
+        channels: int,
+        render: Callable[[Any, int, bool], bool],
+        finished: Callable[[], None],
+    ) -> AbstractContextManager[object]:
+        """Return a device context; false from render drains its final block."""
+        ...
+
+
+def _open_pcm_callback_stream(
+    *,
+    samplerate: int,
+    channels: int,
+    render: Callable[[Any, int, bool], bool],
+    finished: Callable[[], None],
+) -> AbstractContextManager[object]:
+    import sounddevice as sd  # noqa: PLC0415 - lazy native audio binding
+
+    def callback(output: Any, frames: int, timing: Any, status: Any) -> None:  # noqa: ANN401 - untyped PortAudio callback boundary
+        del timing
+        if not render(output, frames, bool(status.output_underflow)):
+            raise sd.CallbackStop
+
+    # Prepared output carries every compatible clip, so it needs the same host
+    # buffer as the file stream: 240 frames gave a 5 ms HAL buffer at 48 kHz.
+    device_rate = float(sd.query_devices(kind="output")["default_samplerate"])
+    return cast(
+        "AbstractContextManager[object]",
+        sd.OutputStream(
+            samplerate=samplerate,
+            channels=channels,
+            dtype="float32",
+            blocksize=_host_block_frames(device_rate),
+            callback=callback,
+            finished_callback=finished,
+        ),
+    )
+
+
 class SoundDeviceSink:
     """Real audio output through PortAudio, one stream at a time.
 
@@ -237,15 +291,21 @@ class SoundDeviceSink:
         *,
         device: AudioDevicePort | None = None,
         open_stream: OutputStreamFactory | None = None,
+        open_callback_stream: CallbackStreamFactory | None = None,
         evidence: ClipEvidence | None = None,
     ) -> None:
         """Create the sink; nothing is opened until :meth:`start`."""
+        self._open_callback_stream = open_callback_stream or _open_pcm_callback_stream
+        self._live_pcm: SpoolingPCMStream | None = None
         self.evidence = evidence
         self.playback_session = ""
         self._audio_path: Path | None = None
         self._stream_underflows = 0
         self._device = device if device is not None else platform_audio_device()
         self._open_stream = open_stream if open_stream is not None else _open_sounddevice_stream
+        self._prepared_output: PreparedCallbackOutput | None = None
+        self._output_setup = threading.Lock()
+        self._output_shutdown = False
         self.paused = False
         self.error: str | None = None
         self._pause_flag = threading.Event()
@@ -261,6 +321,24 @@ class SoundDeviceSink:
         self._opened_on: str | None = None
         self._pending_device: str | None = None
         self._pending_confirmations = 0
+
+    def prepare_output(self) -> None:
+        """Prepare silent callback output before admitting streaming synthesis."""
+        with self._output_setup:
+            if self._output_shutdown:
+                return
+            if self._prepared_output is None:
+                self._prepared_output = PreparedCallbackOutput(
+                    self._device, self._open_callback_stream
+                )
+            self._prepared_output.prepare()
+
+    def close_output(self) -> None:
+        """Release idle callback hardware when the daemon shuts down."""
+        with self._output_setup:
+            self._output_shutdown = True
+            if self._prepared_output is not None:
+                self._prepared_output.close()
 
     def set_rate(self, rate: float) -> None:
         """Apply ``rate`` to the active stream at its next audio block."""
@@ -280,6 +358,21 @@ class SoundDeviceSink:
 
     def start(self, path: Path, *, position_ms: int = 0) -> None:
         """Play ``path`` on the default output device from ``position_ms``."""
+        self._launch(path, position_ms=position_ms, streaming=False)
+
+    def start_stream(
+        self, source: SpoolingPCMStream, *, artifact_id: str, position_ms: int = 0
+    ) -> None:
+        """Play incremental PCM with disk spooling isolated from the device callback."""
+        source.retain()
+        self._live_pcm = source
+        try:
+            self._launch(Path(artifact_id), position_ms=position_ms, streaming=True)
+        except Exception:
+            source.release()
+            raise
+
+    def _launch(self, path: Path, *, position_ms: int, streaming: bool) -> None:
         # Completion is the handoff barrier: the stream and file are closed
         # before it is signalled. The old Python thread may still be returning.
         if self._thread is not None and not self._ended.is_set():
@@ -303,7 +396,9 @@ class SoundDeviceSink:
 
         self._audio_event("session_started", runtime=self.evidence.runtime if self.evidence else {})
         self._thread = threading.Thread(
-            target=self._play_blocking, args=(path, position_ms, signal_end), daemon=True
+            target=self._play_stream_blocking if streaming else self._play_blocking,
+            args=(path, position_ms, signal_end),
+            daemon=True,
         )
         self._thread.start()
 
@@ -323,7 +418,18 @@ class SoundDeviceSink:
         import soundfile as sf  # noqa: PLC0415 - keep audio deps out of test imports
 
         assert callable(signal_end)  # noqa: S101 - internal invariant
+        delegated = False
         try:
+            if self._prepared_output is not None:
+                try:
+                    source = SpoolingPCMStream.from_cached(path)
+                except (ValueError, OSError):
+                    self._prepared_output.close()
+                else:
+                    self._live_pcm = source
+                    delegated = True
+                    self._play_stream_blocking(path, position_ms, signal_end)
+                    return
             with sf.SoundFile(str(path)) as audio:
                 self._samplerate = int(audio.samplerate)
                 source_frame = float(int(position_ms / 1000 * audio.samplerate))
@@ -345,7 +451,95 @@ class SoundDeviceSink:
             log.warning("event=audio_output_failed")
             self._natural = False
         finally:
+            if not delegated:
+                signal_end()
+
+    def _play_stream_blocking(self, path: Path, position_ms: int, signal_end: object) -> None:
+        del path
+        source = self._live_pcm
+        assert source is not None  # noqa: S101 - start_stream owns the source
+        assert callable(signal_end)  # noqa: S101 - sink lifecycle callback
+        self._samplerate = 24000
+        position = int(position_ms * 24)
+        try:
+            while not self._stop_flag.is_set():
+                if self._pause_flag.is_set():
+                    self._stop_flag.wait(0.05)
+                    continue
+                renderer = PCMStreamRenderer(
+                    source, position_frames=position, skip_leading_silence=True
+                )
+                source.wait_buffered(240, timeout=0.02)
+                if self._prepared_output is None:
+                    self._device.refresh()
+                self._opened_on = self._device.default_output_identity()
+                self._pending_device = None
+                self._pending_confirmations = 0
+                self._stream_underflows = 0
+                finished = threading.Event()
+                reopen = threading.Event()
+
+                factory = (
+                    self._prepared_output.session
+                    if self._prepared_output is not None
+                    else self._open_callback_stream
+                )
+                with factory(
+                    samplerate=24000,
+                    channels=1,
+                    render=self._pcm_render(renderer, reopen),
+                    finished=finished.set,
+                ):
+                    while not finished.wait(0.05):
+                        if self._device_moved_from(self._opened_on):
+                            reopen.set()
+                position = int(renderer.position_frames)
+                self._audio_event(
+                    "stream_buffering",
+                    underruns=renderer.underruns,
+                    output_underflows=self._stream_underflows,
+                    skipped_silence_frames=renderer.skipped_silence_frames,
+                )
+                if renderer.error:
+                    self.error = renderer.error
+                    break
+                if renderer.ended:
+                    self._natural = True
+                    break
+        except Exception as exc:  # noqa: BLE001 - device failure belongs to this clip
+            self.error = str(exc) or type(exc).__name__
+        finally:
+            source.release()
             signal_end()
+
+    def _pcm_render(
+        self, renderer: PCMStreamRenderer, reopen: threading.Event
+    ) -> Callable[[Any, int, bool], bool]:
+        # A prepared device keeps playing silence after the session, so only a
+        # session that closes its own stream needs silence the close can cut.
+        close_silence = (
+            0 if self._prepared_output is not None else int(24000 * self._CLOSE_SILENCE_SECONDS)
+        )
+        silence_left: int | None = None
+
+        def render(output: Any, frames: int, underflow: bool) -> bool:  # noqa: ANN401, FBT001 - native callback contract
+            nonlocal silence_left
+            if underflow:
+                self._stream_underflows += 1
+            if silence_left is not None:
+                # Latched: a resume during the close still finishes it softly.
+                output.fill(0)
+                silence_left -= frames
+                return silence_left > 0
+            if self._stop_flag.is_set() or self._pause_flag.is_set() or reopen.is_set():
+                output[:] = renderer.close_block(frames, rate=self._current_rate())
+                silence_left = close_silence - (frames - min(frames, SOFT_FADE_FRAMES))
+                return silence_left > 0
+            output[:] = renderer.render(frames, rate=self._current_rate())
+            self._set_position_ms(renderer.position_frames / 24)
+            return not renderer.ended and renderer.error is None
+
+        return render
 
     def _play_on_current_device(self, audio: Any, source_frame: float) -> float:  # noqa: ANN401
         """Stream from ``source_frame`` until the file ends or the default moves.
@@ -541,7 +735,7 @@ class SoundDeviceSink:
 class PlaybackController:
     """Serializes playback and answers to the user, not to the queue."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - injected playback boundaries
         self,
         store: Store,
         sink: AudioSink,
@@ -549,8 +743,10 @@ class PlaybackController:
         *,
         held: bool = False,
         evidence: ClipEvidence | None = None,
+        streams: StreamingRegistry | None = None,
     ) -> None:
         """Wrap ``sink`` and restore the durable global playback hold."""
+        self._streams = streams
         self._evidence = evidence
         self._store = store
         self._sink = sink
@@ -698,8 +894,10 @@ class PlaybackController:
                     if segment is not None and segment.state is State.READY:
                         self._begin_segment(nxt, segment, position_ms=0)
                         continue
-                    if segment is None and nxt.audio_path is not None:
-                        self._begin(nxt.id, Path(nxt.audio_path), position_ms=0)
+                    if segment is None and (
+                        nxt.audio_path is not None or self._live_source(nxt.id) is not None
+                    ):
+                        self._begin(nxt.id, Path(nxt.audio_path or nxt.id), position_ms=0)
                         continue
             elif self._current_id is not None and not self._sink_active:
                 current = self._current()
@@ -733,6 +931,16 @@ class PlaybackController:
             # fixed short wait meant a store query ten times a second for as
             # long as the daemon sat in the menu bar.
             self._idle_wait = min(self._idle_wait * 2, _PLAN_WAIT_MAX_SECONDS)
+
+    async def shutdown(self) -> None:
+        """Release the live device before the daemon closes its store and spools."""
+        async with self._transport_lock:
+            current = self._current()
+            # An existing hold already captured the playhead; holding again
+            # would erase a microphone hold's durable reason.
+            if current is not None and not current.is_terminal and not self.held:
+                await self._hold(reason=None, cause="daemon_shutdown")
+            await self.stop()
 
     async def _plan_preemption(self) -> None:
         """Transfer the device only once the interrupting clip can speak."""
@@ -797,8 +1005,10 @@ class PlaybackController:
         )
         if segment is not None and segment.state in (State.READY, State.PAUSED):
             self._begin_segment(clip, segment, position_ms=segment.played_ms or 0)
-        elif segment is None and clip.audio_path is not None:
-            self._begin(clip.id, Path(clip.audio_path), position_ms=clip.played_ms or 0)
+        elif segment is None and (
+            clip.audio_path is not None or self._live_source(clip.id) is not None
+        ):
+            self._begin(clip.id, Path(clip.audio_path or clip.id), position_ms=clip.played_ms or 0)
         else:
             self._current_id = clip.id
             self._current_segment_index = None
@@ -822,7 +1032,7 @@ class PlaybackController:
     def _begin(self, utt_id: str, path: Path, *, position_ms: int) -> None:
         self._store.transition(utt_id, State.PLAYING)
         self._current_id = utt_id
-        self._sink.start(path, position_ms=position_ms)
+        self._start_audio(utt_id, path, position_ms=position_ms)
         self._sink_active = True
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
 
@@ -838,12 +1048,29 @@ class PlaybackController:
         self._store.transition_segment(parent.id, segment.index, State.PLAYING)
         self._current_id = parent.id
         self._current_segment_index = segment.index
-        if segment.audio_path is None:  # pragma: no cover - Ready requires a published artifact
+        if (
+            segment.audio_path is None and self._live_source(segment.artifact_id) is None
+        ):  # pragma: no cover
             msg = "ready segment has no audio artifact"
             raise RuntimeError(msg)
-        self._sink.start(Path(segment.audio_path), position_ms=position_ms)
+        self._start_audio(
+            segment.artifact_id,
+            Path(segment.audio_path or segment.artifact_id),
+            position_ms=position_ms,
+        )
         self._sink_active = True
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
+
+    def _live_source(self, artifact_id: str) -> SpoolingPCMStream | None:
+        return self._streams.get(artifact_id) if self._streams is not None else None
+
+    def _start_audio(self, artifact_id: str, path: Path, *, position_ms: int) -> None:
+        source = self._live_source(artifact_id)
+        start_stream = getattr(self._sink, "start_stream", None)
+        if source is not None and callable(start_stream):
+            start_stream(source, artifact_id=artifact_id, position_ms=position_ms)
+        else:
+            self._sink.start(path, position_ms=position_ms)
 
     async def _watch(self) -> None:
         ended = await self._sink.wait()
@@ -1056,14 +1283,17 @@ class PlaybackController:
                     )
                 self._store.transition(current.id, State.PLAYING)
             elif (segment := self._store.next_unfinished_segment(current.id)) is not None:
-                if segment.state is State.PAUSED and segment.audio_path is not None:
+                if segment.state is State.PAUSED and (
+                    segment.audio_path is not None
+                    or self._live_source(segment.artifact_id) is not None
+                ):
                     self._begin_segment(current, segment, position_ms=segment.played_ms or 0)
                 else:
                     self._store.transition(current.id, State.PLAYING)
-            elif current.audio_path is not None:
+            elif current.audio_path is not None or self._live_source(current.id) is not None:
                 self._begin(
                     current.id,
-                    Path(current.audio_path),
+                    Path(current.audio_path or current.id),
                     position_ms=current.played_ms or 0,
                 )
         self.notify()
@@ -1138,7 +1368,9 @@ class PlaybackController:
         # Ready child, so a document left Playing with no Ready child and no
         # active sink is silent for good.
         previous = self._store.get_segment(current.id, index - 1)
-        if previous is None or previous.audio_path is None:
+        if previous is None or (
+            previous.audio_path is None and self._live_source(previous.artifact_id) is None
+        ):
             return False
         await self._release_sink()
         if not self._store.reset_segments_from(current.id, index - 1):
@@ -1216,9 +1448,7 @@ class PlaybackController:
         if held_at_request:
             return
         current = self._current()
-        if current is None:
-            return
-        if current.state not in (State.PLAYING, State.PAUSED):  # pragma: no cover
+        if current is None or current.state not in (State.PLAYING, State.PAUSED):
             return
         if self._store.segments(current.id):
             active = self._current_segment_index
@@ -1234,9 +1464,16 @@ class PlaybackController:
                 self._restore_after_failed_step(current.id, active)
             self.notify()
             return
-        if current.audio_path is None:
+        if current.audio_path is None and self._live_source(current.id) is None:
             return
         await self._release_sink()
+        # Generation may publish its WAV while device retirement yields. The
+        # pre-release row can still have no path even though its live source
+        # has now retired, so resolve the current durable artifact again.
+        current = self._store.get(current.id)
+        if current is None or current.state not in (State.PLAYING, State.PAUSED):
+            self.notify()
+            return
         if self.held:
             # Pause can arrive during release. Preserve Restart's zero offset
             # for explicit Resume without acquiring the device through a hold.
@@ -1245,7 +1482,7 @@ class PlaybackController:
             return
         if current.state is State.PAUSED:
             self._store.transition(current.id, State.PLAYING)
-        self._sink.start(Path(current.audio_path), position_ms=0)
+        self._start_audio(current.id, Path(current.audio_path or current.id), position_ms=0)
         self._sink_active = True
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
         self.notify()

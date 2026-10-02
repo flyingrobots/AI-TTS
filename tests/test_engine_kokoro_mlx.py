@@ -3,6 +3,7 @@
 
 """MLX adapter contract at the local assets / generated WAV boundaries."""
 
+from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -33,6 +34,9 @@ class RecordingTts:
     def generate(self, text: str, **kwargs: object) -> SimpleNamespace:
         self.requests.append({"text": text, **kwargs})
         return SimpleNamespace(audio=np.full(2400, 0.125, dtype=np.float32), sample_rate=24000)
+
+    def generate_stream(self, text: str, **kwargs: object) -> Iterator[np.ndarray]:
+        yield self.generate(text, **kwargs).audio
 
 
 def test_mlx_writes_audio_offline_and_forwards_requested_voice_speed(tmp_path: Path) -> None:
@@ -138,3 +142,46 @@ def test_startup_reads_persisted_engine_and_honors_cli_override(tmp_path: Path) 
     store.close()
     assert configured_engine(tmp_path, probe_mlx=lambda: True).name == "kokoro-mlx"
     assert configured_engine(tmp_path, override="kokoro", probe_mlx=lambda: True).name == "kokoro"
+
+
+def test_mlx_stream_yields_bounded_pcm_matching_generated_samples(tmp_path: Path) -> None:
+    class LongerTts(RecordingTts):
+        def generate(self, text: str, **kwargs: object) -> SimpleNamespace:
+            del text, kwargs
+            return SimpleNamespace(
+                audio=np.linspace(-1.25, 1.25, 5001, dtype=np.float32), sample_rate=24000
+            )
+
+    hub = RecordingHub(root=tmp_path)
+    backend = LongerTts()
+    engine = KokoroMlxEngine(assets=KokoroAssets(download=hub.download), load_tts=backend.load)
+    engine.warmup()
+    asset_calls = list(hub.calls)
+    chunks = list(engine.stream_synthesize("Controlled source", "bm_daniel", 1.0))
+    assert [len(chunk) for chunk in chunks] == [4800, 4800, 402]
+    expected = np.clip(np.linspace(-1.25, 1.25, 5001, dtype=np.float32), -1, 1 - 1 / 32768)
+    assert b"".join(chunks) == (expected * 32768).astype("<i2").tobytes()
+    assert hub.calls == asset_calls
+
+
+def test_mlx_stream_does_not_wait_for_later_model_chunks(tmp_path: Path) -> None:
+    class ChunkedTts(RecordingTts):
+        tail_requested = False
+
+        def generate_stream(self, text: str, **kwargs: object) -> Iterator[np.ndarray]:
+            del text, kwargs
+            yield np.full(2400, 0.25, dtype=np.float32)
+            self.tail_requested = True
+            yield np.full(2400, 0.5, dtype=np.float32)
+
+    hub = RecordingHub(root=tmp_path)
+    backend = ChunkedTts()
+    engine = KokoroMlxEngine(assets=KokoroAssets(download=hub.download), load_tts=backend.load)
+    engine.warmup()
+    chunks = engine.stream_synthesize("Two controlled chunks", "bm_daniel", 1.0)
+    try:
+        assert next(chunks) == b"\x00\x20" * 2400
+        assert backend.tail_requested is False
+        assert list(chunks) == [b"\x00\x40" * 2400]
+    finally:
+        chunks.close()

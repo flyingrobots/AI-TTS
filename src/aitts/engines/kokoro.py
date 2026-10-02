@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from aitts.engine import SynthesisError
+from aitts.streaming import pcm16_frames
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -410,6 +411,33 @@ class KokoroEngine:
         samples = np.concatenate(chunks)
         sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
         return int(len(samples) / _SAMPLE_RATE * 1000)
+
+    def stream_synthesize(self, text: str, voice: str, speed: float) -> Iterator[bytes]:
+        """Yield 100 ms PCM frames as each upstream inference result becomes available."""
+        import numpy as np  # noqa: PLC0415 - inference owns array conversion
+
+        pipeline = self._pipeline(voice)
+        voice_pack = self._assets.voice_path(voice)
+        produced = False
+        try:
+            for result in pipeline(text, voice=voice_pack, speed=speed):
+                audio = result.audio if hasattr(result, "audio") else result[-1]
+                if audio is None:
+                    continue
+                samples = np.asarray(audio.numpy() if hasattr(audio, "numpy") else audio)
+                if samples.ndim != 1 or not np.all(np.isfinite(samples)):
+                    msg = "streaming engine produced invalid mono samples"
+                    raise SynthesisError(msg)  # noqa: TRY301 - all pipeline failures share the engine boundary
+                for frame in pcm16_frames(samples):
+                    produced = True
+                    yield frame
+        except SynthesisError:
+            raise
+        except Exception as exc:
+            raise SynthesisError(str(exc)) from exc
+        if not produced:
+            msg = "the engine produced no audio"
+            raise SynthesisError(msg)
 
     def restart(self) -> None:
         """Reload the model after the daemon has suspended and drained synthesis."""

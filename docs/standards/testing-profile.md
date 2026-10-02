@@ -33,8 +33,9 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 | large | 30 seconds | 120 seconds | explicit external boundary; none currently gate CI |
 
 `tests/conftest.py` rejects collection unless each test inherits exactly one
-size marker and one non-empty `oracle(...)` marker, then installs the class
-timeout. The policy and timeout gates have falsification receipts in
+size marker and its closest `oracle(...)` marker names one non-empty authority,
+then installs the class timeout. A test-level oracle replaces the module's for
+that test; the effective oracle is always exactly one. The policy and timeout gates have falsification receipts in
 `docs/testing-evidence/2026-09-03-policy-gates.md`.
 
 **Budgets are per class, not per suite.** They were a single 30-second
@@ -786,6 +787,16 @@ invalidated before mutation and restoration; restored eight-case suite passes.
 Full validation: 730 Python tests (258 small, 472 medium), 127 Swift tests,
 frozen lock, Ruff and mypy pass.
 
+## September 30 streaming PCM extension
+
+Change-kind: feature. Streaming coverage includes controlled first-frame admission, bounded callbacks,
+cache equivalence, native pause/resume and failures, nested live preemption,
+atomic readiness/publication and restart recovery. Seeded-fault calibration and
+silent hardware measurements are in the
+[streaming receipt](../testing-evidence/2026-09-30-streaming-audio.md). The user
+accepted measured startup latency and deferred the original 150 ms optimization
+target to issue #33. Physical route changes and long-session acoustic acceptance
+remain outside the hermetic suite.
 
 ## Native UI audit: initial status-item visibility
 
@@ -949,6 +960,24 @@ cross-display or acoustic acceptance.
 ## Distribution audit: locked, fresh tool install and launchd teardown wait
 
 Change-kind: bug fix. `scripts/install_application.py` had three faults. First, `uv tool install` ignored `uv.lock`, so huggingface-hub 2.0 backtracked transformers to an unbuildable 4.12.2. Second, uv reused its cached build of the unchanged 0.1.0 checkout and installed stale code. Third, `bootstrap` raced launchd's asynchronous `bootout` and failed with error 5, both on install and in the rollback. Three medium Make-entry-point tests on the owned install harness cover the problem. One requires constraints exported from the real frozen lock, one requires `--reinstall-package ai-tts`, and one requires that a lingering teardown is waited out. Two small activation tests cover a service that never leaves (bounded failure, plist restored, no bootstrap) and a rollback whose teardown lingers (the incumbent is still reloaded). Every new test was red on `main`'s installer, and each targeted mutation fails its test. Oracle: uv.lock as the tested runtime graph, the checkout as the installed code, and launchd's observed bootout and bootstrap behavior. Receipt: `docs/testing-evidence/2026-09-30-locked-install.md`.
+
+## Streaming merge with main: callback-path soft close (Code Lawyer, 2026-10-01)
+
+Change-kind: bug fix. Main was first merged at merge commit `6428b58`. From then on, every compatible WAV played through the prepared callback path, which still closed with the 5 ms last-sample ramp that #57 retired. The receipt is `docs/testing-evidence/2026-09-30-streaming-audio.md`, under "Merge with main and review round". Each paragraph below is one fix.
+
+Soft close (`4caca36`). Two medium tests in `tests/test_streaming_soft_transport.py` drive a real `SoundDeviceSink` through a manual callback device with 1024-frame blocks. One requires the close to match the next 20 ms of source under a raised cosine, keep the playhead still, and play at least 100 ms of silence before the stream reports finished. The other requires the last sample to be held when less source than the fade remains. Both were red on parent `6428b58` (479 of 480 fade samples differ). Mutations that drop the silence, or that pad with zeros instead of holding, each fail their test. Oracle: the soft-stream-close receipt.
+
+Soft open (`9095255`). A renderer opened at a nonzero position must fade in over 20 ms with a raised cosine from exact zero, then match the source exactly. A stop during that fade-in must close from the gain it reached. Both were red on parent `4caca36` (478 of 480 samples differ). A mutation forcing the opening gain to 1.0 fails the second test. Underrun recovery keeps its 5 ms ramp. Oracle: the soft-stream-close receipt.
+
+Streamed-child failure (`d557e58`). In `tests/test_streaming_store_review.py`, a generation failure in a streamed child, Ready or Playing, must mark that child Failed with its own error. On parent `9095255` both cases left it `(Cancelled, None)`. Oracle: the architecture lifecycle.
+
+Skipped child through recovery (`f234c91`). Restart recovery must leave a streamed child Skipped when the listener skipped it before a crash. On parent `d557e58` recovery requeued it. Oracle: the architecture lifecycle.
+
+Shutdown during a microphone hold (`ce3b123`). In `tests/test_streaming_shutdown_hold.py`, a controller shut down during a microphone hold must leave a restarted controller with `interrupted_at` set and the paused playhead kept. On parent `f234c91` the shutdown hold cleared the reason. Oracle: the controller's durable-interruption contract.
+
+Callback host block (`fd3e9f0`, approved by the user). `test_callback_stream_requests_a_host_buffer_longer_than_an_observed_stall` is a medium test at the `sounddevice` boundary. It requires at least 21.3 ms at 44.1, 48, 96 and 192 kHz device rates. On parent `7391f74` it requested 5.4, 5.0, 2.5 and 1.2 ms. Measured on the 48 kHz built-in speakers with a 24 kHz callback stream, the cost is about +33 ms (`stream.latency` 44.8 to 77.4 ms), not the 0.13 s measured for the blocking stream. Oracle: the CoreAudio overload report and the HAL buffer measurements.
+
+Unwrapped adapter error (`b91d33c`). The small `test_invalid_stream_samples_raise_the_adapter_error_unwrapped` requires Kokoro's stream adapter to raise its own `SynthesisError` without wrapping it in a second one. It was red on parent `0ba2b01`. Oracle: the engine boundary contract.
 
 ## Native UI: inline speech composer and caption cycle
 

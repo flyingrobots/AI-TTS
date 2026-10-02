@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Kokoro and Kokoro MLX speech starts playing from the first generated PCM while synthesis continues. A prepared callback device plays from a bounded memory ring, and a separate feeder spools the complete WAV for replay. Pause, rewind, and preemption keep their source offsets. Readiness and cache publication commit atomically, and restart recovery requeues unfinished generation with playback held. Other engines keep file playback.
+- Streamed speech starts and stops as softly as file playback. A stop, pause, or route move fades the next 20 ms of source without moving the playhead (the fade is capped at one callback block, which is longer than 20 ms with the host block below). Near the end of a clip the fade holds the last sample. A session that closes its own stream then writes 100 ms of silence. A stream opened mid-clip, on resume, a route move, or a preemption restore, fades in over 20 ms from exact zero, and a close during that fade-in starts from the gain it had reached.
+- Streamed chunks keep truthful records through failure and restart. If generation fails after a streamed document chunk is already Ready or Playing, that chunk is marked Failed with the engine's error, instead of Cancelled with no error. Restart recovery leaves a streamed chunk skipped if the listener skipped it before the daemon stopped. Daemon shutdown holds playback only if it is not already held, so a microphone hold keeps its on-screen reason after a restart.
+- The streaming callback output requests the same device-rate host block as file playback: a 21.3 ms I/O buffer instead of 5 ms, so app switches do not pop during streamed speech either. Measured on the built-in speakers, this raises the stream's reported output latency by about 33 ms (44.8 to 77.4 ms). The 194–205 ms first-audio figure in the README was measured with the old 240-frame block, before this change, and has not been re-measured.
+
 ### Changed
 
 - Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
