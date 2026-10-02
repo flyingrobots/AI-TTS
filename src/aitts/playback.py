@@ -36,7 +36,12 @@ if TYPE_CHECKING:
     from aitts.model import Utterance, UtteranceSegment
     from aitts.store import Store
 
-from aitts.streaming import PCMStreamRenderer, SpoolingPCMStream, StreamingRegistry
+from aitts.streaming import (
+    SOFT_FADE_FRAMES,
+    PCMStreamRenderer,
+    SpoolingPCMStream,
+    StreamingRegistry,
+)
 
 log = logging.getLogger(__name__)
 PLAYBACK_RATES = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
@@ -186,13 +191,34 @@ class OutputStreamFactory(Protocol):
         ...
 
 
+# Left to choose, PortAudio asked CoreAudio for 15-frame I/O cycles (0.3 ms),
+# so any stall on the I/O thread skipped a cycle and popped. A page fault
+# while another app activated stalled it for about 13.4 ms. The HAL buffer
+# measured exactly the requested block counted in device-rate frames, for
+# 24 and 48 kHz streams alike, so the block is sized from the device's rate:
+# 1024 frames at 48 kHz gave 21.3 ms on the built-in speakers, at the cost
+# of about 0.13 s more queued audio before pause and skip are heard.
+_HOST_BUFFER_FRAMES_AT_48K = 1024
+
+
+def _host_block_frames(device_rate: float) -> int:
+    """Frames per block that give the device the 21.3 ms host buffer."""
+    return math.ceil(device_rate * _HOST_BUFFER_FRAMES_AT_48K / 48_000)
+
+
 def _open_sounddevice_stream(
     *, samplerate: int, channels: int
 ) -> AbstractContextManager[OutputStream]:
     """Open a PortAudio stream on whatever it currently considers default."""
     import sounddevice as sd  # noqa: PLC0415 - keep audio deps out of test imports
 
-    stream = sd.OutputStream(samplerate=samplerate, channels=channels, dtype="float32")
+    device_rate = float(sd.query_devices(kind="output")["default_samplerate"])
+    stream = sd.OutputStream(
+        samplerate=samplerate,
+        channels=channels,
+        dtype="float32",
+        blocksize=_host_block_frames(device_rate),
+    )
     return cast("AbstractContextManager[OutputStream]", stream)
 
 
@@ -225,13 +251,16 @@ def _open_pcm_callback_stream(
         if not render(output, frames, bool(status.output_underflow)):
             raise sd.CallbackStop
 
+    # Prepared output carries every compatible clip, so it needs the same host
+    # buffer as the file stream: 240 frames gave a 5 ms HAL buffer at 48 kHz.
+    device_rate = float(sd.query_devices(kind="output")["default_samplerate"])
     return cast(
         "AbstractContextManager[object]",
         sd.OutputStream(
             samplerate=samplerate,
             channels=channels,
             dtype="float32",
-            blocksize=240,
+            blocksize=_host_block_frames(device_rate),
             callback=callback,
             finished_callback=finished,
         ),
@@ -247,6 +276,13 @@ class SoundDeviceSink:
     """
 
     _BLOCK_FRAMES = 2048
+    # A skip or pause fades over this long, then writes this much silence so
+    # the close truncates nothing audible. Closing drains PortAudio's queue
+    # first; what it can cut is the host I/O buffer in flight, 21.3 ms with
+    # the block size above, which the silence covers several times over.
+    # An interrupted cue closes the same way.
+    _FADE_SECONDS = 0.02
+    _CLOSE_SILENCE_SECONDS = 0.1
     # Consecutive readings agreeing on a new device before it is followed.
     # A single disagreeing reading is noise; two in a row is a decision. The
     # same confirmation idea guards the input-activity reading.
@@ -500,12 +536,26 @@ class SoundDeviceSink:
     def _pcm_render(
         self, renderer: PCMStreamRenderer, reopen: threading.Event
     ) -> Callable[[Any, int, bool], bool]:
+        # A prepared device keeps playing silence after the session, so only a
+        # session that closes its own stream needs silence the close can cut.
+        close_silence = (
+            0 if self._prepared_output is not None else int(24000 * self._CLOSE_SILENCE_SECONDS)
+        )
+        silence_left: int | None = None
+
         def render(output: Any, frames: int, underflow: bool) -> bool:  # noqa: ANN401, FBT001 - native callback contract
+            nonlocal silence_left
             if underflow:
                 self._stream_underflows += 1
+            if silence_left is not None:
+                # Latched: a resume during the close still finishes it softly.
+                output.fill(0)
+                silence_left -= frames
+                return silence_left > 0
             if self._stop_flag.is_set() or self._pause_flag.is_set() or reopen.is_set():
-                output[:] = renderer.stop_block(frames)
-                return False
+                output[:] = renderer.close_block(frames, rate=self._current_rate())
+                silence_left = close_silence - (frames - min(frames, SOFT_FADE_FRAMES))
+                return silence_left > 0
             output[:] = renderer.render(frames, rate=self._current_rate())
             self._measure_output(output)
             self._set_position_ms(renderer.position_frames / 24)
@@ -519,8 +569,6 @@ class SoundDeviceSink:
         A pause also closes the stream. Returns the frame reached, so the
         caller can resume without repeating or dropping source audio.
         """
-        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
-
         # Refreshed with no stream open: re-initializing invalidates live streams.
         self._device.refresh()
         self._opened_on = self._device.default_output_identity()
@@ -540,49 +588,102 @@ class SoundDeviceSink:
                 latency_seconds=getattr(stream, "latency", None),
                 block_frames=self._BLOCK_FRAMES,
             )
+            # The cue closes itself softly if interrupted, before any speech.
             self._play_prefix(stream, audio.samplerate, audio.channels)
-            last_sample = None
+            # A clip's own audio begins in silence; a stream opened mid-clip
+            # (resume, device move) would otherwise start at full amplitude.
+            fade_in = self._fade_in_gain(audio) if source_frame > 0 else None
+            faded_in = 0
+            wrote_audio = False
+            moved = False
+            # Latched where the loop breaks: a resume can clear the flag
+            # before the close is chosen, and this stream still ends mid-clip.
+            paused = False
             while not self._stop_flag.is_set() and source_frame < len(audio):
                 if self._device_moved_from(self._opened_on):
                     self._audio_event("output_device_changed")
                     log.info("event=audio_output_device_changed")
-                    return source_frame
+                    moved = True
+                    break
                 if self._pause_flag.is_set():
-                    return source_frame
+                    paused = True
+                    break
                 rate = self._current_rate()
                 remaining = len(audio) - source_frame
                 output_frames = min(
                     self._BLOCK_FRAMES,
                     max(1, math.ceil(remaining / rate)),
                 )
-                source_positions = source_frame + np.arange(output_frames) * rate
-                first_source = int(source_frame)
-                final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
-                audio.seek(first_source)
-                source = audio.read(
-                    final_source - first_source + 1,
-                    dtype="float32",
-                    always_2d=True,
-                )
-                relative_positions = source_positions - first_source
-                source_axis = np.arange(len(source))
-                block = np.column_stack(
-                    [
-                        np.interp(relative_positions, source_axis, source[:, channel])
-                        for channel in range(audio.channels)
-                    ]
-                ).astype("float32")
-                last_sample = block[-1]
+                block = self._render(audio, source_frame, output_frames, rate)
+                if fade_in is not None and faded_in < len(fade_in):
+                    count = min(len(block), len(fade_in) - faded_in)
+                    block[:count] *= fade_in[faded_in : faded_in + count, None]
+                    faded_in += count
+                wrote_audio = True
                 self._measure_output(block)
                 self._write_output(stream, block)
                 source_frame = min(float(len(audio)), source_frame + output_frames * rate)
                 self._set_position_ms(source_frame / self._samplerate * 1000)
-            if self._stop_flag.is_set() and last_sample is not None:
-                # End at silence without consuming source frames that must be
-                # heard after resumption. Device close drains this short tail.
-                ramp = np.linspace(1.0, 0.0, max(2, int(audio.samplerate * 0.005)))
-                self._write_output(stream, (ramp[:, None] * last_sample).astype("float32"))
+            interrupted = moved or paused or self._stop_flag.is_set()
+            if interrupted and wrote_audio:
+                # Close from the gain the next frame would have had, so an
+                # unfinished fade-in turns into a fade-out without a jump.
+                opening_gain = (
+                    float(fade_in[faded_in])
+                    if fade_in is not None and faded_in < len(fade_in)
+                    else 1.0
+                )
+                self._write_output(stream, self._soft_close(audio, source_frame, opening_gain))
         return source_frame
+
+    def _fade_in_gain(self, audio: Any) -> Any:  # noqa: ANN401 - soundfile handle in, numpy gain out
+        """Raised-cosine gain rising from silence over the fade length."""
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        fade_frames = max(2, int(audio.samplerate * self._FADE_SECONDS))
+        return (0.5 * (1 - np.cos(np.linspace(0.0, math.pi, fade_frames)))).astype("float32")
+
+    def _render(self, audio: Any, source_frame: float, frames: int, rate: float) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
+        """Resample ``frames`` output frames from ``source_frame`` at ``rate``."""
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        source_positions = source_frame + np.arange(frames) * rate
+        first_source = int(source_frame)
+        final_source = min(len(audio) - 1, math.ceil(float(source_positions[-1])))
+        audio.seek(first_source)
+        source = audio.read(final_source - first_source + 1, dtype="float32", always_2d=True)
+        relative_positions = source_positions - first_source
+        source_axis = np.arange(len(source))
+        return np.column_stack(
+            [
+                np.interp(relative_positions, source_axis, source[:, channel])
+                for channel in range(audio.channels)
+            ]
+        ).astype("float32")
+
+    def _soft_close(self, audio: Any, source_frame: float, opening_gain: float = 1.0) -> Any:  # noqa: ANN401 - soundfile handle in, numpy block out
+        """Fade out what would have played next, then hold silence until close.
+
+        Closing drains PortAudio's buffer and then stops the CoreAudio output
+        unit, which can cut the hardware buffer still in flight. Cutting speech
+        is an audible pop; cutting the trailing silence is not. The fade reads
+        ahead without moving the playhead, so resumption repeats nothing.
+        """
+        import numpy as np  # noqa: PLC0415 - keep array setup on the audio thread
+
+        fade_frames = max(2, int(audio.samplerate * self._FADE_SECONDS))
+        silence_frames = int(audio.samplerate * self._CLOSE_SILENCE_SECONDS)
+        rate = self._current_rate()
+        audible = min(fade_frames, max(0, math.ceil((len(audio) - source_frame) / rate)))
+        fade = np.zeros((fade_frames, audio.channels), dtype="float32")
+        if audible:
+            fade[:audible] = self._render(audio, source_frame, audible, rate)
+            # Near the end there is less source than fade. Hold the last
+            # sample so the envelope, not the edge of the file, reaches zero.
+            fade[audible:] = fade[audible - 1]
+        gain = opening_gain * 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
+        silence = np.zeros((silence_frames, audio.channels), dtype="float32")
+        return np.concatenate([(gain[:, None] * fade).astype("float32"), silence])
 
     def _write_output(self, stream: OutputStream, block: Any) -> None:  # noqa: ANN401 - a numpy block of PCM frames
         if stream.write(block):
@@ -607,10 +708,30 @@ class SoundDeviceSink:
         )
         for start in range(0, len(cue), self._BLOCK_FRAMES):
             if self._stop_flag.is_set() or self._pause_flag.is_set():
-                break
+                self._write_output(stream, self._close_cue(cue[start:], samplerate, channels))
+                return
             block = cue[start : start + self._BLOCK_FRAMES].astype("float32")
             self._measure_output(block)
-            stream.write(block)
+            self._write_output(stream, block)
+
+    def _close_cue(self, remaining: Any, samplerate: int, channels: int) -> Any:  # noqa: ANN401 - numpy frames in and out
+        """Fade the rest of an interrupted cue like interrupted speech, then hold silence.
+
+        The close can cut the host buffer in flight, so the stream must end in
+        silence rather than mid-waveform.
+        """
+        import numpy as np  # noqa: PLC0415
+
+        fade_frames = max(2, int(samplerate * self._FADE_SECONDS))
+        fade = np.zeros((fade_frames, channels))
+        audible = min(fade_frames, len(remaining))
+        fade[:audible] = remaining[:audible]
+        if audible:
+            # Hold the last sample so the envelope, not the cue's edge, reaches zero.
+            fade[audible:] = fade[audible - 1]
+        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade_frames)))
+        silence = np.zeros((int(samplerate * self._CLOSE_SILENCE_SECONDS), channels))
+        return np.concatenate([gain[:, None] * fade, silence]).astype("float32")
 
     def _device_moved_from(self, opened_on: str | None) -> bool:
         """Whether the OS default output has moved away from ``opened_on``.
@@ -768,20 +889,47 @@ class PlaybackController:
         """Live playhead position for the current utterance, if there is one."""
         if self._current_id is None:
             return None
-        if self._current_segment_index is not None:
-            completed = self._store.completed_segment_duration_ms(
-                self._current_id,
-                before=self._current_segment_index,
-            )
-            if self._sink_active:
-                return completed + self._sink.position_ms()
-            segment = self._store.get_segment(self._current_id, self._current_segment_index)
-            segment_position = 0 if segment is None else segment.played_ms or 0
-            return completed + segment_position
+        position = self._current_segment_position_with_offset(include_skipped=True)
+        if position is not None:
+            return position
         if self._sink_active:
             return self._sink.position_ms()
         current = self._current()
         return current.played_ms if current is not None else None
+
+    def _current_heard_ms(self) -> int | None:
+        """Audio heard so far, excluding the duration of chunks skipped over."""
+        if self._current_id is None:
+            return None
+        position = self._current_segment_position_with_offset(include_skipped=False)
+        if position is not None:
+            return position
+        if self._sink_active:
+            return self._sink.position_ms()
+        current = self._current()
+        return current.played_ms if current is not None else None
+
+    def _current_segment_position_with_offset(self, *, include_skipped: bool) -> int | None:
+        """Add the active child's position to its document-relative offset."""
+        utt_id = self._current_id
+        if utt_id is None:
+            return None
+        segment_index = self._current_segment_index
+        if segment_index is None:
+            segments = self._store.segments(utt_id)
+            if not segments:
+                return None
+            unfinished = self._store.next_unfinished_segment(utt_id)
+            segment_index = len(segments) if unfinished is None else unfinished.index
+        if include_skipped:
+            offset = self._store.playhead_offset_before_segment_ms(utt_id, segment_index)
+        else:
+            offset = self._store.completed_segment_duration_ms(utt_id, before=segment_index)
+        segment = self._store.get_segment(utt_id, segment_index)
+        position = 0 if segment is None else segment.played_ms or 0
+        if self._sink_active:
+            position = self._sink.position_ms()
+        return offset + position
 
     def notify(self) -> None:
         """Tell the controller the plan may have changed."""
@@ -852,7 +1000,9 @@ class PlaybackController:
         """Release the live device before the daemon closes its store and spools."""
         async with self._transport_lock:
             current = self._current()
-            if current is not None and not current.is_terminal:
+            # An existing hold already captured the playhead; holding again
+            # would erase a microphone hold's durable reason.
+            if current is not None and not current.is_terminal and not self.held:
                 await self._hold(reason=None, cause="daemon_shutdown")
             await self.stop()
 
@@ -896,7 +1046,7 @@ class PlaybackController:
             self._record_control("preempted", "priority_preempt")
             index = self._current_segment_index
             had_sink = self._sink_active
-            position = self.current_position_ms() or 0
+            position = self._current_heard_ms() or 0
             if index is None and self._store.segments(current.id):
                 position = self._store.completed_segment_duration_ms(current.id)
             await self._release_sink()
@@ -1050,6 +1200,7 @@ class PlaybackController:
                 played_ms=segment.duration_ms,
             )
             if self._store.next_unfinished_segment(parent.id) is None:
+                # Persist heard audio; skipped chunks affect the playhead only.
                 played_ms = self._store.completed_segment_duration_ms(parent.id)
                 self._store.transition(parent.id, State.PLAYED, played_ms=played_ms)
             return
@@ -1137,7 +1288,7 @@ class PlaybackController:
         self._store.set_setting("playback_held", "true")
         current = self._current()
         if current is not None and current.state is State.PLAYING:
-            position = self.current_position_ms()
+            position = self._current_heard_ms()
             if self._sink_active:
                 self._sink.pause()
                 if self._current_segment_index is not None:
@@ -1237,7 +1388,7 @@ class PlaybackController:
         self._clear_interruption()
         current = self._current()
         if current is not None and current.state in (State.PLAYING, State.PAUSED):
-            document_position = self.current_position_ms() or 0
+            document_position = self._current_heard_ms() or 0
             segment_position = (
                 self._sink.position_ms() if self._sink_active else current.played_ms or 0
             )

@@ -244,6 +244,35 @@ final class WireProtocolTests: XCTestCase {
         withExtendedLifetime(observation) {}
     }
 
+    // Test-Oracle: Off → Bottom → Top → Off, persisted placement and daemon enable commands.
+    // Retire only when the three-state caption control is removed or superseded.
+    @MainActor
+    func testCaptionCycleStartsAtBottomEvenAfterPreviouslyUsingTop() throws {
+        let suite = "ai-tts-caption-cycle-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("Top", forKey: "captionPosition")
+        let speech = RecordingCaptionSpeechPort(captionsEnabled: false, captionsEnabledConfigured: true)
+        speech.commandPerformed.expectedFulfillmentCount = 2
+        let ports = InertApplicationPorts()
+        let state = AppState(speech: speech, documentEnqueuer: ports,
+                             currentSelectionEnqueuer: ports, clipboardEnqueuer: ports,
+                             defaults: defaults)
+        state.cycleCaptions()
+        XCTAssertTrue(state.captionsEnabled)
+        XCTAssertEqual(state.captionPosition, .bottom)
+        XCTAssertEqual(defaults.string(forKey: "captionPosition"), "Bottom")
+        state.cycleCaptions()
+        XCTAssertTrue(state.captionsEnabled)
+        XCTAssertEqual(state.captionPosition, .top)
+        XCTAssertEqual(defaults.string(forKey: "captionPosition"), "Top")
+        state.cycleCaptions()
+        XCTAssertFalse(state.captionsEnabled)
+        XCTAssertFalse(defaults.bool(forKey: "captionsEnabled"))
+        wait(for: [speech.commandPerformed], timeout: 1)
+        XCTAssertEqual(speech.commands, [.setCaptionsEnabled(true), .setCaptionsEnabled(false)])
+    }
+
     @MainActor
     func testLegacyCaptionPreferenceMigratesWhenDaemonHasNoValue() throws {
         let suite = "ai-tts-caption-migration-\(UUID().uuidString)"

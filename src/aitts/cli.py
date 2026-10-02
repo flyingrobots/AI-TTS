@@ -365,8 +365,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise
             sys.stderr.write("Install the terminal UI with: uv tool install 'ai-tts[tui]'\n")
             return EXIT_DAEMON_ERROR
-        SpeechTUI(args.socket or default_socket()).run()
-        return EXIT_OK
+        app = SpeechTUI(args.socket or default_socket())
+        app.run()
+        # Textual restores the terminal and reports a crash through return_code.
+        return EXIT_OK if not app.return_code else EXIT_DAEMON_ERROR
     return _run_client_command(args)
 
 

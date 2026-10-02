@@ -338,9 +338,9 @@ complete decision, current-state ledger, and delivery proof are in
 | 9.3 | Let the user assign the selected-text Service a keyboard shortcut through macOS | **[INFERRED]** | **SHOULD** |
 | 9.4 | Admit selected text exactly once as confidential, Normal, literal `plain_text` | **[INFERRED]** | **MUST** |
 | 9.5 | Route a selected file through the existing `DocumentEnqueueing` application port | **[INFERRED]** | **MUST** |
-| 9.6 | Offer **Speak… → Import Selection** through Accessibility only after explicit invocation and only when compatibility evidence justifies it | **[STATED]** | **SHOULD** |
+| 9.6 | Offer **Speak… → Selection** through Accessibility only after explicit invocation and only when compatibility evidence justifies it | **[STATED]** | **SHOULD** |
 | 9.7 | Never poll another application's selection in the background or synthesize Command-C | **[INFERRED]** | **MUST** |
-| 9.8 | Offer an explicit, non-mutating **Paste Clipboard** fallback | **[PROPOSED]** | **COULD** |
+| 9.8 | Offer an explicit, non-mutating **Paste** fallback | **[PROPOSED]** | **COULD** |
 | 9.9 | Expose speech and transport actions through App Intents after installed-bundle metadata is proved | **[PROPOSED]** | **COULD** |
 
 **9.1 is the primary selection contract.** macOS supplies the selected string
