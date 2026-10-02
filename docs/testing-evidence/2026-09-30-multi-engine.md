@@ -222,7 +222,7 @@ A warnings-as-errors Swift build failed on the two old single-argument
 macOS 14 zero/two-argument forms with the same reconciliation behavior.
 The original compiler failure is the red witness; no artificial source-text
 assertion was added.
-The corrected integrated stack passed all 142 Swift tests with warnings as errors.
+The corrected integrated stack passed all 142 Swift tests with warnings as errors. That figure is historical: it predates merging main `3aa9cec`, and the PR description attributes it to the complete refreshed stack rather than this PR alone. This PR's boundary runs 141 Swift tests after that merge (see the review round below).
 
 ## Code Lawyer review round (October 1)
 

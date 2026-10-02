@@ -989,15 +989,9 @@ Change-kind: behavior change, with a Code Lawyer refactor and three bug fixes on
 
 ## September 30 multi-engine extension
 
-Per-clip backend selection, child routing, legacy database migration, independent
-model readiness, and local HTTP synthesis have owned boundary tests. Sensitivity
-is enforced both before admission and before rendering. The composer consumes the
-same model/voice catalog. See the [receipt](../testing-evidence/2026-09-30-multi-engine.md)
-for seeded-fault calibration, suite costs and real offline Chatterbox inference
-from the frozen install. Source archives have exact identity checks and separately
-labeled OSV commit/package advisory queries; registry packages retain strict
-hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory
-responses cannot establish source security or advisory-database coverage.
+Change-kind: feature, with the Code Lawyer bug fixes below. Per-clip backend selection, child routing, legacy database migration, independent model readiness, and local HTTP synthesis have owned boundary tests. Sensitivity is enforced both before admission and before rendering. The composer consumes the same model/voice catalog. See the [receipt](../testing-evidence/2026-09-30-multi-engine.md) for seeded-fault calibration, suite costs and real offline Chatterbox inference from the frozen install.
+
+Source archives have exact identity checks and separately labeled OSV commit/package advisory queries; registry packages retain strict hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory responses cannot establish source security or advisory-database coverage.
 
 Startup warmup isolation. Change-kind: bug fix. The medium `test_startup_warmup_holds_only_its_own_engines_clips` requires a clip for another registered engine to reach Ready while the startup engine's warmup is still blocked, and the startup engine's own clip to stay Queued until warmup finishes. It was red on parent `518fb9f`. Oracle: the PR's independent per-engine preparation contract and the existing warmup admission oracle. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
 
