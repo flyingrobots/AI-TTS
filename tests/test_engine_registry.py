@@ -532,3 +532,39 @@ async def test_startup_warmup_holds_only_its_own_engines_clips(
     finally:
         release.set()
         await daemon.stop()
+
+
+async def test_fixed_speed_engine_speaks_default_submissions_despite_a_saved_speed(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.ipc import ApiError  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    class FixedSpeedEngine(NamedEngine):
+        supported_speeds = (1.0,)
+
+    fixed = FixedSpeedEngine("fixed")
+    daemon = Daemon(
+        home=tmp_path,
+        engine=NamedEngine("variable"),
+        engines={"fixed": fixed},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        await daemon.dispatch({"op": "pause"})
+        await daemon.dispatch({"op": "settings", "set": {"speed": 1.25}})
+        await daemon.dispatch({"op": "settings", "set": {"engine": "fixed"}})
+        # The composer sends no speed: the saved default must not make every clip fail.
+        receipt = await daemon.dispatch({"op": "submit", "text": "default speed"})
+        assert clip(daemon.store, receipt["id"]).engine == "fixed"
+        assert clip(daemon.store, receipt["id"]).speed == 1.0
+        with pytest.raises(ApiError, match="generation speed 1"):
+            await daemon.dispatch({"op": "submit", "text": "explicit", "speed": 1.25})
+        settings = await daemon.dispatch({"op": "settings"})
+        assert settings["settings"]["speed"] == 1.25
+    finally:
+        await daemon.stop()

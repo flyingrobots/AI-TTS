@@ -418,10 +418,15 @@ class Daemon:
         if preempt:
             priority = Priority.PREEMPT
         engine = self._submission_engine(payload.get("engine"), sensitivity)
-        speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
+        requested_speed = self._parse_speed(payload.get("speed"))
+        speed = requested_speed or self._settings.speaking_speed()
         supported_speeds = getattr(engine, "supported_speeds", None)
         if supported_speeds is not None and speed not in supported_speeds:
-            raise ApiError(BAD_REQUEST, "this model requires generation speed 1; use playback rate")
+            if requested_speed is not None:
+                msg = "this model requires generation speed 1; use playback rate"
+                raise ApiError(BAD_REQUEST, msg)
+            # The saved default belongs to other models; keep it for them.
+            speed = supported_speeds[0]
         content_format: ContentFormat | None
         if "content_format" not in payload:
             content_format = None

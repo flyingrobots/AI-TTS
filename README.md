@@ -843,11 +843,7 @@ model is hot. Restart it using that server's controls. Evidence records the
 requested model and route; server-side model weights cannot be fingerprinted by
 this adapter.
 
-Native Chatterbox Turbo (350M) is available through the `chatterbox` extra.
-It uses the bundled `default` voice and preserves native samples, including
-watermarking. Turbo accepts generation speed 1; playback rate is independently
-adjustable. CPU is the tested default; `AI_TTS_CHATTERBOX_DEVICE` selects another
-upstream-supported device.
+Native Chatterbox Turbo (350M) is available through the `chatterbox` extra. It uses the bundled `default` voice and preserves native samples, including watermarking. Turbo accepts generation speed 1; playback rate is independently adjustable. A clip that names no speed is generated at 1 even if the saved default speed differs, and that saved speed is kept for the other models; a clip that explicitly asks for another speed is refused. CPU is the tested default; `AI_TTS_CHATTERBOX_DEVICE` selects another upstream-supported device.
 
 From this checkout, install the frozen dependencies and explicitly fetch the tested
 model revision once:
