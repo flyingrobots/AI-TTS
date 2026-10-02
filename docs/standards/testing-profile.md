@@ -1000,3 +1000,5 @@ hashed PyPI auditing. Both paths feed the SBOM/license checks. Empty advisory
 responses cannot establish source security or advisory-database coverage.
 
 Startup warmup isolation. Change-kind: bug fix. The medium `test_startup_warmup_holds_only_its_own_engines_clips` requires a clip for another registered engine to reach Ready while the startup engine's warmup is still blocked, and the startup engine's own clip to stay Queued until warmup finishes. It was red on parent `518fb9f`. Oracle: the PR's independent per-engine preparation contract and the existing warmup admission oracle. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.
+
+Unconfigured saved default. Change-kind: bug fix. The medium, parametrized `test_saved_default_missing_from_startup_environment_falls_back_to_kokoro` requires a persisted `chatterbox` or `openai-audio` default to start on Kokoro when its environment variables are absent, while an explicit override still raises. It was red on parent `2986fb7`. Oracle: the existing MLX startup fallback contract. Receipt: `docs/testing-evidence/2026-09-30-multi-engine.md`.

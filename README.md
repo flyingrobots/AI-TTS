@@ -816,9 +816,7 @@ voice picker when a model changes. A per-clip `--engine NAME` overrides the defa
 Models prepare on first use and remain resident until explicitly reloaded or the
 daemon exits. Loading one does not unload another, so memory use can increase.
 
-The reference Kokoro adapter is registered at startup; MLX is also registered when
-its supported runtime and optional dependency are available. On startup, an
-unavailable configured MLX backend still falls back to reference Kokoro.
+The reference Kokoro adapter is registered at startup; MLX is also registered when its supported runtime and optional dependency are available. On startup, an unavailable configured MLX backend still falls back to reference Kokoro. So does a saved default for an adapter whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an adapter refuses to start instead.
 
 To register a separately managed local speech server, set these variables in the
 environment used to launch the daemon:

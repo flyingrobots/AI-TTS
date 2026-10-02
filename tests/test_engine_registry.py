@@ -274,6 +274,25 @@ def test_startup_catalog_uses_owned_configuration_without_loading_models(
         configured_engines(tmp_path, probe_mlx=lambda: False)
 
 
+@pytest.mark.parametrize("saved", ["chatterbox", "openai-audio"])
+def test_saved_default_missing_from_startup_environment_falls_back_to_kokoro(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, saved: str
+) -> None:
+    from aitts.engines.selection import configured_engines  # noqa: PLC0415
+
+    monkeypatch.delenv("AI_TTS_CHATTERBOX_MODEL_DIR", raising=False)
+    monkeypatch.delenv("AI_TTS_OPENAI_URL", raising=False)
+    store = Store(tmp_path / "state.db")
+    store.set_setting("engine", saved)
+    store.close()
+    # A launch environment without the adapter's variables must still start a daemon.
+    selected, engines = configured_engines(tmp_path, probe_mlx=lambda: False)
+    assert set(engines) == {"kokoro"}
+    assert selected is engines["kokoro"]
+    with pytest.raises(ValueError, match="not configured"):
+        configured_engines(tmp_path, override=saved, probe_mlx=lambda: False)
+
+
 def test_legacy_engine_binding_is_durable_and_never_overwrites_an_existing_choice(
     tmp_path: Path,
 ) -> None:
