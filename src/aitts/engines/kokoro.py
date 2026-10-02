@@ -431,6 +431,8 @@ class KokoroEngine:
                 for frame in pcm16_frames(samples):
                     produced = True
                     yield frame
+        except SynthesisError:
+            raise
         except Exception as exc:
             raise SynthesisError(str(exc)) from exc
         if not produced:

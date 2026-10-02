@@ -316,6 +316,12 @@ The cost was measured on this Mac on 2026-10-01 with silent output: a 24 kHz cal
 
 With host-sized blocks (941 or more frames at 24 kHz for any device of 44.1 kHz or more), the soft-close fade cap "20 ms or one callback block" always gives the full 20 ms. `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time`, which needs a pause to end within one 240-frame test block, passes unmodified.
 
-Authoritative validation for this head: **797 Python tests passed, 2 skipped** (262 small, 535 medium). Ruff check, ruff format, and mypy (139 files) are clean. Swift did not change.
+### Second CodeRabbit round
+
+| Issue | Regression test | Parent (red) | Red output |
+|---|---|---|---|
+| Kokoro's stream adapter wrapped its own `SynthesisError` in a second one | `test_invalid_stream_samples_raise_the_adapter_error_unwrapped` | `0ba2b01` | `the adapter's own SynthesisError was wrapped in a second one` |
+
+Authoritative validation for this head: **798 Python tests passed, 2 skipped** (263 small, 535 medium). Ruff check, ruff format, and mypy (140 files) are clean. Swift did not change.
 
 A mutation that drops the 100 ms close silence fails the first test with `the stream closed before 100 ms of silence` (544 silent frames, not 2400). The fade spans min(20 ms, callback block), so a 10 ms test callback still ends its pause block at zero, as `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time` requires. A prepared device keeps playing silence after the session, so only a session that closes its own stream adds the 100 ms of silence.
