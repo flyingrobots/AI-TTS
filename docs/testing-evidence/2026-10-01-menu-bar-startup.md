@@ -28,7 +28,7 @@ A real logout/reboot was not performed. Login configuration is checked through t
 
 Green logs are `.git/codex-scratch/menu-bar-startup-{python,swift,lint,installation}-green.log`.
 
-The counts above predate the merge-up of main and of `feat/architecture-benchmarks`. After both merges and decisions E and F, the suite collects 988 Python tests (330 small, 658 medium), the Swift suite runs 165 tests, and the installation subset (`test_distribution.py`, `test_make_installation.py`, `test_launch_agent_activation.py`, `test_menu_bar_retirement.py`) runs 54. The medium tier measured 43.1 to 49.5 seconds against its 45-second budget on this host, compared with 38.9 seconds on `feat/architecture-benchmarks` alone. Most of the difference is this PR's seven added Make-entrypoint installation tests, at about 1.4 seconds each.
+The counts above predate the merge-up of main and of `feat/architecture-benchmarks`. After both merges and decisions E and F, the suite collects 988 Python tests (330 small, 658 medium), the Swift suite runs 165 tests, and the installation subset (`test_distribution.py`, `test_make_installation.py`, `test_launch_agent_activation.py`, `test_menu_bar_retirement.py`) runs 54. The medium tier measured 43.1 to 49.5 seconds against its 45-second budget on this host, compared with 38.9 seconds on `feat/architecture-benchmarks` alone. Most of the difference is this PR's seven added Make-entrypoint installation tests, at about 1.4 seconds each. After the main merge `33fb982` and the CodeRabbit review fixes, the suite is 996 Python tests passing (335 small, 661 medium, plus 2 skipped) and 168 Swift tests; the medium tier ran 44.84 seconds locally against the re-baselined 120-second budget.
 
 ## Merge-up of main
 
