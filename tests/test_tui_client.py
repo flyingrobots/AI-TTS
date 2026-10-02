@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from aitts.adapters.jsonl import MAX_JSONL_LINE_BYTES, encode_json_object
 from aitts.client import DaemonError, DaemonUnreachableError
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
@@ -91,6 +92,23 @@ async def test_broken_reply_is_a_transport_error(socket_path: Path, response: by
     async with server:
         with pytest.raises(DaemonUnreachableError):
             await AsyncClient(socket_path).request({"op": "status"})
+
+
+async def test_reply_longer_than_the_request_line_limit_is_delivered(socket_path: Path) -> None:
+    # A snapshot aggregates the whole plan and 50 history texts into one line.
+    text = "x" * (2 * MAX_JSONL_LINE_BYTES)
+
+    async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.readline()
+        writer.write(encode_json_object({"ok": True, "history": [{"text": text}]}))
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    server = await asyncio.start_unix_server(serve, str(socket_path))
+    async with server:
+        reply = await AsyncClient(socket_path).request({"op": "snapshot"})
+    assert reply["history"][0]["text"] == text
 
 
 async def test_progress_is_opt_in_and_idle_meter_is_silent(daemon: Daemon) -> None:

@@ -128,4 +128,5 @@ Change-kind: bug fixes, plus one deliberate wire addition (the admission event).
 
 | Issue | Regression test | Parent (red) | Red output | Fix |
 |---|---|---|---|---|
-| A clip queued behind a busy worker or warmup produced no event, so subscribers such as the dashboard did not show it until a worker claimed it | `test_submission_behind_a_busy_worker_is_published[submit, requeue]` (medium) | `a33ce35` | `no admission event for the waiting clip: []`; with only the submit path fixed, the requeue case still failed the same way | this commit |
+| A clip queued behind a busy worker or warmup produced no event, so subscribers such as the dashboard did not show it until a worker claimed it | `test_submission_behind_a_busy_worker_is_published[submit, requeue]` (medium) | `a33ce35` | `no admission event for the waiting clip: []`; with only the submit path fixed, the requeue case still failed the same way | `3279d5b` |
+| The async client capped replies at the 1 MiB request limit, so a snapshot with a few long texts disconnected the dashboard on every retry | `test_reply_longer_than_the_request_line_limit_is_delivered` (medium) | `3279d5b` | `DaemonUnreachableError: Cannot communicate with the daemon: Separator is not found, and chunk exceed the limit` | this commit |

@@ -828,4 +828,4 @@ callbacks feed the opt-in dBFS meter. See the
 falsification, rendered previews, suite costs and the expanded dependency audit.
 Acoustic level calibration and every terminal emulator/size remain outside CI.
 
-The terminal dashboard's review round adds regression tests at the daemon socket. They cover the admission event for work queued behind a busy worker. Parent SHAs and red output are in the receipt's review-round table.
+The terminal dashboard's review round adds regression tests at the daemon socket. They cover the admission event for work queued behind a busy worker, and replies longer than the 1 MiB request limit. Parent SHAs and red output are in the receipt's review-round table.
