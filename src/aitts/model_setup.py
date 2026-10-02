@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import platform
@@ -41,6 +42,21 @@ def supported_model(name: str) -> str | None:
     if model.apple_silicon and (platform.system() != "Darwin" or platform.machine() != "arm64"):
         return "Requires a Mac with Apple Silicon."
     return None
+
+
+_IN_PROCESS_PACKAGES = {
+    "kokoro": ("kokoro",),
+    "kokoro-mlx": ("kokoro_mlx", "en_core_web_sm"),
+    "chatterbox": ("chatterbox",),
+}
+
+
+def in_process_available(name: str) -> bool:
+    """Whether the daemon's own environment can import a model's adapter package."""
+    try:
+        return all(importlib.util.find_spec(p) is not None for p in _IN_PROCESS_PACKAGES[name])
+    except (ImportError, ValueError, KeyError):
+        return False
 
 
 def installed_runtime(home: Path, name: str) -> Path | None:

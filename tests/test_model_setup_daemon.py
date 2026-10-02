@@ -226,3 +226,41 @@ async def test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load
     assert (daemon._home / "model-runtimes/chatterbox.json").read_text().find(old.name) == -1
     assert daemon._setup_states["chatterbox"]["state"] == "ready"
     assert daemon.engine_name() == "fake"
+
+
+class InProcessKokoro(FakeEngine):
+    name = "kokoro"
+
+    def __init__(self) -> None:
+        super().__init__(["af_heart"])
+
+
+@pytest.mark.parametrize("importable", [True, False])
+async def test_cold_in_process_default_is_installed_only_when_its_package_imports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    importable: bool,  # noqa: FBT001 - pytest parameter
+) -> None:
+    from aitts.application.input_activity import NullInputActivity  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    probed: list[str] = []
+
+    def probe(name: str) -> bool:
+        probed.append(name)
+        return importable and name == "kokoro"
+
+    # Owned import probe for the daemon's own environment, never the real site-packages.
+    monkeypatch.setattr("aitts.daemon.in_process_available", probe, raising=False)
+    daemon = Daemon(
+        home=tmp_path,
+        engine=InProcessKokoro(),
+        sink=FakeSink(),
+        input_activity=NullInputActivity(),
+    )
+    rows = {row["name"]: row for row in daemon._model_setup_catalog()}
+    assert daemon._registry.state("kokoro") == "cold"
+    assert rows["kokoro"]["selected"] is True
+    assert rows["kokoro"]["installed"] is importable
+    assert rows["chatterbox"]["installed"] is False
+    assert "kokoro" in probed

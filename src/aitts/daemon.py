@@ -57,6 +57,7 @@ from aitts.model_catalog import MODELS
 from aitts.model_setup import (
     RuntimeInstaller,
     SetupCancelledError,
+    in_process_available,
     installed_runtime,
     supported_model,
 )
@@ -1267,7 +1268,17 @@ class Daemon:
         rows = []
         for name, model in MODELS.items():
             state = self._registry.state(name) if name in self._engines else "not installed"
-            ready = state == "ready" or installed_runtime(self._home, name) is not None
+            engine = self._engines.get(name)
+            # A cold in-process adapter is installed when the daemon can import its package.
+            in_process = (
+                engine is not None
+                and not isinstance(engine, ManagedEngine)
+                and state != "failed"
+                and in_process_available(name)
+            )
+            ready = (
+                state == "ready" or in_process or installed_runtime(self._home, name) is not None
+            )
             setup = self._setup_states.get(name, {})
             reported = setup.get("state", state)
             if reported == "ready":
