@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import subprocess
 import sys
@@ -16,6 +17,31 @@ from typing import Any
 from scripts.benchmarks.metrics import distribution, regression
 
 REFERENCE_COMMIT = "0290f3cf3a0c3930256f42f31500bda59c1eabeb"
+
+
+def reference_is_clean(root: Path, commit: str) -> bool:
+    """Accept only the pinned commit with no modified, added or untracked reference source."""
+    # An inherited GIT_DIR (as in git hooks) overrides `-C` and would inspect another repository.
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    revision = subprocess.check_output(  # noqa: S603 - read-only source identity
+        ["/usr/bin/git", "-C", str(root), "rev-parse", "HEAD"], text=True, env=environment
+    ).strip()
+    # `git diff HEAD` ignores untracked files, and an untracked module is importable.
+    dirty = subprocess.check_output(  # noqa: S603 - reject modified reference code
+        [
+            "/usr/bin/git",
+            "-C",
+            str(root),
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+            "--",
+            "src",
+        ],
+        text=True,
+        env=environment,
+    )
+    return revision == commit and not dirty
 
 
 def validate_inventory(report: dict[str, Any]) -> None:
@@ -90,13 +116,7 @@ def main() -> int:
         parser.error("at least five pairs are required")
     if args.iterations < 100:  # noqa: PLR2004 - minimum for reported p99
         parser.error("at least 100 iterations per block are required")
-    revision = subprocess.check_output(  # noqa: S603 - read-only source identity
-        ["/usr/bin/git", "-C", str(args.baseline_root), "rev-parse", "HEAD"], text=True
-    ).strip()
-    dirty = subprocess.check_output(  # noqa: S603 - reject modified reference code
-        ["/usr/bin/git", "-C", str(args.baseline_root), "diff", "HEAD", "--", "src"], text=True
-    )
-    if revision != REFERENCE_COMMIT or dirty:
+    if not reference_is_clean(args.baseline_root, REFERENCE_COMMIT):
         parser.error("reference must be the clean pinned commit " + REFERENCE_COMMIT)
     args.output.mkdir(parents=True, exist_ok=True)
     randomizer = random.Random(args.seed)  # noqa: S311 - paired experiment ordering
@@ -141,7 +161,7 @@ def main() -> int:
         "orders": orders,
         "observations": observations,
         "decisions": decisions,
-        "gate": "at least five same-machine paired medians; all but one must exceed3x to fail",
+        "gate": "at least five same-machine paired medians; all but one must exceed 3x to fail",
     }
     (args.output / "comparison.json").write_text(json.dumps(report, indent=2) + "\n")
     failures = [name for name, decision in decisions.items() if decision["failed"]]

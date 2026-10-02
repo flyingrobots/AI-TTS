@@ -1037,33 +1037,13 @@ The Code Lawyer audit of PR #39 found the long-document branch of paragraph grou
 
 ## September 30 architecture performance baseline
 
-Change-kind: feature. The controller/SQLite and real PCM spool benchmarks in
-`scripts/benchmarks/` have exact semantic witnesses, deterministic scheduler
-boundaries, owned fixtures, raw distributions and a same-run pinned reference.
-Their gauge tests remain in the normal small/medium suite. The separate
-`Architecture benchmarks` workflow runs weekly or on manual dispatch: at most
-240 seconds for five paired golden blocks and 100 seconds for a 60-second soak,
-inside a 12-minute job including setup. Each comparison worker has a 60-second
-ceiling. No retry is configured. These CLI experiment budgets do not expand the
-pytest size ceilings above. Manual five-minute soaks use a 360-second deadline;
-optional native MLX inference uses a 180-second deadline and never gates CI.
+Change-kind: feature. The controller/SQLite and real PCM spool benchmarks in `scripts/benchmarks/` have exact semantic witnesses, deterministic scheduler boundaries, owned fixtures, raw distributions and a same-run pinned reference. Their gauge tests remain in the normal small/medium suite. The separate `Architecture benchmarks` workflow runs weekly or on manual dispatch: at most 240 seconds for five paired golden blocks and 100 seconds for a 60-second soak, inside a 12-minute job including setup. Each comparison worker has a 60-second ceiling. No retry is configured. These CLI experiment budgets do not expand the pytest size ceilings above. Manual five-minute soaks use a 360-second deadline; optional native MLX inference uses a 180-second deadline and never gates CI.
 
-Only repeated, gross (>3x in all but one of at least five paired block medians)
-controller latency regressions gate the scheduled lane. RSS, CPU, SQL work,
-tails, native MLX and acoustic behavior remain inspection signals. The initial
-local identical-source comparison raised no alarms; an intentionally delayed
-source copy raised 24 of 26. This is a calibrated coarse guard, not an estimated
-long-term flake rate. Review the guard's noise behavior by 2026-10-30; maintainers
-own re-baselining and the existing same-day quarantine policy.
+Only repeated, gross (>3x in all but one of at least five paired block medians) controller latency regressions gate the scheduled lane. RSS, CPU, SQL work, tails, native MLX and acoustic behavior remain inspection signals. The initial local identical-source comparison raised no alarms; an intentionally delayed source copy raised 24 of 26. This is a calibrated coarse guard, not an estimated long-term flake rate. Review the guard's noise behavior by 2026-10-30; maintainers own re-baselining and the existing same-day quarantine policy.
 
-The [architecture report](../reports/2026-09-30-architecture-review.md) defines
-workloads, exclusions, source identity, the planned/written comparison and
-reproduction. The [receipt](../testing-evidence/2026-09-30-architecture-benchmarks.md)
-records falsification and suite cost. Delete or redesign each benchmark when its
-named public behavior is intentionally removed; changing internal class layout
-alone is not a reason to change the oracle. Hardware callback, multi-hour
-microphone holds, real power loss, and evidence-directory growth are explicit
-blind spots, not claims inferred from this suite.
+The [architecture report](../reports/2026-09-30-architecture-review.md) defines workloads, exclusions, source identity, the planned/written comparison and reproduction. The [receipt](../testing-evidence/2026-09-30-architecture-benchmarks.md) records falsification and suite cost. Delete or redesign each benchmark when its named public behavior is intentionally removed; changing internal class layout alone is not a reason to change the oracle. Hardware callback, multi-hour microphone holds, real power loss, and evidence-directory growth are explicit blind spots, not claims inferred from this suite.
+
+PR #47 review (bug fix to the benchmark instrument): the comparator's pinned-reference check ignored untracked files under `src/`. `tests/test_benchmark_reference.py` (medium; it owns a scratch git repository) was observed red on parent `baba76b` for the untracked case only, and it passes after the check moved to `git status --porcelain --untracked-files=all`. The [receipt](../testing-evidence/2026-09-30-architecture-benchmarks.md#code-lawyer-review-fixes) retains the red output. A second bug fix covers inherited git environment: a hook's `GIT_DIR` overrides `git -C`, so both the comparator and the fixture now drop `GIT_*` variables. `test_inherited_git_environment_cannot_redirect_the_check` was observed red on parent `d13adeb` for each of the two defects. Tests that shell out to git must not inherit the launching repository's `GIT_*` environment.
 
 ## October 1 independent menu-bar startup
 
@@ -1077,4 +1057,4 @@ Merge-up of main (#56): the PR's bootstrap EIO retry is replaced by main's `_awa
 
 Deliberate behavior change, approved by James: installation no longer adds a `transformers>=4.46,<5` pin, which contradicted the locked `transformers==5.16.1`; the modern tokenizer now arrives only through the `uv.lock` constraints. The tokenizer test was rewritten with that approval to assert the constraints file instead of the pin, and was red against the pinned installer on parent `1850cc3`. The [startup evidence](../testing-evidence/2026-10-01-menu-bar-startup.md#merge-up-of-main) records it.
 
-Deliberate behavior change, approved by James: installation retires a running menu app with SIGTERM to the installed executable's PIDs instead of an AppleScript quit, so it needs no Automation consent, and warns rather than fails when the app outlives ten seconds. Owned `ps`, `kill`, and a refusing `osascript` replace every real process boundary in the Make fixture. The medium Make tests were red on parent `8d95fed`; the small stuck-UI test enters at `retire_menu_bar`. The same evidence section records them.
+Deliberate behavior change, approved by James: installation retires a running menu app with SIGTERM to the installed executable's PIDs instead of an AppleScript quit, so it needs no Automation consent, and warns rather than fails when the app outlives ten seconds. Owned `ps`, `kill`, and a refusing `osascript` replace every real process boundary in the Make fixture. The medium Make tests were red on parent `8d95fed`; the small stuck-UI test enters at `retire_menu_bar`. The same evidence section records them. None of these installer tests creates a git repository.
