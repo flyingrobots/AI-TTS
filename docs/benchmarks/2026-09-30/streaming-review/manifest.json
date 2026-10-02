@@ -1,0 +1,14 @@
+{
+  "measured_candidate": "9f0b45bf1e2ec13db16056e6d8d9f7d6f5cbc3f5",
+  "runtime_parent": "e5d06e0d5b2d30c1c80937e464b6f6b162c4dee1",
+  "reference": "0290f3cf3a0c3930256f42f31500bda59c1eabeb",
+  "lock_sha256": "29be5818fbb0f95c417ade47513dc7daf376d4f4bda0ebcdcbcbcc32d7e92075",
+  "artifacts": {
+    "boundaries.json": "7feaa3bfe5bd97190c8873a1e6545cd1bd21668a3b25cfc7a8c299f1bea67fb2",
+    "streaming-review-green.txt": "9c660dc3a9b0471172a68879770f124b5f4fdad8afa83eb8f307e87308cfe194",
+    "paired.json.gz": "6b06b81a3b0d7a53caeb65be28a440ac42571a937a40d206aa0cf883c43930bc",
+    "streaming-review-red.txt": "6bcef1b2392ba67870119276582dc7ad32ef97e3369beab5bf9da04c1639b3be",
+    "comparison.json": "91c256ebacb664e1493051aa856072cbe1b1274612a162e25b8b1dc020e48efc",
+    "streaming-prefix-full.txt": "dea2ec929706acb6b56be176372b87191bc8dccdda62a08b58c5bdda688d955f"
+  }
+}

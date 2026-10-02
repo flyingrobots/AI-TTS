@@ -1,0 +1,104 @@
+[
+  {
+    "head": "e00bfb1db6025d8d4f0abceb147580e2c2f2e72b",
+    "seconds": 24.196901499992236,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ],
+    "pytest_summary": [
+      "................................................                         [100%]small: 260 tests, 0.45s including fixtures, p95 call 2ms, budget 10s",
+      "medium: 508 tests, 14.46s including fixtures, p95 call 119ms, budget 45s",
+      "wall clock 17.34s"
+    ]
+  },
+  {
+    "head": "72a753dffe1efc9954818f0ee6e7b0715e31e632",
+    "seconds": 16.501557082985528,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ],
+    "pytest_summary": [
+      "......................................                                   [100%]small: 273 tests, 0.49s including fixtures, p95 call 2ms, budget 10s",
+      "medium: 557 tests, 13.18s including fixtures, p95 call 86ms, budget 45s",
+      "wall clock 14.26s"
+    ]
+  },
+  {
+    "head": "d4cba0ab02d1972f7c5862c2ebcd7b83a0304a40",
+    "seconds": 15.454416916007176,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ],
+    "pytest_summary": [
+      "..................................................                       [100%]small: 278 tests, 0.60s including fixtures, p95 call 3ms, budget 10s",
+      "medium: 564 tests, 12.77s including fixtures, p95 call 82ms, budget 45s",
+      "wall clock 13.94s"
+    ]
+  },
+  {
+    "head": "e2799853be6923cab272470ef3358564f8205d9a",
+    "seconds": 22.066023999999743,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ],
+    "pytest_summary": [
+      ".....................................................................    [100%]small: 279 tests, 0.54s including fixtures, p95 call 2ms, budget 10s",
+      "medium: 582 tests, 17.41s including fixtures, p95 call 118ms, budget 45s",
+      "wall clock 18.73s"
+    ]
+  },
+  {
+    "head": "5c7dacbc18325a316652fa30c7e4f348f8500ab6",
+    "seconds": 20.204518917016685,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ],
+    "pytest_summary": [
+      "...........                                                              [100%]small: 292 tests, 0.59s including fixtures, p95 call 2ms, budget 10s",
+      "medium: 583 tests, 17.30s including fixtures, p95 call 121ms, budget 45s",
+      "wall clock 18.46s"
+    ]
+  },
+  {
+    "head": "e7e770b144f3bc1f3abe607790e2744637f8168f",
+    "seconds": 20.394122583034914,
+    "checks": [
+      "frozen sync",
+      "lock",
+      "ruff",
+      "format",
+      "mypy",
+      "full pytest"
+    ],
+    "pytest_summary": [
+      "..............................................                           [100%]small: 313 tests, 0.63s including fixtures, p95 call 1ms, budget 10s",
+      "medium: 597 tests, 17.32s including fixtures, p95 call 114ms, budget 45s",
+      "wall clock 18.53s"
+    ]
+  }
+]

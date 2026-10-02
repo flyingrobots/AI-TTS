@@ -1,0 +1,33 @@
+F                                                                        [100%]small: 1 tests, 0.00s including fixtures, p95 call 1ms, budget 10s
+wall clock 0.01s
+
+=================================== FAILURES ===================================
+___________ test_incomplete_evidence_cannot_pass_the_guard[payload] ____________
+
+fault = 'payload'
+
+    @pytest.mark.parametrize("fault", ["case", "payload", "metric", "witness", "durability", "sample", "summary"])
+    def test_incomplete_evidence_cannot_pass_the_guard(fault: str) -> None:
+        evidence = report()
+        case = evidence["cases"]["holds"]
+        if fault == "case":
+            del evidence["cases"]["holds"]
+        elif fault == "payload":
+            del case["samples"]
+        elif fault == "metric":
+            del case["distributions"]["held_resume.wall_ms"]
+        elif fault == "witness":
+            case["witnesses"] = 0
+        elif fault == "durability":
+            evidence["cases"]["durability"]["recovery"]["recovery.witnesses"] = 0
+        elif fault == "sample":
+            case["samples"]["held_resume.wall_ms"].pop()
+        else:
+            case["distributions"]["held_resume.wall_ms"]["p50"] = 0
+>       with pytest.raises(ValueError, match=r"inventory|witnesses|timing evidence"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_benchmark_report.py:68: Failed
+=========================== short test summary info ============================
+FAILED tests/test_benchmark_report.py::test_incomplete_evidence_cannot_pass_the_guard[payload]

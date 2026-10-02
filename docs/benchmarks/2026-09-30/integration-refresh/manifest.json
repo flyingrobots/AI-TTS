@@ -1,0 +1,12 @@
+{
+  "main_base": "954807b",
+  "measured_runtime_parent": "5c7dacbc18325a316652fa30c7e4f348f8500ab6",
+  "lock_sha256": "29be5818fbb0f95c417ade47513dc7daf376d4f4bda0ebcdcbcbcc32d7e92075",
+  "artifacts": {
+    "boundaries.json": "8b604dcb245b7e8cf5e1f488045d292ec97d871f6437ea0398e87a7509a6e869",
+    "paired.json.gz": "b7fdcfc58dfb0216d8934fcca23e9e73227cdf74bc123a4d3a7d0321553b90d3",
+    "streaming-identity-red.txt": "4f214298d8189c2e41e1954efce1b5bc28439aa203db6614f77d230440b5a464",
+    "comparison.json": "dddbebeb71618eb120a95d54d1c018cf0297a5ae10997aadac80dcc31b5c36b8",
+    "streaming-integration-green.txt": "99097d29e59adbfd94f73fbdd7c2b8d5bd0f00fdb13c5639a45e470ab6d7ea1e"
+  }
+}

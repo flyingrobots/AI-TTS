@@ -557,6 +557,8 @@ Resume; the paused records reconstruct the remaining resumption order.
 
 ---
 
+The [accepted delivery decision](2026-09-30-architecture-acceptance.md) retains controller ownership of interruption orchestration and Store ownership of atomic durable position updates. Queue-rank recovery ancestry remains a separate follow-up; approval is not proof for every operation history.
+
 ## 8. The engine interface
 
 The daemon registers concrete backends by name and keeps prepared models resident. The default is a live setting: submission resolves and persists the selected backend on the parent utterance, and every child synthesis job inherits it. Switching defaults never reroutes accepted work. Legacy rows without a recorded choice bind once to the startup backend. Sensitivity is checked before admission and again before a worker gives source text to an engine.

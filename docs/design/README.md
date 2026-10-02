@@ -145,3 +145,9 @@ documentation to claim host compatibility, Accessibility coverage, or App
 Intent discovery before their own installed-system evidence exists. Any later
 change to the accepted selection, permission, or privacy policy must be
 recorded back into these documents with the implementation change.
+
+## Measured architecture review
+
+[2026-09-30: architecture as written versus the seven-prompt plan](../reports/2026-09-30-architecture-review.md) contains paired Mermaid diagrams, performance/correctness tradeoffs, measured controller/PCM/MLX evidence, reproducible benchmarks and the CI baseline policy.
+
+[Accepted delivery decisions](2026-09-30-architecture-acceptance.md) retain controller ownership and accept the measured MLX footprint for the reviewed configuration. They resolve only those two review choices, with separate ancestry, crash-boundary and resource-lifetime follow-ups.
