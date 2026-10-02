@@ -809,10 +809,6 @@ responses cannot establish source security or advisory-database coverage.
 
 ## September 30 earcon and media ducking
 
-Cue generation and actual sink output, persisted controls, native gain ramps,
-readiness, active delivery loss and route ownership have controlled boundary
-checks and falsification receipts. A native process-tap probe measured 30% gain
-and unity restoration on this Mac's eight-channel output. See the
-[earcon and ducking receipt](../testing-evidence/2026-09-30-earcon-and-ducking.md).
-Permission denial, physical route switching and long-session acoustic behavior
-remain manual acceptance gaps. Hardware measurements do not gate CI.
+Cue generation and actual sink output, persisted controls, native gain ramps, readiness, active delivery loss and route ownership have controlled boundary checks and falsification receipts. A native process-tap probe measured 30% gain and unity restoration on this Mac's eight-channel output. See the [earcon and ducking receipt](../testing-evidence/2026-09-30-earcon-and-ducking.md). Permission denial, physical route switching and long-session acoustic behavior remain manual acceptance gaps. Hardware measurements do not gate CI.
+
+Code Lawyer review, 2026-10-01 (bug fixes; each regression test red on its parent, then green): an interrupted file-stream chime now fades and holds closing silence (red at `2abae3e`, fixed in `f946016`); chime writes count underflows (red at `f946016`, fixed in `994b922`); Retry replaces a route still waiting for delivery (red at `994b922`, fixed in `ce8660b`); and a not-yet-registered daemon process is retried automatically instead of marking ducking failed (red at `ce8660b` with compile-only scaffolding, fixed in `9162e61`). The receipt's review section has the red output. The callback path's close during the chime must be fixed in the merge-up, where `close_block` arrives.
