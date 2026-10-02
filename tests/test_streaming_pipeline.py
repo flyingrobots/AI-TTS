@@ -160,30 +160,73 @@ async def test_daemon_starts_playback_before_engine_releases_final_frames(tmp_pa
         shutil.rmtree(socket_home)
 
 
-def test_device_renderer_fades_underrun_without_advancing_source_clock(tmp_path: Path) -> None:
+# Largest sample-to-sample step accepted across an underrun on a steady 0.5
+# signal. The 20 ms raised cosine peaks near 0.5 * pi / (2 * 480).
+_UNDERRUN_MAX_STEP = 0.01
+_REBUFFER = 24000 * 3 // 10  # 300 ms at the stream rate
 
-    stream = SpoolingPCMStream(tmp_path / "candidate.wav", capacity_frames=1000)
+
+@pytest.mark.oracle(
+    "listener report 2026-10-02: replay under live synthesis crackled; #57/#34 rule that "
+    "every mid-clip silence transition uses a 20 ms raised cosine, never a sub-buffer ramp"
+)
+def test_device_renderer_fades_underrun_without_advancing_source_clock(tmp_path: Path) -> None:
+    """Starving output fades the real upcoming audio, rebuffers, then fades back in."""
+    stream = SpoolingPCMStream(tmp_path / "candidate.wav", capacity_frames=20_000)
     try:
         renderer = PCMStreamRenderer(stream)
-        stream.append(pcm(*([16384] * 481)))
-        assert stream.wait_buffered(481, timeout=1)
-        block = renderer.render(240)
-        assert block[-1, 0] == pytest.approx(0.5)
-        renderer.render(240)
+        stream.append(pcm(*([16384] * 1500)))
+        assert stream.wait_buffered(1500, timeout=1)
+        heard = [renderer.render(1024)]
         before = renderer.position_frames
-        gap = renderer.render(240)
-        assert gap[0, 0] == pytest.approx(0.5)
-        assert gap[-1, 0] == 0
-        assert np.max(np.abs(np.diff(gap[:, 0]))) <= 0.5 / 119 + 1e-6
-        assert renderer.position_frames == before
-        assert renderer.ended is False
-        stream.append(pcm(*([8192] * 480)))
-        assert stream.wait_buffered(480, timeout=1)
-        resumed = renderer.render(240)
-        assert resumed[0, 0] == 0
-        assert resumed[-1, 0] == pytest.approx(0.25)
-        assert renderer.position_frames == before + 240
+        # 476 frames remain: less than a block, so this block starves.
+        heard.append(renderer.render(1024))
         assert renderer.underruns == 1
+        assert renderer.ended is False
+        faded_at = renderer.position_frames
+        # The fade reads ahead without consuming, so it can be heard again.
+        assert faded_at == before
+        # A trickle below the rebuffer threshold must not restart playback.
+        stream.append(pcm(*([16384] * 400)))
+        assert stream.wait_buffered(400, timeout=1)
+        heard.append(renderer.render(1024))
+        assert not np.any(heard[-1]), "playback restarted before the rebuffer cushion"
+        assert renderer.position_frames == faded_at
+        stream.append(pcm(*([16384] * _REBUFFER)))
+        assert stream.wait_buffered(_REBUFFER, timeout=1)
+        heard.append(renderer.render(1024))
+        output = np.concatenate(heard)[:, 0]
+        steps = np.abs(np.diff(output))
+        assert np.max(steps) <= _UNDERRUN_MAX_STEP, "the underrun has an audible step"
+        assert heard[-1][0, 0] == 0, "playback resumed at full amplitude"
+        assert renderer.position_frames == faded_at + 1024
+        assert renderer.underruns == 1
+    finally:
+        stream.close()
+
+
+@pytest.mark.oracle(
+    "listener report 2026-10-02: 42 underruns in under a second of replayed audio crackled"
+)
+def test_trickling_synthesis_rebuffers_once_instead_of_crackling(tmp_path: Path) -> None:
+    """Arrivals smaller than a block give one clean gap, not a gap per callback."""
+    stream = SpoolingPCMStream(tmp_path / "candidate.wav", capacity_frames=40_000)
+    try:
+        renderer = PCMStreamRenderer(stream)
+        stream.append(pcm(*([16384] * 1200)))
+        assert stream.wait_buffered(1200, timeout=1)
+        blocks = [renderer.render(1024)]
+        # Synthesis falls behind: 300 frames arrive per 1024-frame callback.
+        for _ in range(30):
+            stream.append(pcm(*([16384] * 300)))
+            assert stream.wait_buffered(300, timeout=1)
+            blocks.append(renderer.render(1024))
+        output = np.concatenate(blocks)[:, 0]
+        audible = output != 0
+        restarts = int(np.count_nonzero(audible[1:] & ~audible[:-1]))
+        assert restarts <= 2, f"playback restarted {restarts} times: crackle"
+        assert renderer.underruns <= 2
+        assert np.max(np.abs(np.diff(output))) <= _UNDERRUN_MAX_STEP
     finally:
         stream.close()
 

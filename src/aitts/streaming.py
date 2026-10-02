@@ -29,6 +29,9 @@ SAMPLE_RATE = 24_000
 FRAME_BYTES = 2
 # A transport close fades over 20 ms, as the file sink's soft close does.
 SOFT_FADE_FRAMES = SAMPLE_RATE // 50
+# After an underrun, stay silent until this much source is buffered. Resuming
+# on every scrap that arrives turns a struggling synthesis into crackle.
+REBUFFER_FRAMES = SAMPLE_RATE * 3 // 10
 _WAV_HEADER_BYTES = 44
 # Engines hand playback 100 ms frames.
 FRAME_SAMPLES = SAMPLE_RATE // 10
@@ -100,6 +103,10 @@ class PCMRead:
     position_frames: int
     ended: bool
     error: str | None
+    # Every sample is written and read: nothing more is coming, even though
+    # publication (``ended``) may still be pending. Running out then is the
+    # end of the audio, not an underrun.
+    complete: bool = False
 
 
 class SpoolingPCMStream:
@@ -201,9 +208,11 @@ class SpoolingPCMStream:
         with self._condition:
             pcm = self._ring.read(frames)
             self._position += len(pcm) // FRAME_BYTES
-            ended = self._finished and self._position >= self._available
+            drained = self._position >= self._available
+            ended = self._finished and drained
+            complete = (self._sealed or self._finished) and drained
             self._condition.notify_all()
-            return PCMRead(pcm, self._position, ended, self._error)
+            return PCMRead(pcm, self._position, ended, self._error, complete)
 
     def seek(self, position_frames: int) -> None:
         """Move the sole playback reader without moving or blocking synthesis."""
@@ -381,6 +390,10 @@ class PCMStreamRenderer:
             )
         )
         self._faded_in = 0
+        # Starved after an underrun: silent until REBUFFER_FRAMES are buffered.
+        self._starved = False
+        # No speech has sounded yet; waiting for the first PCM is latency, not an underrun.
+        self._started = position_frames > 0
 
     def render(self, frames: int, *, rate: float = 1.0) -> NDArray[np.float32]:
         """Fill missing audio with a short decay to silence, without consuming time."""
@@ -402,16 +415,49 @@ class PCMStreamRenderer:
         import numpy as np  # noqa: PLC0415
 
         output = np.zeros((frames, 1), dtype=np.float32)
+        read = self._read_into_pending(frames, rate=rate)
+        if self.error is not None:
+            return self.stop_block(frames)
+        usable = len(self._pending) - self._phase - (0 if read.ended else 1)
+        no_more = read.ended or read.complete
+        if self._starved:
+            if not no_more and usable < REBUFFER_FRAMES * rate:
+                self._last = 0.0
+                return output
+            self._resume_from_rebuffer()
+        count = min(frames, max(0, math.ceil(usable / rate)))
+        starving = count < frames and not no_more and self._started
+        if count:
+            self._interpolate(output, count, rate=rate)
+        played = self._fade_out_starving(output, count, frames) if starving else count
+        if played:
+            self._consume(played, rate=rate)
+        if count < frames and not starving:
+            # The source ended (or failed): decay whatever is left to silence.
+            last = float(output[count - 1, 0]) if count else self._last
+            ramp = min(frames - count, 120)
+            output[count : count + ramp, 0] = np.linspace(last, 0.0, ramp)
+        self._was_silent = count < frames
+        self._last = float(output[-1, 0])
+        self.ended = read.ended and len(self._pending) == 0
+        return output
+
+    def _read_into_pending(self, frames: int, *, rate: float) -> PCMRead:
+        """Read what this block, or a rebuffer check, needs into the pending samples."""
+        import numpy as np  # noqa: PLC0415
+
         needed = max(0, math.ceil(frames * rate + self._phase) + 1 - len(self._pending))
+        if self._starved:
+            # Read far enough to know whether the rebuffer cushion is there.
+            cushion = math.ceil(REBUFFER_FRAMES * rate + self._phase) + 1
+            needed = max(needed, cushion - len(self._pending))
         if self._trim_leading:
             # One bounded memory read per callback. Never scan disk, and never
             # skip an intentional pause once the first nonzero sample is seen.
             needed = max(needed, SAMPLE_RATE)
         read = self.source.read(needed)
         self.error = read.error
-        if self.error is not None:
-            return self.stop_block(frames)
-        if read.pcm:
+        if self.error is None and read.pcm:
             samples = np.frombuffer(read.pcm, dtype="<i2")
             if self._trim_leading:
                 nonzero = np.flatnonzero(samples)
@@ -421,34 +467,60 @@ class PCMStreamRenderer:
                 samples = samples[skipped:]
                 self._trim_leading = not nonzero.size and not read.ended
             self._pending = np.concatenate((self._pending, samples / 32768.0))
-        usable = len(self._pending) - self._phase - (0 if read.ended else 1)
-        count = min(frames, max(0, math.ceil(usable / rate)))
-        if count:
-            positions = self._phase + np.arange(count) * rate
-            output[:count, 0] = np.interp(positions, np.arange(len(self._pending)), self._pending)
-            if self._faded_in < len(self._fade_in):
-                take = min(count, len(self._fade_in) - self._faded_in)
-                output[:take, 0] *= self._fade_in[self._faded_in : self._faded_in + take]
-                self._faded_in += take
-            elif self._was_silent:
-                ramp = min(count, 120)
-                output[:ramp, 0] *= np.linspace(0.0, 1.0, ramp)
-            advanced = min(count * rate, len(self._pending) - self._phase)
-            self._phase += advanced
-            self.position_frames += advanced
-            consumed = int(self._phase)
-            self._pending = self._pending[consumed:]
-            self._phase -= consumed
-        if count < frames:
-            last = float(output[count - 1, 0]) if count else self._last
-            ramp = min(frames - count, 120)
-            output[count : count + ramp, 0] = np.linspace(last, 0.0, ramp)
-            if not read.ended and self.error is None:
-                self.underruns += 1
-        self._was_silent = count < frames
-        self._last = float(output[-1, 0])
-        self.ended = read.ended and len(self._pending) == 0
-        return output
+        return read
+
+    def _resume_from_rebuffer(self) -> None:
+        """Cushion rebuilt: replay the frames the underrun faded, rising from zero."""
+        import numpy as np  # noqa: PLC0415
+
+        self._starved = False
+        envelope = 0.5 * (1 - np.cos(np.linspace(0.0, math.pi, SOFT_FADE_FRAMES)))
+        self._fade_in = envelope.astype(np.float32)
+        self._faded_in = 0
+
+    def _interpolate(self, output: NDArray[np.float32], count: int, *, rate: float) -> None:
+        """Write ``count`` frames of source at ``rate``, applying any opening fade."""
+        import numpy as np  # noqa: PLC0415
+
+        positions = self._phase + np.arange(count) * rate
+        output[:count, 0] = np.interp(positions, np.arange(len(self._pending)), self._pending)
+        if self._faded_in < len(self._fade_in):
+            take = min(count, len(self._fade_in) - self._faded_in)
+            output[:take, 0] *= self._fade_in[self._faded_in : self._faded_in + take]
+            self._faded_in += take
+        elif self._was_silent:
+            ramp = min(count, 120)
+            output[:ramp, 0] *= np.linspace(0.0, 1.0, ramp)
+        self._started = True
+
+    def _fade_out_starving(self, output: NDArray[np.float32], count: int, frames: int) -> int:
+        """Fade the audio about to run out; return how many frames were truly played.
+
+        The fade is the same 20 ms raised cosine as stop and pause, over the
+        real upcoming audio. Those frames are read ahead, not consumed, so the
+        resume after rebuffering replays them as it fades back in.
+        """
+        import numpy as np  # noqa: PLC0415
+
+        span = min(frames, SOFT_FADE_FRAMES)
+        start = max(0, count - span)
+        if count < span:
+            # Less audio than the fade: hold the last sample to finish it.
+            output[count:span, 0] = output[count - 1, 0] if count else self._last
+        end = start + span
+        output[start:end, 0] *= 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, end - start)))
+        self._starved = True
+        self.underruns += 1
+        return start
+
+    def _consume(self, played: int, *, rate: float) -> None:
+        """Advance the source clock by the frames actually heard."""
+        advanced = min(played * rate, len(self._pending) - self._phase)
+        self._phase += advanced
+        self.position_frames += advanced
+        consumed = int(self._phase)
+        self._pending = self._pending[consumed:]
+        self._phase -= consumed
 
     def close_block(self, frames: int, *, rate: float = 1.0) -> NDArray[np.float32]:
         """Fade what would play next to silence, without advancing source position.
