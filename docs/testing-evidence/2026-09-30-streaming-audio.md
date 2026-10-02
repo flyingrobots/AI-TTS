@@ -306,8 +306,16 @@ The merge was clean as text but not as behaviour. With output prepared, every co
 
 Refactor, with no red needed: both engines now frame and quantize through one `aitts.streaming.pcm16_frames` helper (CodeRabbit). The existing exact-byte tests are the characterization: `test_kokoro_yields_bounded_pcm_before_requesting_next_inference_result` covers the 32767 and -32768 boundaries and truncation, and the MLX chunk-length test covers the same for MLX. Both pass unchanged.
 
-Open decision, not changed: the callback stream still requests `blocksize=240`. By #57's measurement, the HAL buffer equals the requested block in device frames, so this is 5 ms at 48 kHz. That is shorter than the 13.4 ms stall behind the app-switch pop, which #57 fixed for file playback with a 21.3 ms host block. #57 measured that block's cost at about 0.13 s of extra output latency. Applying it here would trade away part of this PR's measured 194–205 ms first audio, which issue #33 is trying to reduce. That trade is the user's call.
+Host block on the callback stream, approved by the user on 2026-10-01: the callback stream asked for `blocksize=240`. The HAL buffer equals the requested block in device frames, so that was 5 ms at 48 kHz, shorter than the 13.4 ms stall behind the app-switch pop that #57 fixed for file playback. `_open_pcm_callback_stream` now reuses main's `_host_block_frames(device_rate)`, with the device rate from `sd.query_devices(kind="output")["default_samplerate"]`.
 
-Authoritative validation for this head: **793 Python tests passed, 2 skipped** (262 small, 531 medium; 24.7 s wall clock). Ruff check, ruff format, and mypy (139 files) are clean. Swift did not change.
+The cost was measured on this Mac on 2026-10-01 with silent output: a 24 kHz callback `sd.OutputStream` on the 48 kHz built-in speakers. With `blocksize=240` the HAL buffer was 240 frames (5 ms) and `stream.latency` was 44.8 ms. With `blocksize=1024` the HAL buffer was 1024 frames (21.3 ms) and `stream.latency` was 77.4 ms. The cost on the callback path is therefore about +33 ms of output latency. It is not the 0.13 s that #57 measured for the blocking file stream (130.1 to 248.1 ms there). The 194–205 ms first-audio readings above were taken with the 240-frame block and have not been re-measured.
+
+| Issue | Regression test | Parent (red) | Red output |
+|---|---|---|---|
+| The callback stream requested a 240-frame block, a 5 ms host buffer at 48 kHz, below #57's 21.3 ms | `test_callback_stream_requests_a_host_buffer_longer_than_an_observed_stall[44100, 48000, 96000, 192000]` | `7391f74` | requested 5.4, 5.0, 2.5 and 1.2 ms, against at least 21.3 ms |
+
+With host-sized blocks (941 or more frames at 24 kHz for any device of 44.1 kHz or more), the soft-close fade cap "20 ms or one callback block" always gives the full 20 ms. `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time`, which needs a pause to end within one 240-frame test block, passes unmodified.
+
+Authoritative validation for this head: **797 Python tests passed, 2 skipped** (262 small, 535 medium). Ruff check, ruff format, and mypy (139 files) are clean. Swift did not change.
 
 A mutation that drops the 100 ms close silence fails the first test with `the stream closed before 100 ms of silence` (544 silent frames, not 2400). The fade spans min(20 ms, callback block), so a 10 ms test callback still ends its pause block at zero, as `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time` requires. A prepared device keeps playing silence after the session, so only a session that closes its own stream adds the 100 ms of silence.

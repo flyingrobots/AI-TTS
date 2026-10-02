@@ -11,7 +11,9 @@ so the soft close and open rules from the September 30 soft-stream-close fix
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -189,3 +191,51 @@ async def test_a_stop_during_the_fade_in_closes_from_the_gain_reached(tmp_path: 
     finally:
         sink.stop()
         source.release()
+
+
+# The host buffer measured with main's fix, 1024 frames at 48 kHz.
+_HOST_BUFFER_TARGET_SECONDS = 1024 / 48_000
+
+
+@pytest.mark.oracle(
+    "CoreAudio overload report 2026-10-01 10:00:50: PageFaultsOnIOThread stalled the "
+    "I/O thread ~13.4 ms; measured: the HAL buffer equals the requested block in "
+    "device-rate frames, for a 24 kHz callback stream too (240 -> 5 ms, 1024 -> 21.3 ms)"
+)
+@pytest.mark.parametrize("device_rate", [44_100, 48_000, 96_000, 192_000])
+def test_callback_stream_requests_a_host_buffer_longer_than_an_observed_stall(
+    monkeypatch: pytest.MonkeyPatch, device_rate: int
+) -> None:
+    """The callback stream carries every prepared clip, so it needs main's host buffer."""
+    # Retire only if the callback stream stops being the prepared output path.
+    from aitts.playback import _open_pcm_callback_stream  # noqa: PLC0415
+
+    opened: list[dict[str, Any]] = []
+
+    class FakeOutputStream:
+        def __init__(self, **kwargs: Any) -> None:
+            opened.append(kwargs)
+
+    def query_devices(*, kind: str) -> dict[str, Any]:
+        assert kind == "output"
+        return {"default_samplerate": float(device_rate)}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sounddevice",
+        SimpleNamespace(
+            OutputStream=FakeOutputStream, query_devices=query_devices, CallbackStop=Exception
+        ),
+    )
+    _open_pcm_callback_stream(
+        samplerate=SAMPLE_RATE, channels=1, render=lambda *_: True, finished=lambda: None
+    )
+
+    assert len(opened) == 1, "no output stream was constructed"
+    assert opened[0]["samplerate"] == SAMPLE_RATE
+    assert callable(opened[0]["callback"])
+    host_buffer_seconds = (opened[0].get("blocksize") or 0) / device_rate
+    assert host_buffer_seconds >= _HOST_BUFFER_TARGET_SECONDS, (
+        f"the host buffer must last at least {_HOST_BUFFER_TARGET_SECONDS * 1000:.1f} ms "
+        f"at the device's {device_rate} Hz; requested {host_buffer_seconds * 1000:.1f} ms"
+    )

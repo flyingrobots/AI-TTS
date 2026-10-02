@@ -250,13 +250,16 @@ def _open_pcm_callback_stream(
         if not render(output, frames, bool(status.output_underflow)):
             raise sd.CallbackStop
 
+    # Prepared output carries every compatible clip, so it needs the same host
+    # buffer as the file stream: 240 frames gave a 5 ms HAL buffer at 48 kHz.
+    device_rate = float(sd.query_devices(kind="output")["default_samplerate"])
     return cast(
         "AbstractContextManager[object]",
         sd.OutputStream(
             samplerate=samplerate,
             channels=channels,
             dtype="float32",
-            blocksize=240,
+            blocksize=_host_block_frames(device_rate),
             callback=callback,
             finished_callback=finished,
         ),
