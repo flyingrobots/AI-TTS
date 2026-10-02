@@ -71,16 +71,10 @@ struct CurrentPlaybackCard: View {
                         transportButton(action, current: current)
                     }
                     Spacer()
-                    Button {
-                        state.setCaptionsEnabled(!state.captionsEnabled)
-                    } label: {
-                        Image(
-                            systemName: state.captionsEnabled
-                                ? "captions.bubble.fill" : "captions.bubble")
-                    }
-                    .help(state.captionsEnabled ? "Hide on-screen captions" : "Show on-screen captions")
-                    .accessibilityLabel(
-                        state.captionsEnabled ? "Hide on-screen captions" : "Show on-screen captions")
+                    Button(state.captionControlLabel) { state.cycleCaptions() }
+                        .font(.caption2)
+                        .help("Cycle captions: Off → Bottom → Top → Off")
+                        .accessibilityLabel("Captions: " + (state.captionsEnabled ? state.captionPosition.rawValue : "Off"))
                     Picker("Playback speed", selection: playbackRate) {
                         ForEach(PlaybackRate.allCases, id: \.self) { rate in
                             Text(rate.label).tag(rate)

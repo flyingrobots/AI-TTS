@@ -157,6 +157,62 @@ def test_failed_response_never_leaves_a_usable_artifact(tmp_path: Path, failure:
         assert not output.exists()
 
 
+@pytest.mark.parametrize("sample", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_float_samples_never_publish_an_artifact(tmp_path: Path, sample: float) -> None:
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    samples = np.full(2400, 0.25, dtype=np.float32)
+    samples[1200] = sample
+    encoded = io.BytesIO()
+    sf.write(encoded, samples, 24000, format="WAV", subtype="FLOAT")
+    with local_server(encoded.getvalue()) as (url, requests):
+        engine = OpenAIAudioEngine(url, "model", "voice")
+        output = tmp_path / "candidate.wav"
+        with pytest.raises(SynthesisError, match="non-finite"):
+            engine.synthesize("Owned private text", "voice", 1, output)
+    assert len(requests) == 1
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("bad_block", [None, 1])
+def test_sample_validation_decodes_in_bounded_blocks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bad_block: int | None
+) -> None:
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    block_frames = 65536  # the review's bound on one decode
+    blocks = 4
+    samples = np.full(block_frames * blocks, 0.25, dtype=np.float32)
+    if bad_block is not None:
+        samples[block_frames * bad_block + 10] = float("nan")
+    encoded = io.BytesIO()
+    sf.write(encoded, samples, 24000, format="WAV", subtype="FLOAT")
+    requested: list[int] = []
+    original_read = sf.SoundFile.read
+
+    def spy_read(self: sf.SoundFile, frames: int = -1, *args: Any, **kwargs: Any) -> Any:
+        # A full-file decode asks for -1 frames; a bounded one never exceeds the block.
+        requested.append(frames)
+        return original_read(self, frames, *args, **kwargs)
+
+    monkeypatch.setattr(sf.SoundFile, "read", spy_read)
+    with local_server(encoded.getvalue()) as (url, _):
+        engine = OpenAIAudioEngine(url, "model", "voice", max_response_bytes=4 * 1024 * 1024)
+        output = tmp_path / "candidate.wav"
+        if bad_block is None:
+            assert engine.synthesize("Owned private text", "voice", 1, output) > 0
+        else:
+            with pytest.raises(SynthesisError, match="non-finite"):
+                engine.synthesize("Owned private text", "voice", 1, output)
+            assert not output.exists()
+    assert requested
+    assert all(0 < frames <= block_frames for frames in requested)
+    # Validation stops at the first non-finite block instead of decoding the rest.
+    assert len(requested) == (blocks if bad_block is None else bad_block + 1)
+
+
 def test_redirect_does_not_forward_source_to_another_server(tmp_path: Path) -> None:
     with (
         local_server(wav_bytes()) as (destination, forwarded),

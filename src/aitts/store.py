@@ -34,7 +34,7 @@ from aitts.model import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Collection
 
 QueueName = Literal["input", "playback"]
 
@@ -368,7 +368,7 @@ class Store:
         return _row_to_segment(row) if row else None
 
     def completed_segment_duration_ms(self, utt_id: str, before: int | None = None) -> int:
-        """Return duration already played before an optional child index."""
+        """Return duration of completed audio before an optional child index."""
         if before is None:
             row = self._db.execute(
                 "SELECT COALESCE(SUM(duration_ms), 0) AS duration FROM utterance_segments "
@@ -381,6 +381,15 @@ class Store:
                 "WHERE utterance_id = ? AND state = ? AND segment_index < ?",
                 (utt_id, State.PLAYED.value, before),
             ).fetchone()
+        return int(row["duration"]) if row is not None else 0
+
+    def playhead_offset_before_segment_ms(self, utt_id: str, before: int) -> int:
+        """Return elapsed document position, counting chunks skipped past."""
+        row = self._db.execute(
+            "SELECT COALESCE(SUM(duration_ms), 0) AS duration FROM utterance_segments "
+            "WHERE utterance_id = ? AND segment_index < ? AND state IN (?, ?)",
+            (utt_id, before, State.PLAYED.value, State.SKIPPED.value),
+        ).fetchone()
         return int(row["duration"]) if row is not None else 0
 
     def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
@@ -578,9 +587,19 @@ class Store:
         self._db.execute("UPDATE utterances SET engine = ? WHERE engine IS NULL", (name,))
         self._commit_or_rollback()
 
-    def claim_for_synthesis(self) -> SynthesisWork | None:
-        """Atomically claim the earliest parent-owned unit of synthesis work."""
+    def claim_for_synthesis(
+        self, *, held_engines: Collection[str] = (), unbound_engine: str = ""
+    ) -> SynthesisWork | None:
+        """Atomically claim the earliest parent-owned unit of synthesis work.
+
+        Work recorded for a ``held_engines`` backend stays Queued; a row with no
+        recorded engine counts as ``unbound_engine``.
+        """
         terminal_placeholders = ",".join("?" * len(TERMINAL))
+        held = tuple(held_engines)
+        held_clause = (
+            f"AND COALESCE(u.engine, ?) NOT IN ({','.join('?' * len(held))}) " if held else ""
+        )
         row = self._db.execute(
             "SELECT u.id, u.text AS parent_text, u.voice, u.speed, u.state, "  # noqa: S608
             "u.engine, u.sensitivity, "
@@ -588,15 +607,17 @@ class Store:
             "FROM utterances AS u "
             "LEFT JOIN utterance_segments AS s "
             "ON s.utterance_id = u.id AND s.state = ? "
-            f"WHERE (s.segment_index IS NOT NULL AND u.state NOT IN ({terminal_placeholders})) "
+            f"WHERE ((s.segment_index IS NOT NULL AND u.state NOT IN ({terminal_placeholders})) "
             "OR (u.state = ? AND NOT EXISTS ("
             "SELECT 1 FROM utterance_segments AS owned WHERE owned.utterance_id = u.id"
-            ")) "
+            "))) "
+            f"{held_clause}"
             "ORDER BY u.order_key, COALESCE(s.segment_index, -1) LIMIT 1",
             (
                 State.QUEUED.value,
                 *(state.value for state in TERMINAL),
                 State.QUEUED.value,
+                *((unbound_engine, *held) if held else ()),
             ),
         ).fetchone()
         if row is None:
@@ -773,15 +794,23 @@ class Store:
         if work.segment_index is None:
             self.transition(work.utterance_id, State.FAILED, error=error)
             return
+        # A streamed child advertised readiness, and may be playing, before
+        # its generation finished; its failure is still its own.
+        live_states = (
+            (State.SYNTHESIZING, State.READY, State.PLAYING, State.PAUSED)
+            if self._streaming_job(work)
+            else (State.SYNTHESIZING,)
+        )
+        placeholders = ",".join("?" * len(live_states))
         self._db.execute(
-            "UPDATE utterance_segments SET state = ?, error = ? "
-            "WHERE utterance_id = ? AND segment_index = ? AND state = ?",
+            "UPDATE utterance_segments SET state = ?, error = ? "  # noqa: S608
+            f"WHERE utterance_id = ? AND segment_index = ? AND state IN ({placeholders})",
             (
                 State.FAILED.value,
                 error,
                 work.utterance_id,
                 work.segment_index,
-                State.SYNTHESIZING.value,
+                *(state.value for state in live_states),
             ),
         )
         self._db.execute(
@@ -1065,10 +1094,19 @@ class Store:
             if parent.state in (State.PLAYING, State.PAUSED):
                 self._db.execute("INSERT OR REPLACE INTO settings VALUES ('playback_held', 'true')")
             if job["segment_index"] is not None:
+                # A child the listener already skipped is finished, even though
+                # its generation never was (see synthesis_work_is_active).
+                placeholders = ",".join("?" * len(TERMINAL))
                 self._db.execute(
-                    "UPDATE utterance_segments SET state = ?, audio_path = NULL, played_ms = NULL "
-                    "WHERE utterance_id = ? AND segment_index = ?",
-                    (State.QUEUED.value, parent.id, job["segment_index"]),
+                    "UPDATE utterance_segments SET state = ?, audio_path = NULL, "  # noqa: S608
+                    "played_ms = NULL WHERE utterance_id = ? AND segment_index = ? "
+                    f"AND state NOT IN ({placeholders})",
+                    (
+                        State.QUEUED.value,
+                        parent.id,
+                        job["segment_index"],
+                        *(state.value for state in TERMINAL),
+                    ),
                 )
             if job["segment_index"] is None:
                 self._db.execute(

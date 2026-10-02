@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _MAX_RESPONSE_BYTES = 64 * 1024 * 1024
+_VALIDATION_BLOCK_FRAMES = 65536
 
 
 class OpenAIAudioEngine:
@@ -97,6 +98,7 @@ class OpenAIAudioEngine:
 
     def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
         """POST one speech request and publish only a complete, playable WAV result."""
+        import numpy as np  # noqa: PLC0415 - loaded only by actual audio synthesis
         import soundfile as sf  # noqa: PLC0415 - loaded only by actual audio synthesis
 
         payload = json.dumps(
@@ -126,6 +128,11 @@ class OpenAIAudioEngine:
                 if audio.format not in {"WAV", "WAVEX"} or audio.frames <= 0:
                     msg = "local speech endpoint did not return a nonempty WAV"
                     raise SynthesisError(msg)  # noqa: TRY301 - remove the failed artifact
+                # Bounded blocks: a byte-limited 8-bit WAV would decode to 4x its size at once.
+                for block in audio.blocks(blocksize=_VALIDATION_BLOCK_FRAMES, dtype="float32"):
+                    if not np.isfinite(block).all():
+                        msg = "local speech endpoint returned non-finite audio samples"
+                        raise SynthesisError(msg)  # noqa: TRY301 - remove the failed artifact
                 return int(audio.frames * 1000 / audio.samplerate)
         except Exception as exc:
             with contextlib.suppress(OSError):

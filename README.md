@@ -12,24 +12,23 @@ The default backend remains `kokoro`. To install the optional native backend
 alongside its fallback from this checkout:
 
 ```sh
-uv tool install --force --python 3.12 --with 'kokoro-mlx==0.1.2' \
+mkdir -p dist
+uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
+  --extra kokoro --extra mlx --output-file dist/install-constraints.txt
+uv tool install --force --reinstall-package ai-tts --python 3.12 \
+  --constraints dist/install-constraints.txt \
+  --with 'kokoro-mlx==0.1.2' \
   --with 'kokoro>=0.9.4' \
   --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' .
 ```
 
-Use **Restart daemon** once after installing the extra so its startup catalog can
-discover MLX. Then select it for future clips:
+Use **Restart daemon** once after installing the extra so its startup catalog can discover MLX. Then select it for future clips:
 
 ```sh
 ai-tts settings --set engine=kokoro-mlx
 ```
 
-Selection now takes effect without another restart. An explicitly managed
-foreground daemon also accepts `ai-tts daemon --engine kokoro-mlx`. If that startup
-selection is unavailable because MLX or English language assets are missing,
-the runtime is unsupported, or Metal is unavailable, it falls back to reference Kokoro with an operational log
-event. Live settings only accept registered backends. Upstream
-`kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.
+Selection now takes effect without another restart. An explicitly managed foreground daemon also accepts `ai-tts daemon --engine kokoro-mlx`. If that startup selection is unavailable because MLX or English language assets are missing, the runtime is unsupported, or Metal is unavailable, it falls back to reference Kokoro with an operational log event. Live settings only accept registered backends; see [Multiple local engines](#multiple-local-engines). Upstream `kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.
 
 Warmup resolves model and curated voice assets from the local Hugging Face
 cache, fetching missing files once, and primes inference without playback.
@@ -54,7 +53,9 @@ underflows and skipped leading frames alongside synthesis and transport logs.
 
 On the measured M5 Pro with Studio Display Speakers, the eight-word MLX workload
 reached first nonzero scheduled device output in **194–205 ms** after warmup.
-This remains above the 150 ms optimization target; see the
+Those readings predate the 21.3 ms host block the callback stream now requests,
+which raised the stream's reported output latency by about 33 ms; they have not
+been re-measured. This remains above the 150 ms optimization target; see the
 [streaming acceptance receipt](docs/testing-evidence/2026-09-30-streaming-audio.md).
 The measurements used silent hardware callbacks, not an acoustic recording.
 
@@ -70,8 +71,8 @@ MCP `enqueue_speech` and raw `submit` accept `preempt: true`. User and microphon
 holds take precedence; preemption never releases a hold. Clearing the playback
 queue also skips suspended clips without stopping the current alert. A daemon
 restart restores paused clips but requires Resume before any speech starts.
-The output stream drains a 5 ms fade to silence before a stopped device is
-reused. Synthesizing the alert and draining an audio block still take time;
+A stop fades the audio that would have played next over 20 ms, then holds
+silence before the device is released or reused. Synthesizing the alert and draining an audio block still take time;
 preemption is not a guarantee of zero latency.
 
 ## Why
@@ -101,7 +102,7 @@ The last one is the clearest statement of the problem: **speech is a serial reso
   preserves human labels and code content, and turns headings into spoken
   section cues without changing the stored source.
 - **Compose speech from the menu bar.** **Speak…** opens an editable text area
-  with voice/model choices and a Speak button (⌘Return). Type or paste directly,
+  inline beneath current playback, with voice/model choices and a Speak button (⌘Return). Type or paste directly,
   import the clipboard or current selection, or attach a file. Imports append
   to the draft for review before submission. The file picker accepts
   UTF-8 plain text, Markdown, and PDFs with an extractable text layer. File
@@ -234,7 +235,13 @@ its Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
-uv tool install --force --python 3.12 --with "kokoro>=0.9.4" \
+# uv tool install ignores uv.lock, so constrain it to the locked versions
+mkdir -p dist
+uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
+  --extra kokoro --output-file dist/install-constraints.txt
+uv tool install --force --reinstall-package ai-tts --python 3.12 \
+  --constraints dist/install-constraints.txt \
+  --with "kokoro>=0.9.4" \
   --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" .
 
 # build an ad-hoc-signed, checkout-independent menu-bar app
@@ -247,8 +254,9 @@ AI_TTS_BIN="$(uv tool dir --bin)/ai-tts"
 python3 scripts/render_launch_agent.py \
   --executable "$AI_TTS_BIN" \
   --force
-launchctl bootout "gui/$(id -u)" \
-  "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist" 2>/dev/null || true
+launchctl bootout "gui/$(id -u)/com.flyingrobots.ai-tts" 2>/dev/null || true
+# bootout returns before launchd finishes; bootstrapping too early fails with error 5
+while launchctl print "gui/$(id -u)/com.flyingrobots.ai-tts" >/dev/null 2>&1; do sleep 0.1; done
 launchctl bootstrap "gui/$(id -u)" \
   "$HOME/Library/LaunchAgents/com.flyingrobots.ai-tts.plist"
 open "$HOME/Applications/AI-TTS.app"
@@ -509,10 +517,10 @@ AI-TTS**. macOS can assign a keyboard shortcut to either command in System
 Settings → Keyboard → Keyboard Shortcuts → Services.
 
 For a host whose selection does not reach Services, open the AI-TTS popover
-while that host is still frontmost, then choose **Speak… → Import Selection**. This is an explicit Accessibility fallback: macOS may ask
+while that host is still frontmost, then choose **Speak… → Selection**. This is an explicit Accessibility fallback: macOS may ask
 for permission, and custom renderers may not expose selected text even after a
-grant. Choose **Paste Clipboard** after copying text yourself; AI-TTS reads
-the current string without issuing ⌘C or changing the clipboard. **Attach File…**
+grant. Choose **Paste** after copying text yourself; AI-TTS reads
+the current string without issuing ⌘C or changing the clipboard. **Attach…**
 opens the text/Markdown/PDF picker. All imports enter the editor; press **Speak**
 when the draft is ready.
 
@@ -525,9 +533,10 @@ App Intent type name directly.
 
 On-screen captions are off by default. Open the AI-TTS menu-bar popover, choose
 the gear icon, and enable **On-screen captions**. While a clip is actively
-playing, the Current card also shows a captions-bubble shortcut beside playback
-speed. The click-through panel appears at the bottom center of the active
-display and shows one short phrase from the exact active segment; it never puts
+playing, the Current card also shows a **CC** button beside playback speed that
+names the current mode and cycles **Off → Bottom → Top → Off**; turning captions
+on from Off always starts at Bottom. The click-through panel appears at the
+bottom or top center of the active display and shows one short phrase from the exact active segment; it never puts
 an entire Markdown section or document segment on screen at once. Cues prefer
 sentence and clause punctuation, are capped at 12 words and 84 characters, and
 render in at most two lines. They advance from the reported clip position and
@@ -537,7 +546,7 @@ documents also show `PART n OF m`, and the panel is absent while no segment is
 active. A subdued label above the phrase shows the same exact source recorded in
 History—for example, `codex:` or `menubar-file:notes.md:`—and is omitted only
 for legacy items without source provenance. The preference is shared through
-the daemon: the menu toggle and MCP `set_captions_enabled` tool update the same
+the daemon: the menu controls and MCP `set_captions_enabled` tool update the same
 persisted value, while `get_caption_settings` reports it without opening the
 menu.
 
@@ -630,7 +639,7 @@ cd clients/menubar
 swift run
 ```
 
-In the menu-bar app, open **Speak… → Attach File…**, review or edit the imported
+In the menu-bar app, open **Speak… → Attach…**, review or edit the imported
 text, then press **Speak**. The final draft is submitted with its interpretation: `.md` and
 `.markdown` use Markdown projection, while other UTF-8 text files and PDF text
 layers remain literal plain text. PDF pages are submitted in the order returned
@@ -638,7 +647,9 @@ by the native macOS text extractor. Password-locked PDFs are refused; image-only
 PDFs need OCR first because AI-TTS does not perform OCR or promise PDF layout
 reconstruction.
 
-The composer keeps an unsent draft in memory when closed. A rejected submission
+The composer takes the place of the Queue/History area while open; close it with
+**Close editor** or its × button to return to the selected tab. It keeps an
+unsent draft in memory when closed. A rejected submission
 preserves the draft and shows the error; successful admission clears the editor
 and confirms queueing, including a reminder if playback is paused. Imports and
 final submitted text are attributed in clip provenance. The Model picker offers
@@ -655,8 +666,8 @@ import leaves the existing draft intact. **Clear** and successful submission
 reset text and import attribution while keeping the voice, model, and text-format
 choices for the next draft. Quitting the app loses an unsent draft.
 
-**Import Selection** targets the most recently activated other application,
-including after switching away from and back to an open composer. It reads the
+**Selection** targets the most recently activated other application,
+including after switching away from and back to the popover. It reads the
 selection only when clicked. Imported-source labels record acquisition history;
 editing away imported text does not remove those labels. The report records the
 final submitted text, not a character-by-character edit history.
@@ -783,28 +794,17 @@ builds its bundle with `--allow-missing-app-intents` and release artifacts are
 built locally. `make build` tells you which file is missing if your toolchain
 cannot do it.
 
-## Licence
+## Multiple local engines
 
-Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+`ai-tts engines` lists the daemon's registered backends, their voices and readiness. `ai-tts settings set engine NAME` (also `settings --engine NAME` or `settings --set engine=NAME`) changes the default for future submissions. Queued clips and all their segments keep the engine recorded when they were accepted, including after daemon restart. The composer lists local models and updates its voice picker when a model changes. A per-clip `--engine NAME` overrides the default.
 
+If the saved voice is absent from the newly selected engine, that engine's catalog default is used and reported. The saved choice is retained, so switching back to an engine that has it speaks with it again.
 
-### Multiple local engines
+Models prepare on first use and remain resident until explicitly reloaded or the daemon exits. Loading one does not unload another, so memory use can increase. An engine whose preparation failed stays failed until it is reloaded; the `restart_model` IPC op reloads the default engine, or the engine named in its optional `engine` field, so a failed non-default engine can be retried without switching the default. While the startup engine prepares, only clips recorded for it wait; clips for other registered engines prepare and synthesize independently.
 
-`ai-tts engines` lists the daemon's registered backends, their voices and readiness.
-`ai-tts settings set engine NAME` (also `settings --engine NAME` or
-`settings --set engine=NAME`) changes the default for future submissions. Queued
-clips and all their segments keep the engine recorded when they were accepted,
-including after daemon restart. The composer lists local models and updates its
-voice picker when a model changes. A per-clip `--engine NAME` overrides the default.
-Models prepare on first use and remain resident until explicitly reloaded or the
-daemon exits. Loading one does not unload another, so memory use can increase.
+The reference Kokoro adapter is registered at startup; MLX is also registered when its supported runtime and optional dependency are available. On startup, an unavailable configured MLX backend still falls back to reference Kokoro. So does a saved default for an adapter whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an adapter refuses to start instead.
 
-The reference Kokoro adapter is registered at startup; MLX is also registered when
-its supported runtime and optional dependency are available. On startup, an
-unavailable configured MLX backend still falls back to reference Kokoro.
-
-To register a separately managed local speech server, set these variables in the
-environment used to launch the daemon:
+To register a separately managed local speech server, set these variables in the environment used to launch the daemon:
 
 ```sh
 export AI_TTS_OPENAI_URL=http://127.0.0.1:8880
@@ -813,29 +813,13 @@ export AI_TTS_OPENAI_VOICE=af_heart
 ai-tts daemon
 ```
 
-Then select `openai-audio` in the composer or through settings. URL/model/voice
-configuration is read at daemon startup; restart the daemon to change it. The
-adapter posts to `/v1/audio/speech`, requests WAV, and bounds responses to 64 MiB
-with a 30-second socket timeout. Only literal loopback addresses and `localhost`
-are accepted. `localhost` is pinned to `127.0.0.1`; proxies and redirects are not
-used. HTTPS requires a certificate valid for the numeric loopback destination.
-Remote endpoints are refused even for public text. Other registered adapters
-marked non-local may only receive explicitly public text, enforced at admission
-and again before synthesis.
+Then select `openai-audio` in the composer or through settings. URL/model/voice configuration is read at daemon startup; restart the daemon to change it. The adapter posts to `/v1/audio/speech`, requests WAV, and bounds responses to 64 MiB with a 30-second socket timeout. A response is published only as a complete, nonempty WAV whose samples are all finite. Only literal loopback addresses and `localhost` are accepted. `localhost` is pinned to `127.0.0.1`; proxies and redirects are not used. HTTPS requires a certificate valid for the numeric loopback destination. Remote endpoints are refused even for public text. Other registered adapters marked non-local may only receive explicitly public text, enforced at admission and again before synthesis.
 
-The server owns its model: the UI reports **server managed**, without claiming the
-model is hot. Restart it using that server's controls. Evidence records the
-requested model and route; server-side model weights cannot be fingerprinted by
-this adapter.
+The server owns its model: the UI reports **server managed**, without claiming the model is hot. Restart it using that server's controls. Evidence records the requested model and route; server-side model weights cannot be fingerprinted by this adapter.
 
-Native Chatterbox Turbo (350M) is available through the `chatterbox` extra.
-It uses the bundled `default` voice and preserves native samples, including
-watermarking. Turbo accepts generation speed 1; playback rate is independently
-adjustable. CPU is the tested default; `AI_TTS_CHATTERBOX_DEVICE` selects another
-upstream-supported device.
+Native Chatterbox Turbo (350M) is available through the `chatterbox` extra. It uses the bundled `default` voice and preserves native samples, including watermarking. Turbo accepts generation speed 1; playback rate is independently adjustable. A clip that names no speed is generated at 1 even if the saved default speed differs, and that saved speed is kept for the other models; a clip that explicitly asks for another speed is refused. CPU is the tested default; `AI_TTS_CHATTERBOX_DEVICE` selects another upstream-supported device.
 
-From this checkout, install the frozen dependencies and explicitly fetch the tested
-model revision once:
+From this checkout, install the frozen dependencies and explicitly fetch the tested model revision once:
 
 ```sh
 uv sync --frozen --all-extras
@@ -853,21 +837,9 @@ PYTHON
 uv run --frozen --all-extras ai-tts daemon --engine chatterbox
 ```
 
-The directory must contain the complete local snapshot. Synthesis never downloads
-assets. A daemon launched with `AI_TTS_CHATTERBOX_MODEL_DIR` registers Chatterbox
-alongside the other engines; select it in the composer, use `say --engine chatterbox`,
-or change the default with `settings set engine chatterbox`.
+The directory must contain the complete local snapshot. Synthesis never downloads assets. A daemon launched with `AI_TTS_CHATTERBOX_MODEL_DIR` registers Chatterbox alongside the other engines; select it in the composer, use `say --engine chatterbox`, or change the default with `settings set engine chatterbox`.
 
-The extra pins immutable upstream source archives: Chatterbox's dependency-only
-[PR 486](https://github.com/resemble-ai/chatterbox/pull/486) and Perth's upstream
-fix for removed `pkg_resources` (not yet published to PyPI). Their revisions and
-archive hashes are checked in the lock and source-audit policy. CI uses strict
-hashed PyPI auditing for the remaining graph and separately records OSV commit and
-package queries for both source dependencies, then checks the combined SBOM and
-license inventory. No known advisory findings is not a source-security guarantee;
-source-query coverage is disclosed in the retained evidence. The
-[native acceptance receipt](docs/testing-evidence/2026-09-30-multi-engine.md)
-records real offline inference with the frozen Python 3.12 graph.
+The extra pins immutable upstream source archives: Chatterbox's dependency-only [PR 486](https://github.com/resemble-ai/chatterbox/pull/486) and Perth's upstream fix for removed `pkg_resources` (not yet published to PyPI). Their revisions and archive hashes are checked in the lock and source-audit policy. CI uses strict hashed PyPI auditing for the remaining graph and separately records OSV commit and package queries for both source dependencies, then checks the combined SBOM and license inventory. No known advisory findings is not a source-security guarantee; source-query coverage is disclosed in the retained evidence. The [native acceptance receipt](docs/testing-evidence/2026-09-30-multi-engine.md) records real offline inference with the frozen Python 3.12 graph.
 
 ### Speech chime and other-app volume
 
@@ -881,3 +853,7 @@ ai-tts settings set ducking off
 The 100 ms chime plays once before a new document, without repeating on resume or between its chunks. It is excluded from saved audio and the clip's playhead.
 
 With the menu-bar app running on macOS 14.2 or newer, ducking lowers other apps on the default output to 30% during speech. AI-TTS speech keeps its normal volume. macOS may request system-audio permission; Settings provides the route status, **Audio Privacy Settings**, and **Retry**. Audio passes through in memory and is not recorded. Pause, completion, disconnection, disabling the preference, and quitting restore other apps. An idle source stays unmuted until audio arrives. Headless daemon playback does not perform this native menu-bar routing.
+
+## Licence
+
+Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

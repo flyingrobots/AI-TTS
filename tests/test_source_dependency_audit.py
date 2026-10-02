@@ -80,6 +80,29 @@ def test_either_source_query_finding_fails_existing_evidence_gate(finding_query:
         verify_supply_chain_evidence(result, {}, [], LOCK.encode())
 
 
+def test_paginated_osv_response_keeps_every_page_of_findings() -> None:
+    calls: list[dict[str, Any]] = []
+    pages: dict[str | None, dict[str, Any]] = {
+        None: {"vulns": [{"id": "OSV-FIRST-PAGE"}], "next_page_token": "page-2"},
+        "page-2": {"vulns": [{"id": "OSV-SECOND-PAGE"}]},
+    }
+
+    def query(payload: dict[str, Any]) -> dict[str, Any]:
+        calls.append(payload)
+        return pages[payload.get("page_token")] if "commit" in payload else {}
+
+    # OSV may return a next_page_token before all findings; each page must be followed.
+    source = merge_source_audit(AUDIT, LOCK, query, (PIN,))["dependencies"][1]
+    assert calls == [
+        {"commit": "a" * 40},
+        {"commit": "a" * 40, "page_token": "page-2"},
+        {"package": {"ecosystem": "PyPI", "name": "native"}, "version": "1.0"},
+    ]
+    assert [finding["id"] for finding in source["vulns"]] == ["OSV-FIRST-PAGE", "OSV-SECOND-PAGE"]
+    assert source["queries"] == calls
+    assert len(source["responses"]) == len(calls)
+
+
 @pytest.mark.parametrize("response", [{"error": "unavailable"}, {"vulns": None}])
 def test_invalid_service_response_cannot_be_clean_evidence(response: dict[str, Any]) -> None:
     with pytest.raises(ValueError, match="OSV"):

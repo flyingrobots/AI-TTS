@@ -613,6 +613,33 @@ final class AppState: ObservableObject {
         playbackRate = rate
         send(.setPlaybackRate(rate))
     }
+    /// Shows History in the popover body, which the inline composer otherwise occupies.
+    func revealHistory() {
+        selectedTab = .history
+        showingComposer = false
+    }
+
+    var composerToggleTitle: String { showingComposer ? "Close editor" : "Speak…" }
+
+    var composerToggleHelp: String {
+        showingComposer ? "Close the speech editor and keep the draft" : "Type, paste, or attach text to speak"
+    }
+
+    var captionControlLabel: String {
+        captionsEnabled ? "CC: \(captionPosition.rawValue)" : "CC: Off"
+    }
+
+    func cycleCaptions() {
+        if !captionsEnabled {
+            setCaptionPosition(.bottom)
+            setCaptionsEnabled(true)
+        } else if captionPosition == .bottom {
+            setCaptionPosition(.top)
+        } else {
+            setCaptionsEnabled(false)
+        }
+    }
+
     func setCaptionsEnabled(_ enabled: Bool) {
         captionMigrationAttempted = true
         captionsEnabled = enabled

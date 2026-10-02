@@ -26,6 +26,16 @@ enum TrayState: Equatable {
         }
     }
 
+    var accessibilityLabel: String {
+        switch self {
+        case .error: return "AI-TTS: Needs attention"
+        case .playing: return "AI-TTS: Speaking"
+        case .paused: return "AI-TTS: Playback paused"
+        case .synthesizing: return "AI-TTS: Preparing speech"
+        case .idle: return "AI-TTS: Ready"
+        }
+    }
+
     var animates: Bool { self == .playing || self == .synthesizing }
 }
 
