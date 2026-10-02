@@ -29,7 +29,7 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 | Class | Ceiling per test | Tier budget | Resource posture |
 |---|---:|---:|---|
 | small | 2 seconds | 10 seconds | one process; no sockets, subprocesses, threads, or sleeps |
-| medium | 15 seconds | 45 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
+| medium | 15 seconds | 120 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
 | large | 30 seconds | 120 seconds | explicit external boundary; none currently gate CI |
 
 `tests/conftest.py` rejects collection unless each test inherits exactly one
@@ -53,6 +53,8 @@ test looking slow. Each run prints the count, the charged total and the p95
 call latency per class, which is the SLO reading rule 9 asks for; the
 budgets sit several times above the current cost on purpose, so they alarm on
 decay rather than on a busy machine.
+
+**Medium re-baseline, 2026-10-02.** Change-kind: deliberate standards change, approved by James (decision Q). The medium tier budget moves from 45 to 120 seconds; the small and large budgets and every per-test ceiling are unchanged. The tier had grown to cost 22–56 seconds across main and CI runs, so 45 seconds no longer sat several times above the current cost, and it alarmed on machine noise rather than decay. Evidence: CI measured 46.53 seconds on PR #47 with every test passing, a rerun on identical code measured 32.72 seconds, and PR #65's CI measured 55.61 seconds with 992 passed. Most of #65's increase is seven Make-entrypoint installation tests at about 1.4 seconds each; issue #72 tracks sharing one fake `make install` across them. The re-baseline needs no red test; the evidence that it holds is PR #65's CI Python job passing with the new budget.
 
 **One deviation on `small`, stated rather than drifted into.** Rule 9 lists
 "no filesystem" for small tests; here a small test may write inside its own

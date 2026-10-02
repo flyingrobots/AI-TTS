@@ -222,6 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The medium test tier's time budget is re-baselined from 45 to 120 seconds, because the tier's cost of 22–56 seconds made 45 seconds alarm on machine noise. Small and large budgets and per-test ceilings are unchanged. Issue #72 tracks reducing the installation tests' cost.
+
 - Installation now starts the menu-bar app independently at login and recovers abnormal exits. Intentional Quit keeps it closed, and reopening restores crash recovery. Uninstall removes both launch agents.
 
 - A submit response's `eligible_engines` lists registered engine names (for example `["kokoro"]`) instead of the `["local"]` placeholder, and the settings `engine` value reports the engine actually selected in the running daemon rather than the stored preference.
