@@ -1,6 +1,6 @@
 # Multi-engine registry acceptance
 
-Change-kind: feature
+Change-kind: feature, with a deliberate behavior change. The IPC surface now reports engine names in `eligible_engines` (previously `["local"]`), and settings `engine` reports the live engine. Two existing IPC assertions were updated to that contract, and the change is listed under CHANGELOG "Changed".
 
 Prompt 4 includes a frozen native installation path and real offline inference. The source-package audit method and its limits are recorded below. The installed application has not been replaced by this branch.
 
