@@ -40,8 +40,8 @@ def clip(store: Store, utterance_id: str) -> Utterance:
 
 
 class NamedEngine(FakeEngine):
-    def __init__(self, name: str, *, local: bool = True) -> None:
-        super().__init__(voices=["v"])
+    def __init__(self, name: str, *, local: bool = True, voices: tuple[str, ...] = ("v",)) -> None:
+        super().__init__(voices=list(voices))
         self.name = name
         self.is_local = local
         self.sources: list[str] = []
@@ -274,6 +274,25 @@ def test_startup_catalog_uses_owned_configuration_without_loading_models(
         configured_engines(tmp_path, probe_mlx=lambda: False)
 
 
+@pytest.mark.parametrize("saved", ["chatterbox", "openai-audio"])
+def test_saved_default_missing_from_startup_environment_falls_back_to_kokoro(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, saved: str
+) -> None:
+    from aitts.engines.selection import configured_engines  # noqa: PLC0415
+
+    monkeypatch.delenv("AI_TTS_CHATTERBOX_MODEL_DIR", raising=False)
+    monkeypatch.delenv("AI_TTS_OPENAI_URL", raising=False)
+    store = Store(tmp_path / "state.db")
+    store.set_setting("engine", saved)
+    store.close()
+    # A launch environment without the adapter's variables must still start a daemon.
+    selected, engines = configured_engines(tmp_path, probe_mlx=lambda: False)
+    assert set(engines) == {"kokoro"}
+    assert selected is engines["kokoro"]
+    with pytest.raises(ValueError, match="not configured"):
+        configured_engines(tmp_path, override=saved, probe_mlx=lambda: False)
+
+
 def test_legacy_engine_binding_is_durable_and_never_overwrites_an_existing_choice(
     tmp_path: Path,
 ) -> None:
@@ -426,6 +445,33 @@ def test_saved_voice_from_another_backend_reports_a_speakable_default(tmp_path: 
         store.close()
 
 
+async def test_live_switch_away_and_back_keeps_the_saved_voice(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    original = NamedEngine("original", voices=("v", "kept"))
+    other = NamedEngine("other", voices=("o",))
+    daemon = Daemon(
+        home=tmp_path,
+        engine=original,
+        engines={"other": other},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        await daemon.dispatch({"op": "settings", "set": {"voice": "kept"}})
+        away = await daemon.dispatch({"op": "settings", "set": {"engine": "other"}})
+        assert away["settings"]["voice"] == "o"
+        back = await daemon.dispatch({"op": "settings", "set": {"engine": "original"}})
+        assert back["settings"]["voice"] == "kept"
+    finally:
+        await daemon.stop()
+
+
 async def test_model_preparation_failure_is_captured_in_the_clips_own_log(tmp_path: Path) -> None:
     import json  # noqa: PLC0415
 
@@ -467,3 +513,128 @@ async def test_model_preparation_failure_is_captured_in_the_clips_own_log(tmp_pa
         with contextlib.suppress(asyncio.CancelledError):
             await task
         store.close()
+
+
+async def test_startup_warmup_holds_only_its_own_engines_clips(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    import threading  # noqa: PLC0415
+
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    started, release = threading.Event(), threading.Event()
+
+    class WedgedWarmupEngine(NamedEngine):
+        def warmup(self) -> None:
+            started.set()
+            if not release.wait(5):
+                msg = "test did not release warmup"
+                raise TimeoutError(msg)
+            super().warmup()
+
+    startup, other = WedgedWarmupEngine("startup"), NamedEngine("other")
+    daemon = Daemon(
+        home=tmp_path,
+        engine=startup,
+        engines={"other": other},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        await daemon.dispatch({"op": "pause"})
+        held = await daemon.dispatch({"op": "submit", "text": "startup source"})
+        routed = await daemon.dispatch({"op": "submit", "text": "other source", "engine": "other"})
+        # The other backend prepares on its own while the startup model is still loading.
+        await wait_for(lambda: clip(daemon.store, routed["id"]).state is State.READY)
+        assert other.sources == ["other source"]
+        assert clip(daemon.store, held["id"]).state is State.QUEUED
+        assert startup.sources == []
+        release.set()
+        await wait_for(lambda: clip(daemon.store, held["id"]).state is State.READY)
+        assert startup.sources == ["startup source"]
+    finally:
+        release.set()
+        await daemon.stop()
+
+
+async def test_fixed_speed_engine_speaks_default_submissions_despite_a_saved_speed(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.ipc import ApiError  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    class FixedSpeedEngine(NamedEngine):
+        supported_speeds = (1.0,)
+
+    fixed = FixedSpeedEngine("fixed")
+    daemon = Daemon(
+        home=tmp_path,
+        engine=NamedEngine("variable"),
+        engines={"fixed": fixed},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        await daemon.dispatch({"op": "pause"})
+        await daemon.dispatch({"op": "settings", "set": {"speed": 1.25}})
+        await daemon.dispatch({"op": "settings", "set": {"engine": "fixed"}})
+        # The composer sends no speed: the saved default must not make every clip fail.
+        receipt = await daemon.dispatch({"op": "submit", "text": "default speed"})
+        assert clip(daemon.store, receipt["id"]).engine == "fixed"
+        assert clip(daemon.store, receipt["id"]).speed == 1.0
+        with pytest.raises(ApiError, match="generation speed 1"):
+            await daemon.dispatch({"op": "submit", "text": "explicit", "speed": 1.25})
+        settings = await daemon.dispatch({"op": "settings"})
+        assert settings["settings"]["speed"] == 1.25
+    finally:
+        await daemon.stop()
+
+
+async def test_restart_model_recovers_a_failed_engine_that_is_not_the_default(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.ipc import ApiError  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    class RepairableEngine(NamedEngine):
+        repaired = False
+
+        def warmup(self) -> None:
+            if not self.repaired:
+                msg = "incomplete local snapshot"
+                raise RuntimeError(msg)
+            super().warmup()
+
+    default, broken = NamedEngine("default"), RepairableEngine("broken")
+    daemon = Daemon(
+        home=tmp_path,
+        engine=default,
+        engines={"broken": broken},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        await daemon.dispatch({"op": "pause"})
+        first = await daemon.dispatch({"op": "submit", "text": "first", "engine": "broken"})
+        await wait_for(lambda: clip(daemon.store, first["id"]).state is State.FAILED)
+        broken.repaired = True
+        # The operator repairs the non-default engine and reloads it by name.
+        assert await daemon.dispatch({"op": "restart_model", "engine": "broken"}) == {"ok": True}
+        second = await daemon.dispatch({"op": "submit", "text": "second", "engine": "broken"})
+        await wait_for(lambda: clip(daemon.store, second["id"]).state is State.READY)
+        assert broken.sources == ["second"]
+        assert daemon.engine_name() == "default"
+        with pytest.raises(ApiError, match="registered name"):
+            await daemon.dispatch({"op": "restart_model", "engine": "missing"})
+    finally:
+        await daemon.stop()

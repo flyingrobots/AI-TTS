@@ -116,6 +116,7 @@ struct QueueRow: View {
             .buttonStyle(.borderless)
             .disabled(item.state == "Paused")
             .help(item.state == "Paused" ? "Clear Queue to discard suspended speech" : "Remove from queue")
+            .accessibilityLabel("Remove from queue")
         }
         .padding(.vertical, 2)
     }

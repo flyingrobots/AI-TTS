@@ -19,9 +19,12 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from scripts.benchmarks.metrics import distribution
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def resident_bytes() -> int:
@@ -32,21 +35,43 @@ def resident_bytes() -> int:
     return int(output.strip()) * 1024
 
 
-def identity(root: Path) -> dict[str, Any]:
-    """Record source, environment and memory units with each experiment."""
-    files = ["src/aitts/playback.py", "src/aitts/store.py", "src/aitts/streaming.py"]
+CONTROLLER_SOURCES = ("src/aitts/playback.py", "src/aitts/store.py", "src/aitts/streaming.py")
+CONTROLLER_BOUNDARY = (
+    "real PlaybackController + real Store + contract FakeSink; no model or speaker"
+)
+# The harness always loads from this checkout, even when --source-root selects another
+# implementation, so a paired comparison runs both arms under these exact files.
+HARNESS_FILES = (
+    *(f"scripts/benchmarks/{name}.py" for name in ("__init__", "cases", "compare", "failures")),
+    *(f"scripts/benchmarks/{name}.py" for name in ("metrics", "mlx", "pcm", "run")),
+    "tests/test_playback.py",
+)
+
+
+def sha256_files(root: Path, names: Sequence[str]) -> dict[str, str]:
+    """Fingerprint named files under one root."""
+    return {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in names}
+
+
+def identity(
+    root: Path,
+    sources: Sequence[str] = CONTROLLER_SOURCES,
+    boundary: str = CONTROLLER_BOUNDARY,
+) -> dict[str, Any]:
+    """Record the measured boundary, source, harness, environment and clocks of an experiment."""
+    harness = Path(__file__).resolve().parents[2]
     return {
         "source_root": str(root),
-        "source_sha256": {
-            name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files
-        },
+        "source_sha256": sha256_files(root, sources),
+        "harness_root": str(harness),
+        "harness_sha256": sha256_files(harness, HARNESS_FILES),
         "python": sys.version,
         "platform": platform.platform(),
         "machine": platform.machine(),
         "cpu_count": os.cpu_count(),
         "clock": "perf_counter_ns; process_time_ns",
         "sqlite": "file-backed WAL, production defaults, no filesystem cache flush",
-        "boundary": "real PlaybackController + real Store + contract FakeSink; no model or speaker",
+        "boundary": boundary,
     }
 
 

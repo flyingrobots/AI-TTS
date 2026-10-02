@@ -1,13 +1,8 @@
 # Architecture benchmark baseline artifacts
 
-Read the [report](../../reports/2026-09-30-architecture-review.md) for the
-as-written/as-planned diagrams, interpretation, limitations and exact commands.
-The [testing receipt](../../testing-evidence/2026-09-30-architecture-benchmarks.md)
-records gauge calibration and falsification. Change-kind: feature.
+Read the [report](../../reports/2026-09-30-architecture-review.md) for the as-written/as-planned diagrams, interpretation, limitations and exact commands. The [testing receipt](../../testing-evidence/2026-09-30-architecture-benchmarks.md) records gauge calibration and falsification. Change-kind: feature.
 
-Runtime source: `0290f3cf3a0c3930256f42f31500bda59c1eabeb`.
-The candidate runtime is unchanged from that reference; the new code is the
-benchmark instrument. “Candidate” does not mean the unbuilt planned design.
+Runtime source: `0290f3cf3a0c3930256f42f31500bda59c1eabeb`. The candidate runtime is unchanged from that reference; the new code is the benchmark instrument. “Candidate” does not mean the unbuilt planned design.
 
 | Artifact | Contents |
 |---|---|
@@ -25,35 +20,16 @@ benchmark instrument. “Candidate” does not mean the unbuilt planned design.
 | [python-suite.txt](python-suite.txt) | Final full Python suite: 831 passing tests, class budgets and wall time |
 | [mermaid-parse.txt](mermaid-parse.txt) | All ten diagrams parsed by Mermaid 11.12.0 |
 
-The compressed files contain ordinary UTF-8 JSON, not Python pickle or an
-executable archive. For example:
+The compressed files contain ordinary UTF-8 JSON, not Python pickle or an executable archive. For example:
 
 ```sh
 python3 -c 'import gzip,json; d=json.load(gzip.open("docs/benchmarks/2026-09-30/paired.json.gz","rt")); print(d["0-candidate.json"]["cases"].keys())'
 ```
 
-The final fail-closed comparator was also run against all 20 retained raw
-paired reports after payload validation was tightened; each supplied the full
-26-signal inventory. Timing work was sequential, without overlapping tests or
-native inference. CPU frequency and other user processes were not controlled.
-Measurement boundaries and non-comparability of paced/burst/native profiles
-are explicit in the report.
+The final fail-closed comparator was also run against all 20 retained raw paired reports after payload validation was tightened; each supplied the full 26-signal inventory. Timing work was sequential, without overlapping tests or native inference. CPU frequency and other user processes were not controlled. Measurement boundaries and non-comparability of paced/burst/native profiles are explicit in the report.
 
-The separate scheduled workflow writes fresh raw results to Actions artifacts
-for 30 days. Updating these checked-in baselines, the reference SHA or the 3x
-policy requires a reviewable rationale and a repeated known-slow calibration;
-there is no automatic re-blessing operation. Archive-time harness hashes
-identify the retained tool version, while each run embeds the measured runtime
-source hashes. The model run used a pre-existing optional environment; its
-installed package inventory is retained rather than assumed identical to the
-current frozen development environment.
+The separate scheduled workflow writes fresh raw results to Actions artifacts for 30 days. Updating these checked-in baselines, the reference SHA or the 3x policy requires a reviewable rationale and a repeated known-slow calibration; there is no automatic re-blessing operation. Archive-time harness hashes identify the retained tool version, while each run embeds the measured runtime source hashes. The model run used a pre-existing optional environment; its installed package inventory is retained rather than assumed identical to the current frozen development environment.
 
-The [integration-refresh artifacts](integration-refresh/) contain a later
-comparison after inheriting mainline's lifecycle/replay/security fixes, plus
-per-PR boundary validation. They are separate from the initial unchanged-source
-calibration above. The original measured source is retained with the
-`benchmark-baseline/2026-09-30` tag; the benchmark still checks the exact SHA.
+The [integration-refresh artifacts](integration-refresh/) contain a later comparison after inheriting mainline's lifecycle/replay/security fixes, plus per-PR boundary validation. They are separate from the initial unchanged-source calibration above. The original measured source is retained with the `benchmark-baseline/2026-09-30` tag; the benchmark still checks the exact SHA.
 
-The subsequent [streaming review follow-up](streaming-review/) retains a new
-five-pair comparison (26 signals, zero regressions), per-PR validation and
-observed-red streaming regressions. Earlier measurements remain unchanged.
+The subsequent [streaming review follow-up](streaming-review/) retains a new five-pair comparison (26 signals, zero regressions), per-PR validation and observed-red streaming regressions. Earlier measurements remain unchanged.

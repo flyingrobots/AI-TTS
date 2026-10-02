@@ -165,7 +165,7 @@ help:
 	@printf '  make doctor          what is running and what is wired in\n'
 	@printf '\nHousekeeping\n'
 	@printf '  make clean           remove build products\n'
-	@printf '  make uninstall       stop and remove the daemon and executables\n'
+	@printf '  make uninstall       stop and remove both launchd agents and executables\n'
 	@printf '\nAgent selection\n'
 	@printf '  make install-mcp                      every agent found\n'
 	@printf '  make install-mcp AGENTS="--claude"    just one\n'

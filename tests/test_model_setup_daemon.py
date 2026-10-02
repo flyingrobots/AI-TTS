@@ -125,8 +125,11 @@ async def test_download_does_not_block_speech_or_select_model_and_use_changes_fu
         assert unsupported["ok"] is False
         change = await rpc(daemon.socket_path, {"op": "settings", "set": {"engine": "chatterbox"}})
         assert change["settings"]["voice"] == "default"
-        assert change["settings"]["speed"] == 1.0
+        # Merge-up with #65: the saved default speed belongs to other models and is kept;
+        # the fixed-speed model speaks default submissions at its supported speed.
+        assert change["settings"]["speed"] == 1.5
         selected = await rpc(daemon.socket_path, {"op": "submit", "text": "after selection"})
+        assert clip(daemon, selected["id"]).speed == 1.0
         assert clip(daemon, before["id"]).engine == "fake"
         assert clip(daemon, after_setup["id"]).engine == "fake"
         assert clip(daemon, selected["id"]).engine == "chatterbox"

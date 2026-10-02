@@ -7,14 +7,20 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import sys
 from typing import TYPE_CHECKING, Any
 
-from aitts.adapters.jsonl import MAX_JSONL_LINE_BYTES, decode_json_object, encode_json_object
+from aitts.adapters.jsonl import decode_json_object, encode_json_object
 from aitts.client import DaemonError, DaemonUnreachableError
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator
     from pathlib import Path
+
+# The 1 MiB JSONL limit bounds one request, not a reply. A snapshot aggregates
+# the whole plan and up to 50 history texts into one line, so, like the
+# synchronous client, this one reads the daemon's replies without a length cap.
+_RESPONSE_LINE_LIMIT = sys.maxsize
 
 
 class AsyncClient:
@@ -31,7 +37,7 @@ class AsyncClient:
         try:
             async with asyncio.timeout(self.timeout):
                 reader, writer = await asyncio.open_unix_connection(
-                    str(self.socket_path), limit=MAX_JSONL_LINE_BYTES + 1
+                    str(self.socket_path), limit=_RESPONSE_LINE_LIMIT
                 )
             yield reader, writer
         except (OSError, ValueError) as exc:

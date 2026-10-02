@@ -29,7 +29,7 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --dev --python 3.14
       - name: Validate the measurement gauge
-        run: uv run --frozen pytest tests/test_benchmark_cases.py tests/test_benchmark_metrics.py tests/test_benchmark_report.py tests/test_benchmark_mlx.py
+        run: uv run --frozen pytest tests/test_benchmark_cases.py tests/test_benchmark_metrics.py tests/test_benchmark_report.py tests/test_benchmark_mlx.py tests/test_benchmark_reference.py
       - name: Compare five randomized pairs using the same harness and environment
         run: >-
           uv run --frozen python scripts/run_with_deadline.py 240

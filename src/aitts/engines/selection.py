@@ -110,15 +110,19 @@ def configured_engines(
             device=os.environ.get("AI_TTS_CHATTERBOX_DEVICE", "cpu"),
         )
     engines.update(_managed_engines(home))
-    if name in MODELS and name not in engines:
-        # Stay reachable for guided recovery when a saved optional runtime disappears.
-        log.warning("event=local_backend_unavailable fallback=kokoro")
+    if name == "kokoro-mlx" and name not in engines:
+        # Neither the daemon's MLX nor a guided MLX runtime is available on this host.
+        log.warning("event=mlx_backend_unavailable fallback=kokoro")
         name = "kokoro"
     if name == "fake":
         engines[name] = select_engine(name)
     if name not in engines:
-        msg = f"engine {name!r} is not configured in this daemon"
-        raise ValueError(msg)
+        if override is not None:
+            msg = f"engine {name!r} is not configured in this daemon"
+            raise ValueError(msg)
+        # A live selection persists, but its adapter's environment may be absent at launch.
+        log.warning("event=configured_engine_unavailable fallback=kokoro")
+        name = "kokoro"
     return engines[name], engines
 
 

@@ -140,6 +140,7 @@ class Daemon:
         self._engines[engine.name] = engine
         self._registry = EngineRegistry(self._engines)
         self._engine = engine
+        self._startup_engine = engine
         self._streams = (
             StreamingRegistry() if callable(getattr(sink, "start_stream", None)) else None
         )
@@ -213,6 +214,7 @@ class Daemon:
                 workers=self._workers,
                 engines=self._engines,
                 prepare_engine=self._registry.prepare,
+                held_engines=self._engines_held_for_warmup,
                 evidence=self._evidence,
                 streams=self._streams,
             )
@@ -253,10 +255,13 @@ class Daemon:
             )
 
     async def _run_synthesis(self) -> None:
-        """Keep user text queued while first-run assets and inference are prepared."""
-        await self._warmup_finished.wait()
+        """Run synthesis; startup warmup holds only its own engine's queued text."""
         if self._pool is not None:
             await self._pool.run()
+
+    def _engines_held_for_warmup(self) -> tuple[str, ...]:
+        """Keep the startup engine's text queued while its first-run assets prepare."""
+        return () if self._warmup_finished.is_set() else (self._startup_engine.name,)
 
     async def _supervise_playback(self) -> None:
         """Restart the critical playback loop if it exits unexpectedly."""
@@ -328,6 +333,18 @@ class Daemon:
             self._cache.note_access(Path(utt.audio_path))
         if utt.state in TERMINAL:
             self.enforce_cache_limit()
+
+    def _announce_admission(self, utt: Utterance) -> None:
+        """Publish a new Queued item, which no transition reports until a worker claims it."""
+        self._server.broadcast(
+            {
+                "event": "state_changed",
+                "id": utt.id,
+                "from": None,
+                "to": utt.state.value,
+                "at": utt.state_changed_at,
+            }
+        )
 
     def _on_segment_transition(self, segment: UtteranceSegment, from_state: State) -> None:
         self._server.broadcast(
@@ -451,6 +468,7 @@ class Daemon:
         supported = getattr(engine, "supported_speeds", None)
         if supported is not None and speed not in supported:
             if explicit is None:
+                # The saved default belongs to other models; keep it for them.
                 return float(supported[0])
             raise ApiError(BAD_REQUEST, "this model requires generation speed 1; use playback rate")
         return speed
@@ -506,6 +524,7 @@ class Daemon:
             spoken_segments=spoken_segments if composite else None,
         )
         self._evidence.submitted(utt.id, text, payload)
+        self._announce_admission(utt)
         if self._pool is not None:
             self._pool.notify()
         return {
@@ -629,7 +648,7 @@ class Daemon:
         }
 
     async def _warm_model(self) -> None:
-        engine = self._engine
+        engine = self._startup_engine
         try:
             await asyncio.to_thread(self._registry.prepare, engine.name)
         except Exception:  # noqa: BLE001 - readiness must report warmup failure
@@ -645,12 +664,16 @@ class Daemon:
                     log.warning("event=audio_output_prepare_failed")
         finally:
             self._warmup_finished.set()
+            if self._pool is not None:
+                self._pool.notify()
 
     async def _op_restart_model(self, payload: dict[str, Any]) -> dict[str, Any]:
-        del payload
-        name = self._engine.name
+        # A failed engine other than the default must be reachable by name.
+        name = payload.get("engine", self._engine.name)
+        if not isinstance(name, str) or name not in self._engines:
+            raise ApiError(BAD_REQUEST, "engine must be a registered name; use ai-tts engines")
         if (
-            not callable(getattr(self._engine, "restart", None))
+            not callable(getattr(self._engines[name], "restart", None))
             and self._registry.state(name) != "failed"
         ):
             raise ApiError(BAD_REQUEST, "this engine must be restarted in its owning server")
@@ -901,6 +924,7 @@ class Daemon:
                 "priority": priority.value,
             },
         )
+        self._announce_admission(replay)
         if source_segments:
             cached_segments: list[tuple[UtteranceSegment, Path]] = []
             for segment in source_segments:
@@ -1399,9 +1423,6 @@ class Daemon:
         """Switch future admissions without unloading or rerouting existing work."""
         self._engine = self._engines[name]
         self._voices = self._voice_registry(self._engine)
-        speeds = getattr(self._engine, "supported_speeds", None)
-        if speeds and self._settings.speaking_speed() not in speeds:
-            self._store.set_setting("speed", str(speeds[0]))
 
     def available_voices(self) -> list[str]:
         """Voices the configured engine accepts."""

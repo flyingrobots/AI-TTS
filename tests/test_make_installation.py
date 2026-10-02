@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import plistlib
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -70,18 +71,65 @@ if args[:2] == ["run", "python"] and args[2].endswith("build_app_bundle.py"):
     (output / "version").write_text("new app")
 elif args[:2] == ["tool", "uninstall"]:
     (root / "cli-version").unlink(missing_ok=True)
+elif args[:1] == ["export"]:
+    # The lockfile export is offline and frozen, so the real uv runs it.
+    os.execv(os.environ["AITTS_TEST_REAL_UV"], ["uv", *args])
 elif args[:2] == ["tool", "install"]:
     (root / "cli-version").write_text("new cli")
     (root / "install-arguments.json").write_text(json.dumps(args))
+    if "--constraints" in args:
+        constraints = Path(args[args.index("--constraints") + 1])
+        (root / "constraints.txt").write_text(constraints.read_text())
 elif args[:3] == ["tool", "dir", "--bin"]:
     print(root / "bin")
 else:
     sys.exit(8)
 """
     )
+    # Installation must not send Apple events, which need Automation consent.
+    # This owned osascript also shadows the real one, which could quit a real UI.
     osascript = commands / "osascript"
-    osascript.write_text("#!/bin/sh\nexit 0\n")
+    osascript.write_text('#!/bin/sh\ntouch "$AITTS_TEST_ROOT/osascript-invoked"\nexit 1\n')
     osascript.chmod(0o755)
+    # The owned process table: an incumbent-ui JSON file is a running UI, next
+    # to a development build and an unrelated process that must not be touched.
+    # SIGTERM leaves the UI alive for two more liveness probes, like AppKit
+    # teardown.
+    for tool, source in {
+        "ps": """import json, os
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+print("    1 /sbin/launchd")
+print("   77 /development/.build/debug/AITTSMenuBar")
+incumbent = root / "incumbent-ui"
+if incumbent.exists():
+    process = json.loads(incumbent.read_text())
+    print(f" {process['pid']} {process['args']}")
+""",
+        "kill": """import json, os, sys
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+signal, pid = sys.argv[1:]
+with (root / "signals").open("a") as journal:
+    journal.write(f"{signal} {pid}\\n")
+incumbent = root / "incumbent-ui"
+process = json.loads(incumbent.read_text()) if incumbent.exists() else None
+if process is None or process["pid"] != pid:
+    sys.exit(1)
+if signal == "-TERM":
+    process["remaining"] = 2
+elif signal == "-0" and process.get("remaining") == 0:
+    incumbent.unlink()
+    sys.exit(1)
+elif signal == "-0" and process.get("remaining") is not None:
+    process["remaining"] -= 1
+incumbent.write_text(json.dumps(process))
+""",
+    }.items():
+        shim = commands / tool
+        shim.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
+        shim.chmod(0o755)
+        shim.with_suffix(".py").write_text(source)
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -89,14 +137,25 @@ else:
         """import os, sys, plistlib
 from pathlib import Path
 root = Path(os.environ["AITTS_TEST_ROOT"])
+# launchd finishes removing a booted-out service asynchronously: it stays
+# visible to this many `print` queries, and bootstrap fails with error 5.
+teardown = root / "teardown-remaining"
+lingering = int(teardown.read_text()) if teardown.exists() else 0
 args = sys.argv[1:]
 label = (plistlib.loads(Path(args[-1]).read_bytes())["Label"]
          if args[0] == "bootstrap" else args[-1].split("/")[-1])
 loaded = root / ("menu-bar-loaded" if label.endswith(".menubar") else "service-loaded")
 if args[0] == "print":
+    if lingering:
+        teardown.write_text(str(lingering - 1))
+        sys.exit(0)
     sys.exit(0 if loaded.exists() else 3)
 if args[0] == "bootout":
     loaded.unlink(missing_ok=True)
+    teardown.write_text(os.environ.get("AITTS_TEST_TEARDOWN_POLLS", "0"))
+elif args[0] == "bootstrap" and lingering:
+    print("Bootstrap failed: 5: Input/output error", file=sys.stderr)
+    sys.exit(5)
 elif args[0] == "bootstrap":
     payload = plistlib.loads(Path(args[-1]).read_bytes())
     refuse = os.environ.get("AITTS_TEST_BOOTSTRAP_FAILURE") == "1"
@@ -106,7 +165,9 @@ elif args[0] == "bootstrap":
         sys.exit(9)
     if refuse and payload["ProgramArguments"][0] != "/old/ai-tts":
         sys.exit(9)
-    loaded.write_text("running")
+    # RunAtLoad starts the UI now; a live incumbent still holds its lock.
+    lost = label.endswith(".menubar") and (root / "incumbent-ui").exists()
+    loaded.write_text("lock-lost" if lost else "running")
 else:
     sys.exit(8)
 """
@@ -115,6 +176,9 @@ else:
     env = dict(os.environ, PATH=f"{commands}:/usr/bin:/bin")
     env["AITTS_TEST_ROOT"] = str(tmp_path)
     env["AITTS_TEST_PYTHON"] = sys.executable
+    real_uv = shutil.which("uv")
+    assert real_uv is not None, "uv is required to export the lockfile"
+    env["AITTS_TEST_REAL_UV"] = real_uv
     return env
 
 
@@ -241,6 +305,39 @@ def test_install_registers_independent_menu_bar_startup(
     }
 
 
+# Retire only when installation no longer quits a running UI before registering it.
+def test_install_waits_for_the_quit_menu_bar_to_exit_before_registering_it(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: the registered UI must not lose the single-instance lock to its predecessor."""
+    write_incumbent_ui(tmp_path)
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "menu-bar-loaded").read_text() == "running"
+
+
+def write_incumbent_ui(tmp_path: Path) -> None:
+    """Run the installed UI in the owned process table, as a manual launch would."""
+    executable = tmp_path.resolve() / "AI-TTS.app" / "Contents" / "MacOS" / "AITTSMenuBar"
+    (tmp_path / "incumbent-ui").write_text(json.dumps({"pid": "4242", "args": str(executable)}))
+
+
+# Retire only when installation no longer retires a running UI itself.
+def test_install_retires_the_running_ui_by_signal_without_apple_events(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: James's decision F; quitting needs no Automation consent and spares other builds."""
+    write_incumbent_ui(tmp_path)
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    signals = (tmp_path / "signals").read_text().splitlines()
+    assert {
+        "osascript": (tmp_path / "osascript-invoked").exists(),
+        "terminated": [line for line in signals if line.startswith("-TERM")],
+        "probed": {line.split()[1] for line in signals},
+    } == {"osascript": False, "terminated": ["-TERM 4242"], "probed": {"4242"}}
+
+
 @pytest.mark.parametrize("loaded", [False, True])
 def test_failed_menu_bar_activation_preserves_its_incumbent_and_registered_daemon(
     tmp_path: Path, install_environment: dict[str, str], *, loaded: bool
@@ -305,11 +402,98 @@ def test_uninstall_removes_both_agents_and_preserves_the_app(
 def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
     tmp_path: Path, install_environment: dict[str, str]
 ) -> None:
-    """Oracle: Kokoro's supported Transformers 4 API avoids the obsolete Rust build."""
+    """Oracle: the locked constraints deliver a modern tokenizer, avoiding the obsolete Rust build.
+
+    Unconstrained, uv resolved transformers 4.12.2 / tokenizers 0.10.3, whose
+    source build failed. A separate `--with` range can contradict uv.lock.
+    """
     result = run_installation(tmp_path, install_environment)
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     extras = [
         arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
     ]
-    assert "transformers>=4.46,<5" in extras
+    assert not [extra for extra in extras if extra.startswith(("transformers", "tokenizers"))]
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+
+    def release(name: str) -> tuple[int, int]:
+        major, minor = pins[name].split(".")[:2]
+        return int(major), int(minor)
+
+    assert release("transformers") >= (4, 46)
+    assert release("tokenizers") > (0, 10)
+
+
+def test_install_resolves_the_daemon_environment_to_the_locked_versions(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: uv.lock is the tested runtime graph, so installation must not resolve past it.
+
+    `uv tool install` ignores uv.lock. Without constraints, huggingface-hub 2.0
+    made the resolver backtrack transformers to 4.12.2, whose tokenizers 0.10.3
+    cannot be built, and every fresh `make install` failed.
+    """
+    import tomllib  # noqa: PLC0415
+
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    assert "--constraints" in arguments, "the tool install resolves without the lockfile"
+
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+    lock = tomllib.loads((REPOSITORY / "uv.lock").read_text(encoding="utf-8"))
+    locked: dict[str, set[str]] = {}
+    for package in lock["package"]:
+        locked.setdefault(package["name"], set()).add(package["version"])
+    for name in ("kokoro", "transformers", "tokenizers", "huggingface-hub"):
+        assert name in pins, f"{name} is not constrained"
+        assert pins[name] in locked[name], f"{name}=={pins[name]} is not the locked version"
+
+
+def test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: `make install` installs this checkout's code.
+
+    uv caches a local package build keyed on its metadata, not its sources. With
+    the version unchanged at 0.1.0, a reinstall reported success and left the
+    daemon running the previous code.
+    """
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    assert "--reinstall-package" in arguments, "uv may install a stale cached build"
+    assert arguments[arguments.index("--reinstall-package") + 1] == "ai-tts"
+
+
+def test_install_waits_for_launchd_to_release_the_previous_service(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: launchd's observed behavior, where bootout returns before teardown completes.
+
+    Bootstrapping in that window failed with error 5 after every successful build.
+    """
+    agent = tmp_path / "agent.plist"
+    agent.write_bytes(
+        plistlib.dumps(
+            {"Label": "com.flyingrobots.ai-tts", "ProgramArguments": ["/old/ai-tts", "daemon"]}
+        )
+    )
+    (tmp_path / "service-loaded").write_text("running")
+    env = dict(install_environment, AITTS_TEST_TEARDOWN_POLLS="3")
+
+    result = run_installation(tmp_path, env)
+
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "service-loaded").exists()
+    assert plistlib.loads(agent.read_bytes())["ProgramArguments"][0] == str(
+        tmp_path / "bin" / "ai-tts"
+    )

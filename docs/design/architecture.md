@@ -108,10 +108,10 @@ confidential, Normal-priority policy with daemon-resolved voice and speed.
 
 The macOS text Service receives selected text only after **Read Selection with
 AI-TTS** is invoked, without Accessibility trust or clipboard mutation. In the
-composer, **Import Selection** uses `SelectedTextReaderPort` through the
+composer, **Selection** uses `SelectedTextReaderPort` through the
 Accessibility adapter. It remembers the most recently activated external
 application, but queries its selection only on explicit import and fails when
-the focused element exposes none. **Paste Clipboard** is a separate explicit,
+the focused element exposes none. **Paste** is a separate explicit,
 non-mutating reader. Neither action polls selection state or synthesizes
 Command-C.
 
@@ -184,8 +184,11 @@ stateDiagram-v2
   completed earlier document children remain intact.
 - **The physical callback device may outlive a logical playback session.**
   The daemon prepares silent output after model warmup. Exactly one logical
-  renderer owns it at a time; idle and held output is silence. Starvation and
-  stop use a 5 ms decay, with a fade on resumption. Inserted silence never moves
+  renderer owns it at a time; idle and held output is silence. Starvation uses a
+  5 ms decay. A stop, pause or route move fades the next 20 ms of source (or the
+  callback block, if shorter) without moving the playhead, as file playback does,
+  and a session that closes its own stream then plays 100 ms of silence. A
+  renderer opened mid-clip fades in over 20 ms from zero. Inserted silence never moves
   the source playhead. An initial run of exact digital zeros can be skipped in
   bounded memory reads; intentional pauses and nonzero seek positions are
   preserved, and the original cached WAV is unchanged. Evidence records skipped
@@ -416,6 +419,7 @@ limit does not poison the connection, so a corrected next request can proceed. D
 
 // subscribe — the fix for F1 and F2, plus settings invalidation
 → {"op":"subscribe"}
+← {"event":"state_changed", "id":"utt_...", "from":null, "to":"Queued"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Synthesizing", "to":"Ready"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Playing", "to":"Played"}
 ← {"event":"settings_changed", "settings":{"captions_enabled":true}}
@@ -427,13 +431,9 @@ limit does not poison the connection, so a corrected next request can proceed. D
 ← {"event":"playback_progress", "id":"utt_...", "playback_held":false, "position_ms":400, "audio_peak":0.25}
 ```
 
-`playback_progress` is optional and defaults off. Opted-in subscribers receive
-samples at approximately 10 Hz. `id` and `position_ms` can be null when idle;
-`audio_peak` is a linear output-block peak in [0, 1], null when the active sink
-cannot measure it, and zero while held/idle. Native sink measurements older than
-250 ms read as zero. These samples are transient and dropped for readers whose
-write backlog exceeds 64 KiB; state-change events remain on the ordinary stream.
-No audio samples or additional source text are included in meter events.
+Admission publishes `state_changed` with `from` null and `to` `Queued`, for a submission and for a history replay. Without it, a clip queued behind busy workers or startup warmup stays invisible to subscribers until a worker claims it.
+
+`playback_progress` is optional and defaults off. Opted-in subscribers receive samples at approximately 10 Hz. `id` and `position_ms` can be null when idle; `audio_peak` is a linear output-block peak in [0, 1], null when the active sink cannot measure it, and zero while held/idle. Native sink measurements older than 250 ms read as zero. These samples are transient and dropped for readers whose write backlog exceeds 64 KiB; state-change events remain on the ordinary stream. No audio samples or additional source text are included in meter events.
 
 `content_format` is `plain_text` or `markdown`. Maintained CLI, MCP, and native
 clients always send it; CLI and MCP speech default to `plain_text`. For wire
@@ -557,25 +557,15 @@ Resume; the paused records reconstruct the remaining resumption order.
 
 ---
 
-The [accepted delivery decision](2026-09-30-architecture-acceptance.md) retains
-controller ownership of interruption orchestration and Store ownership of
-atomic durable position updates. Queue-rank recovery ancestry remains a
-separate follow-up; approval is not proof for every operation history.
+The [accepted delivery decision](2026-09-30-architecture-acceptance.md) retains controller ownership of interruption orchestration and Store ownership of atomic durable position updates. Queue-rank recovery ancestry remains a separate follow-up; approval is not proof for every operation history.
 
 ## 8. The engine interface
 
-The daemon registers concrete backends by name and keeps prepared models resident.
-The default is a live setting: submission resolves and persists the selected
-backend on the parent utterance, and every child synthesis job inherits it.
-Switching defaults never reroutes accepted work. Legacy rows without a recorded
-choice bind once to the startup backend. Sensitivity is checked before admission
-and again before a worker gives source text to an engine.
+The daemon registers concrete backends by name and keeps prepared models resident. The default is a live setting: submission resolves and persists the selected backend on the parent utterance, and every child synthesis job inherits it. Switching defaults never reroutes accepted work. Legacy rows without a recorded choice bind once to the startup backend. Sensitivity is checked before admission and again before a worker gives source text to an engine.
 
-Local OpenAI-compatible servers use direct loopback connections with no redirects
-or ambient proxies. They report server-managed model readiness because the daemon
-cannot inspect or restart their model process. Model/voice catalogs are exposed
-through `engines` and the menu snapshot. Native adapters prepare independently
-under per-engine locks; a failed backend does not poison other registered engines.
+Local OpenAI-compatible servers use direct loopback connections with no redirects or ambient proxies. They report server-managed model readiness because the daemon cannot inspect or restart their model process. Model/voice catalogs are exposed through `engines` and the menu snapshot.
+
+Native adapters prepare independently under per-engine locks; a failed backend does not poison other registered engines. While the startup backend warms up, the synthesis claim skips only work recorded for it, so clips for other backends are not held behind that load.
 
 
 **The engine is pluggable and this document does not choose one.** `bm_daniel` is a voice in the engine used today; whether that engine remains the right one is being researched separately and **must not be baked in here.**
@@ -603,17 +593,7 @@ warmup() -> None                                 # optional; called once at daem
 
 **A user-editable pronunciation lexicon, applied by the daemon before text reaches any engine**, corrects more perceived quality than swapping models. It belongs in the daemon rather than the adapter for the same reason chunking does: it must work identically across engines, and it must survive an engine change.
 
-**Chunking is the daemon's job.** Sections with at least 60 words first group
-blank-line paragraphs into chunks of at least 20 words; a short trailing block
-joins its predecessor. This makes two- and three-paragraph responses navigable
-below the older length threshold. Ordinary shorter text and single paragraphs
-remain atomic, while explicit Markdown section boundaries retain their existing
-behavior. Long text is split at structural, paragraph,
-sentence, then bounded word boundaries into separately cacheable children.
-Markdown projection happens first only when the submission explicitly selects
-it; literal plain text is segmented without removing syntax. That gives
-skip/restart durable places to land and lets playback start without waiting for
-one input-sized generation.
+**Chunking is the daemon's job.** Sections with at least 60 words first group blank-line paragraphs into chunks of at least 20 words; a short trailing block joins its predecessor. This makes two- and three-paragraph responses navigable below the older length threshold. Ordinary shorter text and single paragraphs remain atomic, while explicit Markdown section boundaries retain their existing behavior. Long text is split at structural, paragraph, sentence, then bounded word boundaries into separately cacheable children. Markdown projection happens first only when the submission explicitly selects it; literal plain text is segmented without removing syntax. That gives skip/restart durable places to land and lets playback start without waiting for one input-sized generation.
 
 ---
 

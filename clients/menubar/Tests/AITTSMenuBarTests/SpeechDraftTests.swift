@@ -36,6 +36,18 @@ final class SpeechDraftTests: XCTestCase {
         XCTAssertEqual(draft.voice, "server-voice")
     }
 
+    func testModelMissingFromAReconnectedCatalogReturnsToTheDaemonDefault() throws {
+        var draft = SpeechDraft()
+        draft.text = "Speak with whatever the daemon offers."
+        draft.engine = "openai-audio"
+        draft.reconcileEngine(with: ["kokoro", "openai-audio"])
+        XCTAssertEqual(draft.engine, "openai-audio")
+        // The reconnected daemon no longer registers the server-backed model.
+        draft.reconcileEngine(with: ["kokoro"])
+        XCTAssertNil(draft.engine)
+        XCTAssertNil(try draft.submission().engine)
+    }
+
     func testEditedDraftAndChoicesReachDaemon() throws {
         var draft = SpeechDraft()
         draft.text = "Typed introduction."

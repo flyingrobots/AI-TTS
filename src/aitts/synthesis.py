@@ -21,7 +21,7 @@ from aitts.engine import StreamingEngine, SynthesisError, eligible_engine_names
 from aitts.streaming import SpoolingPCMStream, StreamingRegistry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable, Collection, Mapping
     from pathlib import Path
 
     from aitts.adapters.clip_evidence import ClipEvidence
@@ -47,8 +47,14 @@ class SynthesisPool:
         streams: StreamingRegistry | None = None,
         engines: Mapping[str, Engine] | None = None,
         prepare_engine: Callable[[str], None] | None = None,
+        held_engines: Callable[[], Collection[str]] | None = None,
     ) -> None:
-        """Create a pool of ``workers`` synthesis workers over ``engine``."""
+        """Create a pool of ``workers`` synthesis workers over ``engine``.
+
+        ``held_engines`` names backends whose queued work must not be claimed
+        yet, so one model's preparation never holds another model's clips.
+        """
+        self._held_engines = held_engines
         self._streams = streams
         self._loop: asyncio.AbstractEventLoop | None = None
         self._running = False
@@ -97,7 +103,10 @@ class SynthesisPool:
     async def _worker(self) -> None:
         while True:
             await self.enabled.wait()
-            claimed = self._store.claim_for_synthesis()
+            claimed = self._store.claim_for_synthesis(
+                held_engines=self._held_engines() if self._held_engines is not None else (),
+                unbound_engine=self._engine.name,
+            )
             if claimed is None:
                 self.parks += 1
                 self._wake.clear()

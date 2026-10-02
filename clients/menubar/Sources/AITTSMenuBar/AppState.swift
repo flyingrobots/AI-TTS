@@ -64,7 +64,7 @@ final class AppState: ObservableObject {
     private var knownFailedIDs: Set<String>?
     @Published var voiceAssignments: [VoiceAssignment] = []
     @Published var earconEnabled = false
-    @Published var duckingEnabled = true
+    @Published var duckingEnabled = false
     @Published var duckingStatus = "Ducking is available while the menu-bar app is running."
     @Published var inputInterruptEnabled = true
     @Published var inputInterruptResume: InputInterruptResume = .manual
@@ -618,6 +618,33 @@ final class AppState: ObservableObject {
         playbackRate = rate
         send(.setPlaybackRate(rate))
     }
+    /// Shows History in the popover body, which the inline composer otherwise occupies.
+    func revealHistory() {
+        selectedTab = .history
+        showingComposer = false
+    }
+
+    var composerToggleTitle: String { showingComposer ? "Close editor" : "Speak…" }
+
+    var composerToggleHelp: String {
+        showingComposer ? "Close the speech editor and keep the draft" : "Type, paste, or attach text to speak"
+    }
+
+    var captionControlLabel: String {
+        captionsEnabled ? "CC: \(captionPosition.rawValue)" : "CC: Off"
+    }
+
+    func cycleCaptions() {
+        if !captionsEnabled {
+            setCaptionPosition(.bottom)
+            setCaptionsEnabled(true)
+        } else if captionPosition == .bottom {
+            setCaptionPosition(.top)
+        } else {
+            setCaptionsEnabled(false)
+        }
+    }
+
     func setCaptionsEnabled(_ enabled: Bool) {
         captionMigrationAttempted = true
         captionsEnabled = enabled

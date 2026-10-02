@@ -1,68 +1,47 @@
 # Independent menu-bar startup and recovery
 
-Change-kind: behavior change. Installation now starts the menu-bar app and
-registers it independently for login startup and abnormal-exit recovery. Normal
-Quit leaves the UI closed, and reopening the installed app hands ownership back
-to launchd. The daemon remains independent. Uninstall removes both registrations.
+Change-kind: behavior change. Installation now starts the menu-bar app and registers it independently for login startup and abnormal-exit recovery. Normal Quit leaves the UI closed, and reopening the installed app hands ownership back to launchd. The daemon remains independent. Uninstall removes both registrations.
 
 ## Contract and falsification evidence
 
-`tests/test_make_installation.py` enters through the real Make entrypoints with
-owned uv, launchctl, and osascript tools and temporary installation destinations.
-The oracle is the documented installation output and parsed launchd plists.
-It is medium. `tests/test_launch_agent_activation.py` controls the process and
-timing boundary and checks the previous artifact/registration under seeded
-interrupts and launchd EIO; it is small. `MenuBarLaunchAgentTests` uses an owned
-temporary home and controlled launchctl results; it is medium, with the installed
-startup/standalone-launch policy as its oracle. Retire these assertions when
-that installation/ownership policy is removed or superseded by a stronger check.
+`tests/test_make_installation.py` enters through the real Make entrypoints with owned uv, launchctl, and osascript tools and temporary installation destinations. The oracle is the documented installation output and parsed launchd plists. It is medium. `tests/test_launch_agent_activation.py` controls the process and timing boundary and checks the previous artifact/registration under seeded interrupts and launchd EIO; it is small. `MenuBarLaunchAgentTests` uses an owned temporary home and controlled launchctl results; it is medium, with the installed startup/standalone-launch policy as its oracle. Retire these assertions when that installation/ownership policy is removed or superseded by a stronger check.
 
-The [calibration receipt](2026-10-01-menu-bar-startup-calibration.json) retains
-named failed checks for faults in label, executable, login startup, successful
-exit policy, session, managed marker, registration, rollback, uninstall,
-handoff, recursion prevention, development isolation, and standalone fallback.
-The changed registration message was also falsified. Local complete red logs
-are under `.git/codex-scratch/menu-bar-startup-*-red.log`.
+The [calibration receipt](2026-10-01-menu-bar-startup-calibration.json) retains named failed checks for faults in label, executable, login startup, successful exit policy, session, managed marker, registration, rollback, uninstall, handoff, recursion prevention, development isolation, and standalone fallback. The changed registration message was also falsified. Local complete red logs are under `.git/codex-scratch/menu-bar-startup-*-red.log`.
 
-Two pre-existing installer defects were encountered during actual installation:
-uv selected Transformers 4.12.2 / tokenizers 0.10.3, whose Rust source build failed;
-launchd returned EIO when bootstrap followed bootout before teardown settled.
-New regressions were observed red on the installer without either correction:
-`.git/codex-scratch/menu-bar-startup-install-reliability-red.log`. The installer
-now selects `transformers>=4.46,<5` for Kokoro and retries only bootstrap EIO for
-at most six seconds. Other errors retain immediate failure and rollback.
-These corrections are prerequisites for this machine's working installation.
+Two pre-existing installer defects were encountered during actual installation: uv selected Transformers 4.12.2 / tokenizers 0.10.3, whose Rust source build failed; launchd returned EIO when bootstrap followed bootout before teardown settled. New regressions were observed red on the installer without either correction: `.git/codex-scratch/menu-bar-startup-install-reliability-red.log`. The installer now selects `transformers>=4.46,<5` for Kokoro and retries only bootstrap EIO for at most six seconds. Other errors retain immediate failure and rollback. These corrections are prerequisites for this machine's working installation.
 
 ## Installed acceptance
 
-The [live receipt](2026-10-01-menu-bar-startup-live.json) records two forced UI
-exits, intentional Quit observed closed for twelve seconds (beyond the ten-second
-launchd throttle), and manual reopen returning the UI to the registered service.
-The daemon PID stays unchanged during all four observations and answers status.
-The run finished with the UI running. The normal `make install` then completed
-successfully with both registrations active, exercising the corrected installer
-without environment overrides. Local receipt:
-`.git/codex-scratch/menu-bar-startup-install-final.log`.
+The [live receipt](2026-10-01-menu-bar-startup-live.json) records two forced UI exits, intentional Quit observed closed for twelve seconds (beyond the ten-second launchd throttle), and manual reopen returning the UI to the registered service. The daemon PID stays unchanged during all four observations and answers status. The run finished with the UI running. The normal `make install` then completed successfully with both registrations active, exercising the corrected installer without environment overrides. Local receipt: `.git/codex-scratch/menu-bar-startup-install-final.log`.
 
-The current installed bundle contains the Playback setting “Lower other apps
-during speech”; the daemon exposes `ducking_enabled: true`. Kokoro, the English
-spaCy model, and Transformers' `AlbertModel` imported successfully in the installed
-uv environment. This supersedes the old app bundle that predated the ducking work.
-It does not add physical-device or permission-interaction ducking acceptance;
-those limits remain in the September 30 ducking receipt.
+The current installed bundle contains the Playback setting “Lower other apps during speech”; the daemon exposes `ducking_enabled: true`. Kokoro, the English spaCy model, and Transformers' `AlbertModel` imported successfully in the installed uv environment. This supersedes the old app bundle that predated the ducking work. It does not add physical-device or permission-interaction ducking acceptance; those limits remain in the September 30 ducking receipt.
 
-A real logout/reboot was not performed. Login configuration is checked through
-the Aqua `RunAtLoad` plist and actual launchd bootstrap. Owned launchctl tools
-exercise registration outcomes; the installed observations establish this host's
-real lifecycle semantics, not every macOS release.
+A real logout/reboot was not performed. Login configuration is checked through the Aqua `RunAtLoad` plist and actual launchd bootstrap. Owned launchctl tools exercise registration outcomes; the installed observations establish this host's real lifecycle semantics, not every macOS release.
 
 ## Validation
 
-- Full Python suite after installer corrections: 927 passed in 22.04 seconds;
-  small 0.69 seconds / 10-second budget, medium 20.70 seconds / 45-second budget.
+- Full Python suite after installer corrections: 927 passed in 22.04 seconds; small 0.69 seconds / 10-second budget, medium 20.70 seconds / 45-second budget.
 - Full Swift suite, warnings as errors, under the sixty-second deadline: 145 passed.
 - Ruff checks/format and strict mypy: passed.
 - Full installation boundary subset after corrections: 40 passed.
 - Plain `make install`: passed; both daemon and menu bar running afterward.
 
 Green logs are `.git/codex-scratch/menu-bar-startup-{python,swift,lint,installation}-green.log`.
+
+The counts above predate the merge-up of main and of `feat/architecture-benchmarks`. After both merges and decisions E and F, the suite collects 988 Python tests (330 small, 658 medium), the Swift suite runs 165 tests, and the installation subset (`test_distribution.py`, `test_make_installation.py`, `test_launch_agent_activation.py`, `test_menu_bar_retirement.py`) runs 54. The medium tier measured 43.1 to 49.5 seconds against its 45-second budget on this host, compared with 38.9 seconds on `feat/architecture-benchmarks` alone. Most of the difference is this PR's seven added Make-entrypoint installation tests, at about 1.4 seconds each.
+
+## Merge-up of main
+
+Main's #56 fixed the same two installer defects differently: `uv export --frozen` constraints from `uv.lock`, and `_await_teardown`, which polls `launchctl print` for up to ten seconds before bootstrap. The merge keeps main's installer and drops this PR's bootstrap EIO retry; `_await_teardown` now takes the launch agent's label, so the menu-bar agent waits for teardown too. The paragraphs above that describe the six-second EIO retry and the `transformers>=4.46,<5` pin record what this PR did before the merge-up, not current behavior.
+
+Change-kind: deliberate behavior change, approved by James (decision E). The `--with "transformers>=4.46,<5"` pin is dropped because main's constraints pin `transformers==5.16.1` from `uv.lock` and the two cannot both be satisfied. With James's approval, `test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels` now asserts that no separate transformers or tokenizers `--with` is passed, and that the exported constraints file pins transformers at 4.46 or later and tokenizers above 0.10. Its intent, a modern tokenizer instead of the obsolete source build, is unchanged. It failed against the pinned installer on parent `1850cc3` with `AssertionError: assert not ['transformers>=4.46,<5']`.
+
+Change-kind: deliberate behavior change, approved by James (decision F). An AppleScript `quit` sends an Apple event, which can require Automation consent, and a refusal aborted the install after the daemon was re-registered. `retire_menu_bar` now lists the user's processes with `ps`, sends SIGTERM to those running the installed executable, and polls `kill -0` up to 100 times, 0.1 seconds apart. A UI still alive after that produces a warning naming the PID and the `launchctl kickstart` command, and installation continues. The Make fixture's owned `ps` and `kill` model a process table with the installed UI, a development build and an unrelated process; its owned `osascript` records any invocation and refuses, which models denied consent and shadows the real tool. `test_install_retires_the_running_ui_by_signal_without_apple_events` and the existing lock test (whose incumbent moved from the osascript fake to the process table, assertion unchanged) failed on parent `8d95fed` with `CalledProcessError` from the osascript quit. The small `test_a_ui_that_ignores_sigterm_is_reported_without_failing_installation` enters at `retire_menu_bar` with an owned process boundary and was red on the same parent with `ImportError: cannot import name 'retire_menu_bar'`.
+
+## Audit fixes
+
+Change-kind: bug fix. The installer sent `quit` to a running menu app and bootstrapped the menu-bar agent at once. The agent's `RunAtLoad` instance could then find the old process still holding `SingleInstanceLock` and return with exit 0, which `KeepAlive {SuccessfulExit: false}` treats as an intentional Quit, so the menu bar stayed closed after a successful install. The installer now polls `application id … is running` up to 100 times, 0.1 seconds apart, and fails the install if the old UI has not exited.
+
+`test_install_waits_for_the_quit_menu_bar_to_exit_before_registering_it` is medium and enters through `make install`. Its owned osascript keeps an incumbent alive for two probes after quit, and its owned launchctl records `lock-lost` if the menu-bar bootstrap happens while the incumbent is alive. The oracle is the single-instance lock contract in `clients/menubar/Sources/AITTSMenuBar/main.swift`. It failed on parent `9081f2d` with `AssertionError: assert 'lock-lost' == 'running'`.
+
+Change-kind: bug fix. `_bootstrap_after_teardown` captured bootstrap stderr to suppress output from retried EIO attempts, but it never wrote the final rejection out, so a failed install lost launchd's reason. The final failing attempt's stderr now goes to the installer's stderr; retried EIO attempts stay quiet. `test_rejected_bootstrap_reports_launchd_diagnostic` is small. Its owned `subprocess.run` writes to the caller's stderr when the stream is inherited and returns the bytes when it is piped, which is the process boundary the installer depends on. The oracle is launchctl's rejection message appearing on the installer's stderr. It failed on parent `f1fc721` with `AssertionError: assert 'Bootstrap failed: 9: owned launchd diagnostic\n' in ''`.

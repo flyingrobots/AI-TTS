@@ -276,7 +276,7 @@ public struct Snapshot: Equatable, Sendable {
         speed: Double,
         playbackRate: Double,
         earconEnabled: Bool = false,
-        duckingEnabled: Bool = true,
+        duckingEnabled: Bool = false,
         captionsEnabled: Bool = false,
         captionsEnabledConfigured: Bool = false,
         voiceAssignments: [VoiceAssignment] = [],
