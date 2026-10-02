@@ -30,9 +30,8 @@ AI-TTS will integrate with macOS through several narrow, user-invoked entry
 points rather than one privileged mechanism that tries to observe every app.
 The primary entry point is a macOS Service for selected text. A second Service
 accepts one selected text, Markdown, or text-bearing PDF file. The menu-bar app
-also offers **Speak… → Import Selection** through the Accessibility API for
-applications that do not participate correctly in Services, and **Paste
-Clipboard** as an explicit low-permission fallback. Both append to an editable
+also offers **Speak… → Selection** through the Accessibility API for
+applications that do not participate correctly in Services, and **Paste** as an explicit low-permission fallback. Both append to an editable
 draft; the user presses **Speak** to submit it. Six App Intent actions
 extend the same application boundaries into custom Shortcuts automation.
 
@@ -121,9 +120,9 @@ have different interpretation rules before that point.
 ```mermaid
 flowchart TD
     TEXT["Selected text"] --> TEXTSERVICE["Text Service adapter"]
-    MENU["Composer: Import Selection"]
+    MENU["Composer: Selection"]
     AX["Accessibility selection adapter"]
-    CLIPBOARD["Composer: Paste Clipboard"]
+    CLIPBOARD["Composer: Paste"]
     CLIPBOARDADAPTER["Clipboard adapter"]
     FILE["One selected file"] --> FILESERVICE["File Service adapter"]
     AUTOMATION["Custom Shortcut"] --> INTENTS["App Intents adapter"]
@@ -178,8 +177,8 @@ typed speech port and local daemon socket.
 | External trigger | Inbound adapter | Application boundary | Interpretation |
 |---|---|---|---|
 | Selected text Service | Services provider | `SelectionEnqueueing` | Always literal `plain_text` |
-| Composer Import Selection | Accessibility reader | `SelectedTextReaderPort`, then `SpeechDraft` and explicit submission | Imported as plain text; whole-draft format remains user-selectable |
-| Composer Paste Clipboard | Pasteboard reader | `ClipboardTextReaderPort`, then `SpeechDraft` and explicit submission | Imported as plain text; whole-draft format remains user-selectable |
+| Composer Selection | Accessibility reader | `SelectedTextReaderPort`, then `SpeechDraft` and explicit submission | Imported as plain text; whole-draft format remains user-selectable |
+| Composer Paste | Pasteboard reader | `ClipboardTextReaderPort`, then `SpeechDraft` and explicit submission | Imported as plain text; whole-draft format remains user-selectable |
 | Composer Attach File | Native document reader | `SpeechDocumentReaderPort`, then `SpeechDraft` and explicit submission | Markdown import selects Markdown for the whole draft |
 | Selected Finder file | Services provider | Existing `DocumentEnqueueing` | Extension or extractor chooses Markdown versus plain text |
 | Custom Shortcut | App Intent | The same selection, document, or speech-command boundary | Explicit intent parameter type chooses the path |
@@ -313,7 +312,7 @@ or socket translation.
 
 The menu-bar action can improve coverage for applications whose selections do
 not reach Services, but it must be treated as a privileged, best-effort
-fallback. The user invokes **Import Selection** first; only then may
+fallback. The user invokes **Selection** first; only then may
 AI-TTS request Accessibility trust and inspect one application once.
 
 Focus timing is the subtle part. The status controller captures the previous
@@ -358,15 +357,15 @@ implementation preferences.
 
 | Rejected approach | Why it is rejected | Accepted alternative |
 |---|---|---|
-| Continuously poll Accessibility for highlighted text | Observes unrelated activity, consumes resources, and makes the enqueue moment ambiguous | Query once after **Import Selection** |
+| Continuously poll Accessibility for highlighted text | Observes unrelated activity, consumes resources, and makes the enqueue moment ambiguous | Query once after **Selection** |
 | Synthesize Command-C | Depends on focus timing and causes behavior in another app | Receive the Service selection or ask the user to copy explicitly |
-| Save, overwrite, and restore the clipboard | Races other clipboard users and can lose delayed or multi-format data | Read the existing clipboard without mutation only after **Paste Clipboard** |
+| Save, overwrite, and restore the clipboard | Races other clipboard users and can lose delayed or multi-format data | Read the existing clipboard without mutation only after **Paste** |
 | Automatically infer Markdown from selected characters | A selection has no reliable source-format provenance | Treat selections as literal; classify selected files by document type |
 | Send file paths through daemon IPC | Expands filesystem authority and forks client-side extraction policy | Read the selected URL locally and submit text plus format |
 | Add a Finder Sync extension only for a context item | Adds a privileged extension and duplicates what a file Service already provides | Use **Read File with AI-TTS** as a Service |
 | Claim a top-level context-menu item everywhere | Host applications own their contextual menus | Guarantee the Services-menu command and document the optional contextual placement |
 
-**Paste Clipboard** remains acceptable only as an explicit action. It reads the
+**Paste** remains acceptable only as an explicit action. It reads the
 current string representation, never changes the pasteboard, submits through
 `EnqueueSelection`, and tells the user when no string is present. It is a
 fallback for inaccessible renderers, not a hidden implementation of selection

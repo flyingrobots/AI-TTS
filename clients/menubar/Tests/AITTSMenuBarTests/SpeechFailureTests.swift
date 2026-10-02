@@ -46,6 +46,26 @@ final class SpeechFailureTests: XCTestCase {
         XCTAssertNil(state.failureNotice)
         XCTAssertNil(state.lastError)
     }
+
+    // Test-Oracle: the toast's History action leaves History rendered, not hidden by the composer.
+    // Retire only when History and the inline composer stop sharing the popover body.
+    @MainActor
+    func testRevealingHistoryCollapsesTheInlineComposerAndKeepsTheDraft() throws {
+        let port = FailureSnapshots(histories: [])
+        let suite = "ai-tts-reveal-history-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let state = AppState(speech: port, documentEnqueuer: port,
+                             currentSelectionEnqueuer: port, clipboardEnqueuer: port,
+                             defaults: defaults)
+        state.selectedTab = .queue
+        state.showingComposer = true
+        state.composer.draft.text = "unsent draft"
+        state.revealHistory()
+        XCTAssertEqual(state.selectedTab, .history)
+        XCTAssertFalse(state.showingComposer, "History is not rendered while the composer is open")
+        XCTAssertEqual(state.composer.draft.text, "unsent draft")
+    }
 }
 
 private final class FailureSnapshots: SpeechServicePort, DocumentEnqueueing,

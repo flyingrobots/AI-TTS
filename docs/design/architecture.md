@@ -108,10 +108,10 @@ confidential, Normal-priority policy with daemon-resolved voice and speed.
 
 The macOS text Service receives selected text only after **Read Selection with
 AI-TTS** is invoked, without Accessibility trust or clipboard mutation. In the
-composer, **Import Selection** uses `SelectedTextReaderPort` through the
+composer, **Selection** uses `SelectedTextReaderPort` through the
 Accessibility adapter. It remembers the most recently activated external
 application, but queries its selection only on explicit import and fails when
-the focused element exposes none. **Paste Clipboard** is a separate explicit,
+the focused element exposes none. **Paste** is a separate explicit,
 non-mutating reader. Neither action polls selection state or synthesizes
 Command-C.
 
@@ -184,8 +184,11 @@ stateDiagram-v2
   completed earlier document children remain intact.
 - **The physical callback device may outlive a logical playback session.**
   The daemon prepares silent output after model warmup. Exactly one logical
-  renderer owns it at a time; idle and held output is silence. Starvation and
-  stop use a 5 ms decay, with a fade on resumption. Inserted silence never moves
+  renderer owns it at a time; idle and held output is silence. Starvation uses a
+  5 ms decay. A stop, pause or route move fades the next 20 ms of source (or the
+  callback block, if shorter) without moving the playhead, as file playback does,
+  and a session that closes its own stream then plays 100 ms of silence. A
+  renderer opened mid-clip fades in over 20 ms from zero. Inserted silence never moves
   the source playhead. An initial run of exact digital zeros can be skipped in
   bounded memory reads; intentional pauses and nonzero seek positions are
   preserved, and the original cached WAV is unchanged. Evidence records skipped
@@ -556,18 +559,11 @@ Resume; the paused records reconstruct the remaining resumption order.
 
 ## 8. The engine interface
 
-The daemon registers concrete backends by name and keeps prepared models resident.
-The default is a live setting: submission resolves and persists the selected
-backend on the parent utterance, and every child synthesis job inherits it.
-Switching defaults never reroutes accepted work. Legacy rows without a recorded
-choice bind once to the startup backend. Sensitivity is checked before admission
-and again before a worker gives source text to an engine.
+The daemon registers concrete backends by name and keeps prepared models resident. The default is a live setting: submission resolves and persists the selected backend on the parent utterance, and every child synthesis job inherits it. Switching defaults never reroutes accepted work. Legacy rows without a recorded choice bind once to the startup backend. Sensitivity is checked before admission and again before a worker gives source text to an engine.
 
-Local OpenAI-compatible servers use direct loopback connections with no redirects
-or ambient proxies. They report server-managed model readiness because the daemon
-cannot inspect or restart their model process. Model/voice catalogs are exposed
-through `engines` and the menu snapshot. Native adapters prepare independently
-under per-engine locks; a failed backend does not poison other registered engines.
+Local OpenAI-compatible servers use direct loopback connections with no redirects or ambient proxies. They report server-managed model readiness because the daemon cannot inspect or restart their model process. Model/voice catalogs are exposed through `engines` and the menu snapshot.
+
+Native adapters prepare independently under per-engine locks; a failed backend does not poison other registered engines. While the startup backend warms up, the synthesis claim skips only work recorded for it, so clips for other backends are not held behind that load.
 
 
 **The engine is pluggable and this document does not choose one.** `bm_daniel` is a voice in the engine used today; whether that engine remains the right one is being researched separately and **must not be baked in here.**

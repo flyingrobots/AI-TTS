@@ -7,7 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Kokoro and Kokoro MLX speech starts playing from the first generated PCM while synthesis continues. A prepared callback device plays from a bounded memory ring, and a separate feeder spools the complete WAV for replay. Pause, rewind, and preemption keep their source offsets. Readiness and cache publication commit atomically, and restart recovery requeues unfinished generation with playback held. Other engines keep file playback.
+- Streamed speech starts and stops as softly as file playback. A stop, pause, or route move fades the next 20 ms of source without moving the playhead (the fade is capped at one callback block, which is longer than 20 ms with the host block below). Near the end of a clip the fade holds the last sample. A session that closes its own stream then writes 100 ms of silence. A stream opened mid-clip, on resume, a route move, or a preemption restore, fades in over 20 ms from exact zero, and a close during that fade-in starts from the gain it had reached.
+- Streamed chunks keep truthful records through failure and restart. If generation fails after a streamed document chunk is already Ready or Playing, that chunk is marked Failed with the engine's error, instead of Cancelled with no error. Restart recovery leaves a streamed chunk skipped if the listener skipped it before the daemon stopped. Daemon shutdown holds playback only if it is not already held, so a microphone hold keeps its on-screen reason after a restart.
+- The streaming callback output requests the same device-rate host block as file playback: a 21.3 ms I/O buffer instead of 5 ms, so app switches do not pop during streamed speech either. Measured on the built-in speakers, this raises the stream's reported output latency by about 33 ms (44.8 to 77.4 ms). The 194–205 ms first-audio figure in the README was measured with the old 240-frame block, before this change, and has not been re-measured.
+- The default speech engine switches live, without restarting the daemon, through `ai-tts settings set engine NAME`, `settings --engine NAME`, `settings --set engine=NAME`, or the composer's model picker. Each accepted clip records its engine in a new `utterances.engine` column, and its segments, replays, and restart-recovered work keep it; rows from older databases bind once to the startup engine. A new `engines` IPC op and `ai-tts engines` list each registered engine's voices, locality, and readiness, and `ai-tts say --engine NAME` overrides the default for one clip. Private text is checked against the chosen engine at admission and again before synthesis. While the startup engine prepares, only clips recorded for it wait. A saved voice the new engine lacks is reported as that engine's default and kept for a later switch back. A saved default whose adapter is not configured at launch starts the daemon on Kokoro. The `restart_model` IPC op takes an optional `engine` name, so a failed engine that is not the default can be reloaded.
+- An `openai-audio` adapter speaks through a separately managed OpenAI-compatible server on loopback only (`AI_TTS_OPENAI_URL`, `AI_TTS_OPENAI_MODEL`, `AI_TTS_OPENAI_VOICE`). It pins `localhost` to 127.0.0.1, ignores proxies, follows no redirects, bounds responses to 64 MiB with a 30-second socket timeout, and publishes only a complete WAV with finite samples. Its readiness is reported as server managed.
+- A `chatterbox` extra adds native Chatterbox Turbo from an explicit local snapshot (`AI_TTS_CHATTERBOX_MODEL_DIR`), with its one `default` voice, its upstream watermark kept, and generation speed fixed at 1. A clip that names no speed uses 1 and keeps the saved speed for other engines; an explicit other speed is refused. The extra installs two pinned upstream source archives, and CI audits them separately from the hashed PyPI graph.
+
+### Changed
+
+- A submit response's `eligible_engines` lists registered engine names (for example `["kokoro"]`) instead of the `["local"]` placeholder, and the settings `engine` value reports the engine actually selected in the running daemon rather than the stored preference.
+
+- Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
+
+- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use. The card opens after the pointer rests on the button for 400 ms, so moving the pointer across History opens no cards and sends no daemon requests.
+
 ### Fixed
+
+- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
+
+- Playback no longer pops when another app activates mid-clip. Left to choose, PortAudio asked CoreAudio for 15-frame (0.3 ms) I/O cycles, so a 13 ms page fault on the audio thread skipped a cycle. The output stream now requests a host block sized from the output device's sample rate for a 21.3 ms I/O buffer: 1024 frames at 48 kHz, as measured on the built-in speakers. Other devices get the same duration at their own rate. The cost is about 0.13 s more delay before pause and skip are heard.
+
+- `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
+
+- `make install` rebuilds the ai-tts package on every run. uv reused its cached build of the checkout whenever the version stayed the same, so an install could report success while the daemon kept running the previous code.
+
+- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. If the old service has not left after ten seconds, it gives up with a reason and restores the previous configuration.
+
+- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
+
+- The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
+
+- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
 
 - Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
 
@@ -89,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Subscribers now receive `state_changed` with `from: null` and `to: "Queued"` when a submission or history replay is admitted. Work queued behind busy workers now appears right away.
 
-- Optional pre-speech chime, once per document, and default-on other-app ducking while the menu-bar app is running. Settings and CLI save both preferences. macOS system-audio routing lowers other apps to 30%, restores them when speech pauses or ends, and keeps AI-TTS volume unchanged.
+- Optional pre-speech chime, once per document, and default-on other-app ducking while the menu-bar app is running. Settings and CLI save both preferences. macOS system-audio routing lowers other apps to 30%, restores them when speech pauses or ends, and keeps AI-TTS volume unchanged. A chime cut short by pause or skip fades out over 20 ms, on file and live-stream playback alike, before the stream closes.
 
 - Speak… replaces the menu’s immediate Read actions with an editable composer, voice and active-model choice, text/Markdown interpretation, and text/Markdown/PDF attachment. Clipboard and selection imports append to the draft; submission errors preserve it.
 

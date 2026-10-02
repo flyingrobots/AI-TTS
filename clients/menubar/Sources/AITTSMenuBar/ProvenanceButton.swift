@@ -23,9 +23,9 @@ struct ProvenanceButton: NSViewRepresentable {
 
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.onPress = onPress
-        button.title = expanded ? "Hide provenance" : "Show provenance"
-        button.setAccessibilityLabel(button.title)
-        button.toolTip = "Show where this clip came from, its arguments, and source/audio hashes"
+        button.title = "Provenance"
+        button.setAccessibilityLabel(expanded ? "Close provenance" : "Show provenance")
+        button.setAccessibilityHelp("Hover or activate to inspect this clip’s source, arguments, and hashes")
     }
 
     final class Coordinator: NSObject {
