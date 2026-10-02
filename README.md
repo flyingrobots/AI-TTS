@@ -206,7 +206,10 @@ reopen it or log in again; the daemon continues running. Reopening the installed
 app hands control back to the registered agent so crash recovery continues.
 Development builds and installations without a registered agent run normally.
 Each agent activation rolls back independently: if menu-bar registration fails,
-the already-registered daemon remains available.
+the already-registered daemon remains available. The installer waits for a
+quit menu app to exit before registering its agent. If that registration then
+fails, the previous menu-bar registration is restored, but a manually opened
+app that the installer quit stays closed; reopen it.
 
 `make install-all` does all three. `make uninstall` stops and removes the
 two launchd agents and the executables, and deliberately leaves your speech history,
