@@ -119,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Optional pre-speech chime, once per document, and default-on other-app ducking while the menu-bar app is running. Settings and CLI save both preferences. macOS system-audio routing lowers other apps to 30%, restores them when speech pauses or ends, and keeps AI-TTS volume unchanged. On file playback, a chime cut short by pause or skip fades out over 20 ms and then plays 100 ms of silence before the stream closes.
+- Optional pre-speech chime, once per document, and default-on other-app ducking while the menu-bar app is running. Settings and CLI save both preferences. macOS system-audio routing lowers other apps to 30%, restores them when speech pauses or ends, and keeps AI-TTS volume unchanged. A chime cut short by pause or skip fades out over 20 ms, on file and live-stream playback alike, before the stream closes.
 
 - Speak… replaces the menu’s immediate Read actions with an editable composer, voice and active-model choice, text/Markdown interpretation, and text/Markdown/PDF attachment. Clipboard and selection imports append to the draft; submission errors preserve it.
 

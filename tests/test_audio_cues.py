@@ -6,6 +6,7 @@
 import asyncio
 import contextlib
 import logging
+import math
 import struct
 import threading
 import wave
@@ -255,3 +256,36 @@ async def test_file_sink_reports_an_underflow_while_writing_the_cue(
         assert await asyncio.wait_for(sink.wait(), 1)
     events = [record.getMessage() for record in caplog.records if record.name == "aitts.playback"]
     assert events == ["event=audio_output_underflow"]
+
+
+@pytest.mark.medium
+@pytest.mark.oracle(
+    "soft stream close receipt (2026-09-30-soft-stream-close.md): close_block fades what "
+    "would play next over a 20 ms raised cosine, holding the last sample when less remains"
+)
+@pytest.mark.parametrize("heard", [960, 2200])
+def test_callback_close_during_the_cue_fades_the_rest_of_the_cue(
+    tmp_path: Path, heard: int
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 4800)
+    source = SpoolingPCMStream.from_cached(path)
+    try:
+        cue = np.frombuffer(earcon_pcm(), dtype="<i2").astype(np.float32) / 32768.0
+        renderer = PCMStreamRenderer(source, skip_leading_silence=True, prefix_pcm=earcon_pcm())
+        assert source.wait_buffered(4800, timeout=1)
+        played = renderer.render(heard)[:, 0]
+        np.testing.assert_array_equal(played, cue[:heard])
+        assert np.max(np.abs(cue[heard - 48 : heard])) > 0.005, "the fixture must close mid-cue"
+        closing = renderer.close_block(2400)[:, 0]
+        fade = 480  # SOFT_FADE_FRAMES: 20 ms at 24 kHz
+        ahead = np.full(fade, cue[-1], dtype=np.float32)
+        remaining = cue[heard : heard + fade]
+        ahead[: len(remaining)] = remaining
+        ahead[len(remaining) :] = remaining[-1]
+        gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade)))
+        np.testing.assert_allclose(closing[:fade], ahead * gain, atol=1e-6)
+        assert np.all(closing[fade:] == 0)
+        assert renderer.position_frames == 0
+    finally:
+        source.close()

@@ -463,6 +463,17 @@ class PCMStreamRenderer:
 
         output = np.zeros((frames, 1), dtype=np.float32)
         fade = min(frames, SOFT_FADE_FRAMES)
+        if len(self._prefix):
+            # The cue is sounding, not speech: fade the rest of the cue,
+            # holding its last sample if less than the fade remains.
+            ahead = np.full(fade, self._prefix[-1], dtype=np.float32)
+            remaining = self._prefix[:fade]
+            ahead[: len(remaining)] = remaining
+            gain = 0.5 * (1 + np.cos(np.linspace(0.0, math.pi, fade)))
+            output[:fade, 0] = ahead * gain
+            self._prefix = self._prefix[:0]
+            self._last = 0.0
+            return output
         # Underrun silence or untrimmed leading zeros: nothing is sounding.
         if self._was_silent or self._trim_leading:
             self._last = 0.0
