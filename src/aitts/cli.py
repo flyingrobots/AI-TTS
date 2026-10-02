@@ -27,6 +27,7 @@ from typing import Any
 from aitts import __version__
 from aitts.client import Client, DaemonError, DaemonUnreachableError
 from aitts.model import ContentFormat, State
+from aitts.model_catalog import MODELS
 from aitts.paths import default_home, default_socket
 
 EXIT_OK = 0
@@ -57,7 +58,7 @@ def _build_parser() -> argparse.ArgumentParser:
     setup = sub.add_parser(
         "model-setup", help="download and prepare a supported local speech model"
     )
-    setup.add_argument("name", choices=["kokoro", "kokoro-mlx", "chatterbox"])
+    setup.add_argument("name", choices=list(MODELS))
     sub.add_parser("cancel-model-setup", help="cancel the active local model setup")
     sub.add_parser("tui", help="open the interactive terminal dashboard (requires ai-tts[tui])")
 
