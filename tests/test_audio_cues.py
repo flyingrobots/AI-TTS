@@ -5,6 +5,7 @@
 
 import asyncio
 import contextlib
+import logging
 import struct
 import threading
 import wave
@@ -230,3 +231,27 @@ async def test_file_sink_cue_interrupted_mid_waveform_closes_softly(
     assert np.all(np.abs(closing) <= np.abs(cue[first : first + len(closing)]) + 1e-6)
     assert np.max(np.abs(np.diff(written))) <= np.max(np.abs(np.diff(cue))) + 1e-6
     assert sink.position_ms() == 0
+
+
+@pytest.mark.medium
+@pytest.mark.oracle("sounddevice.write reports inserted output; cue writes are output too")
+async def test_file_sink_reports_an_underflow_while_writing_the_cue(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "speech.wav"
+    _write_mono(path, 480)
+    device = FakeAudioDevice()
+    streams = RecordingStreams(device)
+
+    def underflow_on_the_cue_block() -> None:
+        stream = streams.opened[-1]
+        stream.underflowed = len(stream.blocks) == 1
+
+    streams.on_write = underflow_on_the_cue_block
+    sink = SoundDeviceSink(device=device, open_stream=streams)
+    sink.set_prefix(earcon_pcm())
+    with caplog.at_level(logging.WARNING, logger="aitts.playback"):
+        sink.start(path)
+        assert await asyncio.wait_for(sink.wait(), 1)
+    events = [record.getMessage() for record in caplog.records if record.name == "aitts.playback"]
+    assert events == ["event=audio_output_underflow"]

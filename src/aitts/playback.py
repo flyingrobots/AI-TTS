@@ -601,7 +601,7 @@ class SoundDeviceSink:
             if self._stop_flag.is_set() or self._pause_flag.is_set():
                 self._write_output(stream, self._close_cue(cue[start:], samplerate, channels))
                 return
-            stream.write(cue[start : start + self._BLOCK_FRAMES].astype("float32"))
+            self._write_output(stream, cue[start : start + self._BLOCK_FRAMES].astype("float32"))
 
     def _close_cue(self, remaining: Any, samplerate: int, channels: int) -> Any:  # noqa: ANN401 - numpy frames in and out
         """Fade the rest of an interrupted cue like interrupted speech, then hold silence.
