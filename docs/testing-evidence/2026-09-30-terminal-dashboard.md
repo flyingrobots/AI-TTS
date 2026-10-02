@@ -42,6 +42,8 @@ A separate Python 3.12 frozen all-extras environment passed strict hashed PyPI a
 
 Stale lock (Code Lawyer, 2026-10-01): the summary's `lock_sha256` is `510e5022…022f`, but `uv.lock` at the PR head `a33ce35` hashes to `29be5818…2075`. The audit therefore describes a different lock file. Its counts and its zero-vulnerability result are not evidence for the lock this PR ships. The audit must be re-run against the current `uv.lock` before it can count as acceptance evidence. The summary is left as recorded rather than rewritten with a hash it was not computed from.
 
+Re-run (2026-10-01): CI's "audit and inventory dependencies" job (run `36964848653`, PR head `5b86d48`; uv 0.9.18 and pip-audit 2.10.1) recomputed the audit against `uv.lock` `29be5818…2075`. Its `summary.json` matched the stored summary field for field except `lock_sha256`: 164 dependencies, 189 SBOM components, 164 license records, one unknown license (`espeakng-loader`), and zero known vulnerabilities. The stored summary now records the CI-computed hash, so it is evidence for the lock this PR ships.
+
 ## Limits
 
 Tests use owned sockets, FakeEngine/FakeSink or controlled real sink callbacks; they do not establish acoustic loudness or every terminal emulator/size. Physical audio acceptance was not repeated for a display feature. No installed app or CLI was replaced. The user-owned `PROMPTS.md` remains untouched and untracked. This change does not close platform-portability or long-session popping issues.
