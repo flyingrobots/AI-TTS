@@ -29,7 +29,7 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 | Class | Ceiling per test | Tier budget | Resource posture |
 |---|---:|---:|---|
 | small | 2 seconds | 10 seconds | one process; no sockets, subprocesses, threads, or sleeps |
-| medium | 15 seconds | 45 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
+| medium | 15 seconds | 120 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
 | large | 30 seconds | 120 seconds | explicit external boundary; none currently gate CI |
 
 `tests/conftest.py` rejects collection unless each test inherits exactly one
@@ -53,6 +53,8 @@ test looking slow. Each run prints the count, the charged total and the p95
 call latency per class, which is the SLO reading rule 9 asks for; the
 budgets sit several times above the current cost on purpose, so they alarm on
 decay rather than on a busy machine.
+
+**Medium re-baseline, 2026-10-02.** Change-kind: deliberate standards change, approved by James (decision Q). The medium tier budget moves from 45 to 120 seconds; the small and large budgets and every per-test ceiling are unchanged. The tier had grown to cost 22–56 seconds across main and CI runs, so 45 seconds no longer sat several times above the current cost, and it alarmed on machine noise rather than decay. Evidence: CI measured 46.53 seconds on PR #47 with every test passing, a rerun on identical code measured 32.72 seconds, and PR #65's CI measured 55.61 seconds with 992 passed. Most of #65's increase is seven Make-entrypoint installation tests at about 1.4 seconds each; issue #72 tracks sharing one fake `make install` across them. The re-baseline needs no red test; the evidence that it holds is PR #65's CI Python job passing with the new budget.
 
 **One deviation on `small`, stated rather than drifted into.** Rule 9 lists
 "no filesystem" for small tests; here a small test may write inside its own
@@ -1058,6 +1060,8 @@ Merge-up of main (#56): the PR's bootstrap EIO retry is replaced by main's `_awa
 Deliberate behavior change, approved by James: installation no longer adds a `transformers>=4.46,<5` pin, which contradicted the locked `transformers==5.16.1`; the modern tokenizer now arrives only through the `uv.lock` constraints. The tokenizer test was rewritten with that approval to assert the constraints file instead of the pin, and was red against the pinned installer on parent `1850cc3`. The [startup evidence](../testing-evidence/2026-10-01-menu-bar-startup.md#merge-up-of-main) records it.
 
 Deliberate behavior change, approved by James: installation retires a running menu app with SIGTERM to the installed executable's PIDs instead of an AppleScript quit, so it needs no Automation consent, and warns rather than fails when the app outlives ten seconds. Owned `ps`, `kill`, and a refusing `osascript` replace every real process boundary in the Make fixture. The medium Make tests were red on parent `8d95fed`; the small stuck-UI test enters at `retire_menu_bar`. The same evidence section records them. None of these installer tests creates a git repository.
+
+Deliberate behavior change, approved by James (decision R): the menu-bar app routes SIGTERM to `NSApplication.terminate`, so the installer's signal retirement and `launchctl bootout` both run `applicationWillTerminate` and its media-ducking cleanup. The medium `TerminationSignalRouterTests` invoke the installed handler directly and deliver an isolated, ignored SIGUSR2 through the real dispatch source. Both failed to compile on parent `e25fd61`. The `main.swift` wiring and a real SIGTERM to an installed app remain blind spots; [the startup evidence](../testing-evidence/2026-10-01-menu-bar-startup.md#merge-up-of-main) records it.
 
 ## Guided local model setup
 

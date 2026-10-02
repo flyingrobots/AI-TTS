@@ -43,7 +43,9 @@ class LaunchdTeardownTimeoutError(RuntimeError):
 def retire_menu_bar(*, ps: str, kill: str, executable: Path, polls: int = QUIT_POLLS) -> None:
     """SIGTERM the installed UI so the registered agent's instance can take the lock.
 
-    Signals need no Automation consent, unlike an Apple event quit. Only
+    Signals need no Automation consent, unlike an Apple event quit. The app
+    routes SIGTERM to its normal termination (`TerminationSignalRouter`), so
+    its quit-time cleanup, including media-ducking restoration, runs. Only
     processes running the installed executable are touched; a development
     build elsewhere is left alone.
     """

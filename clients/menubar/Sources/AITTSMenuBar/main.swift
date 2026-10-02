@@ -90,7 +90,12 @@ MainActor.assumeIsolated {
     app.setActivationPolicy(.accessory)
     let delegate = AppDelegate()
     app.delegate = delegate
-    withExtendedLifetime(instanceLock) {
+    // SIGTERM (installer retirement, launchctl bootout) quits normally, so
+    // applicationWillTerminate restores ducked media.
+    let terminationRouter = TerminationSignalRouter {
+        MainActor.assumeIsolated { NSApplication.shared.terminate(nil) }
+    }
+    withExtendedLifetime((instanceLock, terminationRouter)) {
         app.run()
     }
 }
