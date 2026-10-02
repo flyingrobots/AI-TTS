@@ -64,6 +64,27 @@ the model-picker API correction recorded in the multi-engine receipt.
 The original per-feature red and seeded-fault receipts remain historical
 evidence; these integration results do not claim new native acoustic acceptance.
 
+## Reproduced red on the parent segmenter
+
+The red receipts above point to untracked `.git/codex-scratch` logs, so the Code Lawyer audit reproduced them. With `src/aitts/segmentation.py` taken from the PR's parent `a33ce35` and this PR's tests at `e5d06e0`, `uv run --frozen pytest -q -p no:randomly tests/test_segmentation.py tests/test_paragraph_playback.py` failed exactly these 12 cases. The other 14 passed, including the generated token/size invariant and the atomic 15-word case, which hold on both sides by design:
+
+```text
+FAILED tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable[plain_text-sizes0]
+FAILED tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable[plain_text-sizes1]
+FAILED tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable[markdown-sizes0]
+FAILED tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable[markdown-sizes1]
+FAILED tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable[None-sizes0]
+FAILED tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable[None-sizes1]
+FAILED tests/test_segmentation.py::test_paragraph_threshold_and_short_clip_identity[\n\n]
+FAILED tests/test_segmentation.py::test_paragraph_threshold_and_short_clip_identity[\r\n\r\n]
+FAILED tests/test_segmentation.py::test_paragraph_threshold_and_short_clip_identity[\n \t\n]
+FAILED tests/test_segmentation.py::test_tiny_leading_and_trailing_blocks_attach_to_substantial_paragraphs
+FAILED tests/test_segmentation.py::test_markdown_structural_blocks_and_heading_stay_attached
+FAILED tests/test_paragraph_playback.py::test_submitted_paragraphs_support_next_and_previous_without_changing_parent
+```
+
+These are the eleven segmentation cases and the daemon transport case described above. The seeded-fault rows in the calibration JSON were not re-run; their logs remain untracked.
+
 ## Code Lawyer audit: long-document paragraph grouping
 
 Change-kind: test addition (no behavior change). Parent SHA `e5d06e0`. The long branch of `segment_text` (over 180 words) runs `_paragraph_segments` before `_bounded_segments`, but no test covered it: with the pre-PR loop `for segment in _bounded_segments(section)` restored, all 878 Python tests still passed. `test_long_document_exposes_each_paragraph_group` (small; oracle: architecture section 8) submits five 50-word paragraphs, 250 words, and expects five chunks. Against that seeded fault it fails with `AssertionError: assert ('p0word0 p0w...d48 p4word49') == ('p0word0 p0w...d48 p4word49')`, `At index 0 diff`, because the old loop packs the first four paragraphs into one 200-word chunk. On the restored source it passes.
