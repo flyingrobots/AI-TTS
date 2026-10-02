@@ -66,7 +66,7 @@ Three regressions were observed red in the draft before correction:
 The initial full run also caught missing README documentation for `tui`; the
 README was corrected, without weakening the coverage assertion.
 
-Final local checks: **728 Python tests**, Ruff, formatting and mypy pass.
+Local checks before the shutdown regression below: **728 Python tests**, Ruff, formatting and mypy pass.
 Small-tier cost is 0.65 s, medium 12.10 s, wall 13.29 s. Receipt:
 `.git/codex-scratch/tui-final-python.log`. Swift sources are unchanged from the
 previous prompt's passing build and 127-test suite.
@@ -123,6 +123,8 @@ when UI subscription ownership changes enough that this teardown contract is
 covered at a stronger boundary. The full suite passes 796 Python tests: 271
 small/525 medium, .70/13.63 seconds by tier, 15.01 seconds wall clock.
 Raw red/green and full-suite logs are under `.git/codex-scratch/tui-shutdown-*`.
+
+The 728 and 796 counts are successive points in this PR's history. At the PR head `a33ce35`, on its current base, the full suite ran 864 tests (279 small, 585 medium) on 2026-10-01.
 
 ## Review round (Code Lawyer, 2026-10-01)
 
