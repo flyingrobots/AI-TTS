@@ -54,6 +54,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="daemon socket path (default: AI_TTS_SOCKET or the daemon home)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("tui", help="open the interactive terminal dashboard (requires ai-tts[tui])")
 
     say = sub.add_parser("say", help="queue text to be spoken, even while playback is paused")
     say.add_argument("text")
@@ -356,6 +357,18 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "daemon":
         return _run_daemon(args)
+    if args.command == "tui":
+        try:
+            from aitts.tui.app import SpeechTUI  # noqa: PLC0415 - optional terminal dependency
+        except ModuleNotFoundError as exc:
+            if exc.name not in {"textual", "rich"}:
+                raise
+            sys.stderr.write("Install the terminal UI with: uv tool install 'ai-tts[tui]'\n")
+            return EXIT_DAEMON_ERROR
+        app = SpeechTUI(args.socket or default_socket())
+        app.run()
+        # Textual restores the terminal and reports a crash through return_code.
+        return EXIT_OK if not app.return_code else EXIT_DAEMON_ERROR
     return _run_client_command(args)
 
 

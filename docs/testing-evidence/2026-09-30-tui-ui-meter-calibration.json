@@ -1,0 +1,32 @@
+[
+  {
+    "fault": "reversed-space",
+    "test": "tests/test_tui_app.py::test_dashboard_renders_literal_queue_and_toggles_global_hold",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-reversed-space.log"
+  },
+  {
+    "fault": "reversed-queue-move",
+    "test": "tests/test_tui_app.py::test_vim_selection_reorder_and_double_delete_use_clip_identity",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-reversed-queue-move.log"
+  },
+  {
+    "fault": "unsolicited-progress",
+    "test": "tests/test_tui_client.py::test_progress_is_opt_in_and_idle_meter_is_silent",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-unsolicited-progress.log"
+  },
+  {
+    "fault": "missing-output-measurement",
+    "test": "tests/test_tui_meter.py::test_output_meter_measures_rendered_samples",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-missing-output-measurement.log"
+  },
+  {
+    "fault": "incorrect-decibel-scale",
+    "test": "tests/test_tui_meter.py::test_meter_shows_measured_dbfs_and_distinguishes_unknown",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/tui-incorrect-decibel-scale.log"
+  }
+]

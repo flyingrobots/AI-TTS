@@ -1,0 +1,50 @@
+[
+  {
+    "fault": "disabled-medium-paragraphs",
+    "test": "tests/test_paragraph_playback.py",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-disabled-medium-paragraphs-red.log"
+  },
+  {
+    "fault": "overlarge-paragraph-minimum",
+    "test": "tests/test_segmentation.py::test_hundred_word_paragraphs_are_independently_navigable",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-overlarge-paragraph-minimum-red.log"
+  },
+  {
+    "fault": "premature-document-split",
+    "test": "tests/test_segmentation.py::test_paragraph_threshold_and_short_clip_identity",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-premature-document-split-red.log"
+  },
+  {
+    "fault": "dropped-tail",
+    "test": "tests/test_segmentation.py::test_tiny_leading_and_trailing_blocks_attach_to_substantial_paragraphs",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-dropped-tail-red.log"
+  },
+  {
+    "fault": "unbounded-paragraph",
+    "test": "tests/test_segmentation.py::test_paragraph_plans_preserve_tokens_and_existing_size_bound",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-unbounded-paragraph-red.log"
+  },
+  {
+    "fault": "reversed-source",
+    "test": "tests/test_segmentation.py::test_paragraph_plans_preserve_tokens_and_existing_size_bound",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-reversed-source-red.log"
+  },
+  {
+    "fault": "split-short-clip",
+    "test": "tests/test_segmentation.py::test_fifteen_word_sentence_stays_atomic",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-split-short-clip-red.log"
+  },
+  {
+    "fault": "empty-child",
+    "test": "tests/test_segmentation.py::test_paragraph_plans_preserve_tokens_and_existing_size_bound",
+    "result": "named assertion failed",
+    "receipt": ".git/codex-scratch/paragraph-empty-child-red.log"
+  }
+]
