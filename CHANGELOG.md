@@ -274,7 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Installation waits for a quit menu-bar app to exit before registering its launch agent, so the new instance doesn't lose the single-instance lock and stay closed. It retires the running app with SIGTERM rather than an AppleScript quit, so no Automation permission prompt appears; an app that is still running after ten seconds produces a warning instead of a failed install.
+- Installation waits for a quit menu-bar app to exit before registering its launch agent, so the new instance doesn't lose the single-instance lock and stay closed. It retires the running app with SIGTERM rather than an AppleScript quit, so no Automation permission prompt appears; an app that is still running after ten seconds produces a warning instead of a failed install. The menu-bar app treats SIGTERM as a normal Quit, so ducked media is restored when the installer or `launchctl bootout` stops it.
 
 - Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
 
