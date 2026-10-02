@@ -55,6 +55,8 @@ def prepare(name: str, root: Path) -> None:
         allow_patterns=list(model.files),
         local_dir=root / "assets",
     )
+    # Weights include pickled torch files; never deserialize bytes that differ from the pin.
+    model.verify_assets(root / "assets")
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     local_engine(name, root).warmup()

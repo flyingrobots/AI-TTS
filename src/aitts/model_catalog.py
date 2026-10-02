@@ -5,11 +5,30 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 from aitts.engines.kokoro import VOICES
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 WORKER_PROTOCOL_VERSION = 1
+
+# SHA-256 of each allowlisted file at its pinned revision, taken from the Hugging Face
+# LFS object ids (or the file bytes for small non-LFS files). A revision pin alone
+# trusts the server and transport; these digests are checked before any file is loaded.
+_DIGESTS: dict[str, dict[str, str]] = json.loads(
+    (Path(__file__).parent / "model_digests.json").read_text(encoding="utf-8")
+)
+
+
+class ModelIntegrityError(ValueError):
+    """A downloaded model file is missing or differs from its pinned digest."""
 
 
 @dataclass(frozen=True)
@@ -24,10 +43,30 @@ class LocalModel:
     files: tuple[str, ...]
     voices: tuple[str, ...] = VOICES
     apple_silicon: bool = False
+    sha256: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+
+    def verify_assets(self, assets: Path) -> None:
+        """Refuse a snapshot unless every allowlisted file matches its pinned digest."""
+        for filename in self.files:
+            path = assets / filename
+            expected = self.sha256.get(filename)
+            if expected is None or path.is_symlink() or not path.is_file():
+                message = f"model integrity check failed: {filename}"
+                raise ModelIntegrityError(message)
+            with path.open("rb") as stream:
+                actual = hashlib.file_digest(stream, "sha256").hexdigest()
+            if actual != expected:
+                message = f"model integrity check failed: {filename}"
+                raise ModelIntegrityError(message)
+
+
+def _pinned(model: LocalModel) -> LocalModel:
+    digests = _DIGESTS[model.name]
+    return replace(model, sha256=MappingProxyType({file: digests[file] for file in model.files}))
 
 
 MODELS = {
-    model.name: model
+    model.name: _pinned(model)
     for model in (
         LocalModel(
             "kokoro",
