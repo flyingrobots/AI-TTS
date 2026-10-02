@@ -371,7 +371,7 @@ limit does not poison the connection, so a corrected next request can proceed. D
 → {"op":"submit", "text":"...", "content_format":"plain_text",
    "voice":"bm_daniel", "priority":"normal", "sensitivity":"confidential"}
 ← {"ok":true, "accepted":true, "id":"utt_01J...", "state":"Queued",
-   "sensitivity":"confidential", "eligible_engines":["local"],
+   "sensitivity":"confidential", "eligible_engines":["kokoro"],
    "playback_held":true, "submission_disposition":"spooled_until_resume"}
 
 // status — daemon admission and playback are deliberately separate
@@ -548,6 +548,13 @@ Resume; the paused records reconstruct the remaining resumption order.
 ---
 
 ## 8. The engine interface
+
+The daemon registers concrete backends by name and keeps prepared models resident. The default is a live setting: submission resolves and persists the selected backend on the parent utterance, and every child synthesis job inherits it. Switching defaults never reroutes accepted work. Legacy rows without a recorded choice bind once to the startup backend. Sensitivity is checked before admission and again before a worker gives source text to an engine.
+
+Local OpenAI-compatible servers use direct loopback connections with no redirects or ambient proxies. They report server-managed model readiness because the daemon cannot inspect or restart their model process. Model/voice catalogs are exposed through `engines` and the menu snapshot.
+
+Native adapters prepare independently under per-engine locks; a failed backend does not poison other registered engines. While the startup backend warms up, the synthesis claim skips only work recorded for it, so clips for other backends are not held behind that load.
+
 
 **The engine is pluggable and this document does not choose one.** `bm_daniel` is a voice in the engine used today; whether that engine remains the right one is being researched separately and **must not be baked in here.**
 

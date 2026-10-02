@@ -124,6 +124,17 @@ struct SpeechComposerView: View {
     @State private var importingFile = false
     @FocusState private var editorFocused: Bool
 
+    private var localModels: [SpeechEngine] {
+        if !state.engines.isEmpty { return state.engines.filter(\.isLocal) }
+        guard let name = state.status?.engine else { return [] }
+        return [SpeechEngine(name: name, isLocal: true, voices: state.voices, state: "unknown")]
+    }
+
+    private var modelVoices: [String] {
+        let name = composer.draft.engine ?? state.status?.engine
+        return localModels.first(where: { $0.name == name })?.voices ?? []
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -158,11 +169,23 @@ struct SpeechComposerView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Picker("Voice", selection: $composer.draft.voice) {
                     Text("Daemon default").tag(String?.none)
-                    ForEach(state.voices, id: \.self) { Text($0).tag(Optional($0)) }
+                    ForEach(modelVoices, id: \.self) { Text($0).tag(Optional($0)) }
                 }
                 Picker("Model", selection: $composer.draft.engine) {
                     Text("Daemon default").tag(String?.none)
-                    if let engine = state.status?.engine { Text(engine).tag(Optional(engine)) }
+                    ForEach(localModels) { engine in
+                        Text(engine.name).tag(Optional(engine.name))
+                    }
+                }
+                .onChange(of: composer.draft.engine) {
+                    composer.draft.reconcileVoice(with: modelVoices)
+                }
+                .onChange(of: modelVoices) { _, voices in
+                    composer.draft.reconcileVoice(with: voices)
+                }
+                .onChange(of: localModels.map(\.name)) { _, names in
+                    // Resetting the model fires the engine handler above, which reconciles the voice.
+                    composer.draft.reconcileEngine(with: names)
                 }
                 Picker("Text", selection: $composer.draft.contentFormat) {
                     Text("Plain text").tag(SpeechContentFormat.plainText)

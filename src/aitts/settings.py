@@ -53,6 +53,18 @@ class SettingsEnvironment(Protocol):
     settings write has outside the settings table are visible in one place.
     """
 
+    def engine_name(self) -> str:
+        """Return the currently selected backend."""
+        ...
+
+    def engine_voices(self, name: str) -> list[str]:
+        """Validate a selectable engine and return its voice catalog."""
+        ...
+
+    def select_engine(self, name: str) -> None:
+        """Change the engine used for future admissions."""
+        ...
+
     def available_voices(self) -> list[str]:
         """Voices the configured engine accepts."""
         ...
@@ -85,7 +97,7 @@ class SettingsService:
     def values(self) -> dict[str, object]:
         """Every setting, as the wire reports it."""
         return {
-            "engine": self._store.get_setting("engine", "kokoro"),
+            "engine": self._environment.engine_name(),
             "voice": self.speaking_voice(),
             "speed": float(self._store.get_setting("speed", "1.0")),
             "playback_rate": self._environment.playback_rate(),
@@ -118,8 +130,14 @@ class SettingsService:
             "input_interrupt_enabled": self._plan_input_interrupt_enabled,
             "input_interrupt_resume": self._plan_input_interrupt_resume,
         }
+        # Validate a voice against the requested model, independent of JSON key order.
+        selected = updates.get("engine", self._environment.engine_name())
+        if not isinstance(selected, str):
+            raise ApiError(BAD_REQUEST, "engine must be a registered name")
+        catalog = self._environment.engine_voices(selected)
+        planners["voice"] = lambda value: self._plan_voice(value, catalog=catalog)
         planned: list[Callable[[], None]] = []
-        for key, value in updates.items():
+        for key, value in sorted(updates.items(), key=lambda item: item[0] != "engine"):
             planner = planners.get(key)
             if planner is None:
                 msg = f"unknown setting {key!r}"
@@ -129,9 +147,16 @@ class SettingsService:
             effect()
 
     def _plan_engine(self, value: object) -> Callable[[], None]:
-        if value not in ("kokoro", "kokoro-mlx"):
-            raise ApiError(BAD_REQUEST, "engine must be kokoro or kokoro-mlx")
-        return lambda: self._store.set_setting("engine", str(value))
+        if not isinstance(value, str):
+            raise ApiError(BAD_REQUEST, "engine must be a registered name")
+        self._environment.engine_voices(value)
+        return lambda: self._write_engine(value)
+
+    def _write_engine(self, name: str) -> None:
+        # The saved voice is kept even when this engine lacks it: speaking_voice()
+        # reports a speakable default, and switching back restores the user's choice.
+        self._store.set_setting("engine", name)
+        self._environment.select_engine(name)
 
     # -- individual reads, for callers that want one value ----------------
 
@@ -154,10 +179,11 @@ class SettingsService:
         return self._store.get_setting("input_interrupt_resume", "when_idle")
 
     def speaking_voice(self) -> str:
-        """Use the saved choice only when the active engine can synthesize it."""
-        default = self._environment.default_voice()
-        saved = self._store.get_setting("voice", default)
-        return saved if saved in self._environment.available_voices() else default
+        """Return the voice to speak with when a client names none."""
+        preferred = self._store.get_setting("voice", "")
+        if preferred in self._environment.available_voices():
+            return preferred
+        return self._environment.default_voice()
 
     def speaking_speed(self) -> float:
         """Return the speed to synthesize at when a client names none."""
@@ -165,8 +191,8 @@ class SettingsService:
 
     # -- one validator per setting ----------------------------------------
 
-    def _plan_voice(self, value: object) -> Callable[[], None]:
-        if value not in self._environment.available_voices():
+    def _plan_voice(self, value: object, *, catalog: list[str] | None = None) -> Callable[[], None]:
+        if value not in (catalog if catalog is not None else self._environment.available_voices()):
             msg = f"unknown voice {value!r}"
             raise ApiError(BAD_REQUEST, msg)
         return lambda: self._store.set_setting("voice", str(value))

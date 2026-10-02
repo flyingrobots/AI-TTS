@@ -23,6 +23,7 @@ from aitts.application.schemas import (
 )
 from aitts.client import DaemonError, DaemonUnreachableError
 from aitts.model import ContentFormat, Priority, Sensitivity, State
+from tests.strategies import scalar_text
 
 pytestmark = [
     pytest.mark.small,
@@ -67,7 +68,7 @@ def enqueue_response(sensitivity: Sensitivity = Sensitivity.CONFIDENTIAL) -> dic
 
 @settings(max_examples=50, derandomize=True, database=None)
 @given(
-    text=st.text(min_size=1, max_size=100).filter(lambda value: bool(value.strip())),
+    text=scalar_text(min_size=1, max_size=100).filter(lambda value: bool(value.strip())),
     content_format=st.sampled_from(list(ContentFormat)),
     speed=st.none() | st.floats(min_value=0.5, max_value=2.0, allow_nan=False),
     sensitivity=st.sampled_from(list(Sensitivity)),

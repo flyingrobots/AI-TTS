@@ -11,6 +11,43 @@ import XCTest
 final class SpeechDraftTests: XCTestCase {
     override func setUp() { super.setUp(); executionTimeAllowance = 15 }
 
+    func testModelCatalogPreservesBackendSpecificVoicesAndLocality() throws {
+        let snapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+            "status": ["playback_state": "idle", "engine": "kokoro", "voice": "bm_daniel"],
+            "engines": [
+                ["name": "kokoro", "is_local": true, "voices": ["bm_daniel"], "state": "ready"],
+                ["name": "openai-audio", "is_local": true, "voices": ["server-voice"], "state": "cold"],
+                ["name": "remote", "is_local": false, "voices": ["cloud-voice"], "state": "ready"],
+            ],
+        ]))
+        XCTAssertEqual(snapshot.engines, [
+            SpeechEngine(name: "kokoro", isLocal: true, voices: ["bm_daniel"], state: "ready"),
+            SpeechEngine(name: "openai-audio", isLocal: true, voices: ["server-voice"], state: "cold"),
+            SpeechEngine(name: "remote", isLocal: false, voices: ["cloud-voice"], state: "ready"),
+        ])
+        let server = try XCTUnwrap(snapshot.engines.first(where: { $0.name == "openai-audio" }))
+        var draft = SpeechDraft()
+        draft.voice = "bm_daniel"
+        draft.engine = "openai-audio"
+        draft.reconcileVoice(with: server.voices)
+        XCTAssertNil(draft.voice)
+        draft.voice = "server-voice"
+        draft.reconcileVoice(with: server.voices)
+        XCTAssertEqual(draft.voice, "server-voice")
+    }
+
+    func testModelMissingFromAReconnectedCatalogReturnsToTheDaemonDefault() throws {
+        var draft = SpeechDraft()
+        draft.text = "Speak with whatever the daemon offers."
+        draft.engine = "openai-audio"
+        draft.reconcileEngine(with: ["kokoro", "openai-audio"])
+        XCTAssertEqual(draft.engine, "openai-audio")
+        // The reconnected daemon no longer registers the server-backed model.
+        draft.reconcileEngine(with: ["kokoro"])
+        XCTAssertNil(draft.engine)
+        XCTAssertNil(try draft.submission().engine)
+    }
+
     func testEditedDraftAndChoicesReachDaemon() throws {
         var draft = SpeechDraft()
         draft.text = "Typed introduction."

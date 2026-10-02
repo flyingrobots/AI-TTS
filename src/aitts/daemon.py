@@ -31,6 +31,7 @@ from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
 from aitts.application.metrics import MetricsRecorder
 from aitts.engine import StreamingEngine, eligible_engine_names, engine_preparation
+from aitts.engines.registry import EngineRegistry
 from aitts.input_interrupt import DEFAULT_POLL_SECONDS, InputInterruptWatcher
 from aitts.ipc import (
     BAD_REQUEST,
@@ -59,8 +60,6 @@ from aitts.synthesis import SynthesisPool
 from aitts.voice_registry import VoiceRegistry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from aitts.application.input_activity import InputActivityPort
     from aitts.engine import Engine
     from aitts.playback import AudioSink
@@ -110,6 +109,7 @@ class Daemon:
         *,
         home: Path,
         engine: Engine,
+        engines: dict[str, Engine] | None = None,
         sink: AudioSink,
         workers: int = 2,
         socket_path: Path | None = None,
@@ -121,21 +121,24 @@ class Daemon:
         self._home = home
         self._state_lease = ExclusiveFileLease(home / "daemon.lock")
         self._started_at = time.monotonic()
-        self._model_state = "loading"
         self._warmup_finished = asyncio.Event()
         self._input_activity = (
             input_activity if input_activity is not None else platform_input_activity()
         )
         self._input_poll_seconds = input_poll_seconds
         self._metrics = MetricsRecorder()
-        self._engines: dict[str, Engine] = {"local": engine}
+        self._engines = dict(engines or {})
+        self._engines[engine.name] = engine
+        self._registry = EngineRegistry(self._engines)
         self._engine = engine
+        self._startup_engine = engine
         self._streams = (
             StreamingRegistry() if callable(getattr(sink, "start_stream", None)) else None
         )
         self._sink = sink
         self._workers = workers
         self._store = Store(home / "state.db")
+        self._store.bind_legacy_engine(engine.name)
         self._cache_dir = home / "cache"
         self._evidence = ClipEvidence(self._cache_dir)
         self._generated_storage = GeneratedStorage(self._cache_dir)
@@ -195,6 +198,9 @@ class Daemon:
                 self._engine,
                 FileAudioArtifacts(self._cache_dir),
                 workers=self._workers,
+                engines=self._engines,
+                prepare_engine=self._registry.prepare,
+                held_engines=self._engines_held_for_warmup,
                 evidence=self._evidence,
                 streams=self._streams,
             )
@@ -213,10 +219,13 @@ class Daemon:
             raise
 
     async def _run_synthesis(self) -> None:
-        """Keep user text queued while first-run assets and inference are prepared."""
-        await self._warmup_finished.wait()
+        """Run synthesis; startup warmup holds only its own engine's queued text."""
         if self._pool is not None:
             await self._pool.run()
+
+    def _engines_held_for_warmup(self) -> tuple[str, ...]:
+        """Keep the startup engine's text queued while its first-run assets prepare."""
+        return () if self._warmup_finished.is_set() else (self._startup_engine.name,)
 
     async def _supervise_playback(self) -> None:
         """Restart the critical playback loop if it exits unexpectedly."""
@@ -305,6 +314,7 @@ class Daemon:
         op = payload.get("op")
         handlers = {
             "submit": self._op_submit,
+            "engines": self._op_engines,
             "get": self._op_get,
             "list": self._op_list,
             "history": self._op_history,
@@ -384,13 +394,15 @@ class Daemon:
             ),
         }
 
-    def _validate_submission_engine(self, requested_engine: object) -> None:
-        """Reject explicit models that would silently use a different backend."""
-        if requested_engine is not None and requested_engine != self._engine.name:
+    def _submission_engine(self, requested: object, sensitivity: Sensitivity) -> Engine:
+        name = self._engine.name if requested is None else requested
+        if not isinstance(name, str) or name not in self._engines:
             raise ApiError(BAD_REQUEST, "selected model is not available in this daemon")
+        if name not in eligible_engine_names(self._engines, sensitivity):
+            raise ApiError(BAD_REQUEST, "private speech requires a local engine")
+        return self._engines[name]
 
-    async def _op_submit(self, payload: dict[str, Any]) -> dict[str, Any]:
-        self._validate_submission_engine(payload.get("engine"))
+    async def _op_submit(self, payload: dict[str, Any]) -> dict[str, Any]:  # noqa: C901 - one validated admission boundary
         text = payload.get("text")
         if not isinstance(text, str) or not text.strip():
             msg = "submit requires non-empty 'text'"
@@ -405,7 +417,16 @@ class Daemon:
             raise ApiError(BAD_REQUEST, "preempt must be a boolean")
         if preempt:
             priority = Priority.PREEMPT
-        speed = self._parse_speed(payload.get("speed")) or self._settings.speaking_speed()
+        engine = self._submission_engine(payload.get("engine"), sensitivity)
+        requested_speed = self._parse_speed(payload.get("speed"))
+        speed = requested_speed or self._settings.speaking_speed()
+        supported_speeds = getattr(engine, "supported_speeds", None)
+        if supported_speeds is not None and speed not in supported_speeds:
+            if requested_speed is not None:
+                msg = "this model requires generation speed 1; use playback rate"
+                raise ApiError(BAD_REQUEST, msg)
+            # The saved default belongs to other models; keep it for them.
+            speed = supported_speeds[0]
         content_format: ContentFormat | None
         if "content_format" not in payload:
             content_format = None
@@ -420,17 +441,18 @@ class Daemon:
             msg = "submit text contains no speakable content"
             raise ApiError(BAD_REQUEST, msg)
         source = payload.get("source")
-        voice = self._voices.resolve(
+        voice = self._voice_registry(engine).resolve(
             source=source if isinstance(source, str) else None,
             requested=payload.get("voice") or None,
         )
-        if voice not in self._engine.list_voices():
+        if voice not in engine.list_voices():
             msg = f"unknown voice {voice!r}"
             raise ApiError(BAD_REQUEST, msg)
         composite = spoken_segments != (text,)
         utt = self._store.submit(
             text,
             voice=str(voice),
+            engine=engine.name,
             speed=speed,
             sensitivity=sensitivity,
             priority=priority,
@@ -562,15 +584,14 @@ class Daemon:
         }
 
     async def _warm_model(self) -> None:
+        engine = self._startup_engine
         try:
-            await asyncio.to_thread(self._engine.warmup)
-            self._model_state = "ready"
+            await asyncio.to_thread(self._registry.prepare, engine.name)
         except Exception:  # noqa: BLE001 - readiness must report warmup failure
-            self._model_state = "failed"
             log.warning("event=model_warmup_failed")
         else:
             prepare_output = getattr(self._sink, "prepare_output", None)
-            if isinstance(self._engine, StreamingEngine) and callable(prepare_output):
+            if isinstance(engine, StreamingEngine) and callable(prepare_output):
                 try:
                     await asyncio.to_thread(prepare_output)
                 except Exception:  # noqa: BLE001 - device startup is independent of model readiness
@@ -579,21 +600,28 @@ class Daemon:
                     log.warning("event=audio_output_prepare_failed")
         finally:
             self._warmup_finished.set()
+            if self._pool is not None:
+                self._pool.notify()
 
     async def _op_restart_model(self, payload: dict[str, Any]) -> dict[str, Any]:
-        del payload
-        restart = getattr(self._engine, "restart", None)
-        if not callable(restart):
-            raise ApiError(BAD_REQUEST, "this engine does not support model reload")
+        # A failed engine other than the default must be reachable by name.
+        name = payload.get("engine", self._engine.name)
+        if not isinstance(name, str) or name not in self._engines:
+            raise ApiError(BAD_REQUEST, "engine must be a registered name; use ai-tts engines")
+        if (
+            not callable(getattr(self._engines[name], "restart", None))
+            and self._registry.state(name) != "failed"
+        ):
+            raise ApiError(BAD_REQUEST, "this engine must be restarted in its owning server")
         if (
             self._pool is None
             or self._pool.active_jobs
-            or self._model_state in {"loading", "reloading"}
+            or self._model_reload is not None
+            or self._registry.state(name) in {"loading", "reloading"}
         ):
             raise ApiError(ILLEGAL_STATE, "wait for active synthesis or model loading to finish")
         self._pool.enabled.clear()
-        self._model_state = "reloading"
-        worker = asyncio.create_task(self._reload_model(restart), name="aitts-model-reload")
+        worker = asyncio.create_task(self._reload_model(name), name="aitts-model-reload")
         self._model_reload = worker
         worker.add_done_callback(self._model_reload_finished)
         # The daemon owns restart and synthesis exclusion, not the waiting request.
@@ -605,12 +633,10 @@ class Daemon:
         if not worker.cancelled():
             worker.exception()  # Observe failures after the request stops awaiting.
 
-    async def _reload_model(self, restart: Callable[[], None]) -> dict[str, Any]:
+    async def _reload_model(self, name: str) -> dict[str, Any]:
         try:
-            await asyncio.to_thread(restart)
-            self._model_state = "ready"
+            await asyncio.to_thread(self._registry.restart, name)
         except Exception as exc:
-            self._model_state = "failed"
             log.warning("event=model_reload_failed")
             raise ApiError(INTERNAL, "model reload failed; view daemon logs") from exc
         else:
@@ -818,6 +844,7 @@ class Daemon:
             priority=priority,
             source=target.source,
             replay_of=target.id,
+            engine=target.engine,
             at_head=at_head,
             spoken_segments=tuple(segment.text for segment in source_segments) or None,
         )
@@ -1096,7 +1123,7 @@ class Daemon:
             "runtime": {
                 "pid": os.getpid(),
                 "uptime_seconds": time.monotonic() - self._started_at,
-                "model_state": self._model_state,
+                "model_state": self._reported_engine_state(self._engine.name),
                 "active_synthesis": self._pool.active_jobs if self._pool else 0,
             },
             "playback": [self._serialize_utterance(u) for u in playback],
@@ -1104,6 +1131,7 @@ class Daemon:
             "plan": [self._serialize_utterance(u) for u in plan],
             "history": history["items"],
             "voices": self._engine.list_voices(),
+            "engines": self._engine_catalog(),
             "voice_assignments": self._voices.assignments(),
             "settings": settings["settings"],
         }
@@ -1129,7 +1157,57 @@ class Daemon:
             )
         return {"ok": True, "settings": settings}
 
+    def _voice_registry(self, engine: Engine) -> VoiceRegistry:
+        return VoiceRegistry(
+            self._store,
+            engine,
+            default_voice=lambda: self._voice_for_engine(engine),
+            announce=self._announce,
+        )
+
+    def _voice_for_engine(self, engine: Engine) -> str:
+        voices = engine.list_voices()
+        preferred = self._store.get_setting("voice", "")
+        return preferred if preferred in voices else (voices[0] if voices else "")
+
+    def _reported_engine_state(self, name: str) -> str:
+        state = self._registry.state(name)
+        if state == "ready" and getattr(self._engines[name], "externally_managed", False):
+            return "server managed"
+        return state
+
+    def _engine_catalog(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "name": name,
+                "is_local": engine.is_local,
+                "voices": engine.list_voices(),
+                "state": self._reported_engine_state(name),
+                "selected": name == self._engine.name,
+            }
+            for name, engine in self._engines.items()
+        ]
+
+    async def _op_engines(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        return {"ok": True, "engines": self._engine_catalog()}
+
     # -- what a settings write may reach (see aitts.settings) ----------------
+
+    def engine_name(self) -> str:
+        """Return the live default used for the next submitted clip."""
+        return self._engine.name
+
+    def engine_voices(self, name: str) -> list[str]:
+        """Validate a registered backend and enumerate its voices."""
+        if name not in self._engines:
+            raise ApiError(BAD_REQUEST, "engine must be a registered name; use ai-tts engines")
+        return self._engines[name].list_voices()
+
+    def select_engine(self, name: str) -> None:
+        """Switch future admissions without unloading or rerouting existing work."""
+        self._engine = self._engines[name]
+        self._voices = self._voice_registry(self._engine)
 
     def available_voices(self) -> list[str]:
         """Voices the configured engine accepts."""

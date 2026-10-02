@@ -17,10 +17,11 @@ import logging
 from typing import TYPE_CHECKING
 
 from aitts.adapters.diagnostic_logging import utterance_trace
-from aitts.engine import StreamingEngine
+from aitts.engine import StreamingEngine, SynthesisError, eligible_engine_names
 from aitts.streaming import SpoolingPCMStream, StreamingRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Mapping
     from pathlib import Path
 
     from aitts.adapters.clip_evidence import ClipEvidence
@@ -44,14 +45,24 @@ class SynthesisPool:
         workers: int = 2,
         evidence: ClipEvidence | None = None,
         streams: StreamingRegistry | None = None,
+        engines: Mapping[str, Engine] | None = None,
+        prepare_engine: Callable[[str], None] | None = None,
+        held_engines: Callable[[], Collection[str]] | None = None,
     ) -> None:
-        """Create a pool of ``workers`` synthesis workers over ``engine``."""
+        """Create a pool of ``workers`` synthesis workers over ``engine``.
+
+        ``held_engines`` names backends whose queued work must not be claimed
+        yet, so one model's preparation never holds another model's clips.
+        """
+        self._held_engines = held_engines
         self._streams = streams
         self._loop: asyncio.AbstractEventLoop | None = None
         self._running = False
         self._evidence = evidence
         self._store = store
         self._engine = engine
+        self._engines = dict(engines) if engines is not None else {engine.name: engine}
+        self._prepare_engine = prepare_engine
         self._artifacts = artifacts
         self._workers = max(1, workers)
         self.active_jobs = 0
@@ -85,7 +96,10 @@ class SynthesisPool:
     async def _worker(self) -> None:
         while True:
             await self.enabled.wait()
-            claimed = self._store.claim_for_synthesis()
+            claimed = self._store.claim_for_synthesis(
+                held_engines=self._held_engines() if self._held_engines is not None else (),
+                unbound_engine=self._engine.name,
+            )
             if claimed is None:
                 self.parks += 1
                 self._wake.clear()
@@ -126,14 +140,13 @@ class SynthesisPool:
         if self._running:
             self._store.start_streaming(work)
 
-    def _render_stream(self, work: SynthesisWork, out_path: Path) -> int:
+    def _render_stream(self, work: SynthesisWork, out_path: Path, engine: StreamingEngine) -> int:
         assert self._streams is not None  # noqa: S101 - streaming admission checked
         assert self._loop is not None  # noqa: S101 - worker started by run
-        assert isinstance(self._engine, StreamingEngine)  # noqa: S101
         source = SpoolingPCMStream(out_path)
         self._streams.add(work.id, source)
         first = True
-        for pcm in self._engine.stream_synthesize(work.text, work.voice, work.speed):
+        for pcm in engine.stream_synthesize(work.text, work.voice, work.speed):
             if not pcm:
                 continue
             source.append(pcm)
@@ -146,20 +159,27 @@ class SynthesisPool:
         return source.seal()
 
     def _render(self, work: SynthesisWork, out_path: Path) -> int:
+        name = work.engine or self._engine.name
         if self._evidence is not None:
-            self._evidence.prepare(work, self._engine.name)
+            self._evidence.prepare(work, name)
         try:
+            if name not in eligible_engine_names(self._engines, work.sensitivity):
+                msg = f"engine {name!r} is unavailable or disallowed for this clip's sensitivity"
+                raise SynthesisError(msg)  # noqa: TRY301 - capture the rejection with this clip
+            engine = self._engines[name]
+            if self._prepare_engine is not None:
+                self._prepare_engine(name)
             duration = (
-                self._render_stream(work, out_path)
-                if self._streams is not None and isinstance(self._engine, StreamingEngine)
-                else self._engine.synthesize(work.text, work.voice, work.speed, out_path)
+                self._render_stream(work, out_path, engine)
+                if self._streams is not None and isinstance(engine, StreamingEngine)
+                else engine.synthesize(work.text, work.voice, work.speed, out_path)
             )
         except Exception as exc:
             if self._evidence is not None:
                 self._evidence.record(work.id, "synthesis", "failed", error=str(exc))
             raise
         if self._evidence is not None:
-            provenance = getattr(self._engine, "evidence", None)
+            provenance = getattr(engine, "evidence", None)
             try:
                 metadata = (
                     provenance(work.voice)

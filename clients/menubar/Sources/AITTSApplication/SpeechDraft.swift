@@ -34,6 +34,16 @@ public struct SpeechDraft: Equatable, Sendable {
         if format == .markdown { contentFormat = .markdown }
     }
 
+    /// Changing models releases a voice the new model cannot speak.
+    public mutating func reconcileVoice(with catalog: [String]) {
+        if let voice, !catalog.contains(voice) { self.voice = nil }
+    }
+
+    /// A model the running daemon no longer offers returns to the daemon default.
+    public mutating func reconcileEngine(with catalog: [String]) {
+        if let engine, !catalog.contains(engine) { self.engine = nil }
+    }
+
     public func submission() throws -> SpeechSubmission {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SpeechDraftError.empty

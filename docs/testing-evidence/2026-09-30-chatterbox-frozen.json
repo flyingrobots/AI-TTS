@@ -1,0 +1,29 @@
+{
+  "warmup_seconds": 33.046195500006434,
+  "synthesis_seconds": 1.771878125029616,
+  "sample_rate": 24000,
+  "shape": [
+    68160
+  ],
+  "finite": true,
+  "nonzero": 68160,
+  "duration_ms": 2840,
+  "peak": 0.2539602220058441,
+  "network_attempts": [],
+  "torch": "2.13.0",
+  "model_revision": "749d1c1a46eb10492095d68fbcf55691ccf137cd",
+  "python": "3.12.14",
+  "dependencies": {
+    "chatterbox-tts": "0.1.6",
+    "resemble-perth": "1.1.0",
+    "torch": "2.13.0",
+    "torchaudio": "2.11.0",
+    "transformers": "5.16.1",
+    "diffusers": "0.40.0",
+    "numpy": "2.5.2",
+    "soundfile": "0.14.0"
+  },
+  "audio_sha256": "ff02fa8e4d6d0f07436fcbec13ef1344fa2e2ff579935eff30cf131139b86695",
+  "lock_sha256": "7ebb45b771cbc45add97a7eacfff4985d03b3968e6b40ddc01f4a8194e3832f9",
+  "acceptance": "manual large offline inference, non-gating; no audio played"
+}

@@ -34,7 +34,7 @@ EXIT_DAEMON_ERROR = 1
 EXIT_UNREACHABLE = 2
 EXIT_NOT_PLAYED = 3
 
-_TRANSPORT_OPS = ("pause", "resume", "skip", "status", "voices", "metrics")
+_TRANSPORT_OPS = ("pause", "resume", "skip", "status", "voices", "metrics", "engines")
 
 
 def _emit(payload: dict[str, Any]) -> None:
@@ -65,6 +65,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="interpret input as literal plain text or Markdown (default: plain_text)",
     )
     say.add_argument("--voice")
+    say.add_argument("--engine", help="backend for this clip; defaults to the live setting")
     say.add_argument("--speed", type=float)
     say.add_argument(
         "--sensitivity",
@@ -141,12 +142,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="forget the assignment, so the client claims a voice again",
     )
 
-    settings = sub.add_parser("settings", help="read or change settings")
-    settings.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="updates")
+    _settings_parser(sub.add_parser("settings", help="read or change settings"))
 
     daemon = sub.add_parser("daemon", help="run the daemon in the foreground")
     daemon.add_argument("--home", type=Path, default=None)
-    daemon.add_argument("--engine", choices=["kokoro", "kokoro-mlx", "fake"], default=None)
+    daemon.add_argument(
+        "--engine",
+        choices=["kokoro", "kokoro-mlx", "openai-audio", "chatterbox", "fake"],
+        default=None,
+    )
     daemon.add_argument("--workers", type=int, default=2)
     daemon.add_argument(
         "--log-file",
@@ -158,6 +162,15 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _settings_parser(settings: argparse.ArgumentParser) -> None:
+    """Describe the compatible flag and positional settings forms."""
+    settings.add_argument("action", nargs="?", choices=["set"])
+    settings.add_argument("key", nargs="?")
+    settings.add_argument("value", nargs="?")
+    settings.add_argument("--engine", help="change the backend for the next clip")
+    settings.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="updates")
+
+
 def _say_payload(args: argparse.Namespace) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "op": "submit",
@@ -167,7 +180,7 @@ def _say_payload(args: argparse.Namespace) -> dict[str, Any]:
     }
     if args.preempt:
         payload["preempt"] = True
-    for key in ("voice", "speed", "sensitivity", "priority", "source"):
+    for key in ("voice", "engine", "speed", "sensitivity", "priority", "source"):
         value = getattr(args, key)
         if value is not None:
             payload[key] = value
@@ -195,7 +208,15 @@ def _assign_voice_payload(args: argparse.Namespace) -> dict[str, Any]:
 
 def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
     updates: dict[str, Any] = {}
-    for pair in args.updates:
+    pairs = list(args.updates)
+    if args.action is not None:
+        if args.key is None or args.value is None:
+            msg = "settings set requires KEY VALUE"
+            raise SystemExit(msg)
+        pairs.append(f"{args.key}={args.value}")
+    if args.engine is not None:
+        pairs.append(f"engine={args.engine}")
+    for pair in pairs:
         key, sep, value = pair.partition("=")
         if not sep:
             msg = f"--set expects KEY=VALUE, got {pair!r}"
@@ -282,15 +303,16 @@ def _run_daemon(args: argparse.Namespace) -> int:
     from aitts.playback import SoundDeviceSink  # noqa: PLC0415
 
     home = args.home or default_home()
-    from aitts.engines.selection import configured_engine  # noqa: PLC0415
+    from aitts.engines.selection import configured_engines  # noqa: PLC0415
 
-    engine = configured_engine(home, override=args.engine)
+    engine, engines = configured_engines(home, override=args.engine)
     terminator = ImmediateProcessTerminator()
 
     async def serve() -> None:
         daemon = Daemon(
             home=home,
             engine=engine,
+            engines=engines,
             sink=SoundDeviceSink(),
             workers=args.workers,
             socket_path=args.socket,
