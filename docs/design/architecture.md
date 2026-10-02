@@ -416,6 +416,7 @@ limit does not poison the connection, so a corrected next request can proceed. D
 
 // subscribe — the fix for F1 and F2, plus settings invalidation
 → {"op":"subscribe"}
+← {"event":"state_changed", "id":"utt_...", "from":null, "to":"Queued"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Synthesizing", "to":"Ready"}
 ← {"event":"state_changed", "id":"utt_...", "from":"Playing", "to":"Played"}
 ← {"event":"settings_changed", "settings":{"captions_enabled":true}}
@@ -426,6 +427,8 @@ limit does not poison the connection, so a corrected next request can proceed. D
 ← {"ok":true, "subscribed":true}
 ← {"event":"playback_progress", "id":"utt_...", "playback_held":false, "position_ms":400, "audio_peak":0.25}
 ```
+
+Admission publishes `state_changed` with `from` null and `to` `Queued`, for a submission and for a history replay. Without it, a clip queued behind busy workers or startup warmup stays invisible to subscribers until a worker claims it.
 
 `playback_progress` is optional and defaults off. Opted-in subscribers receive
 samples at approximately 10 Hz. `id` and `position_ms` can be null when idle;

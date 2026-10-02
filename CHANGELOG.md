@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `ai-tts tui` provides an optional Textual dashboard with live progress and measured output level, chunk controls, Vim-style queue editing, and one-key history replay. It reconnects to the daemon and can close without stopping speech.
 
+- Subscribers now receive `state_changed` with `from: null` and `to: "Queued"` when a submission or history replay is admitted. Work queued behind busy workers now appears right away.
+
 - Optional pre-speech chime, once per document, and default-on other-app ducking while the menu-bar app is running. Settings and CLI save both preferences. macOS system-audio routing lowers other apps to 30%, restores them when speech pauses or ends, and keeps AI-TTS volume unchanged.
 
 - Speak… replaces the menu’s immediate Read actions with an editable composer, voice and active-model choice, text/Markdown interpretation, and text/Markdown/PDF attachment. Clipboard and selection imports append to the draft; submission errors preserve it.

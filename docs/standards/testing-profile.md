@@ -827,3 +827,5 @@ callbacks feed the opt-in dBFS meter. See the
 [terminal receipt](../testing-evidence/2026-09-30-terminal-dashboard.md) for
 falsification, rendered previews, suite costs and the expanded dependency audit.
 Acoustic level calibration and every terminal emulator/size remain outside CI.
+
+The terminal dashboard's review round adds regression tests at the daemon socket. They cover the admission event for work queued behind a busy worker. Parent SHAs and red output are in the receipt's review-round table.
