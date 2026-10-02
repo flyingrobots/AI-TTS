@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, settle, start
+from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, settle
 
 from aitts.model import Priority, State, Utterance
 from aitts.playback import FakeSink, PlaybackController
@@ -111,30 +111,43 @@ async def session(root: Path, backlog: int = 0) -> AsyncIterator[Session]:
     """Start on document chunk two, with independently prepared pending backlog."""
     probe = DatabaseProbe()
     store = Store(root / "state.db", connect=probe.connect)
-    sink = FakeSink()
-    schedule = DeterministicPlaybackSchedule()
-    document = make_composite_ready(store, "Original source", ("First chunk", "Second chunk"))
-    for index in range(backlog):
-        queued = store.submit(f"Pending source {index}", voice="v", speed=1.0)
-        store.transition(queued.id, State.SYNTHESIZING)
-        store.transition(
-            queued.id, State.READY, audio_path=f"/owned/{queued.id}.wav", duration_ms=1000
-        )
-    controller = PlaybackController(store, sink, schedule)
-    task = await start(controller, schedule)
-    instance = Session(store, sink, controller, schedule, document, probe, task)
     try:
-        sink.finish_current()
-        await schedule.wait_for_idle_after(schedule.idle_cycles)
-        sink.advance_to(375)
-        instance.expect(document, 0, 1)
-        yield instance
+        sink = FakeSink()
+        schedule = DeterministicPlaybackSchedule()
+        document = make_composite_ready(store, "Original source", ("First chunk", "Second chunk"))
+        for index in range(backlog):
+            queued = store.submit(f"Pending source {index}", voice="v", speed=1.0)
+            store.transition(queued.id, State.SYNTHESIZING)
+            store.transition(
+                queued.id, State.READY, audio_path=f"/owned/{queued.id}.wav", duration_ms=1000
+            )
+        controller = PlaybackController(store, sink, schedule)
+        async with running(controller, schedule) as task:
+            instance = Session(store, sink, controller, schedule, document, probe, task)
+            sink.finish_current()
+            await schedule.wait_for_idle_after(schedule.idle_cycles)
+            sink.advance_to(375)
+            instance.expect(document, 0, 1)
+            yield instance
+    finally:
+        store.close()
+
+
+@contextlib.asynccontextmanager
+async def running(
+    controller: PlaybackController, schedule: DeterministicPlaybackSchedule
+) -> AsyncIterator[asyncio.Task[None]]:
+    """Own the controller task from creation, so a failed start still stops and awaits it."""
+    idle_before = schedule.idle_cycles
+    task = asyncio.create_task(controller.run())
+    try:
+        await schedule.wait_for_idle_after(idle_before)
+        yield task
     finally:
         await controller.shutdown()
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
-        store.close()
 
 
 async def takeover(run: Session, name: str) -> Utterance:

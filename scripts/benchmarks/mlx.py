@@ -27,6 +27,18 @@ TEXT = "This is a controlled streaming speech latency test."
 VOICE = "bm_daniel"
 
 
+def provenance(root: Path) -> dict[str, Any]:
+    """Identify the measured adapter boundary, its source and the benchmark harness."""
+    return identity(
+        root,
+        sources=("src/aitts/engines/kokoro_mlx.py", "src/aitts/engines/kokoro.py"),
+        boundary=(
+            "KokoroMlxEngine.synthesize() and KokoroMlxEngine.stream_synthesize() in one "
+            "resident process; offline cached assets; no speaker"
+        ),
+    )
+
+
 def measure_inference(
     engine: KokoroMlxEngine,
     iterations: int,
@@ -103,7 +115,7 @@ def main() -> int:
         "size": "large",
         "change_kind": "feature",
         "oracle": "real adapter produces nonempty mono 24kHz WAV and PCM; no network or speakers",
-        "environment": identity(root),
+        "environment": provenance(root),
         "text": TEXT,
         "voice": VOICE,
         "speed": 1.0,

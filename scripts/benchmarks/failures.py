@@ -3,18 +3,16 @@
 
 """Deterministic durability faults and recovery observations at owned boundaries."""
 
-import asyncio
-import contextlib
 import sqlite3
 import time
 from pathlib import Path
 
-from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, settle, start
+from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, settle
 
 from aitts.model import State
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
-from scripts.benchmarks.cases import require, session, takeover
+from scripts.benchmarks.cases import require, running, session, takeover
 
 
 class CommitFault(sqlite3.Connection):
@@ -80,41 +78,37 @@ async def recovery(root: Path) -> dict[str, float]:
         with sqlite3.connect(root / "state.db") as source, sqlite3.connect(image) as target:
             source.backup(target)
     store = Store(image)
-    sink = FakeSink()
-    schedule = DeterministicPlaybackSchedule()
-    began = time.perf_counter_ns()
-    store.recover()
-    controller = PlaybackController(store, sink, schedule, held=True)
-    task = await start(controller, schedule)
     try:
-        require(not sink.started, "recovery must remain silent until user resumes")
-        require(controller.current_id == inner.id, "recover highest ranked active alert")
-        await controller.resume()
-        await settle(controller, schedule)
-        await controller.skip()
-        await settle(controller, schedule)
-        require(controller.current_id == alert.id, "recover intermediate alert before document")
-        require(
-            sink.start_positions[-1] == 125,  # noqa: PLR2004 - oracle offset
-            "recover saved alert offset",
-        )
-        await controller.skip()
-        await settle(controller, schedule)
-        require(controller.current_id == document.id, "recover interrupted document")
-        require(
-            sink.start_positions[-1] == 375,  # noqa: PLR2004 - oracle offset
-            "recover saved document offset",
-        )
-        child = controller.current_segment
-        require(child is not None and child.index == 1, "recover document child two")
-        require(sink.overlaps == 0, "recovery never overlaps device owners")
-        return {
-            "recovery.wall_ms": (time.perf_counter_ns() - began) / 1_000_000,
-            "recovery.witnesses": 8,
-        }
+        sink = FakeSink()
+        schedule = DeterministicPlaybackSchedule()
+        began = time.perf_counter_ns()
+        store.recover()
+        controller = PlaybackController(store, sink, schedule, held=True)
+        async with running(controller, schedule):
+            require(not sink.started, "recovery must remain silent until user resumes")
+            require(controller.current_id == inner.id, "recover highest ranked active alert")
+            await controller.resume()
+            await settle(controller, schedule)
+            await controller.skip()
+            await settle(controller, schedule)
+            require(controller.current_id == alert.id, "recover intermediate alert before document")
+            require(
+                sink.start_positions[-1] == 125,  # noqa: PLR2004 - oracle offset
+                "recover saved alert offset",
+            )
+            await controller.skip()
+            await settle(controller, schedule)
+            require(controller.current_id == document.id, "recover interrupted document")
+            require(
+                sink.start_positions[-1] == 375,  # noqa: PLR2004 - oracle offset
+                "recover saved document offset",
+            )
+            child = controller.current_segment
+            require(child is not None and child.index == 1, "recover document child two")
+            require(sink.overlaps == 0, "recovery never overlaps device owners")
+            return {
+                "recovery.wall_ms": (time.perf_counter_ns() - began) / 1_000_000,
+                "recovery.witnesses": 8,
+            }
     finally:
-        await controller.shutdown()
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
         store.close()
