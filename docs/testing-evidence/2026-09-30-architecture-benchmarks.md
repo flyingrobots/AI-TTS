@@ -102,3 +102,16 @@ FAILED tests/test_benchmark_reference.py::test_inherited_git_environment_cannot_
 ```
 
 Both now drop inherited `GIT_*` variables before invoking git. All five reference tests pass, including a run with `GIT_DIR`/`GIT_WORK_TREE` pointed at a nonexistent path, and the real `0290f3c` checkout is still accepted.
+
+Change-kind: bug fix to the benchmark instrument (CodeRabbit thread on `scripts/benchmarks/cases.py`). `session` and the recovery journey in `failures.py` called the shared `start` helper outside their cleanup boundary. `start` creates the controller task before awaiting the first idle boundary, so a failed start left the controller task pending and the Store open. The new `tests/test_benchmark_cleanup.py` (medium; oracle: no pending controller task and every opened Store closed) injects a schedule whose first idle wait raises. On parent `acd8088` it failed for both paths:
+
+```text
+>       assert leaked_tasks() == []
+E         Left contains 2 more items, first extra item: <Task pending name='Task-3' coro=<PlaybackController._watch() ...>>
+>       assert leaked_tasks() == []
+E         Left contains one more item: <Task pending name='Task-12' coro=<PlaybackController.run() ...>>
+FAILED tests/test_benchmark_cleanup.py::test_session_startup_failure_releases_controller_and_store
+FAILED tests/test_benchmark_cleanup.py::test_recovery_startup_failure_releases_controller_and_store
+```
+
+Both paths now open their Store inside `try/finally` and start the controller through `cases.running`, which owns the task from creation and always shuts it down, cancels it and awaits it. The shared `tests/test_playback.start` helper on main is unchanged. The measured operations and their timing boundaries are unchanged, and all 21 medium benchmark tests pass.
