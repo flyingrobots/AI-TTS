@@ -267,6 +267,8 @@ def install_application(
                 "--no-emit-project",
                 "--extra",
                 "kokoro",
+                "--extra",
+                "tui",
                 "--output-file",
                 str(constraints),
             ],
@@ -293,7 +295,8 @@ def install_application(
                 "kokoro>=0.9.4",
                 "--with",
                 SPACY_MODEL,
-                str(repository),
+                # The terminal dashboard ships with the CLI; `ai-tts tui` needs Textual.
+                f"{repository}[tui]",
             ],
             check=True,
         )
