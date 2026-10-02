@@ -467,3 +467,49 @@ async def test_model_preparation_failure_is_captured_in_the_clips_own_log(tmp_pa
         with contextlib.suppress(asyncio.CancelledError):
             await task
         store.close()
+
+
+async def test_startup_warmup_holds_only_its_own_engines_clips(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    import threading  # noqa: PLC0415
+
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    started, release = threading.Event(), threading.Event()
+
+    class WedgedWarmupEngine(NamedEngine):
+        def warmup(self) -> None:
+            started.set()
+            if not release.wait(5):
+                msg = "test did not release warmup"
+                raise TimeoutError(msg)
+            super().warmup()
+
+    startup, other = WedgedWarmupEngine("startup"), NamedEngine("other")
+    daemon = Daemon(
+        home=tmp_path,
+        engine=startup,
+        engines={"other": other},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        await daemon.dispatch({"op": "pause"})
+        held = await daemon.dispatch({"op": "submit", "text": "startup source"})
+        routed = await daemon.dispatch({"op": "submit", "text": "other source", "engine": "other"})
+        # The other backend prepares on its own while the startup model is still loading.
+        await wait_for(lambda: clip(daemon.store, routed["id"]).state is State.READY)
+        assert other.sources == ["other source"]
+        assert clip(daemon.store, held["id"]).state is State.QUEUED
+        assert startup.sources == []
+        release.set()
+        await wait_for(lambda: clip(daemon.store, held["id"]).state is State.READY)
+        assert startup.sources == ["startup source"]
+    finally:
+        release.set()
+        await daemon.stop()

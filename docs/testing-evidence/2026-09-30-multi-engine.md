@@ -223,3 +223,9 @@ macOS 14 zero/two-argument forms with the same reconciliation behavior.
 The original compiler failure is the red witness; no artificial source-text
 assertion was added.
 The corrected integrated stack passed all 142 Swift tests with warnings as errors.
+
+## Code Lawyer review round (October 1)
+
+Merge `518fb9f` brought in main `3aa9cec`: #34's final streaming version, plus #56, #57, #64, #48 and #55. Each fix below is a bug fix with a regression test observed red on its parent.
+
+Startup warmup holds only its own engine (`Change-kind: bug fix`, review thread `PRRT_kwDOUHyfMM6njsQp`). Before this fix, `_run_synthesis` did not start the pool until the startup engine's warmup finished, so a clip routed to another registered engine stayed Queued behind an unrelated model load. The medium `test_startup_warmup_holds_only_its_own_engines_clips` wedges the startup engine's warmup and submits a clip for a second engine. It was red on parent `518fb9f`: `AssertionError: condition not met before timeout` while waiting for the second engine's clip to become Ready. The pool now starts immediately, and the claim query skips only the startup engine's work until its warmup ends. The existing `test_daemon_keeps_source_queued_until_warmup_finishes` still passes unchanged, so the startup engine's text still stays Queued until its preparation finishes. Oracle: the PR's contract of independent per-engine preparation.
