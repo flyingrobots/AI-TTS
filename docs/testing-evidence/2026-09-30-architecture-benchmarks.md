@@ -148,3 +148,18 @@ reports **zero regressions across 26 coarse timing signals**.
 raw observations, source identities, the three original failures and validation
 receipts separately from earlier measurements. No Swift source changed during
 this follow-up. The original baseline tag remains unchanged.
+
+## Code Lawyer review fixes
+
+Change-kind: bug fix to the benchmark instrument. Runtime behavior is unchanged.
+
+The paired comparator's reference cleanliness check ran `git diff HEAD -- src`, which ignores untracked files. An untracked module under the reference `src/` is importable but was accepted, which contradicts the report's statement that the comparator rejects a locally modified reference. On parent `baba76b`, with the check first extracted unchanged into `reference_is_clean`, the new boundary test `tests/test_benchmark_reference.py` (medium; oracle: exact commit and no tracked or untracked `src` edits) failed only for the untracked case:
+
+```text
+...F                                                                     [100%]
+FAILED tests/test_benchmark_reference.py::test_untracked_source_module_is_rejected
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+```
+
+The check now uses `git status --porcelain --untracked-files=all -- src`, which still honors the reference's own `.gitignore` (so `__pycache__` written by earlier runs does not count). All four cases pass: a clean pin is accepted, and another commit, a tracked edit, and an untracked module are rejected. A real detached checkout of `0290f3c` is still accepted.

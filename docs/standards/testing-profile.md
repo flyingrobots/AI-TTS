@@ -868,3 +868,5 @@ named public behavior is intentionally removed; changing internal class layout
 alone is not a reason to change the oracle. Hardware callback, multi-hour
 microphone holds, real power loss, and evidence-directory growth are explicit
 blind spots, not claims inferred from this suite.
+
+PR #47 review (bug fix to the benchmark instrument): the comparator's pinned-reference check ignored untracked files under `src/`. `tests/test_benchmark_reference.py` (medium; it owns a scratch git repository) was observed red on parent `baba76b` for the untracked case only, and it passes after the check moved to `git status --porcelain --untracked-files=all`. The [receipt](../testing-evidence/2026-09-30-architecture-benchmarks.md#code-lawyer-review-fixes) retains the red output.
