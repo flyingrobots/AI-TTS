@@ -360,14 +360,30 @@ def test_uninstall_removes_both_agents_and_preserves_the_app(
 def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
     tmp_path: Path, install_environment: dict[str, str]
 ) -> None:
-    """Oracle: Kokoro's supported Transformers 4 API avoids the obsolete Rust build."""
+    """Oracle: the locked constraints deliver a modern tokenizer, avoiding the obsolete Rust build.
+
+    Unconstrained, uv resolved transformers 4.12.2 / tokenizers 0.10.3, whose
+    source build failed. A separate `--with` range can contradict uv.lock.
+    """
     result = run_installation(tmp_path, install_environment)
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     extras = [
         arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
     ]
-    assert "transformers>=4.46,<5" in extras
+    assert not [extra for extra in extras if extra.startswith(("transformers", "tokenizers"))]
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+
+    def release(name: str) -> tuple[int, int]:
+        major, minor = pins[name].split(".")[:2]
+        return int(major), int(minor)
+
+    assert release("transformers") >= (4, 46)
+    assert release("tokenizers") > (0, 10)
 
 
 def test_install_resolves_the_daemon_environment_to_the_locked_versions(

@@ -245,8 +245,6 @@ def install_application(
                 "kokoro>=0.9.4",
                 "--with",
                 SPACY_MODEL,
-                "--with",
-                "transformers>=4.46,<5",
                 str(repository),
             ],
             check=True,
