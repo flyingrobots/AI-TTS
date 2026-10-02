@@ -149,6 +149,8 @@ raw observations, source identities, the three original failures and validation
 receipts separately from earlier measurements. No Swift source changed during
 this follow-up. The original baseline tag remains unchanged.
 
+Retained-evidence caveat: [`streaming-review/boundaries.json`](../benchmarks/2026-09-30/streaming-review/boundaries.json) records five boundary heads (`7558eef`, `2abae3e`, `a33ce35`, `e5d06e0`, `9f0b45b`) with their checks and durations, but no per-boundary pytest summaries. The six-boundary statement, the 771-test streaming count and the 17.20-second wall clock above are therefore not backed by retained artifacts. The 913-test count (313 small, 600 medium) was re-observed at `baba76b` during the PR #47 review. [`integration-refresh/boundaries.json`](../benchmarks/2026-09-30/integration-refresh/boundaries.json) does retain six boundaries with summaries.
+
 ## Code Lawyer review fixes
 
 Change-kind: bug fix to the benchmark instrument. Runtime behavior is unchanged.

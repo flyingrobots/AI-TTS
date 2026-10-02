@@ -816,3 +816,5 @@ reports **zero regressions across 26 coarse timing signals**.
 raw observations, source identities, the three original failures and validation
 receipts separately from earlier measurements. No Swift source changed during
 this follow-up. The original baseline tag remains unchanged.
+
+The retained [`streaming-review/boundaries.json`](../benchmarks/2026-09-30/streaming-review/boundaries.json) records five boundary heads and no per-boundary pytest summaries. The six-boundary statement, the 771-test count and the 17.20-second wall clock above therefore lack retained evidence. The 913-test count (313 small, 600 medium) was re-observed at `baba76b` during the PR #47 review.
