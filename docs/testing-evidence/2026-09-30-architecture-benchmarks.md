@@ -115,3 +115,18 @@ FAILED tests/test_benchmark_cleanup.py::test_recovery_startup_failure_releases_c
 ```
 
 Both paths now open their Store inside `try/finally` and start the controller through `cases.running`, which owns the task from creation and always shuts it down, cancels it and awaits it. The shared `tests/test_playback.start` helper on main is unchanged. The measured operations and their timing boundaries are unchanged, and all 21 medium benchmark tests pass.
+
+Change-kind: bug fix to benchmark provenance (two CodeRabbit threads, on `scripts/benchmarks/run.py` and `scripts/benchmarks/mlx.py`). `identity()` recorded only three controller source hashes and a fixed controller boundary. In a paired run, the child always imports `scripts/benchmarks/*` and `tests/test_playback.py` from the candidate checkout; `--source-root` selects only `aitts`. A changed harness could therefore alter both arms without any recorded identity change. The MLX report reused the same identity, so it named a PlaybackController/Store/FakeSink boundary it never measured, and it did not fingerprint `KokoroMlxEngine`. The new `tests/test_benchmark_identity.py` (small; oracle: measured boundary named; measured source and imported harness hashed) was red on parent `f70bcf1`, with the MLX identity first extracted unchanged into `mlx.provenance`:
+
+```text
+>       harness = run.identity(ROOT)["harness_sha256"]
+E       KeyError: 'harness_sha256'
+>       assert "KokoroMlxEngine" in environment["boundary"]
+E       AssertionError: assert 'KokoroMlxEngine' in 'real PlaybackController + real Store + contract FakeSink; no model or speaker'
+FAILED tests/test_benchmark_identity.py::test_controller_report_fingerprints_the_imported_harness
+FAILED tests/test_benchmark_identity.py::test_mlx_report_names_and_fingerprints_the_adapter_boundary
+```
+
+Every report now records `harness_root` and `harness_sha256` for all benchmark modules and `tests/test_playback.py`. The MLX report names the `KokoroMlxEngine.synthesize()`/`stream_synthesize()` boundary and hashes `src/aitts/engines/kokoro_mlx.py` and `kokoro.py`. A fake-backed smoke run of `scripts.benchmarks.run` emits the new fields.
+
+Retained-evidence caveat: the 2026-09-30 JSON artifacts predate these fields. They carry no `harness_sha256`, and `mlx.json`'s embedded `environment.boundary` still reads as the controller boundary, although that run measured `KokoroMlxEngine`. For those runs, the manifest's archive-time harness hashes and `mlx.json`'s model/voice evidence remain the provenance. The artifacts themselves are left unchanged.
