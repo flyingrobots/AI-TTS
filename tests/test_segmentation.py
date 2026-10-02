@@ -8,6 +8,8 @@ from __future__ import annotations
 import re
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from aitts.model import ContentFormat
 from aitts.segmentation import prepare_speech_segments, segment_text
@@ -15,7 +17,7 @@ from aitts.segmentation import prepare_speech_segments, segment_text
 pytestmark = [
     pytest.mark.small,
     pytest.mark.oracle(
-        "approved composite-document contract in docs/design/architecture.md section 8"
+        "composite-document contract in architecture section 8 and README paragraph navigation"
     ),
 ]
 
@@ -170,3 +172,75 @@ def test_multiline_loose_emphasis_is_removed_after_front_matter() -> None:
 @pytest.mark.oracle("loose prose emphasis accepts adjacent punctuation without introducing a gap")
 def test_loose_emphasis_ends_at_punctuation(text: str) -> None:
     assert prepare_speech_segments(text, content_format=ContentFormat.MARKDOWN) == ("spaced.",)
+
+
+@pytest.mark.parametrize("sizes", [(50, 50), (34, 33, 33)])
+@pytest.mark.parametrize("content_format", [ContentFormat.PLAIN_TEXT, ContentFormat.MARKDOWN, None])
+def test_hundred_word_paragraphs_are_independently_navigable(
+    sizes: tuple[int, ...], content_format: ContentFormat | None
+) -> None:
+    paragraphs = [
+        " ".join(f"p{paragraph}word{word}" for word in range(size))
+        for paragraph, size in enumerate(sizes)
+    ]
+    source = "\n\n".join(paragraphs)
+    assert prepare_speech_segments(source, content_format=content_format) == tuple(paragraphs)
+
+
+@pytest.mark.parametrize("separator", ["\n\n", "\r\n\r\n", "\n \t\n"])
+def test_paragraph_threshold_and_short_clip_identity(separator: str) -> None:
+    first = " ".join(f"first{index}" for index in range(30))
+    second = " ".join(f"second{index}" for index in range(30))
+    assert segment_text(first + separator + second) == (first, second)
+    shorter = first + separator + " ".join(second.split()[:-1])
+    assert segment_text(shorter) == (shorter,)
+
+
+def test_tiny_leading_and_trailing_blocks_attach_to_substantial_paragraphs() -> None:
+    first = " ".join(f"first{index}" for index in range(40))
+    second = " ".join(f"second{index}" for index in range(40))
+    source = f"Introduction\n\n{first}\n\n{second}\n\nThank you."
+    assert segment_text(source) == (f"Introduction\n\n{first}", f"{second}\n\nThank you.")
+
+
+def test_markdown_structural_blocks_and_heading_stay_attached() -> None:
+    first = " ".join(f"first{index}" for index in range(40))
+    second = " ".join(f"second{index}" for index in range(40))
+    source = f"# **Overview**\n\n> {first}\n\n{second}"
+    assert prepare_speech_segments(source, content_format=ContentFormat.MARKDOWN) == (
+        f"Overview.\n\n{first}",
+        second,
+    )
+
+
+@given(st.lists(st.integers(min_value=1, max_value=400), min_size=1, max_size=6))
+@settings(max_examples=60, derandomize=True)
+def test_paragraph_plans_preserve_tokens_and_existing_size_bound(sizes: list[int]) -> None:
+    paragraphs = [
+        " ".join(f"p{paragraph}word{word}!" for word in range(size))
+        for paragraph, size in enumerate(sizes)
+    ]
+    source = "\n\n".join(paragraphs)
+    segments = segment_text(source)
+    assert [token for segment in segments for token in segment.split()] == source.split()
+    assert all(segment.strip() for segment in segments)
+    assert all(len(words(segment)) <= 220 for segment in segments)
+    if sum(sizes) < 60:
+        assert segments == (source,)
+
+
+def test_fifteen_word_sentence_stays_atomic() -> None:
+    sentence = " ".join(f"word{index}" for index in range(15)) + "."
+    assert segment_text(sentence) == (sentence,)
+
+
+@pytest.mark.oracle(
+    "architecture section 8: every section of at least 60 words exposes its paragraph groups"
+)
+def test_long_document_exposes_each_paragraph_group() -> None:
+    paragraphs = [
+        " ".join(f"p{paragraph}word{word}" for word in range(50)) for paragraph in range(5)
+    ]
+    source = "\n\n".join(paragraphs)
+    assert len(words(source)) > 180
+    assert segment_text(source) == tuple(paragraphs)

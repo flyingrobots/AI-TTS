@@ -1026,3 +1026,11 @@ The optional terminal client has real-daemon Pilot tests for rendering, transpor
 The terminal dashboard's review round adds regression tests at the daemon socket. They cover the admission event for work queued behind a busy worker, and replies longer than the 1 MiB request limit. A CLI regression test covers the exit status after a crash. A controlled clock now drives the `dd` confirmation window. Parent SHAs and red output are in the receipt's review-round table.
 
 Queue-move direction. Change-kind: deliberate behavior change, approved by James. `J` moves a clip down and `K` moves it up, matching `j`/`k`. The pinned Pilot test's first step was changed with that approval. It was red on parent `b87e53a`, then green. Receipt: `docs/testing-evidence/2026-09-30-terminal-dashboard.md`.
+
+## September 30 paragraph navigation
+
+Medium-length paragraph plans now have exact plain/Markdown/legacy boundary examples, CRLF and threshold checks, generated token-conservation/size invariants, and an actual daemon next/previous transport journey. Eight seeded faults and observed-red examples are recorded in the [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md). The established word-count policy and explicit Markdown section behavior remain; this change does not claim language-independent semantic paragraph detection.
+
+## October 1 paragraph audit
+
+The Code Lawyer audit of PR #39 found the long-document branch of paragraph grouping untested: a seeded fault restoring the old long-path loop survived the full suite. `test_long_document_exposes_each_paragraph_group` now pins it, and its observed-red output on the seeded fault is in the [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
