@@ -55,7 +55,8 @@ async def test_vim_selection_reorder_and_double_delete_use_clip_identity(daemon:
     await client.request({"op": "pause"})
     first = await client.request({"op": "submit", "text": "First queued text"})
     second = await client.request({"op": "submit", "text": "Second queued text"})
-    app = SpeechTUI(daemon.socket_path)
+    # A frozen clock keeps every dd pair inside the confirmation window on a slow host.
+    app = SpeechTUI(daemon.socket_path, clock=lambda: 0.0)
     async with app.run_test(size=(100, 35)) as pilot:
         await asyncio.wait_for(app.updated.wait(), 1)
         await pilot.pause()
@@ -76,6 +77,26 @@ async def test_vim_selection_reorder_and_double_delete_use_clip_identity(daemon:
         await pilot.press("d")
         plan = (await client.request({"op": "snapshot"}))["plan"]
         assert [item["id"] for item in plan] == [first["id"]]
+
+
+@pytest.mark.oracle("docs/testing-evidence/2026-09-30-terminal-dashboard.md: dd within one second")
+async def test_double_delete_expires_after_the_confirmation_window(daemon: Daemon) -> None:
+    client = AsyncClient(daemon.socket_path)
+    await client.request({"op": "pause"})
+    queued = await client.request({"op": "submit", "text": "Stays queued"})
+    now = [100.0]
+    app = SpeechTUI(daemon.socket_path, clock=lambda: now[0])
+    async with app.run_test(size=(100, 35)) as pilot:
+        await asyncio.wait_for(app.updated.wait(), 1)
+        await pilot.pause()
+        await pilot.press("d")
+        now[0] += 1.0
+        await pilot.press("d")
+        plan = (await client.request({"op": "snapshot"}))["plan"]
+        assert [item["id"] for item in plan] == [queued["id"]], "a late second d cancelled"
+        now[0] += 0.999
+        await pilot.press("d")
+        assert (await client.request({"op": "snapshot"}))["plan"] == []
 
 
 async def test_external_idle_pause_updates_the_dashboard(daemon: Daemon) -> None:

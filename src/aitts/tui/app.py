@@ -21,10 +21,14 @@ from aitts.tui.ascii_meter import format_meter
 from aitts.tui.client import AsyncClient
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from textual import events
     from textual.binding import BindingType
+
+# The two presses of dd must land this close together on the same clip.
+_DELETE_WINDOW_SECONDS = 1.0
 
 
 def literal_text(value: str) -> str:
@@ -82,9 +86,10 @@ class SpeechTUI(App[None]):
         Binding("q", "quit", "Quit", priority=True),
     ]
 
-    def __init__(self, socket_path: Path) -> None:
+    def __init__(self, socket_path: Path, *, clock: Callable[[], float] = time.monotonic) -> None:
         """Connect through the public asynchronous socket adapter."""
         super().__init__()
+        self._clock = clock
         self.client = AsyncClient(socket_path)
         self.snapshot: dict[str, Any] = {}
         self.connected = False
@@ -256,8 +261,9 @@ class SpeechTUI(App[None]):
         if self.focused is not table or (identity := self._selected(table)) is None:
             return
         previous = self._delete_candidate
-        self._delete_candidate = (identity, time.monotonic())
-        if previous and previous[0] == identity and time.monotonic() - previous[1] < 1:
+        now = self._clock()
+        self._delete_candidate = (identity, now)
+        if previous and previous[0] == identity and now - previous[1] < _DELETE_WINDOW_SECONDS:
             self._delete_candidate = None
             await self._command({"op": "cancel", "id": identity})
         else:
