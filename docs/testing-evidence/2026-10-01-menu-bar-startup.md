@@ -28,6 +28,8 @@ A real logout/reboot was not performed. Login configuration is checked through t
 
 Green logs are `.git/codex-scratch/menu-bar-startup-{python,swift,lint,installation}-green.log`.
 
+The counts above predate the merge-up of main and of `feat/architecture-benchmarks`. After both merges and decisions E and F, the suite collects 988 Python tests (330 small, 658 medium), the Swift suite runs 165 tests, and the installation subset (`test_distribution.py`, `test_make_installation.py`, `test_launch_agent_activation.py`, `test_menu_bar_retirement.py`) runs 54. The medium tier measured 43.1 to 49.5 seconds against its 45-second budget on this host, compared with 38.9 seconds on `feat/architecture-benchmarks` alone. Most of the difference is this PR's seven added Make-entrypoint installation tests, at about 1.4 seconds each.
+
 ## Merge-up of main
 
 Main's #56 fixed the same two installer defects differently: `uv export --frozen` constraints from `uv.lock`, and `_await_teardown`, which polls `launchctl print` for up to ten seconds before bootstrap. The merge keeps main's installer and drops this PR's bootstrap EIO retry; `_await_teardown` now takes the launch agent's label, so the menu-bar agent waits for teardown too. The paragraphs above that describe the six-second EIO retry and the `transformers>=4.46,<5` pin record what this PR did before the merge-up, not current behavior.
