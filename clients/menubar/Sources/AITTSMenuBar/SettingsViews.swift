@@ -268,6 +268,7 @@ struct AgentVoiceRow: View {
             }
             .buttonStyle(.borderless)
             .disabled(!assignment.pinned)
+            .accessibilityLabel("Release voice assignment")
             .help(
                 assignment.pinned
                     ? "Forget your override and let this client claim a voice again"
@@ -360,6 +361,7 @@ struct VoiceRow: View {
             }
             .buttonStyle(.borderless)
             .help("Preview this voice")
+            .accessibilityLabel("Preview voice \(voice)")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
