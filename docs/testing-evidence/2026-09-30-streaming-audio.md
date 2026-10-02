@@ -55,8 +55,7 @@ New boundary coverage includes:
 These are contractual boundary tests with explicit size/oracle declarations.
 Delete or rewrite them when the corresponding behavior changes, not when the
 private implementation moves. No automated test uses real speakers or weights.
-Swift has no changes in this draft; its latest 112-test and hosted receipt is
-[the XCTest invocation change](2026-09-30-xctest-invocation.md).
+Historical: when this section was written, the draft changed no Swift, and the latest Swift receipt was 112 tests, in [the XCTest invocation change](2026-09-30-xctest-invocation.md). The streaming feature itself still changes no Swift. Merges from main have since brought in Swift changes, so the current Swift count is in the last section.
 
 ## Observed red and assertion calibration
 
@@ -220,7 +219,7 @@ cases are in `/tmp/stream-readiness-transaction-red.log`.
 The streaming feature was replayed onto reviewed main `6482b49`, preserving
 export draining before Store shutdown and platform composition boundaries.
 Its integrated stage passed 689 Python tests. The subsequent combined stack
-passed 793 Python tests and 142 Swift tests with warnings as errors.
+passed 793 Python tests and 142 Swift tests with warnings as errors (historical: the whole eight-PR stack, Swift PRs included).
 
 Hosted run `36734083447` then failed the strict dependency audit: locked
 `urllib3 2.7.0` had CVE-2026-97687 and CVE-2026-97689, both listing 2.8.0 as
@@ -322,6 +321,6 @@ With host-sized blocks (941 or more frames at 24 kHz for any device of 44.1 kHz 
 |---|---|---|---|
 | Kokoro's stream adapter wrapped its own `SynthesisError` in a second one | `test_invalid_stream_samples_raise_the_adapter_error_unwrapped` | `0ba2b01` | `the adapter's own SynthesisError was wrapped in a second one` |
 
-Authoritative validation for this head: **798 Python tests passed, 2 skipped** (263 small, 535 medium). Ruff check, ruff format, and mypy (140 files) are clean. Swift did not change.
+Authoritative validation for this head: **798 Python tests passed, 2 skipped** (263 small, 535 medium). Ruff check, ruff format, and mypy (140 files) are clean. This PR's own diff changes no Swift. The merged-in main Swift sources pass 140 Swift tests at merge `0ba2b01`.
 
 A mutation that drops the 100 ms close silence fails the first test with `the stream closed before 100 ms of silence` (544 silent frames, not 2400). The fade spans min(20 ms, callback block), so a 10 ms test callback still ends its pause block at zero, as `test_native_pause_spools_to_completion_and_resumes_without_advancing_held_time` requires. A prepared device keeps playing silence after the session, so only a session that closes its own stream adds the 100 ms of silence.
