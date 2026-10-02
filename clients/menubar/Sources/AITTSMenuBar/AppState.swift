@@ -63,7 +63,7 @@ final class AppState: ObservableObject {
     private var knownFailedIDs: Set<String>?
     @Published var voiceAssignments: [VoiceAssignment] = []
     @Published var earconEnabled = false
-    @Published var duckingEnabled = true
+    @Published var duckingEnabled = false
     @Published var duckingStatus = "Ducking is available while the menu-bar app is running."
     @Published var inputInterruptEnabled = true
     @Published var inputInterruptResume: InputInterruptResume = .manual
