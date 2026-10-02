@@ -232,3 +232,15 @@ def test_paragraph_plans_preserve_tokens_and_existing_size_bound(sizes: list[int
 def test_fifteen_word_sentence_stays_atomic() -> None:
     sentence = " ".join(f"word{index}" for index in range(15)) + "."
     assert segment_text(sentence) == (sentence,)
+
+
+@pytest.mark.oracle(
+    "architecture section 8: every section of at least 60 words exposes its paragraph groups"
+)
+def test_long_document_exposes_each_paragraph_group() -> None:
+    paragraphs = [
+        " ".join(f"p{paragraph}word{word}" for word in range(50)) for paragraph in range(5)
+    ]
+    source = "\n\n".join(paragraphs)
+    assert len(words(source)) > 180
+    assert segment_text(source) == tuple(paragraphs)

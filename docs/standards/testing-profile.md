@@ -838,3 +838,7 @@ observed-red examples are recorded in the
 [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
 The established word-count policy and explicit Markdown section behavior remain;
 this change does not claim language-independent semantic paragraph detection.
+
+## October 1 paragraph audit
+
+The Code Lawyer audit of PR #39 found the long-document branch of paragraph grouping untested: a seeded fault restoring the old long-path loop survived the full suite. `test_long_document_exposes_each_paragraph_group` now pins it, and its observed-red output on the seeded fault is in the [paragraph receipt](../testing-evidence/2026-09-30-paragraph-segmentation.md).
