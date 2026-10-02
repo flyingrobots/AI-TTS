@@ -27,6 +27,7 @@ from typing import Any
 from aitts import __version__
 from aitts.client import Client, DaemonError, DaemonUnreachableError
 from aitts.model import ContentFormat, State
+from aitts.model_catalog import MODELS
 from aitts.paths import default_home, default_socket
 
 EXIT_OK = 0
@@ -54,6 +55,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="daemon socket path (default: AI_TTS_SOCKET or the daemon home)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+    setup = sub.add_parser(
+        "model-setup", help="download and prepare a supported local speech model"
+    )
+    setup.add_argument("name", choices=list(MODELS))
+    sub.add_parser("cancel-model-setup", help="cancel the active local model setup")
     sub.add_parser("tui", help="open the interactive terminal dashboard (requires ai-tts[tui])")
 
     say = sub.add_parser("say", help="queue text to be spoken, even while playback is paused")
@@ -250,6 +256,8 @@ def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
 
 
 _PAYLOAD_BUILDERS: dict[str, Any] = {
+    "model-setup": lambda args: {"op": "model_setup", "name": args.name},
+    "cancel-model-setup": lambda _args: {"op": "cancel_model_setup"},
     "say": _say_payload,
     "history": _history_payload,
     "settings": _settings_payload,

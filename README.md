@@ -808,6 +808,21 @@ Models prepare on first use and remain resident until explicitly reloaded or the
 
 The reference Kokoro adapter is registered at startup; MLX is also registered when its supported runtime and optional dependency are available. On startup, an unavailable configured MLX backend still falls back to reference Kokoro. So does a saved default for an adapter whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an adapter refuses to start instead.
 
+Open **Settings → Speech models** to discover **Kokoro**, **Kokoro · Apple Silicon** (the MLX runtime), and **Chatterbox Turbo**. Choose **Download & install…** for a missing model and confirm the download. Setup installs its Python 3.12 runtime, required language resources, and a pinned model snapshot in a private directory. Every downloaded model file must match a SHA-256 digest pinned in the catalog before anything loads it. Setup checks offline loading before offering **Use model**. The current model keeps working during downloads. Setup shows its current phase, supports **Cancel**, and provides **Retry setup** after failures. MLX requires Apple Silicon.
+
+**Use model** changes the default for new clips and saves it across daemon restarts. The voice falls back to a supported voice. Chatterbox generates every clip at 1× and keeps the saved speed for other models (adjust playback rate independently). Setup never selects a model implicitly. Each downloaded model has separate dependencies, so installing Chatterbox or MLX does not replace the daemon's Kokoro environment. Model downloads and runtimes are stored under the daemon home in `model-runtimes`; they are separate from the audio cache, so clearing cached speech does not uninstall models. Downloads require an internet connection and can use substantial disk space. Failed candidates are removed; previous valid installations remain available.
+
+The same flow is available from the CLI:
+
+```sh
+ai-tts engines                         # includes installability and setup state
+ai-tts model-setup chatterbox          # starts asynchronous setup
+ai-tts cancel-model-setup              # cancel the active setup
+ai-tts settings --set engine=chatterbox # select it after setup finishes
+```
+
+Existing optional MLX and `AI_TTS_CHATTERBOX_MODEL_DIR` configurations continue to work. A guided MLX installation is discovered even when the daemon's own Python cannot import MLX. A saved guided model whose runtime has disappeared falls back to reference Kokoro, so Settings stays reachable for setup.
+
 To register a separately managed local speech server, set these variables in the environment used to launch the daemon:
 
 ```sh

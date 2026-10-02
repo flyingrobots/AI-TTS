@@ -39,6 +39,8 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                LocalModelSettings()
+                Divider()
                 Text("Default voice").font(.caption.smallCaps()).foregroundStyle(.secondary)
                 Text("Used for anything you read yourself, and for clients with no voice of their own.")
                     .font(.caption2)
@@ -100,9 +102,15 @@ struct SettingsView: View {
                             draftSpeed = nil
                         }
                     }
+                    .disabled(state.status?.engine == "chatterbox")
                     Text(String(format: "%.2f×", draftSpeed ?? state.speed))
                         .font(.system(.caption, design: .monospaced))
                         .frame(width: 44, alignment: .trailing)
+                }
+
+                if state.status?.engine == "chatterbox" {
+                    Text("Chatterbox generates at 1×. Use playback rate to adjust listening speed.")
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
 
                 Toggle(
@@ -155,6 +163,7 @@ struct SettingsView: View {
             }
             .padding(12)
         }
+        .onChange(of: state.status?.engine) { draftSpeed = nil }
         .confirmationDialog(
             "Purge cached audio?",
             isPresented: $confirmingCachePurge,

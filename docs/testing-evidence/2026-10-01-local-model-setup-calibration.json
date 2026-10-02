@@ -1,0 +1,257 @@
+[
+  {
+    "fault": "manifest-revision",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_incomplete_or_unsafe_manifests_are_not_discovered[revision]"
+    ],
+    "log": ".git/codex-scratch/model-setup-manifest-revision-red.log"
+  },
+  {
+    "fault": "manifest-traversal",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_incomplete_or_unsafe_manifests_are_not_discovered[traversal]"
+    ],
+    "log": ".git/codex-scratch/model-setup-manifest-traversal-red.log"
+  },
+  {
+    "fault": "manifest-assets",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_incomplete_or_unsafe_manifests_are_not_discovered[asset]"
+    ],
+    "log": ".git/codex-scratch/model-setup-manifest-assets-red.log"
+  },
+  {
+    "fault": "manifest-worker",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_incomplete_or_unsafe_manifests_are_not_discovered[worker]"
+    ],
+    "log": ".git/codex-scratch/model-setup-manifest-worker-red.log"
+  },
+  {
+    "fault": "manifest-symlink",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_incomplete_or_unsafe_manifests_are_not_discovered[symlink]"
+    ],
+    "log": ".git/codex-scratch/model-setup-manifest-symlink-red.log"
+  },
+  {
+    "fault": "cancel-publication",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_failed_or_cancelled_candidate_preserves_incumbent[cancel]"
+    ],
+    "log": ".git/codex-scratch/model-setup-cancel-publication-red.log"
+  },
+  {
+    "fault": "failed-candidate-cleanup",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_failed_or_cancelled_candidate_preserves_incumbent[failure]",
+      "FAILED tests/test_model_setup.py::test_failed_or_cancelled_candidate_preserves_incumbent[cancel]"
+    ],
+    "log": ".git/codex-scratch/model-setup-failed-candidate-cleanup-red.log"
+  },
+  {
+    "fault": "owner-only-manifest",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_success_publishes_private_complete_runtime_without_mutating_daemon"
+    ],
+    "log": ".git/codex-scratch/model-setup-owner-only-manifest-red.log"
+  },
+  {
+    "fault": "dependency-hashes",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_success_publishes_private_complete_runtime_without_mutating_daemon"
+    ],
+    "log": ".git/codex-scratch/model-setup-dependency-hashes-red.log"
+  },
+  {
+    "fault": "restart-discovery",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_managed_model_selection_survives_restart_without_optional_daemon_packages"
+    ],
+    "log": ".git/codex-scratch/model-setup-restart-discovery-red.log"
+  },
+  {
+    "fault": "espeak-path-bound",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_kokoro_language_resources_fit_native_path_limit_in_long_mac_home"
+    ],
+    "log": ".git/codex-scratch/model-setup-espeak-path-bound-red.log"
+  },
+  {
+    "fault": "stream-abort",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_managed_engine.py::test_stream_abort_discards_unread_audio_and_keeps_next_clip_usable",
+      "FAILED tests/test_managed_engine.py::test_invalid_pcm_is_rejected_and_next_clip_can_recover"
+    ],
+    "log": ".git/codex-scratch/model-setup-stream-abort-red.log"
+  },
+  {
+    "fault": "pcm-validation",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_managed_engine.py::test_invalid_pcm_is_rejected_and_next_clip_can_recover"
+    ],
+    "log": ".git/codex-scratch/model-setup-pcm-validation-red.log"
+  },
+  {
+    "fault": "wav-duration",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_managed_engine.py::test_file_worker_preserves_real_wav_and_restarts_offline"
+    ],
+    "log": ".git/codex-scratch/model-setup-wav-duration-red.log"
+  },
+  {
+    "fault": "explicit-selection",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_daemon.py::test_download_does_not_block_speech_or_select_model_and_use_changes_future_clips",
+      "FAILED tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load"
+    ],
+    "log": ".git/codex-scratch/model-setup-explicit-selection-red.log"
+  },
+  {
+    "fault": "pool-registration",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_daemon.py::test_download_does_not_block_speech_or_select_model_and_use_changes_future_clips"
+    ],
+    "log": ".git/codex-scratch/model-setup-pool-registration-red.log"
+  },
+  {
+    "fault": "setup-cancel",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_daemon.py::test_cancel_and_failure_preserve_default_and_allow_retry[True]"
+    ],
+    "log": ".git/codex-scratch/model-setup-setup-cancel-red.log"
+  },
+  {
+    "fault": "failed-runtime-repair",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load"
+    ],
+    "log": ".git/codex-scratch/model-setup-failed-runtime-repair-red.log"
+  },
+  {
+    "fault": "compatible-speed",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_daemon.py::test_download_does_not_block_speech_or_select_model_and_use_changes_future_clips"
+    ],
+    "log": ".git/codex-scratch/model-setup-compatible-speed-red.log"
+  },
+  {
+    "fault": "native-install",
+    "exit": 1,
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:24: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testLocalModelCommandsMapToExactSetupAndSelectionRequests] : XCTAssertEqual failed: (\"[\"{\\\"name\\\":\\\"chatterbox\\\",\\\"op\\\":\\\"settings\\\"}\", \"{\\\"op\\\":\\\"cancel_model_setup\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"engine\\\":\\\"kokoro-mlx\\\"}}\"]\") is not equal to (\"[\"{\\\"name\\\":\\\"chatterbox\\\",\\\"op\\\":\\\"model_setup\\\"}\", \"{\\\"op\\\":\\\"cancel_model_setup\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"engine\\\":\\\"kokoro-mlx\\\"}}\"]\")"
+    ],
+    "log": ".git/codex-scratch/model-setup-native-install-red.log"
+  },
+  {
+    "fault": "native-cancel",
+    "exit": 1,
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:24: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testLocalModelCommandsMapToExactSetupAndSelectionRequests] : XCTAssertEqual failed: (\"[\"{\\\"name\\\":\\\"chatterbox\\\",\\\"op\\\":\\\"model_setup\\\"}\", \"{\\\"op\\\":\\\"cancel\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"engine\\\":\\\"kokoro-mlx\\\"}}\"]\") is not equal to (\"[\"{\\\"name\\\":\\\"chatterbox\\\",\\\"op\\\":\\\"model_setup\\\"}\", \"{\\\"op\\\":\\\"cancel_model_setup\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"engine\\\":\\\"kokoro-mlx\\\"}}\"]\")"
+    ],
+    "log": ".git/codex-scratch/model-setup-native-cancel-red.log"
+  },
+  {
+    "fault": "native-select",
+    "exit": 1,
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:24: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testLocalModelCommandsMapToExactSetupAndSelectionRequests] : XCTAssertEqual failed: (\"[\"{\\\"name\\\":\\\"chatterbox\\\",\\\"op\\\":\\\"model_setup\\\"}\", \"{\\\"op\\\":\\\"cancel_model_setup\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"voice\\\":\\\"kokoro-mlx\\\"}}\"]\") is not equal to (\"[\"{\\\"name\\\":\\\"chatterbox\\\",\\\"op\\\":\\\"model_setup\\\"}\", \"{\\\"op\\\":\\\"cancel_model_setup\\\"}\", \"{\\\"op\\\":\\\"settings\\\",\\\"set\\\":{\\\"engine\\\":\\\"kokoro-mlx\\\"}}\"]\")"
+    ],
+    "log": ".git/codex-scratch/model-setup-native-select-red.log"
+  },
+  {
+    "fault": "native-model-state",
+    "exit": 1,
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:49: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testModelSetupStatesSurviveSnapshotDecodingAndOldDaemonsRemainCompatible] : XCTAssertTrue failed",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:53: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testModelSetupStatesSurviveSnapshotDecodingAndOldDaemonsRemainCompatible] : XCTAssertEqual failed: (\"ready\") is not equal to (\"not installed\")"
+    ],
+    "log": ".git/codex-scratch/model-setup-native-model-state-red.log"
+  },
+  {
+    "fault": "native-installed",
+    "exit": 1,
+    "failed_checks": [
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:47: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testModelSetupStatesSurviveSnapshotDecodingAndOldDaemonsRemainCompatible] : XCTAssertTrue failed",
+      "/Users/j/git/ai-tts/clients/menubar/Tests/AITTSMenuBarTests/UnixSocketSpeechServiceTests.swift:50: error: -[AITTSMenuBarTests.UnixSocketSpeechServiceTests testModelSetupStatesSurviveSnapshotDecodingAndOldDaemonsRemainCompatible] : XCTAssertFalse failed"
+    ],
+    "log": ".git/codex-scratch/model-setup-native-installed-red.log"
+  },
+  {
+    "fault": "worker-protocol-version",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_incomplete_or_unsafe_manifests_are_not_discovered[protocol]"
+    ],
+    "log": ".git/codex-scratch/model-setup-worker-protocol-version-red.log"
+  },
+  {
+    "fault": "native-provenance",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_managed_engine.py::test_file_worker_preserves_real_wav_and_restarts_offline"
+    ],
+    "log": ".git/codex-scratch/model-setup-native-provenance-red.log"
+  },
+  {
+    "fault": "cli-install",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_cli.py::test_model_setup_projects_only_the_curated_model_name[kokoro]",
+      "FAILED tests/test_model_setup_cli.py::test_model_setup_projects_only_the_curated_model_name[kokoro-mlx]",
+      "FAILED tests/test_model_setup_cli.py::test_model_setup_projects_only_the_curated_model_name[chatterbox]"
+    ],
+    "log": ".git/codex-scratch/model-setup-cli-install-red.log"
+  },
+  {
+    "fault": "cli-cancel",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_cli.py::test_model_setup_cancellation_maps_to_the_active_job"
+    ],
+    "log": ".git/codex-scratch/model-setup-cli-cancel-red.log"
+  },
+  {
+    "fault": "cli-allowlist",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_cli.py::test_cli_refuses_arbitrary_package_or_model_install_input"
+    ],
+    "log": ".git/codex-scratch/model-setup-cli-allowlist-red.log"
+  },
+  {
+    "fault": "missing-saved-model-unfixed-HEAD",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup.py::test_missing_saved_model_keeps_daemon_reachable_for_setup[chatterbox]"
+    ],
+    "log": ".git/codex-scratch/model-setup-missing-saved-model-parent-red.log"
+  },
+  {
+    "fault": "implicit-model-speed",
+    "exit": 1,
+    "failed_checks": [
+      "FAILED tests/test_model_setup_daemon.py::test_download_does_not_block_speech_or_select_model_and_use_changes_future_clips"
+    ],
+    "log": ".git/codex-scratch/model-setup-implicit-clip-speed-red.log"
+  }
+]

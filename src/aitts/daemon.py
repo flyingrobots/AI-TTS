@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -31,6 +32,7 @@ from aitts.adapters.private_files import secure_private_state
 from aitts.application.cache import CacheController
 from aitts.application.metrics import MetricsRecorder
 from aitts.engine import StreamingEngine, eligible_engine_names, engine_preparation
+from aitts.engines.managed import ManagedEngine, managed_engine
 from aitts.engines.registry import EngineRegistry
 from aitts.input_interrupt import DEFAULT_POLL_SECONDS, InputInterruptWatcher
 from aitts.ipc import (
@@ -50,6 +52,14 @@ from aitts.model import (
     SynthesisWork,
     Utterance,
     UtteranceSegment,
+)
+from aitts.model_catalog import MODELS
+from aitts.model_setup import (
+    RuntimeInstaller,
+    SetupCancelledError,
+    in_process_available,
+    installed_runtime,
+    supported_model,
 )
 from aitts.playback import PlaybackController, SoundDeviceSink
 from aitts.segmentation import prepare_speech_segments
@@ -164,6 +174,11 @@ class Daemon:
         self._pool: SynthesisPool | None = None
         self._tasks: list[asyncio.Task[None]] = []
         self._model_reload: asyncio.Task[dict[str, Any]] | None = None
+        self._model_installer = RuntimeInstaller(home)
+        self._setup_task: asyncio.Task[None] | None = None
+        self._setup_cancel = threading.Event()
+        self._setup_states: dict[str, dict[str, Any]] = {}
+        self._setup_worker: ManagedEngine | None = None
         self._exports: dict[asyncio.Task[dict[str, Any]], tuple[set[str], set[str]]] = {}
 
     @property
@@ -273,8 +288,18 @@ class Daemon:
         tasks: list[asyncio.Task[Any]] = list(self._tasks)
         if self._model_reload is not None:
             tasks.append(self._model_reload)
+        if self._setup_task is not None:
+            self._setup_cancel.set()
+            tasks.append(self._setup_task)
         for task in tasks:
             task.cancel()
+        # Kill isolated inference before awaiting tasks that may be blocked on its pipe.
+        model_workers = [
+            engine for engine in self._engines.values() if isinstance(engine, ManagedEngine)
+        ]
+        if self._setup_worker is not None:
+            model_workers.append(self._setup_worker)
+        await asyncio.gather(*(asyncio.to_thread(engine.close) for engine in model_workers))
         for task in tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
@@ -349,6 +374,8 @@ class Daemon:
         handlers = {
             "submit": self._op_submit,
             "engines": self._op_engines,
+            "model_setup": self._op_model_setup,
+            "cancel_model_setup": self._op_cancel_model_setup,
             "get": self._op_get,
             "list": self._op_list,
             "history": self._op_history,
@@ -436,7 +463,18 @@ class Daemon:
             raise ApiError(BAD_REQUEST, "private speech requires a local engine")
         return self._engines[name]
 
-    async def _op_submit(self, payload: dict[str, Any]) -> dict[str, Any]:  # noqa: C901 - one validated admission boundary
+    def _submission_speed(self, engine: Engine, requested: object) -> float:
+        explicit = self._parse_speed(requested)
+        speed = explicit or self._settings.speaking_speed()
+        supported = getattr(engine, "supported_speeds", None)
+        if supported is not None and speed not in supported:
+            if explicit is None:
+                # The saved default belongs to other models; keep it for them.
+                return float(supported[0])
+            raise ApiError(BAD_REQUEST, "this model requires generation speed 1; use playback rate")
+        return speed
+
+    async def _op_submit(self, payload: dict[str, Any]) -> dict[str, Any]:
         text = payload.get("text")
         if not isinstance(text, str) or not text.strip():
             msg = "submit requires non-empty 'text'"
@@ -452,15 +490,7 @@ class Daemon:
         if preempt:
             priority = Priority.PREEMPT
         engine = self._submission_engine(payload.get("engine"), sensitivity)
-        requested_speed = self._parse_speed(payload.get("speed"))
-        speed = requested_speed or self._settings.speaking_speed()
-        supported_speeds = getattr(engine, "supported_speeds", None)
-        if supported_speeds is not None and speed not in supported_speeds:
-            if requested_speed is not None:
-                msg = "this model requires generation speed 1; use playback rate"
-                raise ApiError(BAD_REQUEST, msg)
-            # The saved default belongs to other models; keep it for them.
-            speed = supported_speeds[0]
+        speed = self._submission_speed(engine, payload.get("speed"))
         content_format: ContentFormat | None
         if "content_format" not in payload:
             content_format = None
@@ -652,6 +682,7 @@ class Daemon:
             self._pool is None
             or self._pool.active_jobs
             or self._model_reload is not None
+            or (self._setup_task is not None and not self._setup_task.done())
             or self._registry.state(name) in {"loading", "reloading"}
         ):
             raise ApiError(ILLEGAL_STATE, "wait for active synthesis or model loading to finish")
@@ -1168,6 +1199,7 @@ class Daemon:
             "history": history["items"],
             "voices": self._engine.list_voices(),
             "engines": self._engine_catalog(),
+            "models": self._model_setup_catalog(),
             "voice_assignments": self._voices.assignments(),
             "settings": settings["settings"],
         }
@@ -1226,7 +1258,165 @@ class Daemon:
 
     async def _op_engines(self, payload: dict[str, Any]) -> dict[str, Any]:
         del payload
-        return {"ok": True, "engines": self._engine_catalog()}
+        return {
+            "ok": True,
+            "engines": self._engine_catalog(),
+            "models": self._model_setup_catalog(),
+        }
+
+    def _model_setup_catalog(self) -> list[dict[str, Any]]:
+        rows = []
+        for name, model in MODELS.items():
+            state = self._registry.state(name) if name in self._engines else "not installed"
+            engine = self._engines.get(name)
+            # A cold in-process adapter is installed when the daemon can import its package.
+            in_process = (
+                engine is not None
+                and not isinstance(engine, ManagedEngine)
+                and state != "failed"
+                and in_process_available(name)
+            )
+            ready = (
+                state == "ready" or in_process or installed_runtime(self._home, name) is not None
+            )
+            setup = self._setup_states.get(name, {})
+            reported = setup.get("state", state)
+            if reported == "ready":
+                reported = state
+            rows.append(
+                {
+                    "name": name,
+                    "title": model.title,
+                    "description": model.description,
+                    "installed": ready,
+                    "selected": name == self._engine.name,
+                    "state": reported,
+                    "message": setup.get("message", ""),
+                    "incompatible": supported_model(name),
+                }
+            )
+        return rows
+
+    async def _op_model_setup(self, payload: dict[str, Any]) -> dict[str, Any]:
+        name = payload.get("name")
+        if not isinstance(name, str) or name not in MODELS:
+            raise ApiError(BAD_REQUEST, "choose a supported local speech model")
+        incompatible = supported_model(name)
+        if incompatible:
+            raise ApiError(BAD_REQUEST, incompatible)
+        if self._model_reload is not None:
+            raise ApiError(ILLEGAL_STATE, "wait for model restart to finish")
+        if self._setup_task is not None and not self._setup_task.done():
+            raise ApiError(ILLEGAL_STATE, "another model setup is in progress")
+        if name in self._engines and self._registry.state(name) == "loading":
+            raise ApiError(ILLEGAL_STATE, "this model is already preparing")
+        if name in self._engines and self._registry.state(name) == "ready":
+            return {"ok": True, "state": "ready"}
+        repair = self._setup_states.get(name, {}).get("state") == "failed" or (
+            name in self._engines and self._registry.state(name) == "failed"
+        )
+        self._setup_cancel = threading.Event()
+        self._setup_states[name] = {"state": "installing", "message": "Starting setup"}
+        self._setup_task = asyncio.create_task(
+            self._install_model(name, repair=repair), name="aitts-model-setup"
+        )
+        self._server.broadcast({"event": "model_setup_changed"})
+        return {"ok": True, "state": "installing"}
+
+    async def _op_cancel_model_setup(self, payload: dict[str, Any]) -> dict[str, Any]:
+        del payload
+        self._setup_cancel.set()
+        if self._setup_worker is not None:
+            await asyncio.to_thread(self._setup_worker.close)
+        return {"ok": True}
+
+    async def _install_model(self, name: str, *, repair: bool = False) -> None:
+        loop = asyncio.get_running_loop()
+        pool = self._pool
+
+        def progress(message: str) -> None:
+            self._setup_states[name] = {"state": "installing", "message": message}
+            loop.call_soon_threadsafe(self._server.broadcast, {"event": "model_setup_changed"})
+
+        worker = None
+        installation = None
+        paused = False
+        try:
+            root = None if repair else installed_runtime(self._home, name)
+            if root is None:
+                installation = asyncio.create_task(
+                    asyncio.to_thread(
+                        self._model_installer.install, name, self._setup_cancel, progress
+                    )
+                )
+                root = await asyncio.shield(installation)
+            self._check_setup_cancelled()
+            progress("Loading model")
+            worker = managed_engine(name, root)
+            self._setup_worker = worker
+            await asyncio.to_thread(worker.warmup)
+            if pool is not None:
+                pool.enabled.clear()
+                paused = True
+                progress("Finishing setup")
+                await self._await_setup_quiescence()
+            self._check_setup_cancelled()
+            previous = self._engines.get(name)
+            self._publish_model(worker)
+            self._setup_worker = None
+            worker = None
+            await self._retire_runtime(previous)
+        except asyncio.CancelledError:
+            self._setup_cancel.set()
+            if installation is not None:
+                with contextlib.suppress(Exception):
+                    await asyncio.shield(installation)
+            raise
+        except Exception:  # noqa: BLE001 - recoverable and content-free setup failures
+            self._record_setup_failure(name)
+        finally:
+            self._setup_worker = None
+            if worker is not None:
+                await asyncio.to_thread(worker.close)
+            if pool is not None and paused:
+                pool.enabled.set()
+                pool.notify()
+            self._server.broadcast({"event": "model_setup_changed"})
+
+    def _check_setup_cancelled(self) -> None:
+        if self._setup_cancel.is_set():
+            raise SetupCancelledError
+
+    async def _await_setup_quiescence(self) -> None:
+        while (self._pool is not None and self._pool.active_jobs) or any(
+            self._registry.state(key) in {"loading", "reloading"} for key in self._engines
+        ):
+            self._check_setup_cancelled()
+            await asyncio.sleep(0.1)
+
+    def _publish_model(self, worker: ManagedEngine) -> None:
+        name = worker.name
+        self._registry.register(worker, prepared=True)
+        self._engines[name] = worker
+        if self._pool is not None:
+            self._pool.register_engine(worker)
+        if self._engine.name == name:
+            self._engine = worker
+            self._voices = self._voice_registry(worker)
+        self._setup_states[name] = {"state": "ready", "message": "Installed and ready"}
+
+    async def _retire_runtime(self, previous: Engine | None) -> None:
+        if isinstance(previous, ManagedEngine):
+            with contextlib.suppress(Exception):
+                await asyncio.to_thread(previous.close)
+
+    def _record_setup_failure(self, name: str) -> None:
+        if self._setup_cancel.is_set():
+            state, message = "cancelled", "Setup cancelled. You can retry."
+        else:
+            state = "failed"
+            message = "Setup failed. Check your connection and free disk space, then retry."
+        self._setup_states[name] = {"state": state, "message": message}
 
     # -- what a settings write may reach (see aitts.settings) ----------------
 

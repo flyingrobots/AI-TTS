@@ -38,6 +38,7 @@ final class AppState: ObservableObject {
     @Published var history: [Utterance] = []
     @Published var voices: [String] = []
     @Published var engines: [SpeechEngine] = []
+    @Published var models: [LocalSpeechModel] = []
     @Published var speed: Double = 1.0
     @Published var playbackRate: Double = 1.0
     @Published var captionPosition: CaptionPosition
@@ -327,6 +328,7 @@ final class AppState: ObservableObject {
         self.status = snapshot.status
         self.plan = snapshot.plan
         self.engines = snapshot.engines
+        self.models = snapshot.models
         self.history = snapshot.history
         let historyIDs = Set(snapshot.history.map(\.id))
         self.provenanceDetails = self.provenanceDetails.filter { historyIDs.contains($0.key) }
@@ -453,6 +455,9 @@ final class AppState: ObservableObject {
     func nextChunk() { send(.nextSegment) }
     func previousChunk() { send(.previousSegment) }
     func resumeWhenInputIdle() { send(.resumeWhenInputIdle) }
+    func setEngine(_ name: String) { send(.setEngine(name)) }
+    func installModel(_ name: String) { send(.installModel(name)) }
+    func cancelModelSetup() { send(.cancelModelSetup) }
     func setEarconEnabled(_ enabled: Bool) {
         send(.setEarconEnabled(enabled))
     }

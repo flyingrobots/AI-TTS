@@ -8,6 +8,7 @@
 .obsidian/
 
 # Agent-local notes
+/PROMPTS.md
 .claude/
 
 # Python

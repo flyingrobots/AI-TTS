@@ -1,0 +1,40 @@
+{
+  "rendered_models": [
+    {
+      "model": "kokoro",
+      "setup": "ready",
+      "selected_voice": "af_aoede",
+      "speed": 1.0,
+      "clip_state": "Ready",
+      "duration_ms": 3600,
+      "model_fingerprints_verified": true,
+      "runtime_python": "3.12.14"
+    },
+    {
+      "model": "kokoro-mlx",
+      "setup": "ready",
+      "selected_voice": "af_aoede",
+      "speed": 1.0,
+      "clip_state": "Ready",
+      "duration_ms": 4275,
+      "model_fingerprints_verified": true,
+      "runtime_python": "3.12.14"
+    },
+    {
+      "model": "chatterbox",
+      "setup": "ready",
+      "selected_voice": "default",
+      "speed": 1.0,
+      "clip_state": "Ready",
+      "duration_ms": 3160,
+      "model_fingerprints_verified": true,
+      "runtime_python": "3.12.14"
+    }
+  ],
+  "persisted_selection": {
+    "selected_before_restart": "kokoro-mlx",
+    "selected_after_restart": "kokoro-mlx"
+  },
+  "restored_default": "kokoro",
+  "retired_test_generations_cleaned": 5
+}

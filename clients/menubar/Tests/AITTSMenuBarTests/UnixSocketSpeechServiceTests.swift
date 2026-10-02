@@ -15,6 +15,45 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testLocalModelCommandsMapToExactSetupAndSelectionRequests() throws {
+        let transport = RecordingDaemonTransport()
+        let service = UnixSocketSpeechService(transport: transport)
+        try service.perform(.installModel("chatterbox"))
+        try service.perform(.cancelModelSetup)
+        try service.perform(.setEngine("kokoro-mlx"))
+        XCTAssertEqual(try transport.canonicalRequests(), try canonicalize([
+            ["op": "model_setup", "name": "chatterbox"],
+            ["op": "cancel_model_setup"],
+            ["op": "settings", "set": ["engine": "kokoro-mlx"]]
+        ]))
+    }
+
+    func testModelSetupStatesSurviveSnapshotDecodingAndOldDaemonsRemainCompatible() throws {
+        var response = snapshotResponse
+        response["models"] = [
+            ["name": "kokoro", "title": "Kokoro", "description": "Local voices",
+             "installed": true, "selected": true, "state": "ready", "message": ""],
+            ["name": "chatterbox", "title": "Chatterbox Turbo", "description": "Alternative",
+             "installed": false, "selected": false, "state": "installing",
+             "message": "Downloading and checking model"],
+            ["name": "kokoro-mlx", "title": "Kokoro MLX", "description": "Apple Silicon",
+             "installed": false, "selected": false, "state": "not installed", "message": "",
+             "incompatible": "Requires Apple Silicon"]
+        ]
+        let transport = RecordingDaemonTransport(responses: [response, snapshotResponse])
+        let service = UnixSocketSpeechService(transport: transport)
+        let models = try service.snapshot().models
+        XCTAssertEqual(models.map(\.name), ["kokoro", "chatterbox", "kokoro-mlx"])
+        XCTAssertTrue(models[0].installed)
+        XCTAssertTrue(models[0].selected)
+        XCTAssertTrue(models[1].installing)
+        XCTAssertFalse(models[1].installed)
+        XCTAssertEqual(models[1].message, "Downloading and checking model")
+        XCTAssertEqual(models[2].incompatible, "Requires Apple Silicon")
+        XCTAssertEqual(models[2].state, "not installed")
+        XCTAssertTrue(try service.snapshot().models.isEmpty)
+    }
+
     func testPreemptPrioritySurvivesNativeDecodingAndRequeue() throws {
         let item = try XCTUnwrap(Utterance(daemonJSON: [
             "id": "alert", "text": "alert", "voice": "v", "state": "Played",

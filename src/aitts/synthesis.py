@@ -79,6 +79,13 @@ class SynthesisPool:
         """Tell the pool new work may be available."""
         self._wake.set()
 
+    def register_engine(self, engine: Engine) -> None:
+        """Add a validated runtime between jobs; accepted work retains its model name."""
+        if self.active_jobs:
+            message = "cannot publish a model while synthesis is active"
+            raise RuntimeError(message)
+        self._engines[engine.name] = engine
+
     async def run(self) -> None:
         """Run the workers until cancelled."""
         self._loop = asyncio.get_running_loop()

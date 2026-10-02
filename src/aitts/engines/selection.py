@@ -16,7 +16,10 @@ from typing import TYPE_CHECKING
 from aitts.engines.chatterbox import ChatterboxEngine
 from aitts.engines.kokoro import KokoroEngine
 from aitts.engines.kokoro_mlx import KokoroMlxEngine
+from aitts.engines.managed import managed_engine
 from aitts.engines.openai_compatible import OpenAIAudioEngine
+from aitts.model_catalog import MODELS
+from aitts.model_setup import installed_runtime
 from aitts.store import Store
 
 if TYPE_CHECKING:
@@ -93,9 +96,6 @@ def configured_engines(
     engines: dict[str, Engine] = {"kokoro": KokoroEngine()}
     if probe_mlx():
         engines["kokoro-mlx"] = KokoroMlxEngine()
-    elif name == "kokoro-mlx":
-        log.warning("event=mlx_backend_unavailable fallback=kokoro")
-        name = "kokoro"
     url = os.environ.get("AI_TTS_OPENAI_URL")
     if url:
         engines["openai-audio"] = OpenAIAudioEngine(
@@ -109,6 +109,11 @@ def configured_engines(
             Path(directory),
             device=os.environ.get("AI_TTS_CHATTERBOX_DEVICE", "cpu"),
         )
+    engines.update(_managed_engines(home))
+    if name == "kokoro-mlx" and name not in engines:
+        # Neither the daemon's MLX nor a guided MLX runtime is available on this host.
+        log.warning("event=mlx_backend_unavailable fallback=kokoro")
+        name = "kokoro"
     if name == "fake":
         engines[name] = select_engine(name)
     if name not in engines:
@@ -119,3 +124,11 @@ def configured_engines(
         log.warning("event=configured_engine_unavailable fallback=kokoro")
         name = "kokoro"
     return engines[name], engines
+
+
+def _managed_engines(home: Path) -> dict[str, Engine]:
+    return {
+        name: managed_engine(name, root)
+        for name in MODELS
+        if (root := installed_runtime(home, name)) is not None
+    }
