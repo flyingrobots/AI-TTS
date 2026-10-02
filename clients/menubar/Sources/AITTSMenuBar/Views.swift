@@ -30,12 +30,20 @@ struct PopoverView: View {
                 EnginePreparationBanner()
                 InterruptionNotice()
                 CurrentPlaybackCard()
-                PlaybackTabBar(selected: $state.selectedTab)
-                Divider()
                 Group {
-                    switch state.selectedTab {
-                    case .queue: QueueView()
-                    case .history: HistoryView()
+                    if state.showingComposer {
+                        ScrollView {
+                            SpeechComposerView(composer: state.composer)
+                        }
+                    } else {
+                        VStack(spacing: 0) {
+                            PlaybackTabBar(selected: $state.selectedTab)
+                            Divider()
+                            switch state.selectedTab {
+                            case .queue: QueueView()
+                            case .history: HistoryView()
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -43,6 +51,9 @@ struct PopoverView: View {
                 ModelHealthFooter()
             } else {
                 UnreachableView()
+                if state.showingComposer {
+                    ScrollView { SpeechComposerView(composer: state.composer) }
+                }
             }
             PopoverResizeHandle(height: sizing.height, maximumHeight: sizing.maximumHeight) { sizing.resize(to: $0) }
                 .frame(height: 16)
@@ -197,8 +208,10 @@ struct PopoverHeader: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Speak…", systemImage: "square.and.pencil") { state.showingComposer = true }
-                .help("Type, paste, or attach text to speak")
+            Button(state.composerToggleTitle, systemImage: "square.and.pencil") {
+                state.showingComposer.toggle()
+            }
+                .help(state.composerToggleHelp)
             Button {
                 showingSettings = true
             } label: {
