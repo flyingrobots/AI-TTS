@@ -40,8 +40,8 @@ def clip(store: Store, utterance_id: str) -> Utterance:
 
 
 class NamedEngine(FakeEngine):
-    def __init__(self, name: str, *, local: bool = True) -> None:
-        super().__init__(voices=["v"])
+    def __init__(self, name: str, *, local: bool = True, voices: tuple[str, ...] = ("v",)) -> None:
+        super().__init__(voices=list(voices))
         self.name = name
         self.is_local = local
         self.sources: list[str] = []
@@ -443,6 +443,33 @@ def test_saved_voice_from_another_backend_reports_a_speakable_default(tmp_path: 
         assert settings.values()["voice"] == "new-backend-voice"
     finally:
         store.close()
+
+
+async def test_live_switch_away_and_back_keeps_the_saved_voice(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    original = NamedEngine("original", voices=("v", "kept"))
+    other = NamedEngine("other", voices=("o",))
+    daemon = Daemon(
+        home=tmp_path,
+        engine=original,
+        engines={"other": other},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        await daemon.dispatch({"op": "settings", "set": {"voice": "kept"}})
+        away = await daemon.dispatch({"op": "settings", "set": {"engine": "other"}})
+        assert away["settings"]["voice"] == "o"
+        back = await daemon.dispatch({"op": "settings", "set": {"engine": "original"}})
+        assert back["settings"]["voice"] == "kept"
+    finally:
+        await daemon.stop()
 
 
 async def test_model_preparation_failure_is_captured_in_the_clips_own_log(tmp_path: Path) -> None:

@@ -153,10 +153,10 @@ class SettingsService:
         return lambda: self._write_engine(value)
 
     def _write_engine(self, name: str) -> None:
+        # The saved voice is kept even when this engine lacks it: speaking_voice()
+        # reports a speakable default, and switching back restores the user's choice.
         self._store.set_setting("engine", name)
         self._environment.select_engine(name)
-        if self._store.get_setting("voice", "") not in self._environment.available_voices():
-            self._store.set_setting("voice", self._environment.default_voice())
 
     # -- individual reads, for callers that want one value ----------------
 

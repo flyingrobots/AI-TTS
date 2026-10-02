@@ -807,14 +807,11 @@ Apache License 2.0. Copyright 2026 James Ross. See [LICENSE](LICENSE) and [NOTIC
 
 ### Multiple local engines
 
-`ai-tts engines` lists the daemon's registered backends, their voices and readiness.
-`ai-tts settings set engine NAME` (also `settings --engine NAME` or
-`settings --set engine=NAME`) changes the default for future submissions. Queued
-clips and all their segments keep the engine recorded when they were accepted,
-including after daemon restart. The composer lists local models and updates its
-voice picker when a model changes. A per-clip `--engine NAME` overrides the default.
-Models prepare on first use and remain resident until explicitly reloaded or the
-daemon exits. Loading one does not unload another, so memory use can increase.
+`ai-tts engines` lists the daemon's registered backends, their voices and readiness. `ai-tts settings set engine NAME` (also `settings --engine NAME` or `settings --set engine=NAME`) changes the default for future submissions. Queued clips and all their segments keep the engine recorded when they were accepted, including after daemon restart. The composer lists local models and updates its voice picker when a model changes. A per-clip `--engine NAME` overrides the default.
+
+If the saved voice is absent from the newly selected engine, that engine's catalog default is used and reported. The saved choice is retained, so switching back to an engine that has it speaks with it again.
+
+Models prepare on first use and remain resident until explicitly reloaded or the daemon exits. Loading one does not unload another, so memory use can increase. While the startup engine prepares, only clips recorded for it wait; clips for other registered engines prepare and synthesize independently.
 
 The reference Kokoro adapter is registered at startup; MLX is also registered when its supported runtime and optional dependency are available. On startup, an unavailable configured MLX backend still falls back to reference Kokoro. So does a saved default for an adapter whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an adapter refuses to start instead.
 
