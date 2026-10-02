@@ -604,10 +604,12 @@ class Daemon:
                 self._pool.notify()
 
     async def _op_restart_model(self, payload: dict[str, Any]) -> dict[str, Any]:
-        del payload
-        name = self._engine.name
+        # A failed engine other than the default must be reachable by name.
+        name = payload.get("engine", self._engine.name)
+        if not isinstance(name, str) or name not in self._engines:
+            raise ApiError(BAD_REQUEST, "engine must be a registered name; use ai-tts engines")
         if (
-            not callable(getattr(self._engine, "restart", None))
+            not callable(getattr(self._engines[name], "restart", None))
             and self._registry.state(name) != "failed"
         ):
             raise ApiError(BAD_REQUEST, "this engine must be restarted in its owning server")

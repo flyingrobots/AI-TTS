@@ -595,3 +595,46 @@ async def test_fixed_speed_engine_speaks_default_submissions_despite_a_saved_spe
         assert settings["settings"]["speed"] == 1.25
     finally:
         await daemon.stop()
+
+
+async def test_restart_model_recovers_a_failed_engine_that_is_not_the_default(
+    tmp_path: Path, socket_path: Path
+) -> None:
+    from aitts.daemon import Daemon  # noqa: PLC0415
+    from aitts.ipc import ApiError  # noqa: PLC0415
+    from aitts.playback import FakeSink  # noqa: PLC0415
+
+    class RepairableEngine(NamedEngine):
+        repaired = False
+
+        def warmup(self) -> None:
+            if not self.repaired:
+                msg = "incomplete local snapshot"
+                raise RuntimeError(msg)
+            super().warmup()
+
+    default, broken = NamedEngine("default"), RepairableEngine("broken")
+    daemon = Daemon(
+        home=tmp_path,
+        engine=default,
+        engines={"broken": broken},
+        sink=FakeSink(),
+        socket_path=socket_path,
+        input_activity=NullInputActivity(),
+    )
+    await daemon.start()
+    try:
+        await daemon.dispatch({"op": "pause"})
+        first = await daemon.dispatch({"op": "submit", "text": "first", "engine": "broken"})
+        await wait_for(lambda: clip(daemon.store, first["id"]).state is State.FAILED)
+        broken.repaired = True
+        # The operator repairs the non-default engine and reloads it by name.
+        assert await daemon.dispatch({"op": "restart_model", "engine": "broken"}) == {"ok": True}
+        second = await daemon.dispatch({"op": "submit", "text": "second", "engine": "broken"})
+        await wait_for(lambda: clip(daemon.store, second["id"]).state is State.READY)
+        assert broken.sources == ["second"]
+        assert daemon.engine_name() == "default"
+        with pytest.raises(ApiError, match="registered name"):
+            await daemon.dispatch({"op": "restart_model", "engine": "missing"})
+    finally:
+        await daemon.stop()

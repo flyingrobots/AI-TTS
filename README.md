@@ -800,7 +800,7 @@ cannot do it.
 
 If the saved voice is absent from the newly selected engine, that engine's catalog default is used and reported. The saved choice is retained, so switching back to an engine that has it speaks with it again.
 
-Models prepare on first use and remain resident until explicitly reloaded or the daemon exits. Loading one does not unload another, so memory use can increase. While the startup engine prepares, only clips recorded for it wait; clips for other registered engines prepare and synthesize independently.
+Models prepare on first use and remain resident until explicitly reloaded or the daemon exits. Loading one does not unload another, so memory use can increase. An engine whose preparation failed stays failed until it is reloaded; the `restart_model` IPC op reloads the default engine, or the engine named in its optional `engine` field, so a failed non-default engine can be retried without switching the default. While the startup engine prepares, only clips recorded for it wait; clips for other registered engines prepare and synthesize independently.
 
 The reference Kokoro adapter is registered at startup; MLX is also registered when its supported runtime and optional dependency are available. On startup, an unavailable configured MLX backend still falls back to reference Kokoro. So does a saved default for an adapter whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an adapter refuses to start instead.
 
