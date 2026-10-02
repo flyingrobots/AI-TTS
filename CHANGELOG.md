@@ -222,6 +222,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The medium test tier's time budget is re-baselined from 45 to 120 seconds, because the tier's cost of 22–56 seconds made 45 seconds alarm on machine noise. Small and large budgets and per-test ceilings are unchanged. Issue #72 tracks reducing the installation tests' cost.
+
+- Installation now starts the menu-bar app independently at login and recovers abnormal exits. Intentional Quit keeps it closed, and reopening restores crash recovery. Uninstall removes both launch agents.
+
 - A submit response's `eligible_engines` lists registered engine names (for example `["kokoro"]`) instead of the `["local"]` placeholder, and the settings `engine` value reports the engine actually selected in the running daemon rather than the stored preference.
 
 - Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
@@ -269,6 +273,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decisions, or open questions changed.
 
 ### Fixed
+
+- Installation waits for a quit menu-bar app to exit before registering its launch agent, so the new instance doesn't lose the single-instance lock and stay closed. It retires the running app with SIGTERM rather than an AppleScript quit, so no Automation permission prompt appears; an app that is still running after ten seconds produces a warning instead of a failed install. The menu-bar app treats SIGTERM as a normal Quit, so ducked media is restored when the installer or `launchctl bootout` stops it.
+
+- `make uninstall` reports failure and keeps the menu-bar plist when launchd cannot stop a loaded menu-bar agent. Reopening the installed app falls back to a standalone launch if `launchctl kickstart` hangs for more than two seconds, and a stalled `ps` or `kill` during installation can no longer hold up the install.
 
 - Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
 

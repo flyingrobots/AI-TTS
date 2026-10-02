@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 LABEL = "com.flyingrobots.ai-tts"
+MENU_BAR_LABEL = "com.flyingrobots.ai-tts.menubar"
 
 
 def _ensure_private_log_directory(path: Path) -> None:
@@ -48,8 +49,37 @@ def render_launch_agent(
         "StandardErrorPath": "/dev/null",
         "StandardOutPath": "/dev/null",
     }
-    output.parent.mkdir(parents=True, exist_ok=True)
     _ensure_private_log_directory(log_path.parent)
+    return _publish_plist(payload=payload, output=output, force=force)
+
+
+def render_menu_bar_agent(*, app: Path, output: Path, force: bool = False) -> Path:
+    """Start the installed UI at login and recover only abnormal exits."""
+    for name, path in (("app", app), ("output", output)):
+        if not path.is_absolute():
+            message = f"{name} must be an absolute path: {path}"
+            raise ValueError(message)
+    payload: dict[str, Any] = {
+        "Label": MENU_BAR_LABEL,
+        "ProgramArguments": [str(app / "Contents" / "MacOS" / "AITTSMenuBar")],
+        "RunAtLoad": True,
+        "KeepAlive": {"SuccessfulExit": False},
+        "LimitLoadToSessionType": "Aqua",
+        "EnvironmentVariables": {"AITTS_MENU_BAR_AGENT": "1"},
+        "ProcessType": "Interactive",
+        "ThrottleInterval": 10,
+        "StandardOutPath": "/dev/null",
+        "StandardErrorPath": "/dev/null",
+    }
+    return _publish_plist(payload=payload, output=output, force=force)
+
+
+def _publish_plist(*, payload: dict[str, Any], output: Path, force: bool) -> Path:
+    """Atomically publish a complete plist without clobbering concurrent installs."""
+    if output.exists() and not force:
+        message = f"refusing to replace existing launch agent: {output}"
+        raise FileExistsError(message)
+    output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=output.parent, prefix=f".{output.name}-") as staging:
         candidate = Path(staging) / output.name
         with candidate.open("wb") as stream:

@@ -69,6 +69,8 @@ if args[:2] == ["run", "python"] and args[2].endswith("build_app_bundle.py"):
     output = Path(args[args.index("--output") + 1])
     output.mkdir(parents=True)
     (output / "version").write_text("new app")
+elif args[:2] == ["tool", "uninstall"]:
+    (root / "cli-version").unlink(missing_ok=True)
 elif args[:1] == ["export"]:
     # The lockfile export is offline and frozen, so the real uv runs it.
     os.execv(os.environ["AITTS_TEST_REAL_UV"], ["uv", *args])
@@ -84,6 +86,50 @@ else:
     sys.exit(8)
 """
     )
+    # Installation must not send Apple events, which need Automation consent.
+    # This owned osascript also shadows the real one, which could quit a real UI.
+    osascript = commands / "osascript"
+    osascript.write_text('#!/bin/sh\ntouch "$AITTS_TEST_ROOT/osascript-invoked"\nexit 1\n')
+    osascript.chmod(0o755)
+    # The owned process table: an incumbent-ui JSON file is a running UI, next
+    # to a development build and an unrelated process that must not be touched.
+    # SIGTERM leaves the UI alive for two more liveness probes, like AppKit
+    # teardown.
+    for tool, source in {
+        "ps": """import json, os
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+print("    1 /sbin/launchd")
+print("   77 /development/.build/debug/AITTSMenuBar")
+incumbent = root / "incumbent-ui"
+if incumbent.exists():
+    process = json.loads(incumbent.read_text())
+    print(f" {process['pid']} {process['args']}")
+""",
+        "kill": """import json, os, sys
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+signal, pid = sys.argv[1:]
+with (root / "signals").open("a") as journal:
+    journal.write(f"{signal} {pid}\\n")
+incumbent = root / "incumbent-ui"
+process = json.loads(incumbent.read_text()) if incumbent.exists() else None
+if process is None or process["pid"] != pid:
+    sys.exit(1)
+if signal == "-TERM":
+    process["remaining"] = 2
+elif signal == "-0" and process.get("remaining") == 0:
+    incumbent.unlink()
+    sys.exit(1)
+elif signal == "-0" and process.get("remaining") is not None:
+    process["remaining"] -= 1
+incumbent.write_text(json.dumps(process))
+""",
+    }.items():
+        shim = commands / tool
+        shim.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
+        shim.chmod(0o755)
+        shim.with_suffix(".py").write_text(source)
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -91,17 +137,22 @@ else:
         """import os, sys, plistlib
 from pathlib import Path
 root = Path(os.environ["AITTS_TEST_ROOT"])
-loaded = root / "service-loaded"
 # launchd finishes removing a booted-out service asynchronously: it stays
 # visible to this many `print` queries, and bootstrap fails with error 5.
 teardown = root / "teardown-remaining"
 lingering = int(teardown.read_text()) if teardown.exists() else 0
 args = sys.argv[1:]
+label = (plistlib.loads(Path(args[-1]).read_bytes())["Label"]
+         if args[0] == "bootstrap" else args[-1].split("/")[-1])
+loaded = root / ("menu-bar-loaded" if label.endswith(".menubar") else "service-loaded")
 if args[0] == "print":
     if lingering:
         teardown.write_text(str(lingering - 1))
         sys.exit(0)
     sys.exit(0 if loaded.exists() else 3)
+if (args[0] == "bootout" and label.endswith(".menubar")
+        and os.environ.get("AITTS_TEST_MENU_BAR_BOOTOUT_FAILURE") == "1"):
+    sys.exit(9)
 if args[0] == "bootout":
     loaded.unlink(missing_ok=True)
     teardown.write_text(os.environ.get("AITTS_TEST_TEARDOWN_POLLS", "0"))
@@ -111,9 +162,15 @@ elif args[0] == "bootstrap" and lingering:
 elif args[0] == "bootstrap":
     payload = plistlib.loads(Path(args[-1]).read_bytes())
     refuse = os.environ.get("AITTS_TEST_BOOTSTRAP_FAILURE") == "1"
+    if (os.environ.get("AITTS_TEST_MENU_BAR_FAILURE") == "1"
+            and label.endswith(".menubar")
+            and payload["ProgramArguments"][0] != "/old/menu-bar"):
+        sys.exit(9)
     if refuse and payload["ProgramArguments"][0] != "/old/ai-tts":
         sys.exit(9)
-    loaded.write_text("running")
+    # RunAtLoad starts the UI now; a live incumbent still holds its lock.
+    lost = label.endswith(".menubar") and (root / "incumbent-ui").exists()
+    loaded.write_text("lock-lost" if lost else "running")
 else:
     sys.exit(8)
 """
@@ -204,7 +261,7 @@ def test_install_reports_registration_without_claiming_daemon_health(
     assert result.returncode == 0, result.stderr
     assert "daemon is registered" in result.stdout
     assert "daemon is running" not in result.stdout
-    assert "menu-bar app was not launched" in result.stdout
+    assert "menu-bar app is registered too" in result.stdout
 
 
 def test_install_includes_the_english_model_in_the_daemon_environment(
@@ -221,6 +278,186 @@ def test_install_includes_the_english_model_in_the_daemon_environment(
         "https://github.com/explosion/spacy-models/releases/download/"
         "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
     ) in extras
+
+
+# Retire only when installation no longer owns the menu-bar login/crash policy.
+def test_install_registers_independent_menu_bar_startup(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    payload = plistlib.loads((tmp_path / "com.flyingrobots.ai-tts.menubar.plist").read_bytes())
+    assert {
+        "label": payload["Label"],
+        "executable": payload["ProgramArguments"],
+        "login": payload["RunAtLoad"],
+        "restart": payload["KeepAlive"],
+        "session": payload["LimitLoadToSessionType"],
+        "managed": payload["EnvironmentVariables"],
+        "registered": (tmp_path / "menu-bar-loaded").exists(),
+        "daemon_registered": (tmp_path / "service-loaded").exists(),
+    } == {
+        "label": "com.flyingrobots.ai-tts.menubar",
+        "executable": [str(tmp_path / "AI-TTS.app" / "Contents" / "MacOS" / "AITTSMenuBar")],
+        "login": True,
+        "restart": {"SuccessfulExit": False},
+        "session": "Aqua",
+        "managed": {"AITTS_MENU_BAR_AGENT": "1"},
+        "registered": True,
+        "daemon_registered": True,
+    }
+
+
+# Retire only when installation no longer quits a running UI before registering it.
+def test_install_waits_for_the_quit_menu_bar_to_exit_before_registering_it(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: the registered UI must not lose the single-instance lock to its predecessor."""
+    write_incumbent_ui(tmp_path)
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "menu-bar-loaded").read_text() == "running"
+
+
+def write_incumbent_ui(tmp_path: Path) -> None:
+    """Run the installed UI in the owned process table, as a manual launch would."""
+    executable = tmp_path.resolve() / "AI-TTS.app" / "Contents" / "MacOS" / "AITTSMenuBar"
+    (tmp_path / "incumbent-ui").write_text(json.dumps({"pid": "4242", "args": str(executable)}))
+
+
+# Retire only when installation no longer retires a running UI itself.
+def test_install_retires_the_running_ui_by_signal_without_apple_events(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: James's decision F; quitting needs no Automation consent and spares other builds."""
+    write_incumbent_ui(tmp_path)
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    signals = (tmp_path / "signals").read_text().splitlines()
+    assert {
+        "osascript": (tmp_path / "osascript-invoked").exists(),
+        "terminated": [line for line in signals if line.startswith("-TERM")],
+        "probed": {line.split()[1] for line in signals},
+    } == {"osascript": False, "terminated": ["-TERM 4242"], "probed": {"4242"}}
+
+
+@pytest.mark.parametrize("loaded", [False, True])
+def test_failed_menu_bar_activation_preserves_its_incumbent_and_registered_daemon(
+    tmp_path: Path, install_environment: dict[str, str], *, loaded: bool
+) -> None:
+    agent = tmp_path / "com.flyingrobots.ai-tts.menubar.plist"
+    previous = plistlib.dumps(
+        {"Label": "com.flyingrobots.ai-tts.menubar", "ProgramArguments": ["/old/menu-bar"]}
+    )
+    agent.write_bytes(previous)
+    if loaded:
+        (tmp_path / "menu-bar-loaded").write_text("running")
+    result = run_installation(tmp_path, dict(install_environment, AITTS_TEST_MENU_BAR_FAILURE="1"))
+    assert {
+        "failed": result.returncode != 0,
+        "configuration": agent.read_bytes(),
+        "ui_loaded": (tmp_path / "menu-bar-loaded").exists(),
+        "daemon_loaded": (tmp_path / "service-loaded").exists(),
+    } == {
+        "failed": True,
+        "configuration": previous,
+        "ui_loaded": loaded,
+        "daemon_loaded": True,
+    }
+
+
+def test_uninstall_removes_both_agents_and_preserves_the_app(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    result = subprocess.run(  # noqa: S603 - owned tools and installation destinations
+        [
+            "/usr/bin/make",
+            "--no-print-directory",
+            "uninstall",
+            f"APP_BUNDLE={tmp_path / 'AI-TTS.app'}",
+            f"LAUNCH_AGENT={tmp_path / 'agent.plist'}",
+        ],
+        cwd=REPOSITORY,
+        env=install_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert {
+        "exit": result.returncode,
+        "daemon_plist": (tmp_path / "agent.plist").exists(),
+        "ui_plist": (tmp_path / "com.flyingrobots.ai-tts.menubar.plist").exists(),
+        "daemon_loaded": (tmp_path / "service-loaded").exists(),
+        "ui_loaded": (tmp_path / "menu-bar-loaded").exists(),
+        "app": (tmp_path / "AI-TTS.app" / "version").read_text(),
+    } == {
+        "exit": 0,
+        "daemon_plist": False,
+        "ui_plist": False,
+        "daemon_loaded": False,
+        "ui_loaded": False,
+        "app": "new app",
+    }
+
+
+# Retire only when uninstall no longer boots out the menu-bar agent itself.
+def test_uninstall_reports_a_menu_bar_agent_that_launchd_keeps_loaded(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: CodeRabbit PRRT_kwDOUHyfMM6oPaqr; no uninstall success over a live agent."""
+    plist = tmp_path / "com.flyingrobots.ai-tts.menubar.plist"
+    plist.write_bytes(plistlib.dumps({"Label": "com.flyingrobots.ai-tts.menubar"}))
+    (tmp_path / "menu-bar-loaded").write_text("running")
+    result = subprocess.run(  # noqa: S603 - owned tools and installation destinations
+        [
+            "/usr/bin/make",
+            "--no-print-directory",
+            "uninstall",
+            f"APP_BUNDLE={tmp_path / 'AI-TTS.app'}",
+            f"LAUNCH_AGENT={tmp_path / 'agent.plist'}",
+        ],
+        cwd=REPOSITORY,
+        env=dict(install_environment, AITTS_TEST_MENU_BAR_BOOTOUT_FAILURE="1"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert {
+        "failed": result.returncode != 0,
+        "reported": "com.flyingrobots.ai-tts.menubar" in result.stderr,
+        "plist_kept": plist.exists(),
+    } == {"failed": True, "reported": True, "plist_kept": True}
+
+
+def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: the locked constraints deliver a modern tokenizer, avoiding the obsolete Rust build.
+
+    Unconstrained, uv resolved transformers 4.12.2 / tokenizers 0.10.3, whose
+    source build failed. A separate `--with` range can contradict uv.lock.
+    """
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
+    extras = [
+        arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
+    ]
+    assert not [extra for extra in extras if extra.startswith(("transformers", "tokenizers"))]
+    pins = dict(
+        line.split(";")[0].strip().split("==", 1)
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    )
+
+    def release(name: str) -> tuple[int, int]:
+        major, minor = pins[name].split(".")[:2]
+        return int(major), int(minor)
+
+    assert release("transformers") >= (4, 46)
+    assert release("tokenizers") > (0, 10)
 
 
 def test_install_resolves_the_daemon_environment_to_the_locked_versions(

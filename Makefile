@@ -25,6 +25,8 @@ MENUBAR        := clients/menubar
 LAUNCH_AGENT   := $(HOME)/Library/LaunchAgents/com.flyingrobots.ai-tts.plist
 LOG_PATH       ?= $(HOME)/Library/Logs/AI-TTS/daemon.log
 GUI_DOMAIN     := gui/$(shell id -u)
+MENU_BAR_AGENT := $(dir $(LAUNCH_AGENT))com.flyingrobots.ai-tts.menubar.plist
+MENU_BAR_SERVICE := $(GUI_DOMAIN)/com.flyingrobots.ai-tts.menubar
 SERVICE        := $(GUI_DOMAIN)/com.flyingrobots.ai-tts
 INSTALLER      := scripts/install-integration.sh
 
@@ -62,7 +64,7 @@ app: tools
 
 # -- install --------------------------------------------------------------
 
-## install: install the CLI and MCP server, the app, and the launchd agent
+## install: install the CLI and MCP server, the app, and both launchd agents
 install: export AITTS_APP := $(APP_BUNDLE)
 install: export AITTS_PLIST := $(LAUNCH_AGENT)
 install: export AITTS_LOG := $(LOG_PATH)
@@ -125,13 +127,20 @@ clean:
 	@rm -rf -- "$$AITTS_DIST" "$$AITTS_MENUBAR/.build"
 	@printf 'Removed %s and %s/.build\n' "$$AITTS_DIST" "$$AITTS_MENUBAR"
 
-## uninstall: stop and remove the launchd agent, and the installed executables
+## uninstall: stop and remove both launchd agents, and the installed executables
 uninstall: export AITTS_PLIST := $(LAUNCH_AGENT)
+uninstall: export AITTS_MENU_BAR_PLIST := $(MENU_BAR_AGENT)
 uninstall: export AITTS_APP := $(APP_BUNDLE)
 uninstall:
-	@printf '==> stopping and removing the launchd agent\n'
+	@printf '==> stopping and removing both launchd agents\n'
+	@if launchctl print "$(MENU_BAR_SERVICE)" >/dev/null 2>&1 && \
+		! launchctl bootout "$(MENU_BAR_SERVICE)" 2>/dev/null; then \
+		printf 'launchd could not stop %s; its plist was left in place\n' \
+			"$(MENU_BAR_SERVICE)" >&2; \
+		exit 1; \
+	fi
 	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
-	@rm -f -- "$$AITTS_PLIST"
+	@rm -f -- "$$AITTS_PLIST" "$$AITTS_MENU_BAR_PLIST"
 	@printf '==> removing the executables\n'
 	@uv tool uninstall ai-tts 2>/dev/null || true
 	@printf '\nLeft in place on purpose: %s, your speech history and\n' "$$AITTS_APP"
@@ -150,7 +159,7 @@ help:
 	@printf '  make                 build the menu-bar app into $(DIST)/\n'
 	@printf '  make app             rebuild the installed app bundle in place\n'
 	@printf '\nInstall\n'
-	@printf '  make install         executables, app bundle, and launchd agent\n'
+	@printf '  make install         executables, app bundle, and both launchd agents\n'
 	@printf '  make install-mcp     register the MCP server with local agents\n'
 	@printf '  make install-skill   install the speak skill into local agents\n'
 	@printf '  make install-agents  both agent integrations\n'
@@ -161,7 +170,7 @@ help:
 	@printf '  make doctor          what is running and what is wired in\n'
 	@printf '\nHousekeeping\n'
 	@printf '  make clean           remove build products\n'
-	@printf '  make uninstall       stop and remove the daemon and executables\n'
+	@printf '  make uninstall       stop and remove both launchd agents and executables\n'
 	@printf '\nAgent selection\n'
 	@printf '  make install-mcp                      every agent found\n'
 	@printf '  make install-mcp AGENTS="--claude"    just one\n'

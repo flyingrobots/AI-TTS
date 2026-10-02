@@ -32,7 +32,11 @@ _SIZE_SECONDS = {"small": 2, "medium": 15, "large": 30}
 # a gate that fires when the machine is busy is a flaky gate, which rule 10
 # says does not gate at all. Anything approaching these is real decay, and the
 # p95 line printed every run is where it shows up first.
-_CLASS_BUDGET_SECONDS = {"small": 10.0, "medium": 45.0, "large": 120.0}
+#
+# Medium was re-baselined from 45s to 120s on 2026-10-02, with James's approval:
+# it had grown to 22-56s across local and CI runs, so 45s alarmed on noise. See
+# the testing profile's budget table and issue #72.
+_CLASS_BUDGET_SECONDS = {"small": 10.0, "medium": 120.0, "large": 120.0}
 _durations: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _overheads: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _suite_started = 0.0
