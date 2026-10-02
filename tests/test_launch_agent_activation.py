@@ -106,7 +106,7 @@ def test_activation_waits_for_launchd_teardown_before_registering_replacement(
         return subprocess.CompletedProcess(arguments, code)
 
     monkeypatch.setattr("scripts.install_application.subprocess.run", launchctl)
-    # Once bounded retry is implemented, the OS wait is controlled by the test.
+    # The test controls the bounded retry's OS wait.
     import time  # noqa: PLC0415 - patch only this contract's timing boundary
 
     monkeypatch.setattr(time, "sleep", lambda _seconds: None)
