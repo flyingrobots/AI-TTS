@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Guided local model setup: Settings and the `ai-tts model-setup` / `ai-tts cancel-model-setup` commands discover, download, cancel and retry Kokoro, Kokoro · Apple Silicon (MLX) and Chatterbox Turbo. Each model gets its own private Python 3.12 runtime with hash-pinned dependencies and a pinned model snapshot, served by an isolated worker process. The `engines` response and snapshot gain a `models` list. **Use model** selects a model explicitly; setup never selects one.
+
 ### Security
 
 - Guided model setup checks every downloaded model file against a SHA-256 digest pinned in the catalog before any file is loaded, so a substituted or corrupted download (including pickled torch weights) is rejected instead of deserialized.
