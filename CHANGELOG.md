@@ -17,108 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An `openai-audio` adapter speaks through a separately managed OpenAI-compatible server on loopback only (`AI_TTS_OPENAI_URL`, `AI_TTS_OPENAI_MODEL`, `AI_TTS_OPENAI_VOICE`). It pins `localhost` to 127.0.0.1, ignores proxies, follows no redirects, bounds responses to 64 MiB with a 30-second socket timeout, and publishes only a complete WAV with finite samples. Its readiness is reported as server managed.
 - A `chatterbox` extra adds native Chatterbox Turbo from an explicit local snapshot (`AI_TTS_CHATTERBOX_MODEL_DIR`), with its one `default` voice, its upstream watermark kept, and generation speed fixed at 1. A clip that names no speed uses 1 and keeps the saved speed for other engines; an explicit other speed is refused. The extra installs two pinned upstream source archives, and CI audits them separately from the hashed PyPI graph.
 
-### Changed
-
-- A submit response's `eligible_engines` lists registered engine names (for example `["kokoro"]`) instead of the `["local"]` placeholder, and the settings `engine` value reports the engine actually selected in the running daemon rather than the stored preference.
-
-- Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
-
-- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use. The card opens after the pointer rests on the button for 400 ms, so moving the pointer across History opens no cards and sends no daemon requests.
-
-### Fixed
-
-- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
-
-- Playback no longer pops when another app activates mid-clip. Left to choose, PortAudio asked CoreAudio for 15-frame (0.3 ms) I/O cycles, so a 13 ms page fault on the audio thread skipped a cycle. The output stream now requests a host block sized from the output device's sample rate for a 21.3 ms I/O buffer: 1024 frames at 48 kHz, as measured on the built-in speakers. Other devices get the same duration at their own rate. The cost is about 0.13 s more delay before pause and skip are heard.
-
-- `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
-
-- `make install` rebuilds the ai-tts package on every run. uv reused its cached build of the checkout whenever the version stayed the same, so an install could report success while the daemon kept running the previous code.
-
-- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. If the old service has not left after ten seconds, it gives up with a reason and restores the previous configuration.
-
-- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
-
-- The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
-
-- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
-
-- Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
-
-- App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.
-
-- Agent integration preserves embedded and trailing newlines in executable paths instead of failing skill rendering or silently changing the path.
-
-- Installation reports launchd registration without claiming the daemon is healthy or running; `make doctor` remains the explicit status check.
-
-- If launchd rejects an updated service configuration, installation restores the prior plist and attempts to reload it only when the service was previously loaded. A loaded service without a recoverable plist is not stopped.
-
-- `make install` prepares the signed app and launch-agent plist before replacing the CLI, so build or preparation failures cannot partially upgrade the executable installation. Explicit app, plist, and log destinations are passed through consistently.
-
-- `make doctor` reports a failed daemon status check when the executable is found through uv rather than PATH.
-
-- Skill upgrades render to a sibling temporary file before replacement, preserving the installed SKILL.md when rendering fails.
-
-- Failed MCP registration no longer removes an existing agent registration or reports success. Other selected agents are still attempted, and the installer exits nonzero if any registration fails.
-
-- Forced app upgrades build, package and sign a sibling candidate before atomically swapping it into place. Build failures preserve the installed app, and unsupported filesystems fail without deleting it.
-
-- Forced launch-agent upgrades preserve the existing plist if validation or serialization fails, and publish only a complete replacement. Unforced installs refuse concurrent replacement.
-
-- Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
-
-- Daemon shutdown retires active audio and its completion watcher before closing state or releasing ownership, preserving the final parent/child position for explicit resume.
-
-- Pause arriving during Restart device teardown now keeps playback silent; explicit Resume honors the requested restart from zero.
-
-- Private-file validation refuses unexpected FIFOs without blocking startup or diagnostic-log setup while waiting for a pipe peer.
-
-- IPC rejects isolated Unicode surrogate escapes before dispatch, returning a typed refusal without leaving voice assignments from a failed submission.
-
-- Recovery settles documents whose final child completed before the parent completion commit, preserving played duration and releasing the queue.
-
-- Updated frozen PyJWT to 2.15.1 for the recursive payload error-handling vulnerability CVE-2026-101918.
-
-- Skipping a document now commits the parent, active child, and unfinished siblings together, preventing later chunks from returning after an interrupted Skip.
-
-- Recovery carries a committed child synthesis failure to its still-active parent instead of leaving the document stranded in the queue.
-
-- Recovery repairs a document whose first child audio committed before its parent became Ready, including another crash during that repair.
-
-- Restarting with Ready playback now engages the durable global hold, requiring explicit resume even if the process stopped before any clip began playing.
-
-- Cached replays retain generation-artifact identity after audio eviction, so provenance and reports can still find retained evidence. Existing audio references are migrated on database open; previously lost links cannot be reconstructed.
-
-- The frozen urllib3 dependency is updated to 2.8.0 for proxy-TLS isolation, Deflate streaming, and oversized chunk-header vulnerabilities, with an in-memory chunk-header regression.
-
-- Competing daemon starts now refuse an already-owned state directory or socket instead of recovering a live queue or replacing its endpoint; failed startup releases acquired resources.
-
-- Daemon shutdown now retires active IPC handlers before closing application state and refuses buffered requests after serving stops.
-
-- Cancelling a model-reload request no longer releases synthesis exclusion early or leaves model readiness stuck; the daemon owns reload completion.
-
-- Python application modules no longer select concrete CoreAudio adapters; platform factories live outside the application boundary, with a static-import regression gate.
-
-- Clearing or successfully submitting a composer draft retains its chosen text interpretation, voice, and model.
-
-- Composer selection imports follow the latest external application activation; unavailable targets are cleared instead of reusing an older app.
-
-- Speech-composer provenance now identifies user composition while preserving import attribution and replay origin.
-
-- Automatic screen fitting no longer overwrites the preferred menu height; returning to a larger display restores it.
-
-- Menu heights above 1200 points remain intact across relaunches on tall displays.
-
-- The menu resize grip supports keyboard arrows and accessibility increment/decrement, and exposes its current height and bounds.
-
-- History removal prunes cached provenance, and late requests cannot restore details for removed clips.
-
-- History exposes a clearly labeled Show/Hide provenance button with a full clickable target and selectable clip details.
-- Engine switches use and report a compatible default voice while preserving the saved preference for compatible engines.
-- MLX startup now falls back to reference Kokoro when required English language assets are missing.
-
-### Added
-
 - Measured architecture review with Mermaid diagrams, reproducible controller/PCM/MLX benchmarks, retained baseline evidence, and scheduled CI guards for gross performance regressions.
 
 - Paragraph-level chunk navigation for ordinary responses of at least 60 words. Substantial paragraphs become separate clips, small blocks stay attached to neighbors, and short single clips retain their identity.
@@ -324,6 +222,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A submit response's `eligible_engines` lists registered engine names (for example `["kokoro"]`) instead of the `["local"]` placeholder, and the settings `engine` value reports the engine actually selected in the running daemon rather than the stored preference.
+
+- Speak opens an inline composer beneath playback, preserving drafts when collapsed; CC cycles Off, Bottom, Top.
+
+- History provenance appears in a compact, scrollable hover card instead of expanding the row; clicking remains available for keyboard and accessibility use. The card opens after the pointer rests on the button for 400 ms, so moving the pointer across History opens no cards and sends no daemon requests.
+
 - Simplified the internal speech store by removing an unused queue lookup and
   making its pending-queue helper private. Playback and queue controls are
   unchanged.
@@ -365,6 +269,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decisions, or open questions changed.
 
 ### Fixed
+
+- Skip, stop, pause, resume, and output-device moves no longer pop. When a stream closes mid-clip, the sink fades the audio that would have played next over 20 ms, without moving the playhead, then writes 100 ms of silence before closing. CoreAudio can cut the in-flight hardware buffer when the stream stops, and that cut now lands on silence rather than speech. A stream that opens mid-clip, on resume or after a device move, fades in over 20 ms instead of starting at full amplitude. The fade-out stays smooth near the end of a clip, after an interrupted fade-in, and when a pause is resumed immediately. Previously pause and device moves had no fade, and stop had only a 5 ms ramp.
+
+- Playback no longer pops when another app activates mid-clip. Left to choose, PortAudio asked CoreAudio for 15-frame (0.3 ms) I/O cycles, so a 13 ms page fault on the audio thread skipped a cycle. The output stream now requests a host block sized from the output device's sample rate for a 21.3 ms I/O buffer: 1024 frames at 48 kHz, as measured on the built-in speakers. Other devices get the same duration at their own rate. The cost is about 0.13 s more delay before pause and skip are heard.
+
+- `make install` constrains the uv tool install to the versions in `uv.lock`. `uv tool install` ignores the lockfile, so the release of huggingface-hub 2.0 sent the resolver back to transformers 4.12.2, whose tokenizers 0.10.3 fails to build, and every fresh install failed. The README's manual and MLX install commands use the same constraints.
+
+- `make install` rebuilds the ai-tts package on every run. uv reused its cached build of the checkout whenever the version stayed the same, so an install could report success while the daemon kept running the previous code.
+
+- `make install` waits for launchd to finish tearing down the previous agent before bootstrapping the new one, instead of failing with `Bootstrap failed: 5: Input/output error` after a successful build. If the old service has not left after ten seconds, it gives up with a reason and restores the previous configuration.
+
+- Icon-only history, queue, settings, voice and dismissal controls expose functional accessibility names; the re-queue menu retains its name across UI redraws.
+
+- The native menu-bar control exposes an accessible app name and current status instead of an unnamed image button.
+
+- The menu-bar app renders its initial unavailable-state icon immediately, remaining discoverable when the daemon cannot answer.
+
+- Interrupted launch-agent activation restores the previous plist and registration state, including launchctl side effects completed before Ctrl-C reaches the installer.
+
+- App and launch-agent CLIs report concurrent destination conflicts as concise usage errors while preserving the winning installation.
+
+- Agent integration preserves embedded and trailing newlines in executable paths instead of failing skill rendering or silently changing the path.
+
+- Installation reports launchd registration without claiming the daemon is healthy or running; `make doctor` remains the explicit status check.
+
+- If launchd rejects an updated service configuration, installation restores the prior plist and attempts to reload it only when the service was previously loaded. A loaded service without a recoverable plist is not stopped.
+
+- `make install` prepares the signed app and launch-agent plist before replacing the CLI, so build or preparation failures cannot partially upgrade the executable installation. Explicit app, plist, and log destinations are passed through consistently.
+
+- `make doctor` reports a failed daemon status check when the executable is found through uv rather than PATH.
+
+- Skill upgrades render to a sibling temporary file before replacement, preserving the installed SKILL.md when rendering fails.
+
+- Failed MCP registration no longer removes an existing agent registration or reports success. Other selected agents are still attempted, and the installer exits nonzero if any registration fails.
+
+- Forced app upgrades build, package and sign a sibling candidate before atomically swapping it into place. Build failures preserve the installed app, and unsupported filesystems fail without deleting it.
+
+- Forced launch-agent upgrades preserve the existing plist if validation or serialization fails, and publish only a complete replacement. Unforced installs refuse concurrent replacement.
+
+- Completed audio sinks can be acquired immediately after `wait()` returns, even if the previous Python worker thread is still retiring. Active playback remains protected against overlap.
+
+- Daemon shutdown retires active audio and its completion watcher before closing state or releasing ownership, preserving the final parent/child position for explicit resume.
+
+- Pause arriving during Restart device teardown now keeps playback silent; explicit Resume honors the requested restart from zero.
+
+- Private-file validation refuses unexpected FIFOs without blocking startup or diagnostic-log setup while waiting for a pipe peer.
+
+- IPC rejects isolated Unicode surrogate escapes before dispatch, returning a typed refusal without leaving voice assignments from a failed submission.
+
+- Recovery settles documents whose final child completed before the parent completion commit, preserving played duration and releasing the queue.
+
+- Updated frozen PyJWT to 2.15.1 for the recursive payload error-handling vulnerability CVE-2026-101918.
+
+- Skipping a document now commits the parent, active child, and unfinished siblings together, preventing later chunks from returning after an interrupted Skip.
+
+- Recovery carries a committed child synthesis failure to its still-active parent instead of leaving the document stranded in the queue.
+
+- Recovery repairs a document whose first child audio committed before its parent became Ready, including another crash during that repair.
+
+- Restarting with Ready playback now engages the durable global hold, requiring explicit resume even if the process stopped before any clip began playing.
+
+- Cached replays retain generation-artifact identity after audio eviction, so provenance and reports can still find retained evidence. Existing audio references are migrated on database open; previously lost links cannot be reconstructed.
+
+- The frozen urllib3 dependency is updated to 2.8.0 for proxy-TLS isolation, Deflate streaming, and oversized chunk-header vulnerabilities, with an in-memory chunk-header regression.
+
+- Competing daemon starts now refuse an already-owned state directory or socket instead of recovering a live queue or replacing its endpoint; failed startup releases acquired resources.
+
+- Daemon shutdown now retires active IPC handlers before closing application state and refuses buffered requests after serving stops.
+
+- Cancelling a model-reload request no longer releases synthesis exclusion early or leaves model readiness stuck; the daemon owns reload completion.
+
+- Python application modules no longer select concrete CoreAudio adapters; platform factories live outside the application boundary, with a static-import regression gate.
+
+- Clearing or successfully submitting a composer draft retains its chosen text interpretation, voice, and model.
+
+- Composer selection imports follow the latest external application activation; unavailable targets are cleared instead of reusing an older app.
+
+- Speech-composer provenance now identifies user composition while preserving import attribution and replay origin.
+
+- Automatic screen fitting no longer overwrites the preferred menu height; returning to a larger display restores it.
+
+- Menu heights above 1200 points remain intact across relaunches on tall displays.
+
+- The menu resize grip supports keyboard arrows and accessibility increment/decrement, and exposes its current height and bounds.
+
+- History removal prunes cached provenance, and late requests cannot restore details for removed clips.
+
+- History exposes a clearly labeled Show/Hide provenance button with a full clickable target and selectable clip details.
+- Engine switches use and report a compatible default voice while preserving the saved preference for compatible engines.
+- MLX startup now falls back to reference Kokoro when required English language assets are missing.
 
 - Refreshing a suspended playback offset preserves the parent transition timestamp and does not emit a duplicate Paused event.
 
