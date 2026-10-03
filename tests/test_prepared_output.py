@@ -3,6 +3,7 @@
 
 """Prepared output ownership at the injected native device boundary."""
 
+import contextlib
 import threading
 from typing import Any
 
@@ -125,3 +126,36 @@ def test_shutdown_prevents_late_output_preparation() -> None:
         assert not device.opened.is_set()
     finally:
         sink.close_output()
+
+
+@pytest.mark.parametrize("callback_ends", [False, True])
+@pytest.mark.oracle(
+    "native callback lifetime: closed or completed streams cannot deliver callbacks"
+)
+def test_manual_device_stops_callbacks_at_native_completion(*, callback_ends: bool) -> None:
+    device = ManualCallbackDevice()
+    calls: list[str] = []
+
+    def render(output: Any, frames: int, underflow: bool) -> bool:  # noqa: FBT001 - native callback
+        del frames, underflow
+        calls.append("render")
+        output.fill(0.25)
+        return not callback_ends
+
+    with contextlib.ExitStack() as stream:
+        stream.enter_context(
+            device.open(
+                samplerate=24000,
+                channels=1,
+                render=render,
+                finished=lambda: calls.append("finished"),
+            )
+        )
+        device.block()
+        if not callback_ends:
+            stream.close()
+        completed = calls.copy()
+        output, running = device.block()
+        assert calls == completed, "a retired device delivered another native callback"
+        assert not running
+        assert not output.any()

@@ -31,9 +31,15 @@ Existing manual callback doubles now supply callbacks during blocking close/repr
 
 - Four new regression cases were observed red on unfixed source; six final cases pass, including preparation recovery and interpreter shutdown.
 - Four seeded faults above were observed red and restored before verification. Python bytecode was invalidated between mutation and restoration.
-- Full Python suite: 1,038 passed; 341 small tests charged 0.80 seconds and 697 medium tests charged 38.32 seconds; total wall clock 41.41 seconds. No skipped/retried failures were accepted.
+- Full Python suite: 1,038 passed; 341 small tests charged 0.80 seconds and 697 medium tests charged 38.32 seconds; total wall clock 41.41 seconds. Two opt-in signed-UI acceptance cases were skipped because no UI candidate was configured; no failures were retried into green.
 - Focused existing playback/input suite plus the initial regressions: 79 passed in 1.68 seconds.
 - Native manual experiment: ten successive silent prepared-PCM → FLOAT-WAV → close cycles passed on macOS 27.0.1 / arm64 using the installed Python 3.12 runtime with candidate source. Each sink reported natural completion without error before closing. The WAVs were generated zeros; this verifies lifecycle completion, not acoustic quality or model inference.
 - The pre-fix diagnosis completed ten native close cycles and another 96 within a bounded longer run without reproducing the native deadlock. Therefore successful post-fix cycles are supporting integration evidence, not a statistical reliability claim or a native red-to-green reproduction.
 
 Ruff, formatting, mypy, frozen lock verification and hosted CI are recorded in the linked PR. Hardware/driver changes, a permanently stuck output thread, long-lived sessions and acoustic listening remain outside the hermetic proof. Connection-state UI wording is unchanged.
+
+## PR review follow-up
+
+CodeRabbit identified that the manual native double could deliver callbacks after its context exited, potentially setting a reused completion event. Its callback delivery and context ownership now share a lock; completion also retires callback delivery before the context exits. Two controlled cases (context close and callback completion) observed duplicate callback effects on commit `c642837` and pass after the fix. This is a test-double bug fix, not a production behavior change.
+
+Final full run: **1,040 passed, 2 skipped**. Small: 341 tests / 0.72 seconds; medium: 699 tests / 33.39 seconds; suite wall clock 34.89 seconds (pytest terminal summary 35.19 seconds). Both skips are the existing opt-in signed-UI tests without a configured candidate. Ruff check/format and mypy pass. The production code and ten-cycle native receipt are unchanged by this review correction.
