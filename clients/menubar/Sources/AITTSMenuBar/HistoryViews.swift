@@ -76,6 +76,7 @@ struct HistoryView: View {
                         Section {
                             ForEach(group.items) { item in
                                 HistoryRow(item: item)
+                                    .listRowBackground(Color.clear)
                             }
                         } header: {
                             Text(group.day).font(.caption2.smallCaps())
@@ -83,6 +84,7 @@ struct HistoryView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .confirmationDialog(
