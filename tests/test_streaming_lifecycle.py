@@ -192,7 +192,8 @@ async def test_failure_ends_device_in_silence_and_removes_candidate(
         sink.stop()
         if device.opened.is_set():
             device.block()
-        await daemon.stop()
+        with device.driving():
+            await daemon.stop()
         shutil.rmtree(socket_dir)
 
 
@@ -281,7 +282,8 @@ async def test_native_pause_spools_to_completion_and_resumes_without_advancing_h
         ended = asyncio.create_task(sink.wait())
         await wait_for(lambda: (device.block(), ended.done())[1])
         await ended
-        sink.close_output()
+        with device.driving():
+            sink.close_output()
         source.release()
 
 

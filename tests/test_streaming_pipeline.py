@@ -262,6 +262,8 @@ def test_crash_during_audible_generation_recovers_source_held_for_regeneration(
 class ManualCallbackDevice:
     def __init__(self) -> None:
         self.opened = threading.Event()
+        self._callback_lock = threading.Lock()
+        self._active = False
         self.render: Callable[[Any, int, bool], bool]
         self.finished: Callable[[], None]
 
@@ -275,17 +277,48 @@ class ManualCallbackDevice:
         finished: Callable[[], None],
     ) -> Iterator[object]:
         assert (samplerate, channels) == (24_000, 1)
-        self.render = render
-        self.finished = finished
+        with self._callback_lock:
+            self.render = render
+            self.finished = finished
+            self._active = True
         self.opened.set()
-        yield object()
+        try:
+            yield object()
+        finally:
+            with self._callback_lock:
+                self._active = False
+
+    @contextlib.contextmanager
+    def driving(self) -> Iterator[None]:
+        """Supply native callbacks while the caller performs blocking teardown."""
+        stopped = threading.Event()
+
+        def drive() -> None:
+            while not stopped.is_set():
+                if self.opened.is_set():
+                    self.block()
+                stopped.wait(0.001)
+
+        worker = threading.Thread(target=drive)
+        worker.start()
+        try:
+            yield
+        finally:
+            stopped.set()
+            worker.join(1)
 
     def block(self) -> tuple[Any, bool]:
-        output = np.empty((240, 1), dtype=np.float32)
-        running = self.render(output, 240, False)  # noqa: FBT003 - callback contract includes driver underflow
-        if not running:
-            self.finished()
-        return output, running
+        # Manual and background driving share ownership with open/close. An
+        # ended stream cannot deliver a late finished callback into a new one.
+        with self._callback_lock:
+            output = np.zeros((240, 1), dtype=np.float32)
+            if not self._active:
+                return output, False
+            running = self.render(output, 240, False)  # noqa: FBT003 - native callback
+            if not running:
+                self._active = False
+                self.finished()
+            return output, running
 
 
 async def test_sound_device_callback_starts_live_and_drains_only_after_publication(

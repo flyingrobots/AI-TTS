@@ -31,6 +31,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import queue
+import threading
 from typing import TYPE_CHECKING, Any, Protocol
 
 from aitts.application.input_activity import InputInterruptDetector
@@ -43,8 +45,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# The listener's voice should take the floor within a syllable or two, and
-# each poll costs well under a millisecond.
+# The listener's voice should take the floor within a syllable or two.
+# Native input queries can block indefinitely; only the probe thread owns them.
 DEFAULT_POLL_SECONDS = 0.15
 
 
@@ -90,14 +92,49 @@ class InputInterruptWatcher:
         return self._detector.input_is_hot if self._detector.reading_available else None
 
     async def run(self) -> None:
-        """Watch the input reading until cancelled."""
-        while True:
-            await self._poll()
-            await asyncio.sleep(self._poll_seconds)
+        """Watch using one daemon thread, never the loop's shutdown-joined executor."""
+        loop = asyncio.get_running_loop()
+        requests: queue.Queue[asyncio.Future[bool | None] | None] = queue.Queue()
+        stopped = threading.Event()
 
-    async def _poll(self) -> None:
+        def deliver(future: asyncio.Future[bool | None], reading: bool | None) -> None:  # noqa: FBT001 - tri-state callback value
+            if not stopped.is_set() and not future.done():
+                future.set_result(reading)
+
+        def probe() -> None:
+            while (future := requests.get()) is not None:
+                if stopped.is_set():
+                    return
+                try:
+                    reading = self._activity.input_is_active()
+                except Exception:  # noqa: BLE001 - native failure means unavailable, not quiet
+                    log.warning("event=input_activity_poll_failed")
+                    reading = None
+                if stopped.is_set():
+                    return
+                try:
+                    loop.call_soon_threadsafe(deliver, future, reading)
+                except RuntimeError:  # the loop may close while a native read is stuck
+                    return
+
+        # Cancellation cannot interrupt CoreAudio. A single daemon thread can
+        # be abandoned safely: no store/controller access and no stale delivery.
+        worker = threading.Thread(target=probe, name="aitts.input-probe", daemon=True)
+        worker.start()
         try:
-            reading = self._activity.input_is_active()
+            while True:
+                self._detector.observe(None)
+                future = loop.create_future()
+                requests.put(future)
+                await self._poll(await future)
+                await asyncio.sleep(self._poll_seconds)
+        finally:
+            stopped.set()
+            requests.put(None)
+            self._detector.observe(None)
+
+    async def _poll(self, reading: bool | None) -> None:  # noqa: FBT001 - tri-state observation
+        try:
             if self._detector.observe(reading) and self._policy.input_interrupt_enabled():
                 await self.interrupt_for_listener()
             elif reading is False:

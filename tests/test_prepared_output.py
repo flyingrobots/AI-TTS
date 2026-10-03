@@ -3,6 +3,7 @@
 
 """Prepared output ownership at the injected native device boundary."""
 
+import contextlib
 import threading
 from typing import Any
 
@@ -51,11 +52,14 @@ def test_successive_sessions_reuse_output_and_leave_idle_silence() -> None:
             assert np.all(idle == 0)
         assert route.refreshes == 1
         route.identity = "new-output"
-        prepared.prepare()
+        with device.driving():
+            prepared.prepare()
         assert route.refreshes == 2
     finally:
-        prepared.close()
-        prepared.close()
+        with device.driving():
+            prepared.close()
+        with device.driving():
+            prepared.close()
 
 
 def test_unexpected_device_end_fails_session_and_next_prepare_reopens() -> None:
@@ -76,13 +80,15 @@ def test_unexpected_device_end_fails_session_and_next_prepare_reopens() -> None:
             ):
                 device.finished()
                 assert finished.wait(1)
-        prepared.prepare()
+        with device.driving():
+            prepared.prepare()
         assert route.refreshes == 2
         idle, running = device.block()
         assert running
         assert np.all(idle == 0)
     finally:
-        prepared.close()
+        with device.driving():
+            prepared.close()
 
 
 def test_renderer_failure_releases_owner_and_outputs_silence() -> None:
@@ -105,7 +111,8 @@ def test_renderer_failure_releases_owner_and_outputs_silence() -> None:
                 assert np.all(output == 0)
                 assert finished.wait(1)
     finally:
-        prepared.close()
+        with device.driving():
+            prepared.close()
 
 
 def test_shutdown_prevents_late_output_preparation() -> None:
@@ -119,3 +126,36 @@ def test_shutdown_prevents_late_output_preparation() -> None:
         assert not device.opened.is_set()
     finally:
         sink.close_output()
+
+
+@pytest.mark.parametrize("callback_ends", [False, True])
+@pytest.mark.oracle(
+    "native callback lifetime: closed or completed streams cannot deliver callbacks"
+)
+def test_manual_device_stops_callbacks_at_native_completion(*, callback_ends: bool) -> None:
+    device = ManualCallbackDevice()
+    calls: list[str] = []
+
+    def render(output: Any, frames: int, underflow: bool) -> bool:  # noqa: FBT001 - native callback
+        del frames, underflow
+        calls.append("render")
+        output.fill(0.25)
+        return not callback_ends
+
+    with contextlib.ExitStack() as stream:
+        stream.enter_context(
+            device.open(
+                samplerate=24000,
+                channels=1,
+                render=render,
+                finished=lambda: calls.append("finished"),
+            )
+        )
+        device.block()
+        if not callback_ends:
+            stream.close()
+        completed = calls.copy()
+        output, running = device.block()
+        assert calls == completed, "a retired device delivered another native callback"
+        assert not running
+        assert not output.any()
