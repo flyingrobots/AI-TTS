@@ -51,11 +51,14 @@ def test_successive_sessions_reuse_output_and_leave_idle_silence() -> None:
             assert np.all(idle == 0)
         assert route.refreshes == 1
         route.identity = "new-output"
-        prepared.prepare()
+        with device.driving():
+            prepared.prepare()
         assert route.refreshes == 2
     finally:
-        prepared.close()
-        prepared.close()
+        with device.driving():
+            prepared.close()
+        with device.driving():
+            prepared.close()
 
 
 def test_unexpected_device_end_fails_session_and_next_prepare_reopens() -> None:
@@ -76,13 +79,15 @@ def test_unexpected_device_end_fails_session_and_next_prepare_reopens() -> None:
             ):
                 device.finished()
                 assert finished.wait(1)
-        prepared.prepare()
+        with device.driving():
+            prepared.prepare()
         assert route.refreshes == 2
         idle, running = device.block()
         assert running
         assert np.all(idle == 0)
     finally:
-        prepared.close()
+        with device.driving():
+            prepared.close()
 
 
 def test_renderer_failure_releases_owner_and_outputs_silence() -> None:
@@ -105,7 +110,8 @@ def test_renderer_failure_releases_owner_and_outputs_silence() -> None:
                 assert np.all(output == 0)
                 assert finished.wait(1)
     finally:
-        prepared.close()
+        with device.driving():
+            prepared.close()
 
 
 def test_shutdown_prevents_late_output_preparation() -> None:

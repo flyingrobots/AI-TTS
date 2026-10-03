@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from aitts.playback import CallbackStreamFactory
 
 
+CLOSE_TIMEOUT_SECONDS = 5.0
+
+
 class PreparedCallbackOutput:
     """Keep the device supplied with silence between speech and pause/resume.
 
@@ -45,6 +48,7 @@ class PreparedCallbackOutput:
             if (
                 self._ready.is_set()
                 and not self._ended.is_set()
+                and not self._stop.is_set()
                 and self._error is None
                 and identity == self._identity
             ):
@@ -102,10 +106,11 @@ class PreparedCallbackOutput:
         """Release the hardware device; safe to call again after shutdown."""
         with self._setup:
             self._stop.set()
-            self._ended.set()
+            # Only the native finished callback may release the context owner.
+            # Waking it here races Pa_StopStream against callback-driven stop.
             thread = self._thread
             if thread is not None:
-                thread.join(timeout=5)
+                thread.join(timeout=CLOSE_TIMEOUT_SECONDS)
                 if thread.is_alive():
                     msg = "audio callback device did not close"
                     raise RuntimeError(msg)
@@ -127,7 +132,6 @@ class PreparedCallbackOutput:
             except Exception as exc:  # noqa: BLE001 - native callbacks cannot propagate exceptions
                 self._error = str(exc) or type(exc).__name__
                 output.fill(0)
-                self._ended.set()
                 running = False
             if not running:
                 self._active = None

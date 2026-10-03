@@ -280,6 +280,25 @@ class ManualCallbackDevice:
         self.opened.set()
         yield object()
 
+    @contextlib.contextmanager
+    def driving(self) -> Iterator[None]:
+        """Supply native callbacks while the caller performs blocking teardown."""
+        stopped = threading.Event()
+
+        def drive() -> None:
+            while not stopped.is_set():
+                if self.opened.is_set():
+                    self.block()
+                stopped.wait(0.001)
+
+        worker = threading.Thread(target=drive)
+        worker.start()
+        try:
+            yield
+        finally:
+            stopped.set()
+            worker.join(1)
+
     def block(self) -> tuple[Any, bool]:
         output = np.empty((240, 1), dtype=np.float32)
         running = self.render(output, 240, False)  # noqa: FBT003 - callback contract includes driver underflow

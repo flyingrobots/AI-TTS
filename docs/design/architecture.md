@@ -285,6 +285,7 @@ graph TB
 
 - **Daemon** — long-lived, model resident. **This is what makes generation hot rather than cold**, and it is what makes F3 impossible: playback is not bounded by any client's process lifetime.
 - **Playback controller** — **the only component permitted to touch the audio device.** It is single-threaded by construction. This is the entire fix for F4; overlap is not prevented by convention but by there being one owner. Sole ownership is not ownership of a *fixed* device: the sink follows the system default output, reopening its stream mid-clip when the listener moves it (§10 item 3).
+- **Native callback shutdown** — requesting a stop is separate from native completion. Prepared output waits for the native finished callback before exiting its device context; a bounded close timeout retains the old owner and refuses replacement. Microphone queries run serially on one dedicated daemon thread, outside the event loop and its shutdown-joined executor. Cancelling the watcher discards late results; a stuck native query cannot hold process exit.
 - **Audio completion** — the sink signals completion only after its output stream and source file are closed. `wait()` returning permits immediate reacquisition; retirement of the Python thread is not an additional device-ownership barrier.
 - **Audio device port** — reports the OS default output live and rebuilds the
   audio library's cached device enumeration. Separate from the sink because the
