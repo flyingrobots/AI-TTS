@@ -1,0 +1,32 @@
+{
+  "output": "Traceback (most recent call last):\n  File \"/work/full80.py\", line 15, in <module>\n    def run(name, args, timeout=timeout):\n                                ^^^^^^^\nNameError: name 'timeout' is not defined\n",
+  "host_guard": {
+    "limits": {
+      "all_work_tmp_dev_bytes": 1073741824,
+      "minimum_free_bytes": 53687091200,
+      "host_log_bytes": 8388608,
+      "deadline_s": 300,
+      "monitor_command_timeout_s": 5
+    },
+    "reason": null,
+    "command_exit": 1,
+    "container_stop_exit": 0,
+    "container_stop_stderr": "",
+    "samples": [
+      {
+        "elapsed_s": 0.06,
+        "host_free_bytes": 764119351296,
+        "vm_free_bytes": 726183219200,
+        "all_work_tmp_dev_bytes": 315166720,
+        "host_guard_bytes": 2397
+      },
+      {
+        "elapsed_s": 1.14,
+        "host_free_bytes": 764119339008,
+        "vm_free_bytes": 726183219200,
+        "all_work_tmp_dev_bytes": 315166720,
+        "host_guard_bytes": 2602
+      }
+    ]
+  }
+}

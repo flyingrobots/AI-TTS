@@ -1,0 +1,76 @@
+"""Supervise the existing owned test container; never build or recreate it."""
+import json
+import os
+from pathlib import Path
+import resource
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+WORKER='ai-tts-python-worker'
+OUT=Path(sys.argv[1]).resolve(); OUT.mkdir(parents=True,exist_ok=True)
+BUDGET=1024**3
+MIN_FREE=50*1024**3
+DEADLINE=300
+
+def command(args):
+    return subprocess.run(args,check=True,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
+
+def limit_file():
+    resource.setrlimit(resource.RLIMIT_FSIZE,(8*1024**2,8*1024**2))
+
+proc=None
+samples=[]
+reason=None
+began=time.monotonic()
+code=1
+try:
+    info=json.loads(command(['docker','inspect',WORKER]).stdout)[0]
+    config=info['HostConfig']
+    mounts=[(m['Type'],m['Destination']) for m in info['Mounts']]
+    if not config['ReadonlyRootfs'] or mounts != [('volume','/work')]:
+        raise RuntimeError('worker writable topology changed')
+    if set(config.get('Tmpfs') or {}) != {'/tmp'}:
+        raise RuntimeError('worker has unaccounted temporary mounts')
+    if config['LogConfig'] != {'Type':'json-file','Config':{'max-file':'5','max-size':'20m'}}:
+        raise RuntimeError('worker logging bounds changed')
+    if not 0<config['NanoCpus']<=2_000_000_000 or not 0<config['Memory']<=4*1024**3:
+        raise RuntimeError('worker CPU/memory bounds changed')
+    (OUT/'configuration.json').write_text(json.dumps({'config':config,'mounts':mounts},indent=2)+'\n')
+    with (OUT/'command.log').open('w') as log:
+        while True:
+            free=shutil.disk_usage(OUT).free
+            raw=command(['docker','exec',WORKER,'sh','-c','set -e; du -s -B1 /work /tmp /dev; df -B1 --output=avail /work | tail -1']).stdout.splitlines()
+            allocation=sum(int(line.split()[0]) for line in raw[:3])
+            vm_free=int(raw[3])
+            log_bytes=sum(p.stat().st_size for p in OUT.iterdir() if p.is_file())
+            elapsed=time.monotonic()-began
+            samples.append({'elapsed_s':round(elapsed,2),'host_free_bytes':free,'vm_free_bytes':vm_free,'all_work_tmp_dev_bytes':allocation,'host_guard_bytes':log_bytes})
+            if free<MIN_FREE or vm_free<MIN_FREE or allocation>BUDGET or log_bytes>8*1024**2 or elapsed>DEADLINE:
+                raise RuntimeError('disk/log/deadline guard refused')
+            if len(sys.argv)>2 and sys.argv[2]=='check':
+                code=0
+                break
+            if proc is None:
+                proc=subprocess.Popen(['docker','exec','-e','STAGE=full',WORKER,'sh','-c','cd /work/repo && flock /work/validation.lock .venv/bin/python /work/full80.py'],stdout=log,stderr=subprocess.STDOUT,start_new_session=True,preexec_fn=limit_file)
+            if proc.poll() is not None:
+                code=proc.returncode
+                break
+            time.sleep(1)
+except BaseException as exc:
+    reason=f'{type(exc).__name__}: {exc}'
+    raise
+finally:
+    # Container termination also catches descendants that created a new process group.
+    # No other project uses this named owned worker.
+    stopped=subprocess.run(['docker','kill',WORKER],text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
+    if proc is not None:
+        try: os.killpg(proc.pid,signal.SIGKILL)
+        except ProcessLookupError: pass
+        proc.wait(timeout=5)
+    (OUT/'host-resources.json').write_text(json.dumps({'limits':{'all_work_tmp_dev_bytes':BUDGET,'minimum_free_bytes':MIN_FREE,'host_log_bytes':8*1024**2,'deadline_s':DEADLINE,'monitor_command_timeout_s':5},'reason':reason,'command_exit':code,'container_stop_exit':stopped.returncode,'container_stop_stderr':stopped.stderr,'samples':samples},indent=2)+'\n')
+    if stopped.returncode:
+        raise RuntimeError('could not confirm owned container termination')
+raise SystemExit(code)

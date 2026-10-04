@@ -22,24 +22,13 @@ if TYPE_CHECKING:
 
 _SIZE_SECONDS = {"small": 2, "medium": 15, "large": 30}
 
-# Per-class tier budgets, in seconds of measured test time. Rule 9 budgets by
-# class rather than by suite, and for a reason this repository already hit: one
-# whole-suite number means every test pays the slowest test's schedule, and it
-# can be met by relabelling a slow test rather than fixing it.
-#
-# These are decay alarms, not targets. Measured on an unloaded machine the
-# tiers cost about 1.5s and 12s, so the headroom is roughly six-fold and
-# four-fold. That headroom is deliberate: the numbers gate on *test* time, and
-# a gate that fires when the machine is busy is a flaky gate, which rule 10
-# says does not gate at all. Anything approaching these is real decay, and the
-# p95 line printed every run is where it shows up first.
-#
-# Medium was re-baselined from 45s to 120s on 2026-10-02, with James's approval:
-# it had grown to 22-56s across local and CI runs, so 45s alarmed on noise. See
-# the testing profile's budget table and issue #72.
+# Tier gates charge process CPU, including user/system time of waited children.
+# Wall totals and call p95 remain informational; per-test wall ceilings stay hard.
+# Keep the established 10/120/120 budgets while removing runner-contention noise.
 _CLASS_BUDGET_SECONDS = {"small": 10.0, "medium": 120.0, "large": 120.0}
 _durations: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _overheads: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
+_cpu_durations: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _suite_started = 0.0
 
 
@@ -60,8 +49,28 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     del session
     global _suite_started  # noqa: PLW0603 - pytest session hook owns this process timer
     _suite_started = time.perf_counter()
-    for samples in (*_durations.values(), *_overheads.values()):
+    for samples in (*_durations.values(), *_overheads.values(), *_cpu_durations.values()):
         samples.clear()
+
+
+def _cpu_seconds() -> float:
+    """Count this process and reaped child processes, including kernel CPU work."""
+    usage = os.times()
+    return usage.user + usage.system + usage.children_user + usage.children_system
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_protocol(item: pytest.Item) -> Iterator[None]:
+    """Charge the full setup/call/teardown protocol, even if a phase fails or skips."""
+    began = _cpu_seconds()
+    try:
+        yield
+    finally:
+        elapsed = _cpu_seconds() - began
+        for name in _SIZE_SECONDS:
+            if item.get_closest_marker(name) is not None:
+                _cpu_durations[name].append(elapsed)
+                break
 
 
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
@@ -108,23 +117,26 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """Report per-class latency, and fail a green suite that has decayed."""
+    """Report CPU and wall observations; gate only CPU totals and per-test deadlines."""
     reporter = session.config.pluginmanager.get_plugin("terminalreporter")
     elapsed = time.perf_counter() - _suite_started
     breaches: list[str] = []
     for name, budget in _CLASS_BUDGET_SECONDS.items():
         samples = _durations[name]
-        if not samples:
+        cpu_samples = _cpu_durations[name]
+        if not cpu_samples:
             continue
-        total = sum(samples) + sum(_overheads[name])
+        wall = sum(samples) + sum(_overheads[name])
+        cpu = sum(cpu_samples)
+        p95 = _percentile(samples, 0.95) * 1000 if samples else 0
         line = (
-            f"{name}: {len(samples)} tests, {total:.2f}s including fixtures, "
-            f"p95 call {_percentile(samples, 0.95) * 1000:.0f}ms, budget {budget:.0f}s"
+            f"{name}: {len(cpu_samples)} tests, CPU {cpu:.2f}s including fixtures and waited "
+            f"children, CPU budget {budget:.0f}s; wall {wall:.2f}s, p95 call {p95:.0f}ms"
         )
-        if total > budget:
-            breaches.append(f"{name} tier latency budget exceeded: {total:.2f}s > {budget:.0f}s")
+        if cpu > budget:
+            breaches.append(f"{name} tier CPU budget exceeded: {cpu:.2f}s > {budget:.0f}s")
         if reporter is not None:
-            reporter.write_line(line, red=total > budget)
+            reporter.write_line(line, red=cpu > budget)
     if reporter is not None:
         reporter.write_line(f"wall clock {elapsed:.2f}s")
     if not breaches:

@@ -1,0 +1,186 @@
+{
+  "measurement": "du allocated bytes, scoped project checkout caches; cross-checkout hard links may be counted more than once",
+  "caches": [
+    {
+      "checkout": "ai-tts-inline-composer",
+      "cache": ".build",
+      "bytes": 218505216
+    },
+    {
+      "checkout": "ai-tts-prompt-integration",
+      "cache": ".venv",
+      "bytes": 189825024
+    },
+    {
+      "checkout": "ai-tts-prompt-integration",
+      "cache": ".mypy_cache",
+      "bytes": 39854080
+    },
+    {
+      "checkout": "ai-tts-prompt-integration",
+      "cache": ".ruff_cache",
+      "bytes": 61440
+    },
+    {
+      "checkout": "ai-tts-prompt-integration",
+      "cache": ".pytest_cache",
+      "bytes": 94208
+    },
+    {
+      "checkout": "ai-tts-prompt-integration",
+      "cache": ".build",
+      "bytes": 222408704
+    },
+    {
+      "checkout": "ai-tts-stack-validation",
+      "cache": ".venv",
+      "bytes": 190672896
+    },
+    {
+      "checkout": "ai-tts-stack-validation",
+      "cache": ".mypy_cache",
+      "bytes": 40902656
+    },
+    {
+      "checkout": "ai-tts-stack-validation",
+      "cache": ".ruff_cache",
+      "bytes": 69632
+    },
+    {
+      "checkout": "ai-tts-stack-validation",
+      "cache": ".pytest_cache",
+      "bytes": 102400
+    },
+    {
+      "checkout": "ai-tts-validation",
+      "cache": ".venv",
+      "bytes": 180637696
+    },
+    {
+      "checkout": "ai-tts-validation",
+      "cache": ".mypy_cache",
+      "bytes": 38805504
+    },
+    {
+      "checkout": "ai-tts-validation",
+      "cache": ".ruff_cache",
+      "bytes": 65536
+    },
+    {
+      "checkout": "ai-tts-validation",
+      "cache": ".pytest_cache",
+      "bytes": 86016
+    },
+    {
+      "checkout": "ai-tts-validation",
+      "cache": ".build",
+      "bytes": 343007232
+    },
+    {
+      "checkout": "ai-tts-pr-1",
+      "cache": ".venv",
+      "bytes": 180060160
+    },
+    {
+      "checkout": "ai-tts-pr-1",
+      "cache": ".mypy_cache",
+      "bytes": 38805504
+    },
+    {
+      "checkout": "ai-tts-pr-1",
+      "cache": ".ruff_cache",
+      "bytes": 57344
+    },
+    {
+      "checkout": "ai-tts-pr-1",
+      "cache": ".pytest_cache",
+      "bytes": 77824
+    },
+    {
+      "checkout": "ai-tts-pr-1",
+      "cache": ".build",
+      "bytes": 234356736
+    },
+    {
+      "checkout": "ai-tts-provenance-hover",
+      "cache": ".build",
+      "bytes": 218689536
+    },
+    {
+      "checkout": "ai-tts",
+      "cache": ".venv",
+      "bytes": 191131648
+    },
+    {
+      "checkout": "ai-tts",
+      "cache": ".mypy_cache",
+      "bytes": 40902656
+    },
+    {
+      "checkout": "ai-tts",
+      "cache": ".ruff_cache",
+      "bytes": 77824
+    },
+    {
+      "checkout": "ai-tts",
+      "cache": ".pytest_cache",
+      "bytes": 110592
+    },
+    {
+      "checkout": "ai-tts",
+      "cache": ".build",
+      "bytes": 939585536
+    },
+    {
+      "checkout": "ai-tts-stack-refresh",
+      "cache": ".venv",
+      "bytes": 190668800
+    },
+    {
+      "checkout": "ai-tts-stack-refresh",
+      "cache": ".mypy_cache",
+      "bytes": 40906752
+    },
+    {
+      "checkout": "ai-tts-stack-refresh",
+      "cache": ".ruff_cache",
+      "bytes": 69632
+    },
+    {
+      "checkout": "ai-tts-stack-refresh",
+      "cache": ".pytest_cache",
+      "bytes": 102400
+    },
+    {
+      "checkout": "ai-tts-stack-refresh",
+      "cache": ".build",
+      "bytes": 220827648
+    },
+    {
+      "checkout": "ai-tts-94",
+      "cache": ".venv",
+      "bytes": 190820352
+    },
+    {
+      "checkout": "ai-tts-94",
+      "cache": ".mypy_cache",
+      "bytes": 39854080
+    },
+    {
+      "checkout": "ai-tts-94",
+      "cache": ".ruff_cache",
+      "bytes": 73728
+    },
+    {
+      "checkout": "ai-tts-94",
+      "cache": ".pytest_cache",
+      "bytes": 118784
+    },
+    {
+      "checkout": "ai-tts-94",
+      "cache": ".build",
+      "bytes": 347508736
+    }
+  ],
+  "bytes": 4339904512
+}

@@ -1,0 +1,24 @@
+{
+  "limits": {
+    "all_work_tmp_shm_bytes": 1073741824,
+    "evidence_bytes": 8388608,
+    "min_vm_free_bytes": 53687091200,
+    "deadline_s": 240,
+    "file_bytes": 8388608
+  },
+  "reason": null,
+  "samples": [
+    {
+      "elapsed_s": 0.01,
+      "all_work_tmp_shm_bytes": 310046720,
+      "evidence_bytes": 69421,
+      "vm_free_bytes": 726189150208
+    },
+    {
+      "elapsed_s": 0.55,
+      "all_work_tmp_shm_bytes": 310042624,
+      "evidence_bytes": 62307,
+      "vm_free_bytes": 726189150208
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+{
+  "limits": {
+    "all_work_tmp_dev_bytes": 1073741824,
+    "minimum_free_bytes": 53687091200,
+    "host_log_bytes": 8388608,
+    "deadline_s": 300,
+    "monitor_command_timeout_s": 5
+  },
+  "reason": null,
+  "command_exit": 0,
+  "container_stop_exit": 0,
+  "container_stop_stderr": "",
+  "samples": [
+    {
+      "elapsed_s": 0.06,
+      "host_free_bytes": 764106772480,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 316928000,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 1.13,
+      "host_free_bytes": 764106678272,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 316923904,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 2.17,
+      "host_free_bytes": 764106674176,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 316923904,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 3.23,
+      "host_free_bytes": 764106698752,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 318099456,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 4.28,
+      "host_free_bytes": 764106633216,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 325582848,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 5.34,
+      "host_free_bytes": 764106620928,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 327225344,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 6.4,
+      "host_free_bytes": 764106551296,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 330899456,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 7.46,
+      "host_free_bytes": 764105568256,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 336281600,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 8.52,
+      "host_free_bytes": 764105543680,
+      "vm_free_bytes": 726174208000,
+      "all_work_tmp_dev_bytes": 337887232,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 9.58,
+      "host_free_bytes": 764107558912,
+      "vm_free_bytes": 726174310400,
+      "all_work_tmp_dev_bytes": 341876736,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 10.64,
+      "host_free_bytes": 764106330112,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 341876736,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 11.69,
+      "host_free_bytes": 764106321920,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 346877952,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 12.74,
+      "host_free_bytes": 764106317824,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 347156480,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 13.81,
+      "host_free_bytes": 764106313728,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 351576064,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 14.87,
+      "host_free_bytes": 764106309632,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 351576064,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 15.93,
+      "host_free_bytes": 764106309632,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 351576064,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 16.99,
+      "host_free_bytes": 764106305536,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 353435648,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 18.05,
+      "host_free_bytes": 764106952704,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 354295808,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 19.11,
+      "host_free_bytes": 764106661888,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 354983936,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 20.18,
+      "host_free_bytes": 764106649600,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 361566208,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 21.24,
+      "host_free_bytes": 764105588736,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 363270144,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 22.3,
+      "host_free_bytes": 764105576448,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364236800,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 23.37,
+      "host_free_bytes": 764105531392,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364257280,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 24.43,
+      "host_free_bytes": 764103667712,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364277760,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 25.49,
+      "host_free_bytes": 764103598080,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364298240,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 26.55,
+      "host_free_bytes": 764103544832,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364339200,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 27.62,
+      "host_free_bytes": 764103569408,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364359680,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 28.69,
+      "host_free_bytes": 764103548928,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364380160,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 29.76,
+      "host_free_bytes": 764103548928,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364400640,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 30.82,
+      "host_free_bytes": 764103495680,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364421120,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 31.89,
+      "host_free_bytes": 764103495680,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364441600,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 32.96,
+      "host_free_bytes": 764103421952,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364482560,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 34.02,
+      "host_free_bytes": 764103421952,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 364503040,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 35.09,
+      "host_free_bytes": 764103417856,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 365137920,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 36.15,
+      "host_free_bytes": 764103417856,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 365289472,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 37.21,
+      "host_free_bytes": 764103409664,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 365498368,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 38.27,
+      "host_free_bytes": 764103376896,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 365502464,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 39.33,
+      "host_free_bytes": 764103372800,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 365838336,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 40.39,
+      "host_free_bytes": 764103368704,
+      "vm_free_bytes": 726173007872,
+      "all_work_tmp_dev_bytes": 367288320,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 41.46,
+      "host_free_bytes": 764105650176,
+      "vm_free_bytes": 726172995584,
+      "all_work_tmp_dev_bytes": 367509504,
+      "host_guard_bytes": 10253
+    },
+    {
+      "elapsed_s": 42.52,
+      "host_free_bytes": 764105437184,
+      "vm_free_bytes": 726172995584,
+      "all_work_tmp_dev_bytes": 367509504,
+      "host_guard_bytes": 10253
+    }
+  ]
+}

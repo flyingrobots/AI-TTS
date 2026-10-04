@@ -1,0 +1,20 @@
+{
+  "parent": "fad2bc07aa90a96f7f273c5d11cbe01552b421af",
+  "sha256": {
+    "tests/conftest.py": "9d3c09563fe049de3907f6effa075f732aeb30da255151e78f76dc2e355c5d0f",
+    "tests/test_tier_budget.py": "b82c45692b9b5863c88f1511282fb55e71bc24b3e1a0fc8cf6f61c4c5f675785"
+  },
+  "name": "boundary",
+  "command": [
+    ".venv/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/test_tier_budget.py"
+  ],
+  "exit": 1,
+  "output": ".............F                                                           [100%]medium: 14 tests, CPU 11.31s including fixtures and waited children, CPU budget 120s; wall 11.38s, p95 call 824ms\nwall clock 11.41s\n\n=================================== FAILURES ===================================\n__________________ test_cpu_budget_accepts_its_exact_boundary __________________\n\ntmp_path = PosixPath('/tmp/pytest-of-root/pytest-5/test_cpu_budget_accepts_its_ex0')\n\n    def test_cpu_budget_accepts_its_exact_boundary(tmp_path: Path) -> None:\n        \"\"\"Oracle: the stated budget is inclusive, matching the existing strict-overrun rule.\"\"\"\n        result = run_budget(tmp_path, cpu=120)\n>       assert result.returncode == 0, result.stdout + result.stderr\nE       AssertionError: .                                                                        [100%]medium: 1 tests, CPU 120.00s including fixtures and waited children, CPU budget 120s; wall 0.03s, p95 call 10ms\nE         wall clock 0.01s\nE         medium tier CPU budget exceeded: 120.00s > 120s\nE         \nE         1 passed in 0.25s\nE         \nE       assert 1 == 0\nE        +  where 1 = CompletedProcess(args=['/work/repo/.venv/bin/python', '-B', '-m', 'pytest', '-q', '-p', 'no:cacheprovider', '-p', 'own...s, p95 call 10ms\\nwall clock 0.01s\\nmedium tier CPU budget exceeded: 120.00s > 120s\\n\\n1 passed in 0.25s\\n', stderr='').returncode\n\ntests/test_tier_budget.py:96: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_tier_budget.py::test_cpu_budget_accepts_its_exact_boundary\n"
+}
