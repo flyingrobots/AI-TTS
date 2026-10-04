@@ -1,0 +1,10 @@
+{
+  "implementation_commit": "d100be34ca0577fbaabe273195b77b88615998b2",
+  "compare_sha256": "760c5f8d3f80f9882c1a50d2d1a8ce096b6e67e14a8e76e2daed93a212c99099",
+  "test_sha256": "f6a408ed41c09ad164cdd041a3183371947721abf0b7fa9ae8df1d8611ce3709",
+  "command": "uv run --frozen ruff check . && uv run --frozen ruff format --check . && uv run --frozen mypy --platform darwin",
+  "exit": 0
+}
+All checks passed!
+279 files already formatted
+Success: no issues found in 187 source files

@@ -1,0 +1,30 @@
+{
+  "implementation_commit": "e8dd99c2771f83484ec2c05c2ee3cef8e955ce40",
+  "compare_sha256": "510a767401a76d1e41d326494da373250b5f8e81b38273e7969797da7909be24",
+  "test_sha256": "f6a408ed41c09ad164cdd041a3183371947721abf0b7fa9ae8df1d8611ce3709",
+  "command": "uv run --frozen pytest tests/test_benchmark_reference.py -k nested_repository -q",
+  "exit": 1
+}
+F                                                                        [100%]medium: 1 tests, 0.01s including fixtures, p95 call 5ms, budget 120s
+wall clock 0.04s
+
+=================================== FAILURES ===================================
+_________ test_ignored_nested_repository_cannot_hide_importable_source _________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-9/test_ignored_nested_repository0')
+
+    def test_ignored_nested_repository_cannot_hide_importable_source(tmp_path: Path) -> None:
+        """Oracle: issue #62; opaque Git directory entries cannot hide unpinned packages."""
+        commit = reference(tmp_path)
+        nested = tmp_path / "src" / "vendor"
+        nested.mkdir()
+        git(nested, "init", "--quiet")
+        (nested / "__init__.py").write_text("VALUE = 'nested repository'\n")
+        (tmp_path / ".git" / "info" / "exclude").write_text("src/vendor/\n")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-9/test_ignored_nested_repository0'), '7e5e7058afe3b2230f86c4373a5a7fe0c947a4f8')
+
+tests/test_benchmark_reference.py:208: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_benchmark_reference.py::test_ignored_nested_repository_cannot_hide_importable_source

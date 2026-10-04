@@ -280,6 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Benchmark references reject ignored Python source, sourceless bytecode, native modules, symlinks, and opaque nested repositories under `src`, closing the remaining import-shadowing gap. Ordinary tagged bytecode caches remain allowed; the pinned historical reference is unchanged.
+
 - Uninstall stops before deleting either launch-agent plist or the CLI when launchd refuses to stop the loaded daemon, matching the menu-bar agent safeguard.
 
 - Switching from a prepared streaming model to Chatterbox waits for native audio completion before closing the old device, preventing overlapping shutdown calls. A stalled microphone-device query no longer freezes daemon status/control or prevents process exit. Unconfirmed audio shutdown remains an explicit error and blocks device reuse ([#94](https://github.com/flyingrobots/AI-TTS/issues/94)).

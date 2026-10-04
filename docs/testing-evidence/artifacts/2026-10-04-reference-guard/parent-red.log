@@ -1,0 +1,242 @@
+{
+  "implementation_commit": "75edb22f0affa6d381e8db033405ae72cb81c881",
+  "compare_sha256": "cef36e481ca8518ecfdb96b215ae6f1cc84b58da38aeb2dff06f9c1bb676eb49",
+  "test_sha256": "f6a408ed41c09ad164cdd041a3183371947721abf0b7fa9ae8df1d8611ce3709",
+  "command": "uv run --frozen pytest tests/test_benchmark_reference.py -q",
+  "exit": 1
+}
+......FFFFFF.FFFF                                                        [100%]medium: 17 tests, 0.09s including fixtures, p95 call 13ms, budget 120s
+wall clock 0.15s
+
+=================================== FAILURES ===================================
+________ test_import_shadow_is_rejected_before_comparison_starts[True] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_import_shadow_is_rejected1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xffff9b7d5e80>
+ignored = True
+
+    @pytest.mark.parametrize("ignored", [False, True])
+    def test_import_shadow_is_rejected_before_comparison_starts(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, ignored: bool
+    ) -> None:
+        """Oracle: issue #62; an importable shadow must never reach a benchmark worker."""
+        import sys  # noqa: PLC0415 - owned interpreter for the import witness
+    
+        from scripts.benchmarks import compare  # noqa: PLC0415 - comparator entrypoint
+    
+        reference(tmp_path)
+        (tmp_path / "src" / "probe.py").write_text('VALUE = "tracked"\n')
+        git(tmp_path, "add", "src")
+        git(tmp_path, "commit", "--quiet", "-m", "tracked probe")
+        commit = git(tmp_path, "rev-parse", "HEAD")
+        if ignored:
+            (tmp_path / ".git" / "info" / "exclude").write_text("src/probe/\n")
+        shadow = tmp_path / "src" / "probe"
+        shadow.mkdir()
+        (shadow / "__init__.py").write_text('VALUE = "untracked shadow"\n')
+        witness = subprocess.check_output(  # noqa: S603 - owned import fixture
+            [
+                sys.executable,
+                "-B",
+                "-c",
+                "import sys; sys.path.insert(0, sys.argv[1]); import probe; print(probe.VALUE)",
+                str(tmp_path / "src"),
+            ],
+            text=True,
+        )
+        assert witness.strip() == "untracked shadow"
+        output = tmp_path / "results"
+        monkeypatch.setattr(compare, "REFERENCE_COMMIT", commit)
+        monkeypatch.setattr(
+            sys, "argv", ["compare", "--baseline-root", str(tmp_path), "--output", str(output)]
+        )
+    
+        def refuse_start(_seed: int) -> None:
+            pytest.fail("comparison started with an import-shadowed reference")
+    
+        # The scheduling boundary precedes every worker; no real campaign can escape.
+        monkeypatch.setattr("scripts.benchmarks.compare.random.Random", refuse_start)
+        with pytest.raises(SystemExit) as stopped:
+>           compare.main()
+
+tests/test_benchmark_reference.py:142: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/benchmarks/compare.py:122: in main
+    randomizer = random.Random(args.seed)  # noqa: S311 - paired experiment ordering
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_seed = 20260930
+
+    def refuse_start(_seed: int) -> None:
+>       pytest.fail("comparison started with an import-shadowed reference")
+E       Failed: comparison started with an import-shadowed reference
+
+tests/test_benchmark_reference.py:137: Failed
+____________ test_ignored_importable_source_is_rejected[hidden.py] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source0')
+name = 'hidden.py'
+
+    @pytest.mark.parametrize(
+        "name", ["hidden.py", "hidden.PY", "hidden.pyc", "hidden.so", "hidden.pyd"]
+    )
+    def test_ignored_importable_source_is_rejected(tmp_path: Path, name: str) -> None:
+        """Oracle: issue #62; ignore patterns do not make executable source trustworthy."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text(f"src/aitts/{name}\n")
+        (tmp_path / "src" / "aitts" / name).write_bytes(b"untrusted importable source")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source0'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:155: AssertionError
+____________ test_ignored_importable_source_is_rejected[hidden.PY] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source1')
+name = 'hidden.PY'
+
+    @pytest.mark.parametrize(
+        "name", ["hidden.py", "hidden.PY", "hidden.pyc", "hidden.so", "hidden.pyd"]
+    )
+    def test_ignored_importable_source_is_rejected(tmp_path: Path, name: str) -> None:
+        """Oracle: issue #62; ignore patterns do not make executable source trustworthy."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text(f"src/aitts/{name}\n")
+        (tmp_path / "src" / "aitts" / name).write_bytes(b"untrusted importable source")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source1'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:155: AssertionError
+____________ test_ignored_importable_source_is_rejected[hidden.pyc] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source2')
+name = 'hidden.pyc'
+
+    @pytest.mark.parametrize(
+        "name", ["hidden.py", "hidden.PY", "hidden.pyc", "hidden.so", "hidden.pyd"]
+    )
+    def test_ignored_importable_source_is_rejected(tmp_path: Path, name: str) -> None:
+        """Oracle: issue #62; ignore patterns do not make executable source trustworthy."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text(f"src/aitts/{name}\n")
+        (tmp_path / "src" / "aitts" / name).write_bytes(b"untrusted importable source")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source2'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:155: AssertionError
+____________ test_ignored_importable_source_is_rejected[hidden.so] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source3')
+name = 'hidden.so'
+
+    @pytest.mark.parametrize(
+        "name", ["hidden.py", "hidden.PY", "hidden.pyc", "hidden.so", "hidden.pyd"]
+    )
+    def test_ignored_importable_source_is_rejected(tmp_path: Path, name: str) -> None:
+        """Oracle: issue #62; ignore patterns do not make executable source trustworthy."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text(f"src/aitts/{name}\n")
+        (tmp_path / "src" / "aitts" / name).write_bytes(b"untrusted importable source")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source3'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:155: AssertionError
+____________ test_ignored_importable_source_is_rejected[hidden.pyd] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source4')
+name = 'hidden.pyd'
+
+    @pytest.mark.parametrize(
+        "name", ["hidden.py", "hidden.PY", "hidden.pyc", "hidden.so", "hidden.pyd"]
+    )
+    def test_ignored_importable_source_is_rejected(tmp_path: Path, name: str) -> None:
+        """Oracle: issue #62; ignore patterns do not make executable source trustworthy."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text(f"src/aitts/{name}\n")
+        (tmp_path / "src" / "aitts" / name).write_bytes(b"untrusted importable source")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_importable_source4'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:155: AssertionError
+__________ test_ignored_symlink_cannot_introduce_an_external_package ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_symlink_cannot_in0')
+
+    def test_ignored_symlink_cannot_introduce_an_external_package(tmp_path: Path) -> None:
+        """Oracle: issue #62; an ignored link can expose an unpinned import package."""
+        commit = reference(tmp_path)
+        outside = tmp_path / "external"
+        outside.mkdir()
+        (outside / "__init__.py").write_text("VALUE = 'external'\n")
+        (tmp_path / ".git" / "info" / "exclude").write_text("src/aitts/external\n")
+        (tmp_path / "src" / "aitts" / "external").symlink_to(outside, target_is_directory=True)
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_symlink_cannot_in0'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:177: AssertionError
+________ test_ignored_code_under_a_directory_with_a_newline_is_rejected ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_code_under_a_dire0')
+
+    def test_ignored_code_under_a_directory_with_a_newline_is_rejected(tmp_path: Path) -> None:
+        """Oracle: issue #62; path quoting must not hide importable ignored code."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text("*.py\n")
+        package = tmp_path / "src" / "odd\npackage"
+        package.mkdir()
+        (package / "__init__.py").write_text("VALUE = 'shadow'\n")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_code_under_a_dire0'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:187: AssertionError
+_______ test_sourceless_module_in_cache_directory_is_not_a_normal_cache ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_sourceless_module_in_cach0')
+
+    def test_sourceless_module_in_cache_directory_is_not_a_normal_cache(tmp_path: Path) -> None:
+        """Oracle: only tagged bytecode caches are exempt, not importable bare .pyc files."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text("__pycache__/\n")
+        cache = tmp_path / "src" / "aitts" / "__pycache__"
+        cache.mkdir()
+        (cache / "hidden.pyc").write_bytes(b"untrusted sourceless module")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_sourceless_module_in_cach0'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:197: AssertionError
+_________ test_ignored_nested_repository_cannot_hide_importable_source _________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_nested_repository0')
+
+    def test_ignored_nested_repository_cannot_hide_importable_source(tmp_path: Path) -> None:
+        """Oracle: issue #62; opaque Git directory entries cannot hide unpinned packages."""
+        commit = reference(tmp_path)
+        nested = tmp_path / "src" / "vendor"
+        nested.mkdir()
+        git(nested, "init", "--quiet")
+        (nested / "__init__.py").write_text("VALUE = 'nested repository'\n")
+        (tmp_path / ".git" / "info" / "exclude").write_text("src/vendor/\n")
+>       assert not reference_is_clean(tmp_path, commit)
+E       AssertionError: assert not True
+E        +  where True = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-8/test_ignored_nested_repository0'), 'd4897f6d57cf34818107b54e7e6807f3e70bc56b')
+
+tests/test_benchmark_reference.py:208: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_benchmark_reference.py::test_import_shadow_is_rejected_before_comparison_starts[True]
+FAILED tests/test_benchmark_reference.py::test_ignored_importable_source_is_rejected[hidden.py]
+FAILED tests/test_benchmark_reference.py::test_ignored_importable_source_is_rejected[hidden.PY]
+FAILED tests/test_benchmark_reference.py::test_ignored_importable_source_is_rejected[hidden.pyc]
+FAILED tests/test_benchmark_reference.py::test_ignored_importable_source_is_rejected[hidden.so]
+FAILED tests/test_benchmark_reference.py::test_ignored_importable_source_is_rejected[hidden.pyd]
+FAILED tests/test_benchmark_reference.py::test_ignored_symlink_cannot_introduce_an_external_package
+FAILED tests/test_benchmark_reference.py::test_ignored_code_under_a_directory_with_a_newline_is_rejected
+FAILED tests/test_benchmark_reference.py::test_sourceless_module_in_cache_directory_is_not_a_normal_cache
+FAILED tests/test_benchmark_reference.py::test_ignored_nested_repository_cannot_hide_importable_source
