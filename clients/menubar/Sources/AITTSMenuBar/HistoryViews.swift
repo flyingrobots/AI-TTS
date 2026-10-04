@@ -73,16 +73,22 @@ struct HistoryView: View {
             } else {
                 List {
                     ForEach(groups, id: \.day) { group in
-                        Section {
-                            ForEach(group.items) { item in
-                                HistoryRow(item: item)
-                            }
-                        } header: {
-                            Text(group.day).font(.caption2.smallCaps())
+                        // Native section headers paint an opaque backing even
+                        // when the list's content background is hidden.
+                        Text(group.day)
+                            .font(.caption2.smallCaps())
+                            .foregroundStyle(.secondary)
+                            .accessibilityAddTraits(.isHeader)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        ForEach(group.items) { item in
+                            HistoryRow(item: item)
+                                .listRowBackground(Color.clear)
                         }
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .confirmationDialog(
