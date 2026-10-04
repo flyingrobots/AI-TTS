@@ -19,7 +19,8 @@ from aitts.model import State
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from tests.conftest import wait_for
-from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, make_ready
+from tests.support.playback import DeterministicPlaybackSchedule, make_composite_ready
+from tests.test_playback import make_ready
 
 pytestmark = [
     pytest.mark.medium,

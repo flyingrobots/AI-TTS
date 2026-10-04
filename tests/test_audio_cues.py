@@ -21,8 +21,9 @@ from aitts.audio_cues import earcon_pcm
 from aitts.playback import FakeSink, SoundDeviceSink
 from aitts.store import Store
 from aitts.streaming import PCMStreamRenderer, SpoolingPCMStream
+from tests.support.playback import make_composite_ready
 from tests.test_audio_device import RecordingStreams
-from tests.test_playback import make_composite_ready, playback_controller, start
+from tests.test_playback import playback_controller, start
 from tests.test_streaming_pipeline import ManualCallbackDevice
 
 

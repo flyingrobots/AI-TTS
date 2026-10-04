@@ -10,7 +10,7 @@ import pytest
 from scripts.benchmarks import cases, failures
 
 from aitts.store import Store
-from tests.test_playback import DeterministicPlaybackSchedule
+from tests.support.playback import DeterministicPlaybackSchedule
 
 pytestmark = [
     pytest.mark.medium,

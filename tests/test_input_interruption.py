@@ -28,7 +28,8 @@ from aitts.model import State
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from tests.conftest import wait_for
-from tests.test_playback import DeterministicPlaybackSchedule, make_ready
+from tests.support.playback import DeterministicPlaybackSchedule, make_composite_ready
+from tests.test_playback import make_ready
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -535,7 +536,6 @@ class GatedSink(FakeSink):
 async def test_an_interrupt_during_a_chunk_step_keeps_playback_held(
     store: Store,
 ) -> None:
-    from tests.test_playback import make_composite_ready  # noqa: PLC0415
 
     segments = ("one", "two", "three")
     sink = GatedSink()
@@ -567,7 +567,6 @@ async def test_an_interrupt_during_a_chunk_step_keeps_playback_held(
 async def test_two_chunk_steps_at_once_do_not_wedge_the_document(
     store: Store,
 ) -> None:
-    from tests.test_playback import make_composite_ready  # noqa: PLC0415
 
     segments = ("one", "two", "three")
     sink = FakeSink()

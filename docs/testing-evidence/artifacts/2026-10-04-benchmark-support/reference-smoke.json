@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "change_kind": "feature",
+  "size": "medium",
+  "oracle": "PROMPTS1: exact offsets/LIFO, holds, one owner, rollback, silent recovery",
+  "environment": {
+    "playback_support_sha256": {
+      "tests/__init__.py": "947ea5c44a44b8e053ea0f5983a68c221160f2b1d10879e43cf2960963c2cbb5",
+      "tests/conftest.py": "054e8fc306d6c4790d849cb05d61cf3fc5c26bb9686820ecb218547fb9a4e008",
+      "tests/test_playback.py": "be9fb39b2004b3e45c911601ed9b6983dc6eca89bab1701df42086e0d99ecfbb"
+    },
+    "source_root": "/work/reference",
+    "source_sha256": {
+      "src/aitts/playback.py": "d5ee55e5e9d38743472c04c3af1da8234a2e5474ef797e51778bee190c00989e",
+      "src/aitts/store.py": "39dc50ec39193fdbd3580308b5115af4519f3eaff5b03c06fa50c01708e5dd4b",
+      "src/aitts/streaming.py": "f29a4ae7dcee79c3a617c95e258544d6c53a9f92650368851a60940c964656c8"
+    },
+    "harness_root": "/work/repo",
+    "harness_sha256": {
+      "scripts/benchmarks/__init__.py": "81aba6670e9ccda0bed0f7266faebf222196b94f46033f7b407245c273ae078f",
+      "scripts/benchmarks/cases.py": "4e251c5784b0a7621cdcd6fe0af503f274dc0cc1e8d4b3a8c32feebb0a9bc99a",
+      "scripts/benchmarks/compare.py": "1e1b4ffeeb69235dc2371dbb2b6ddf8d1b07926daf70cbe69b3c9b3812b8383b",
+      "scripts/benchmarks/failures.py": "c3a67cb41329844029f1c9bb97b42fbfeda6aab01bc15ce0bc961e865baf35a7",
+      "scripts/benchmarks/metrics.py": "eeeffd6e1fc9a0a202065614b51ae4e8387f85686f5214fccf250e6829fadcba",
+      "scripts/benchmarks/mlx.py": "426033c3506ff87e145cba8ca9a39555ff42e90e293539c6511482aefae213fb",
+      "scripts/benchmarks/pcm.py": "bd31b7355c6b7c13d5617917e9a2a7983d3b384d536f2aa64862cc52353233be",
+      "scripts/benchmarks/run.py": "00ce3cb7939dd32a18e3a7c3d5fffbcfff611a5935911ec6690f774dab0de34b",
+      "scripts/benchmarks/support.py": "c047b0e663456ff4344aca8ff0612071abf0f522246d92b03cbba630dbb50b3c"
+    },
+    "python": "3.12.15 (main, Oct  1 2026, 21:54:17) [GCC 12.2.0]",
+    "platform": "Linux-7.0.14-orbstack-00380-ga7e0a2dc9535-aarch64-with-glibc2.36",
+    "machine": "aarch64",
+    "cpu_count": 18,
+    "clock": "perf_counter_ns; process_time_ns",
+    "sqlite": "file-backed WAL, production defaults, no filesystem cache flush",
+    "boundary": "real PlaybackController + real Store + contract FakeSink; no model or speaker"
+  },
+  "parameters": {
+    "source_root": "/work/reference",
+    "output": "/work/reference-smoke.json",
+    "suite": "golden",
+    "iterations": 1,
+    "warmup": 0,
+    "backlog": [
+      0
+    ],
+    "seed": 20260930,
+    "seconds": 300,
+    "interval": 0.05
+  },
+  "rss_before_bytes": 27336704,
+  "cases": {
+    "ready_queue=0,ending=skip,nested=True": {
+      "samples": {
+        "takeover.wall_ms": [
+          0.217708,
+          0.178166
+        ],
+        "takeover.cpu_ms": [
+          0.221,
+          0.179917
+        ],
+        "takeover.sql_statements": [
+          22,
+          18
+        ],
+        "takeover.commits": [
+          2,
+          2
+        ],
+        "resume_after_skip.wall_ms": [
+          0.185208,
+          0.17675
+        ],
+        "resume_after_skip.cpu_ms": [
+          0.18625,
+          0.177709
+        ],
+        "resume_after_skip.sql_statements": [
+          21,
+          25
+        ],
+        "resume_after_skip.commits": [
+          3,
+          4
+        ]
+      },
+      "witnesses": 16,
+      "distributions": {
+        "takeover.wall_ms": {
+          "n": 2.0,
+          "mean": 0.197937,
+          "max": 0.217708,
+          "p50": 0.178166,
+          "p90": 0.217708,
+          "p95": 0.217708,
+          "p99": 0.217708
+        },
+        "takeover.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.20045849999999998,
+          "max": 0.221,
+          "p50": 0.179917,
+          "p90": 0.221,
+          "p95": 0.221,
+          "p99": 0.221
+        },
+        "takeover.sql_statements": {
+          "n": 2.0,
+          "mean": 20,
+          "max": 22,
+          "p50": 18,
+          "p90": 22,
+          "p95": 22,
+          "p99": 22
+        },
+        "takeover.commits": {
+          "n": 2.0,
+          "mean": 2,
+          "max": 2,
+          "p50": 2,
+          "p90": 2,
+          "p95": 2,
+          "p99": 2
+        },
+        "resume_after_skip.wall_ms": {
+          "n": 2.0,
+          "mean": 0.180979,
+          "max": 0.185208,
+          "p50": 0.17675,
+          "p90": 0.185208,
+          "p95": 0.185208,
+          "p99": 0.185208
+        },
+        "resume_after_skip.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.18197950000000002,
+          "max": 0.18625,
+          "p50": 0.177709,
+          "p90": 0.18625,
+          "p95": 0.18625,
+          "p99": 0.18625
+        },
+        "resume_after_skip.sql_statements": {
+          "n": 2.0,
+          "mean": 23,
+          "max": 25,
+          "p50": 21,
+          "p90": 25,
+          "p95": 25,
+          "p99": 25
+        },
+        "resume_after_skip.commits": {
+          "n": 2.0,
+          "mean": 3.5,
+          "max": 4,
+          "p50": 3,
+          "p90": 4,
+          "p95": 4,
+          "p99": 4
+        }
+      }
+    },
+    "ready_queue=0,ending=played,nested=False": {
+      "samples": {
+        "takeover.wall_ms": [
+          0.199792
+        ],
+        "takeover.cpu_ms": [
+          0.201167
+        ],
+        "takeover.sql_statements": [
+          22
+        ],
+        "takeover.commits": [
+          2
+        ],
+        "resume_after_played.wall_ms": [
+          0.211292
+        ],
+        "resume_after_played.cpu_ms": [
+          0.21225
+        ],
+        "resume_after_played.sql_statements": [
+          25
+        ],
+        "resume_after_played.commits": [
+          3
+        ]
+      },
+      "witnesses": 8,
+      "distributions": {
+        "takeover.wall_ms": {
+          "n": 1.0,
+          "mean": 0.199792,
+          "max": 0.199792,
+          "p50": 0.199792,
+          "p90": 0.199792,
+          "p95": 0.199792,
+          "p99": 0.199792
+        },
+        "takeover.cpu_ms": {
+          "n": 1.0,
+          "mean": 0.201167,
+          "max": 0.201167,
+          "p50": 0.201167,
+          "p90": 0.201167,
+          "p95": 0.201167,
+          "p99": 0.201167
+        },
+        "takeover.sql_statements": {
+          "n": 1.0,
+          "mean": 22,
+          "max": 22,
+          "p50": 22,
+          "p90": 22,
+          "p95": 22,
+          "p99": 22
+        },
+        "takeover.commits": {
+          "n": 1.0,
+          "mean": 2,
+          "max": 2,
+          "p50": 2,
+          "p90": 2,
+          "p95": 2,
+          "p99": 2
+        },
+        "resume_after_played.wall_ms": {
+          "n": 1.0,
+          "mean": 0.211292,
+          "max": 0.211292,
+          "p50": 0.211292,
+          "p90": 0.211292,
+          "p95": 0.211292,
+          "p99": 0.211292
+        },
+        "resume_after_played.cpu_ms": {
+          "n": 1.0,
+          "mean": 0.21225,
+          "max": 0.21225,
+          "p50": 0.21225,
+          "p90": 0.21225,
+          "p95": 0.21225,
+          "p99": 0.21225
+        },
+        "resume_after_played.sql_statements": {
+          "n": 1.0,
+          "mean": 25,
+          "max": 25,
+          "p50": 25,
+          "p90": 25,
+          "p95": 25,
+          "p99": 25
+        },
+        "resume_after_played.commits": {
+          "n": 1.0,
+          "mean": 3,
+          "max": 3,
+          "p50": 3,
+          "p90": 3,
+          "p95": 3,
+          "p99": 3
+        }
+      }
+    },
+    "ready_queue=0,ending=played,nested=True": {
+      "samples": {
+        "takeover.wall_ms": [
+          0.185125,
+          0.163625
+        ],
+        "takeover.cpu_ms": [
+          0.186292,
+          0.164667
+        ],
+        "takeover.sql_statements": [
+          22,
+          18
+        ],
+        "takeover.commits": [
+          2,
+          2
+        ],
+        "resume_after_played.wall_ms": [
+          0.19025,
+          0.201375
+        ],
+        "resume_after_played.cpu_ms": [
+          0.191083,
+          0.202291
+        ],
+        "resume_after_played.sql_statements": [
+          21,
+          25
+        ],
+        "resume_after_played.commits": [
+          2,
+          3
+        ]
+      },
+      "witnesses": 16,
+      "distributions": {
+        "takeover.wall_ms": {
+          "n": 2.0,
+          "mean": 0.174375,
+          "max": 0.185125,
+          "p50": 0.163625,
+          "p90": 0.185125,
+          "p95": 0.185125,
+          "p99": 0.185125
+        },
+        "takeover.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.1754795,
+          "max": 0.186292,
+          "p50": 0.164667,
+          "p90": 0.186292,
+          "p95": 0.186292,
+          "p99": 0.186292
+        },
+        "takeover.sql_statements": {
+          "n": 2.0,
+          "mean": 20,
+          "max": 22,
+          "p50": 18,
+          "p90": 22,
+          "p95": 22,
+          "p99": 22
+        },
+        "takeover.commits": {
+          "n": 2.0,
+          "mean": 2,
+          "max": 2,
+          "p50": 2,
+          "p90": 2,
+          "p95": 2,
+          "p99": 2
+        },
+        "resume_after_played.wall_ms": {
+          "n": 2.0,
+          "mean": 0.1958125,
+          "max": 0.201375,
+          "p50": 0.19025,
+          "p90": 0.201375,
+          "p95": 0.201375,
+          "p99": 0.201375
+        },
+        "resume_after_played.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.196687,
+          "max": 0.202291,
+          "p50": 0.191083,
+          "p90": 0.202291,
+          "p95": 0.202291,
+          "p99": 0.202291
+        },
+        "resume_after_played.sql_statements": {
+          "n": 2.0,
+          "mean": 23,
+          "max": 25,
+          "p50": 21,
+          "p90": 25,
+          "p95": 25,
+          "p99": 25
+        },
+        "resume_after_played.commits": {
+          "n": 2.0,
+          "mean": 2.5,
+          "max": 3,
+          "p50": 2,
+          "p90": 3,
+          "p95": 3,
+          "p99": 3
+        }
+      }
+    },
+    "ready_queue=0,ending=fail,nested=True": {
+      "samples": {
+        "takeover.wall_ms": [
+          0.181625,
+          0.15525
+        ],
+        "takeover.cpu_ms": [
+          0.182458,
+          0.156083
+        ],
+        "takeover.sql_statements": [
+          22,
+          18
+        ],
+        "takeover.commits": [
+          2,
+          2
+        ],
+        "resume_after_fail.wall_ms": [
+          0.197959,
+          0.186666
+        ],
+        "resume_after_fail.cpu_ms": [
+          0.198916,
+          0.18775
+        ],
+        "resume_after_fail.sql_statements": [
+          21,
+          25
+        ],
+        "resume_after_fail.commits": [
+          2,
+          3
+        ]
+      },
+      "witnesses": 16,
+      "distributions": {
+        "takeover.wall_ms": {
+          "n": 2.0,
+          "mean": 0.16843750000000002,
+          "max": 0.181625,
+          "p50": 0.15525,
+          "p90": 0.181625,
+          "p95": 0.181625,
+          "p99": 0.181625
+        },
+        "takeover.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.1692705,
+          "max": 0.182458,
+          "p50": 0.156083,
+          "p90": 0.182458,
+          "p95": 0.182458,
+          "p99": 0.182458
+        },
+        "takeover.sql_statements": {
+          "n": 2.0,
+          "mean": 20,
+          "max": 22,
+          "p50": 18,
+          "p90": 22,
+          "p95": 22,
+          "p99": 22
+        },
+        "takeover.commits": {
+          "n": 2.0,
+          "mean": 2,
+          "max": 2,
+          "p50": 2,
+          "p90": 2,
+          "p95": 2,
+          "p99": 2
+        },
+        "resume_after_fail.wall_ms": {
+          "n": 2.0,
+          "mean": 0.1923125,
+          "max": 0.197959,
+          "p50": 0.186666,
+          "p90": 0.197959,
+          "p95": 0.197959,
+          "p99": 0.197959
+        },
+        "resume_after_fail.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.193333,
+          "max": 0.198916,
+          "p50": 0.18775,
+          "p90": 0.198916,
+          "p95": 0.198916,
+          "p99": 0.198916
+        },
+        "resume_after_fail.sql_statements": {
+          "n": 2.0,
+          "mean": 23,
+          "max": 25,
+          "p50": 21,
+          "p90": 25,
+          "p95": 25,
+          "p99": 25
+        },
+        "resume_after_fail.commits": {
+          "n": 2.0,
+          "mean": 2.5,
+          "max": 3,
+          "p50": 2,
+          "p90": 3,
+          "p95": 3,
+          "p99": 3
+        }
+      }
+    },
+    "holds": {
+      "samples": {
+        "held_resume.wall_ms": [
+          0.269667,
+          0.265125
+        ],
+        "held_resume.cpu_ms": [
+          0.271417,
+          0.266375
+        ],
+        "held_resume.sql_statements": [
+          40,
+          40
+        ],
+        "held_resume.commits": [
+          6,
+          6
+        ],
+        "resume_after_skip.wall_ms": [
+          0.179375,
+          0.162875
+        ],
+        "resume_after_skip.cpu_ms": [
+          0.18025,
+          0.163708
+        ],
+        "resume_after_skip.sql_statements": [
+          25,
+          25
+        ],
+        "resume_after_skip.commits": [
+          4,
+          4
+        ]
+      },
+      "witnesses": 24,
+      "distributions": {
+        "held_resume.wall_ms": {
+          "n": 2.0,
+          "mean": 0.26739599999999997,
+          "max": 0.269667,
+          "p50": 0.265125,
+          "p90": 0.269667,
+          "p95": 0.269667,
+          "p99": 0.269667
+        },
+        "held_resume.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.268896,
+          "max": 0.271417,
+          "p50": 0.266375,
+          "p90": 0.271417,
+          "p95": 0.271417,
+          "p99": 0.271417
+        },
+        "held_resume.sql_statements": {
+          "n": 2.0,
+          "mean": 40,
+          "max": 40,
+          "p50": 40,
+          "p90": 40,
+          "p95": 40,
+          "p99": 40
+        },
+        "held_resume.commits": {
+          "n": 2.0,
+          "mean": 6,
+          "max": 6,
+          "p50": 6,
+          "p90": 6,
+          "p95": 6,
+          "p99": 6
+        },
+        "resume_after_skip.wall_ms": {
+          "n": 2.0,
+          "mean": 0.171125,
+          "max": 0.179375,
+          "p50": 0.162875,
+          "p90": 0.179375,
+          "p95": 0.179375,
+          "p99": 0.179375
+        },
+        "resume_after_skip.cpu_ms": {
+          "n": 2.0,
+          "mean": 0.171979,
+          "max": 0.18025,
+          "p50": 0.163708,
+          "p90": 0.18025,
+          "p95": 0.18025,
+          "p99": 0.18025
+        },
+        "resume_after_skip.sql_statements": {
+          "n": 2.0,
+          "mean": 25,
+          "max": 25,
+          "p50": 25,
+          "p90": 25,
+          "p95": 25,
+          "p99": 25
+        },
+        "resume_after_skip.commits": {
+          "n": 2.0,
+          "mean": 4,
+          "max": 4,
+          "p50": 4,
+          "p90": 4,
+          "p95": 4,
+          "p99": 4
+        }
+      }
+    },
+    "durability": {
+      "rollback": {
+        "rollback.wall_ms": 0.037917,
+        "rollback.witnesses": 2
+      },
+      "recovery": {
+        "recovery.wall_ms": 0.666376,
+        "recovery.witnesses": 8
+      }
+    }
+  },
+  "rss_after_bytes": 48693248,
+  "peak_rss_bytes": 48431104
+}

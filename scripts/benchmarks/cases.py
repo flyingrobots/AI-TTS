@@ -12,15 +12,23 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, settle
-
 from aitts.model import Priority, State, Utterance
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
+from scripts.benchmarks.support import playback_helpers
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
     from pathlib import Path
+
+
+if TYPE_CHECKING:
+    from tests.support.playback import DeterministicPlaybackSchedule, make_composite_ready, settle
+else:
+    _support = playback_helpers()
+    DeterministicPlaybackSchedule = _support.DeterministicPlaybackSchedule
+    make_composite_ready = _support.make_composite_ready
+    settle = _support.settle
 
 
 class ContractViolationError(RuntimeError):

@@ -21,7 +21,7 @@ REFERENCE_COMMIT = "0290f3cf3a0c3930256f42f31500bda59c1eabeb"
 
 
 def reference_is_clean(root: Path, commit: str) -> bool:
-    """Accept only the pinned commit with no modified, added or untracked reference source."""
+    """Accept only the pinned, unmodified reference application and playback support."""
     # An inherited GIT_DIR (as in git hooks) overrides `-C` and would inspect another repository.
     environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     revision = subprocess.check_output(  # noqa: S603 - read-only source identity
@@ -38,6 +38,7 @@ def reference_is_clean(root: Path, commit: str) -> bool:
             "--untracked-files=all",
             "--",
             "src",
+            "tests",
         ],
         text=True,
         env=environment,
@@ -58,6 +59,7 @@ def reference_is_clean(root: Path, commit: str) -> bool:
             "-z",
             "--",
             "src",
+            "tests",
         ],
         env=environment,
     )

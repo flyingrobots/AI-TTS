@@ -206,3 +206,28 @@ def test_ignored_nested_repository_cannot_hide_importable_source(tmp_path: Path)
     (nested / "__init__.py").write_text("VALUE = 'nested repository'\n")
     (tmp_path / ".git" / "info" / "exclude").write_text("src/vendor/\n")
     assert not reference_is_clean(tmp_path, commit)
+
+
+@pytest.mark.parametrize("name", ["test_playback.py", "support/playback.py"])
+def test_modified_reference_helpers_are_rejected(tmp_path: Path, name: str) -> None:
+    """Oracle: issue #68; the measured reference includes its own versioned helpers."""
+    reference(tmp_path)
+    helper = tmp_path / "tests" / name
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text("VALUE = 'pinned helper'\n")
+    git(tmp_path, "add", "tests")
+    git(tmp_path, "commit", "--quiet", "-m", "reference helper")
+    commit = git(tmp_path, "rev-parse", "HEAD")
+    helper.write_text("VALUE = 'modified helper'\n")
+    assert not reference_is_clean(tmp_path, commit)
+
+
+@pytest.mark.parametrize("name", ["test_playback.py", "support/playback.py"])
+def test_ignored_reference_helpers_are_rejected(tmp_path: Path, name: str) -> None:
+    """Oracle: issue #68; ignored helper modules cannot shadow the pinned helper layout."""
+    commit = reference(tmp_path)
+    (tmp_path / ".git" / "info" / "exclude").write_text("tests/\n")
+    helper = tmp_path / "tests" / name
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text("VALUE = 'ignored helper'\n")
+    assert not reference_is_clean(tmp_path, commit)

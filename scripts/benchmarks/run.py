@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from scripts.benchmarks.metrics import distribution
+from scripts.benchmarks.support import helper_sources
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -43,8 +44,7 @@ CONTROLLER_BOUNDARY = (
 # implementation, so a paired comparison runs both arms under these exact files.
 HARNESS_FILES = (
     *(f"scripts/benchmarks/{name}.py" for name in ("__init__", "cases", "compare", "failures")),
-    *(f"scripts/benchmarks/{name}.py" for name in ("metrics", "mlx", "pcm", "run")),
-    "tests/test_playback.py",
+    *(f"scripts/benchmarks/{name}.py" for name in ("metrics", "mlx", "pcm", "run", "support")),
 )
 
 
@@ -60,7 +60,13 @@ def identity(
 ) -> dict[str, Any]:
     """Record the measured boundary, source, harness, environment and clocks of an experiment."""
     harness = Path(__file__).resolve().parents[2]
+    support = (
+        {"playback_support_sha256": sha256_files(root, helper_sources(root))}
+        if tuple(sources) == CONTROLLER_SOURCES
+        else {}
+    )
     return {
+        **support,
         "source_root": str(root),
         "source_sha256": sha256_files(root, sources),
         "harness_root": str(harness),

@@ -1,0 +1,168 @@
+{
+  "limits": {
+    "all_work_tmp_shm_bytes": 1073741824,
+    "evidence_bytes": 8388608,
+    "min_vm_free_bytes": 53687091200,
+    "deadline_s": 240,
+    "file_bytes": 8388608
+  },
+  "reason": null,
+  "samples": [
+    {
+      "elapsed_s": 0.01,
+      "all_work_tmp_shm_bytes": 313278464,
+      "evidence_bytes": 28870,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 0.54,
+      "all_work_tmp_shm_bytes": 313274368,
+      "evidence_bytes": 28702,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 1.05,
+      "all_work_tmp_shm_bytes": 315482112,
+      "evidence_bytes": 28703,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 1.57,
+      "all_work_tmp_shm_bytes": 315498496,
+      "evidence_bytes": 28870,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 2.09,
+      "all_work_tmp_shm_bytes": 315490304,
+      "evidence_bytes": 20902,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 2.61,
+      "all_work_tmp_shm_bytes": 317698048,
+      "evidence_bytes": 20903,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 3.13,
+      "all_work_tmp_shm_bytes": 315498496,
+      "evidence_bytes": 28870,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 3.65,
+      "all_work_tmp_shm_bytes": 315498496,
+      "evidence_bytes": 28870,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 4.17,
+      "all_work_tmp_shm_bytes": 317706240,
+      "evidence_bytes": 28871,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 4.69,
+      "all_work_tmp_shm_bytes": 315506688,
+      "evidence_bytes": 36836,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 5.21,
+      "all_work_tmp_shm_bytes": 316600320,
+      "evidence_bytes": 36836,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 5.73,
+      "all_work_tmp_shm_bytes": 317714432,
+      "evidence_bytes": 36837,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 6.26,
+      "all_work_tmp_shm_bytes": 315514880,
+      "evidence_bytes": 44798,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 6.78,
+      "all_work_tmp_shm_bytes": 316608512,
+      "evidence_bytes": 44798,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 7.31,
+      "all_work_tmp_shm_bytes": 318623744,
+      "evidence_bytes": 44799,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 7.83,
+      "all_work_tmp_shm_bytes": 315523072,
+      "evidence_bytes": 52772,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 8.35,
+      "all_work_tmp_shm_bytes": 316616704,
+      "evidence_bytes": 52772,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 8.87,
+      "all_work_tmp_shm_bytes": 315527168,
+      "evidence_bytes": 52851,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 9.39,
+      "all_work_tmp_shm_bytes": 315531264,
+      "evidence_bytes": 60744,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 9.92,
+      "all_work_tmp_shm_bytes": 316624896,
+      "evidence_bytes": 60744,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 10.43,
+      "all_work_tmp_shm_bytes": 315535360,
+      "evidence_bytes": 60823,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 10.96,
+      "all_work_tmp_shm_bytes": 315580416,
+      "evidence_bytes": 112135,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 11.48,
+      "all_work_tmp_shm_bytes": 316674048,
+      "evidence_bytes": 112135,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 12.0,
+      "all_work_tmp_shm_bytes": 318894080,
+      "evidence_bytes": 112137,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 12.53,
+      "all_work_tmp_shm_bytes": 319778816,
+      "evidence_bytes": 112214,
+      "vm_free_bytes": 726551195648
+    },
+    {
+      "elapsed_s": 13.05,
+      "all_work_tmp_shm_bytes": 319807488,
+      "evidence_bytes": 113448,
+      "vm_free_bytes": 726551195648
+    }
+  ]
+}

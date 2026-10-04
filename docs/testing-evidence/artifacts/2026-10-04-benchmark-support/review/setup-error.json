@@ -1,0 +1,21 @@
+{
+  "parent": "ce608f7e009294065ada889a085f8862c55d146d",
+  "test_sha256": "4b057b12d87fb98304096ea7936f524c7a6efaacc4780aabedcd686e2777c09a",
+  "runs": [
+    {
+      "name": "old-oracle-survives-wrong-failure-helpers",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers"
+      ],
+      "exit": 4,
+      "output": "ERROR: not found: /work/repo/tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers\n(no match in any of [<Module test_benchmark_support.py>])\n\nwall clock 0.01s\n\n"
+    }
+  ]
+}

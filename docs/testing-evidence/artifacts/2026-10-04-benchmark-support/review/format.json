@@ -1,0 +1,11 @@
+{
+  "name": "format",
+  "command": [
+    ".venv/bin/ruff",
+    "format",
+    "--check",
+    "tests/test_benchmark_support.py"
+  ],
+  "exit": 0,
+  "output": "1 file already formatted\n"
+}
