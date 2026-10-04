@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import random
@@ -41,7 +42,41 @@ def reference_is_clean(root: Path, commit: str) -> bool:
         text=True,
         env=environment,
     )
-    return revision == commit and not dirty
+    if revision != commit or dirty:
+        return False
+    # Ignored modules/packages still participate in Python import resolution.
+    # NUL delimiters preserve filenames containing whitespace or newlines.
+    ignored = subprocess.check_output(  # noqa: S603 - read-only ignored-source inventory
+        [
+            "/usr/bin/git",
+            "-C",
+            str(root),
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "-z",
+            "--",
+            "src",
+        ],
+        env=environment,
+    )
+    for entry in ignored.split(b"\0"):
+        if not entry:
+            continue
+        path = root / os.fsdecode(entry)
+        if path.is_symlink():
+            return False
+        if path.suffix.lower() in {".py", ".pyc", ".pyo", ".so", ".pyd"}:
+            if path.suffix == ".pyc" and path.parent.name == "__pycache__":
+                try:
+                    importlib.util.source_from_cache(str(path))
+                except ValueError:
+                    return False
+                else:
+                    continue
+            return False
+    return True
 
 
 def validate_inventory(report: dict[str, Any]) -> None:
