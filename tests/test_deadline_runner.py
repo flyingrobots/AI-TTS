@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import os
 import signal
 import subprocess
 import sys
@@ -85,7 +83,7 @@ def test_deadline_retires_descendants_after_the_group_leader_exits(
         owned.append(process)
         deadline = time.monotonic() + 5
         while not ready.exists() or not ready.read_text().strip():
-            if process.poll() is not None or time.monotonic() >= deadline:
+            if time.monotonic() >= deadline:
                 message = "owned descendant did not become ready"
                 raise RuntimeError(message)
             time.sleep(0.005)
@@ -116,6 +114,7 @@ def test_deadline_retires_descendants_after_the_group_leader_exits(
         assert not running(pid), "timeout returned while its SIGTERM-resistant descendant ran"
     finally:
         for process in owned:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
-            process.wait(timeout=1)
+            # main() may already have reaped the leader; never signal that released ID.
+            if process.returncode is None:
+                run_with_deadline._signal_owned_group(process.pid, signal.SIGKILL)
+                process.wait(timeout=1)

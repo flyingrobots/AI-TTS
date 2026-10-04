@@ -1,0 +1,13 @@
+{
+  "red_head": "ad833d8cec83eb2469a955d5ec96ac5eaf52db45",
+  "red_fixture_sha256": "79660d6a646320b5906534874bdcf2048341f81a9779e15149309886987774b6",
+  "red_host_sha256": "a7113968ac8a4ff751727d346eab4fd3739ffcb6fb605ff9e45b4112a643f1d3",
+  "red_inner_sha256": "75e8f7b0b0c06fe93e687c577b61a0ff15fb74564d418134e8531a6e4c24eafa",
+  "green_sha256": {
+    "tests/test_deadline_runner.py": "2e2e6cea48359cd204f70c7982c2ea25d6f7ce27c992f0b6bd7e4d80bb98c9f1",
+    "tests/test_deadline_fixture.py": "606d81fe584aa7a1679f3b6e4e3abdfd004317f744a717a4869c575e7061da1a",
+    "tests/test_validation_guard_cleanup.py": "a06b09882f2914014f6cb44a820e25df313f19a7c905951472b2f8a10121abc6",
+    "docs/testing-evidence/artifacts/2026-10-04-deadline-descendants/replay-host-guard.txt": "c7f798b7359b34436b26a4b602180739ca59dd16d9c43c6c2f6fe0e07138152e",
+    "docs/testing-evidence/artifacts/2026-10-04-deadline-descendants/replay-inner-runner.txt": "b2128236539b5c30b7bca525e2776418c015678db3daf1da10c3360b3a2e7f5c"
+  }
+}

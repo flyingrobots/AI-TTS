@@ -1,0 +1,85 @@
+{
+  "limits": {
+    "all_work_tmp_dev_bytes": 1073741824,
+    "minimum_free_bytes": 53687091200,
+    "host_log_bytes": 8388608,
+    "deadline_s": 300,
+    "monitor_command_timeout_s": 5
+  },
+  "reason": null,
+  "command_exit": 0,
+  "container_stop_exit": 0,
+  "container_stop_stderr": "",
+  "samples": [
+    {
+      "elapsed_s": 0.06,
+      "host_free_bytes": 763664031744,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326111232,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 1.12,
+      "host_free_bytes": 763663949824,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326135808,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 2.19,
+      "host_free_bytes": 763663912960,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326144000,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 3.25,
+      "host_free_bytes": 763663937536,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326144000,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 4.32,
+      "host_free_bytes": 763663933440,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326152192,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 5.37,
+      "host_free_bytes": 763663888384,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326152192,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 6.43,
+      "host_free_bytes": 763663650816,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326176768,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 7.48,
+      "host_free_bytes": 763663556608,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326209536,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 8.53,
+      "host_free_bytes": 763663548416,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326205440,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 9.6,
+      "host_free_bytes": 763663511552,
+      "vm_free_bytes": 725767950336,
+      "all_work_tmp_dev_bytes": 326217728,
+      "host_guard_bytes": 2397
+    }
+  ]
+}

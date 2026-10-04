@@ -1,0 +1,90 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import resource
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path('/work/repo')
+OUT = Path('/work/evidence107cleanup'); OUT.mkdir(exist_ok=True)
+BASE = ['.venv/bin/python', '-B', '-m', 'pytest', '-q', '-p', 'no:cacheprovider']
+
+def run(name, args, timeout=45):
+    log = OUT / (name + '.log')
+    with log.open('w') as stream:
+        result = subprocess.run(args, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, timeout=timeout)
+    record = {'name':name, 'command':args, 'exit':result.returncode, 'output':log.read_text()}
+    return record
+
+def campaign():
+    import shutil
+    rows=[]
+    fixture=ROOT/'tests/test_deadline_runner.py'
+    artifacts=ROOT/'docs/testing-evidence/artifacts/2026-10-04-deadline-descendants'
+    host=artifacts/'replay-host-guard.txt';inner=artifacts/'replay-inner-runner.txt'
+    checks=['tests/test_deadline_fixture.py','tests/test_validation_guard_cleanup.py']
+    try:
+        formatting=run('prepare-test-format',['.venv/bin/ruff','format']+checks);rows.append(formatting)
+        if formatting['exit']:raise RuntimeError('Formatting failed')
+        red=run('red',BASE+checks);rows.append(red)
+        if red['exit']!=1 or 'replacement' not in red['output'] or 'Darwin zombie-only group' not in red['output']:
+            raise RuntimeError('Expected teardown regression failures absent')
+        for src,dst in [('/work/fixture-fixed.py',fixture),('/work/host-safe.py',host),('/work/inner-safe.py',inner)]:shutil.copyfile(src,dst)
+        commands=[BASE+['tests/test_deadline_runner.py','tests/test_deadline_identity.py','tests/test_deadline_darwin.py']+checks,['.venv/bin/ruff','check','tests/test_deadline_runner.py']+checks,['.venv/bin/ruff','format','--check','tests/test_deadline_runner.py']+checks,['.venv/bin/mypy','--platform','darwin','tests/test_deadline_runner.py']+checks]
+        for i,args in enumerate(commands):
+            row=run('green-'+str(i),args);rows.append(row)
+            if row['exit']:raise RuntimeError('Green validation failed')
+        good=fixture.read_text()
+        try:
+            fixture.write_text(good.replace('if process.returncode is None:', 'if False:'))
+            mutant=run('omitted-fixture-cleanup',BASE+['tests/test_deadline_fixture.py']);rows.append(mutant)
+            if mutant['exit']!=1 or 'never retired the group' not in mutant['output']:raise RuntimeError('Cleanup oracle did not detect omission')
+        finally:fixture.write_text(good)
+        h=host.read_text();i=inner.read_text()
+        try:
+            host.write_text(h.replace('raise SystemExit(code)', 'raise SystemExit(1)'))
+            inner.write_text(i.replace('raise SystemExit(proc.returncode)', 'raise SystemExit(1)'))
+            mutant=run('guard-unsuccessful-exit',BASE+['tests/test_validation_guard_cleanup.py']);rows.append(mutant)
+            if mutant['exit']!=1 or 'assert 1 == 0' not in mutant['output']:raise RuntimeError('Guard success oracle did not detect failed exit')
+        finally:host.write_text(h);inner.write_text(i)
+    finally:
+        (OUT/'results.json').write_text(json.dumps({'runs':rows},indent=2)+'\n')
+
+if len(sys.argv)>1:
+    resource.setrlimit(resource.RLIMIT_FSIZE,(8*1024**2,8*1024**2))
+    campaign()
+else:
+    os.environ.update(TMPDIR='/tmp', PYTHONDONTWRITEBYTECODE='1', PATH='/work/bootstrap/bin:/usr/local/bin:/usr/bin:/bin')
+    samples=[]
+    proc=None
+    started=time.monotonic()
+    reason=None
+    try:
+        while True:
+            usage=int(subprocess.check_output(['du','-s','-B1','/work','/tmp','/dev'],text=True,timeout=3).splitlines()[0].split()[0])
+            # Separate invocations preserve all mount totals and avoid parent suppression.
+            usage += sum(int(subprocess.check_output(['du','-s','-B1',str(p)],text=True,timeout=3).split()[0]) for p in ('/tmp','/dev'))
+            logs=sum(p.stat().st_size for p in OUT.rglob('*') if p.is_file())
+            free=os.statvfs('/work').f_bavail*os.statvfs('/work').f_frsize
+            samples.append({'elapsed_s':round(time.monotonic()-started,2),'all_work_tmp_dev_bytes':usage,'evidence_bytes':logs,'vm_free_bytes':free})
+            if usage>1024**3 or logs>8*1024**2 or free<50*1024**3 or time.monotonic()-started>240:
+                reason='resource/deadline guard refused'; raise RuntimeError(reason)
+            if proc is None:
+                proc=subprocess.Popen([sys.executable,__file__,'campaign'],start_new_session=True)
+            if proc.poll() is not None: break
+            time.sleep(.5)
+    finally:
+        if proc is not None:
+            # Signal only while the unreaped leader anchors the ID.
+            # The mandatory host watchdog retires all container descendants.
+            if proc.returncode is None:
+                try:
+                    os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            proc.wait()
+        (OUT/(os.environ['STAGE']+'-resources.json')).write_text(json.dumps({'limits':{'all_work_tmp_dev_bytes':1024**3,'evidence_bytes':8*1024**2,'min_vm_free_bytes':50*1024**3,'deadline_s':240,'file_bytes':8*1024**2},'reason':reason,'samples':samples},indent=2)+'\n')
+    raise SystemExit(proc.returncode)
