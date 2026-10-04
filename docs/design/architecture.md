@@ -689,10 +689,11 @@ audio device, and the whole point is that two voices never speak at once. The
 menu-bar app takes a single-instance lock and the daemon owns one socket path.
 Horizontal scaling is not deferred here; it is a contradiction.
 
-**It does not run in a container.** A container cannot reach CoreAudio, the
-default output device, the microphone activity reading, or the macOS Services
-and App Intents surfaces. Every one of those is load-bearing. A containerised
-build would be a different program that happened to share a repository.
+**The full desktop experience is macOS-native.** Audible playback needs access to an output device. A container without an exposed audio device or host audio service cannot provide that playback, so the supported desktop installation runs the daemon on the host. Container-based tests use controlled audio substitutes; their success does not establish audible playback on the host.
+
+CoreAudio is behind platform ports, not a prerequisite for the daemon's application logic. On non-macOS platforms, the current adapter selection returns null implementations: playback loses live default-output-device following and microphone-activity interruption. An unavailable microphone reading is reported as `input_active: null`, not as a quiet microphone. With a usable audio backend and device, the daemon can still synthesize and play speech without those integrations.
+
+macOS Services and App Intents are Swift client entrypoints. Their availability determines how native clients submit speech, not whether the daemon can run in a container. Work tracked in [#13](https://github.com/flyingrobots/AI-TTS/issues/13), [#14](https://github.com/flyingrobots/AI-TTS/issues/14), and [#19](https://github.com/flyingrobots/AI-TTS/issues/19) moves non-macOS operation toward a supported configuration; the existing fallbacks alone do not establish full Linux desktop support.
 
 **It has no health endpoint or readiness probe.** `ai-tts status` answers over
 the same Unix socket everything else uses, and the launch agent restarts the

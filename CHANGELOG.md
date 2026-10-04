@@ -280,6 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Architecture §9a distinguishes host audio access, native Swift entrypoints, and the daemon's non-macOS platform fallbacks; it no longer claims CoreAudio is required for daemon execution.
+
 - Benchmark references reject ignored Python source, sourceless bytecode, native modules, symlinks, and opaque nested repositories under `src`, closing the remaining import-shadowing gap. Ordinary tagged bytecode caches remain allowed; the pinned historical reference is unchanged.
 
 - Uninstall stops before deleting either launch-agent plist or the CLI when launchd refuses to stop the loaded daemon, matching the menu-bar agent safeguard.
