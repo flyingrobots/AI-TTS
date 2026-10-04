@@ -1,0 +1,141 @@
+{
+  "strategy": "All six permutations sequentially, then two concurrent copies; no retries",
+  "runs": [
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.87s including fixtures, p95 call 780ms, budget 120s\nwall clock 0.89s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.83s including fixtures, p95 call 743ms, budget 120s\nwall clock 0.85s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.93s including fixtures, p95 call 830ms, budget 120s\nwall clock 0.95s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.94s including fixtures, p95 call 841ms, budget 120s\nwall clock 0.96s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.84s including fixtures, p95 call 749ms, budget 120s\nwall clock 0.85s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.83s including fixtures, p95 call 743ms, budget 120s\nwall clock 0.85s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.89s including fixtures, p95 call 794ms, budget 120s\nwall clock 0.91s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]",
+        "tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]"
+      ],
+      "exit": 0,
+      "stdout": "...                                                                      [100%]medium: 3 tests, 0.89s including fixtures, p95 call 799ms, budget 120s\nwall clock 0.91s\n\n",
+      "stderr": ""
+    }
+  ],
+  "source_commit": "09299e6b2e4c389cf0b6d7d0b2d1b7eff60a0bbd",
+  "candidate_sha256": {
+    "scripts/hooks/pre-commit": "18d11689f15db697f45cf20e1682d88afd670fb67102632b67fb9723aad393de",
+    "scripts/hooks/pre-push": "0f1e1489c0b41b09b199b4d292e1c41fec2a8b3407f6cc90fc1d68f23099e798",
+    "tests/conftest.py": "da3ffd324832c5501adf01d031c994d67f9c4cdffb84c019d107eb959409c809",
+    "tests/test_git_environment.py": "9b0cf56cbf738d0196417e72a333053d983a14399e6935181b6b72cf07682451"
+  },
+  "runner": "python order-isolation-runner.txt, from repository root in the locked worker"
+}

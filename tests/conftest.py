@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -40,6 +41,18 @@ _CLASS_BUDGET_SECONDS = {"small": 10.0, "medium": 120.0, "large": 120.0}
 _durations: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _overheads: dict[str, list[float]] = {name: [] for name in _SIZE_SECONDS}
 _suite_started = 0.0
+
+
+@pytest.fixture(autouse=True)
+def isolate_git_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep inherited Git overrides out of each test and its fixture subprocesses.
+
+    Tests exercising Git environment handling may explicitly inject their own
+    variables after setup; they must point to owned repositories.
+    """
+    for name in tuple(os.environ):
+        if name.startswith("GIT_"):
+            monkeypatch.delenv(name)
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

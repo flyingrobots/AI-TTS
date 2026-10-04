@@ -49,6 +49,8 @@ oracle, the flakiness policy, and why every assertion must be shown able to
 fail — are in [`docs/standards/testing.md`](docs/standards/testing.md), and
 several of them are enforced at collection time rather than trusted.
 
+The validation hooks locate the project before clearing Git's repository/index overrides. Pytest also removes inherited `GIT_*` variables before each test's function-scoped fixtures run. A test that deliberately exercises Git environment handling may set its own variables after setup, pointing only to owned temporary repositories. This does not make Git operations during module import or session-scoped fixture setup safe; those callers must still pass an explicitly isolated environment.
+
 ## Commits
 
 Conventional commit messages, with a `Closes #N` footer for the issue a
