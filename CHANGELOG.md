@@ -280,6 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Uninstall stops before deleting either launch-agent plist or the CLI when launchd refuses to stop the loaded daemon, matching the menu-bar agent safeguard.
+
 - Switching from a prepared streaming model to Chatterbox waits for native audio completion before closing the old device, preventing overlapping shutdown calls. A stalled microphone-device query no longer freezes daemon status/control or prevents process exit. Unconfirmed audio shutdown remains an explicit error and blocks device reuse ([#94](https://github.com/flyingrobots/AI-TTS/issues/94)).
 
 - Streaming playback no longer crackles when live synthesis falls behind, for example when several history items are replayed at once and synthesize at the same time.

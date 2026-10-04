@@ -53,6 +53,10 @@ def install_environment(tmp_path: Path) -> dict[str, str]:
 
     commands = tmp_path / "commands"
     commands.mkdir()
+    # This fixture models macOS tools without touching real launchd, on any host.
+    uname = commands / "uname"
+    uname.write_text('#!/bin/sh\nprintf "Darwin\\n"\n')
+    uname.chmod(0o755)
     uv = commands / "uv"
     uv.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     uv.chmod(0o755)
@@ -152,6 +156,9 @@ if args[0] == "print":
     sys.exit(0 if loaded.exists() else 3)
 if (args[0] == "bootout" and label.endswith(".menubar")
         and os.environ.get("AITTS_TEST_MENU_BAR_BOOTOUT_FAILURE") == "1"):
+    sys.exit(9)
+if (args[0] == "bootout" and not label.endswith(".menubar")
+        and os.environ.get("AITTS_TEST_DAEMON_BOOTOUT_FAILURE") == "1"):
     sys.exit(9)
 if args[0] == "bootout":
     loaded.unlink(missing_ok=True)
@@ -366,11 +373,19 @@ def test_failed_menu_bar_activation_preserves_its_incumbent_and_registered_daemo
     }
 
 
+@pytest.mark.parametrize("loaded", [False, True])
 def test_uninstall_removes_both_agents_and_preserves_the_app(
-    tmp_path: Path, install_environment: dict[str, str]
+    tmp_path: Path, install_environment: dict[str, str], *, loaded: bool
 ) -> None:
-    result = run_installation(tmp_path, install_environment)
-    assert result.returncode == 0, result.stderr
+    # Enter at uninstall with an owned installation, not the native app publisher.
+    (tmp_path / "agent.plist").write_bytes(b"owned daemon plist")
+    (tmp_path / "com.flyingrobots.ai-tts.menubar.plist").write_bytes(b"owned menu plist")
+    app = tmp_path / "AI-TTS.app"
+    app.mkdir()
+    (app / "version").write_text("new app")
+    if loaded:
+        (tmp_path / "service-loaded").write_text("running")
+        (tmp_path / "menu-bar-loaded").write_text("running")
     result = subprocess.run(  # noqa: S603 - owned tools and installation destinations
         [
             "/usr/bin/make",
@@ -391,6 +406,7 @@ def test_uninstall_removes_both_agents_and_preserves_the_app(
         "ui_plist": (tmp_path / "com.flyingrobots.ai-tts.menubar.plist").exists(),
         "daemon_loaded": (tmp_path / "service-loaded").exists(),
         "ui_loaded": (tmp_path / "menu-bar-loaded").exists(),
+        "cli_kept": (tmp_path / "cli-version").exists(),
         "app": (tmp_path / "AI-TTS.app" / "version").read_text(),
     } == {
         "exit": 0,
@@ -398,18 +414,24 @@ def test_uninstall_removes_both_agents_and_preserves_the_app(
         "ui_plist": False,
         "daemon_loaded": False,
         "ui_loaded": False,
+        "cli_kept": False,
         "app": "new app",
     }
 
 
-# Retire only when uninstall no longer boots out the menu-bar agent itself.
-def test_uninstall_reports_a_menu_bar_agent_that_launchd_keeps_loaded(
-    tmp_path: Path, install_environment: dict[str, str]
+# Retire only when uninstall no longer boots out the agents itself.
+@pytest.mark.parametrize("agent", ["menu_bar", "daemon"])
+def test_uninstall_preserves_files_when_launchd_keeps_an_agent_loaded(
+    tmp_path: Path, install_environment: dict[str, str], agent: str
 ) -> None:
-    """Oracle: CodeRabbit PRRT_kwDOUHyfMM6oPaqr; no uninstall success over a live agent."""
-    plist = tmp_path / "com.flyingrobots.ai-tts.menubar.plist"
-    plist.write_bytes(plistlib.dumps({"Label": "com.flyingrobots.ai-tts.menubar"}))
+    """Oracle: issue #73; a refused stop must preserve both plists and the CLI."""
+    label = "com.flyingrobots.ai-tts" + (".menubar" if agent == "menu_bar" else "")
+    plists = [tmp_path / "com.flyingrobots.ai-tts.menubar.plist", tmp_path / "agent.plist"]
+    for plist in plists:
+        plist.write_bytes(b"owned plist")
     (tmp_path / "menu-bar-loaded").write_text("running")
+    (tmp_path / "service-loaded").write_text("running")
+    (tmp_path / "cli-version").write_text("installed cli")
     result = subprocess.run(  # noqa: S603 - owned tools and installation destinations
         [
             "/usr/bin/make",
@@ -419,16 +441,24 @@ def test_uninstall_reports_a_menu_bar_agent_that_launchd_keeps_loaded(
             f"LAUNCH_AGENT={tmp_path / 'agent.plist'}",
         ],
         cwd=REPOSITORY,
-        env=dict(install_environment, AITTS_TEST_MENU_BAR_BOOTOUT_FAILURE="1"),
+        env={**install_environment, f"AITTS_TEST_{agent.upper()}_BOOTOUT_FAILURE": "1"},
         capture_output=True,
         text=True,
         check=False,
     )
     assert {
         "failed": result.returncode != 0,
-        "reported": "com.flyingrobots.ai-tts.menubar" in result.stderr,
-        "plist_kept": plist.exists(),
-    } == {"failed": True, "reported": True, "plist_kept": True}
+        "reported": label in result.stderr,
+        "plists_kept": all(plist.exists() for plist in plists),
+        "cli_kept": (tmp_path / "cli-version").exists(),
+        "daemon_loaded": (tmp_path / "service-loaded").exists(),
+    } == {
+        "failed": True,
+        "reported": True,
+        "plists_kept": True,
+        "cli_kept": True,
+        "daemon_loaded": True,
+    }, result.stderr
 
 
 def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
