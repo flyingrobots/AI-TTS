@@ -1,0 +1,39 @@
+{
+  "worker": "ai-tts-python-worker",
+  "image": "python:3.12-bookworm",
+  "lock": "/work/validation.lock",
+  "head": "99510b19805e1b25e34f3b43a126902fb4080e6f",
+  "host_cache_bytes": 4339904512,
+  "host_task_data_and_logs_bytes": 20733952,
+  "worker_allocation_bytes": 324624384,
+  "host_free_bytes": 763852492800,
+  "vm_free_bytes": 725911834624,
+  "outputs": [
+    "/work/repo (existing venv and caches)",
+    "/work/evidence105",
+    "/work/candidate105.tar",
+    "/tmp (1 GiB tmpfs)",
+    "/dev (including shared memory)",
+    "host task artifacts and task-owned host guard output directory",
+    "Docker json-file log: max-size 20m, max-file 5; idle sleep emits no output"
+  ],
+  "limits": {
+    "build_aggregate_bytes": 21474836480,
+    "test_data_aggregate_bytes": 4294967296,
+    "logs_aggregate_bytes": 134217728,
+    "worker_allocation_stop_bytes": 1073741824,
+    "per_evidence_directory_bytes": 8388608,
+    "file_bytes": 8388608,
+    "cpu": 2,
+    "memory_bytes": 4294967296,
+    "pids": 256,
+    "outer_timeout_s": 300,
+    "inner_timeout_s": 240,
+    "broad_pytest_timeout_s": 180,
+    "minimum_free_bytes": 53687091200
+  },
+  "guards": "aitts-guarded-host.py plus aitts-105-full.py: sampled stop guards, not quotas; measurement failure aborts; readonly root, sole volume /work, tmpfs /tmp and /dev accounted; no binds",
+  "stop_action": "host watchdog docker kill ai-tts-python-worker, then kill/wait docker exec process group; inner watchdog kills campaign group even after leader exits",
+  "estimated_growth": "less than 200 MiB reusable caches/temp, less than 8 MiB evidence; no model/download workloads",
+  "aggregate_basis": "Host caches plus worker allocation are conservatively below 20 GiB. Host task artifacts plus the 6.4 MB candidate archive and worker allocation are below 4 GiB. Follow-up log/receipt measurement: 6,454,842 host bytes; adding the configured Docker log maximum (100 MiB) and two 8 MiB evidence limits stays below 128 MiB. Sampled guards are not filesystem quotas."
+}

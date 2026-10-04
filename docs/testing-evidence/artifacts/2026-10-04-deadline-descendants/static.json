@@ -1,0 +1,37 @@
+[
+  {
+    "name": "static-0",
+    "command": [
+      ".venv/bin/ruff",
+      "check",
+      "scripts/run_with_deadline.py",
+      "tests/test_deadline_runner.py"
+    ],
+    "exit": 0,
+    "output": "All checks passed!\n"
+  },
+  {
+    "name": "static-1",
+    "command": [
+      ".venv/bin/ruff",
+      "format",
+      "--check",
+      "scripts/run_with_deadline.py",
+      "tests/test_deadline_runner.py"
+    ],
+    "exit": 0,
+    "output": "2 files already formatted\n"
+  },
+  {
+    "name": "static-2",
+    "command": [
+      ".venv/bin/mypy",
+      "--platform",
+      "darwin",
+      "scripts/run_with_deadline.py",
+      "tests/test_deadline_runner.py"
+    ],
+    "exit": 0,
+    "output": "Success: no issues found in 2 source files\n"
+  }
+]

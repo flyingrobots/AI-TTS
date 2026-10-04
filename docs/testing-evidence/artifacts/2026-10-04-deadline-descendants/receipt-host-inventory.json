@@ -1,0 +1,1283 @@
+{
+  "host_free_bytes": 763841253376,
+  "task_artifact_allocated_bytes": 29298688,
+  "task_log_receipt_bytes": 8294934,
+  "log_inventory": [
+    {
+      "path": "aitts-68-validation.json",
+      "bytes": 19059
+    },
+    {
+      "path": "aitts-74-replacement-body.md",
+      "bytes": 1909
+    },
+    {
+      "path": "aitts-80-worker-config.json",
+      "bytes": 1648
+    },
+    {
+      "path": "aitts-export-kokoro.log",
+      "bytes": 122701
+    },
+    {
+      "path": "aitts-68-red-metadata.json",
+      "bytes": 799
+    },
+    {
+      "path": "aitts-surface-build.log",
+      "bytes": 841
+    },
+    {
+      "path": "aitts-74-verify.log",
+      "bytes": 328
+    },
+    {
+      "path": "aitts-107-cleanup-final-host/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-107-cleanup-final-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-107-cleanup-final-host/host-resources.json",
+      "bytes": 2188
+    },
+    {
+      "path": "aitts-94-renderer-premature-end.txt",
+      "bytes": 1858
+    },
+    {
+      "path": "aitts-94-red.txt",
+      "bytes": 6763
+    },
+    {
+      "path": "aitts-97-final-review.json",
+      "bytes": 16029
+    },
+    {
+      "path": "aitts-worker-setup.log",
+      "bytes": 2779
+    },
+    {
+      "path": "aitts-107-cleanup-host/command.log",
+      "bytes": 312
+    },
+    {
+      "path": "aitts-107-cleanup-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-107-cleanup-host/host-resources.json",
+      "bytes": 1813
+    },
+    {
+      "path": "aitts-107-ci-failure.log",
+      "bytes": 7205
+    },
+    {
+      "path": "aitts-80-validation-commit.txt",
+      "bytes": 558
+    },
+    {
+      "path": "aitts-62-pr.md",
+      "bytes": 1258
+    },
+    {
+      "path": "aitts-68-format.log",
+      "bytes": 73957
+    },
+    {
+      "path": "aitts-106-activity.md",
+      "bytes": 1811
+    },
+    {
+      "path": "aitts-94-full.txt",
+      "bytes": 1361
+    },
+    {
+      "path": "aitts-model-full-tests.log",
+      "bytes": 1301
+    },
+    {
+      "path": "aitts-68-reference-smoke.json",
+      "bytes": 15081
+    },
+    {
+      "path": "aitts-107-cleanup-final-results.json",
+      "bytes": 32450
+    },
+    {
+      "path": "aitts-107-darwin-final-contract.json",
+      "bytes": 1987
+    },
+    {
+      "path": "aitts-105-green.json",
+      "bytes": 757
+    },
+    {
+      "path": "aitts-live-final-model-setup.log",
+      "bytes": 513
+    },
+    {
+      "path": "aitts-model-mypy.log",
+      "bytes": 45
+    },
+    {
+      "path": "aitts-94-resolution.md",
+      "bytes": 1394
+    },
+    {
+      "path": "aitts-model-default-restore.log",
+      "bytes": 374
+    },
+    {
+      "path": "aitts-73-lint.log",
+      "bytes": 262
+    },
+    {
+      "path": "aitts-97-activity.md",
+      "bytes": 1895
+    },
+    {
+      "path": "aitts-105-full-results.json",
+      "bytes": 3577
+    },
+    {
+      "path": "aitts-94-reuse-stopping-output.txt",
+      "bytes": 2045
+    },
+    {
+      "path": "aitts-menubar-login-pr.md",
+      "bytes": 2399
+    },
+    {
+      "path": "aitts-80-pr.md",
+      "bytes": 1711
+    },
+    {
+      "path": "aitts-107-review/reviewer.log",
+      "bytes": 561251
+    },
+    {
+      "path": "aitts-107-review/discussion.json",
+      "bytes": 7643
+    },
+    {
+      "path": "aitts-107-review/reviewer-v2.log",
+      "bytes": 149041
+    },
+    {
+      "path": "aitts-107-review/pr.json",
+      "bytes": 1844
+    },
+    {
+      "path": "aitts-107-review/reviewer-v3.log",
+      "bytes": 153342
+    },
+    {
+      "path": "aitts-107-review/prompt.txt",
+      "bytes": 6827
+    },
+    {
+      "path": "aitts-107-review/resume-prompt.txt",
+      "bytes": 5528
+    },
+    {
+      "path": "aitts-107-review/verdict-v3.md",
+      "bytes": 13288
+    },
+    {
+      "path": "aitts-107-review/discussion-current.json",
+      "bytes": 40236
+    },
+    {
+      "path": "aitts-107-review/verdict-v2.md",
+      "bytes": 12213
+    },
+    {
+      "path": "aitts-107-review/process.json",
+      "bytes": 77
+    },
+    {
+      "path": "aitts-107-review/process-v3.json",
+      "bytes": 77
+    },
+    {
+      "path": "aitts-107-review/resume-v3.txt",
+      "bytes": 6632
+    },
+    {
+      "path": "aitts-107-review/merge-gate.json",
+      "bytes": 18417
+    },
+    {
+      "path": "aitts-107-review/process-v2.json",
+      "bytes": 77
+    },
+    {
+      "path": "aitts-model-swift.log",
+      "bytes": 41596
+    },
+    {
+      "path": "aitts-export-chatterbox.log",
+      "bytes": 152364
+    },
+    {
+      "path": "aitts-install-constraints.txt",
+      "bytes": 39
+    },
+    {
+      "path": "aitts-72-static-final-contract.json",
+      "bytes": 1995
+    },
+    {
+      "path": "aitts-104-finding.md",
+      "bytes": 511
+    },
+    {
+      "path": "aitts-107-current-body.md",
+      "bytes": 1712
+    },
+    {
+      "path": "aitts-68-broad.log",
+      "bytes": 1326
+    },
+    {
+      "path": "aitts-model-additions-calibration.log",
+      "bytes": 803
+    },
+    {
+      "path": "aitts-model-install.log",
+      "bytes": 3824
+    },
+    {
+      "path": "aitts-74-red.log",
+      "bytes": 10077
+    },
+    {
+      "path": "aitts-104-final-activity.md",
+      "bytes": 1143
+    },
+    {
+      "path": "aitts-close-probe.sample.txt",
+      "bytes": 130084
+    },
+    {
+      "path": "aitts-model-restart-live.log",
+      "bytes": 82
+    },
+    {
+      "path": "aitts-94-full-final.txt",
+      "bytes": 1723
+    },
+    {
+      "path": "aitts-62-green.log",
+      "bytes": 236
+    },
+    {
+      "path": "aitts-104-correction-commit.txt",
+      "bytes": 561
+    },
+    {
+      "path": "aitts-105-host-static/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-105-host-static/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-105-host-static/host-resources.json",
+      "bytes": 685
+    },
+    {
+      "path": "aitts-100-activity.md",
+      "bytes": 2152
+    },
+    {
+      "path": "aitts-103-review/reviewer.log",
+      "bytes": 639485
+    },
+    {
+      "path": "aitts-103-review/discussion.json",
+      "bytes": 4394
+    },
+    {
+      "path": "aitts-103-review/reviewer-v2.log",
+      "bytes": 153460
+    },
+    {
+      "path": "aitts-103-review/pr.json",
+      "bytes": 4116
+    },
+    {
+      "path": "aitts-103-review/verdict.md",
+      "bytes": 7990
+    },
+    {
+      "path": "aitts-103-review/followup.txt",
+      "bytes": 1255
+    },
+    {
+      "path": "aitts-103-review/prompt.txt",
+      "bytes": 5483
+    },
+    {
+      "path": "aitts-103-review/verdict-v2.md",
+      "bytes": 9306
+    },
+    {
+      "path": "aitts-103-review/merge-gate.json",
+      "bytes": 25674
+    },
+    {
+      "path": "aitts-95-approval-request.md",
+      "bytes": 353
+    },
+    {
+      "path": "aitts-72-static.json",
+      "bytes": 3422
+    },
+    {
+      "path": "aitts-model-swift-calibration.log",
+      "bytes": 2969
+    },
+    {
+      "path": "aitts-106-merge.md",
+      "bytes": 602
+    },
+    {
+      "path": "aitts-surface-ax-before.json",
+      "bytes": 13
+    },
+    {
+      "path": "aitts-local-model-setup-pr.md",
+      "bytes": 1874
+    },
+    {
+      "path": "aitts-74-evidence/red.log",
+      "bytes": 9747
+    },
+    {
+      "path": "aitts-74-evidence/green.log",
+      "bytes": 1278
+    },
+    {
+      "path": "aitts-export-mlx.log",
+      "bytes": 121485
+    },
+    {
+      "path": "aitts-104-cleanup-commit.txt",
+      "bytes": 448
+    },
+    {
+      "path": "aitts-62-verify.log",
+      "bytes": 328
+    },
+    {
+      "path": "aitts-deadline-descendants-issue.md",
+      "bytes": 1796
+    },
+    {
+      "path": "aitts-97-review/github-review.json",
+      "bytes": 4760
+    },
+    {
+      "path": "aitts-105-pr.md",
+      "bytes": 1806
+    },
+    {
+      "path": "aitts-live-frozen-model-setup.log",
+      "bytes": 306
+    },
+    {
+      "path": "aitts-107-darwin-activity.md",
+      "bytes": 676
+    },
+    {
+      "path": "aitts-72-static-final-host/command.log",
+      "bytes": 294
+    },
+    {
+      "path": "aitts-72-static-final-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-72-static-final-host/host-resources.json",
+      "bytes": 1061
+    },
+    {
+      "path": "aitts-107-identity-finding.md",
+      "bytes": 1023
+    },
+    {
+      "path": "aitts-105-commit.txt",
+      "bytes": 592
+    },
+    {
+      "path": "aitts-95-after-push.txt",
+      "bytes": 11363
+    },
+    {
+      "path": "aitts-94-review-red.txt",
+      "bytes": 3135
+    },
+    {
+      "path": "aitts-101-review/reviewer.log",
+      "bytes": 758700
+    },
+    {
+      "path": "aitts-101-review/discussion.json",
+      "bytes": 5044
+    },
+    {
+      "path": "aitts-101-review/final-followup.txt",
+      "bytes": 1040
+    },
+    {
+      "path": "aitts-101-review/discussion-v2.json",
+      "bytes": 15590
+    },
+    {
+      "path": "aitts-101-review/ci.json",
+      "bytes": 1411
+    },
+    {
+      "path": "aitts-101-review/reviewer-v2.log",
+      "bytes": 96710
+    },
+    {
+      "path": "aitts-101-review/pr.json",
+      "bytes": 7561
+    },
+    {
+      "path": "aitts-101-review/reviewer-v3.log",
+      "bytes": 15866
+    },
+    {
+      "path": "aitts-101-review/verdict.md",
+      "bytes": 8056
+    },
+    {
+      "path": "aitts-101-review/followup.txt",
+      "bytes": 1707
+    },
+    {
+      "path": "aitts-101-review/prompt.txt",
+      "bytes": 6716
+    },
+    {
+      "path": "aitts-101-review/verdict-v3.md",
+      "bytes": 5141
+    },
+    {
+      "path": "aitts-101-review/discussion-102.json",
+      "bytes": 5463
+    },
+    {
+      "path": "aitts-101-review/verdict-v2.md",
+      "bytes": 7031
+    },
+    {
+      "path": "aitts-101-review/merge-gate-102.json",
+      "bytes": 23138
+    },
+    {
+      "path": "aitts-101-review/discussion-102-final.json",
+      "bytes": 13115
+    },
+    {
+      "path": "aitts-101-review/ci-current.json",
+      "bytes": 1411
+    },
+    {
+      "path": "aitts-live-kokoro-setup.log",
+      "bytes": 149
+    },
+    {
+      "path": "aitts-62-lint.log",
+      "bytes": 242
+    },
+    {
+      "path": "aitts-68-evidence/red.json",
+      "bytes": 18575
+    },
+    {
+      "path": "aitts-68-evidence/green.json",
+      "bytes": 2583
+    },
+    {
+      "path": "aitts-68-evidence/extraction.json",
+      "bytes": 1149
+    },
+    {
+      "path": "aitts-68-evidence/order.json",
+      "bytes": 8393
+    },
+    {
+      "path": "aitts-62-nested-red.log",
+      "bytes": 1398
+    },
+    {
+      "path": "aitts-107-darwin-final-host/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-107-darwin-final-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-107-darwin-final-host/host-resources.json",
+      "bytes": 2001
+    },
+    {
+      "path": "aitts-105-red.json",
+      "bytes": 4340
+    },
+    {
+      "path": "aitts-97-closure.md",
+      "bytes": 701
+    },
+    {
+      "path": "aitts-history-header-build.log",
+      "bytes": 845
+    },
+    {
+      "path": "aitts-live-model-setup.log",
+      "bytes": 153
+    },
+    {
+      "path": "aitts-105-full-resources.json",
+      "bytes": 12857
+    },
+    {
+      "path": "aitts-live-chatterbox-setup.log",
+      "bytes": 153
+    },
+    {
+      "path": "aitts-94-agy-review.txt",
+      "bytes": 21069
+    },
+    {
+      "path": "aitts-105-host-red/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-105-host-red/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-105-host-red/host-resources.json",
+      "bytes": 1061
+    },
+    {
+      "path": "aitts-103-gate.md",
+      "bytes": 1199
+    },
+    {
+      "path": "aitts-100-review-v2/reviewer.log",
+      "bytes": 112693
+    },
+    {
+      "path": "aitts-100-review-v2/parent-red.log",
+      "bytes": 13432
+    },
+    {
+      "path": "aitts-100-review-v2/pr.json",
+      "bytes": 18148
+    },
+    {
+      "path": "aitts-100-review-v2/lint.log",
+      "bytes": 480
+    },
+    {
+      "path": "aitts-100-review-v2/verdict.md",
+      "bytes": 8103
+    },
+    {
+      "path": "aitts-100-review-v2/green.log",
+      "bytes": 563
+    },
+    {
+      "path": "aitts-100-review-v2/prompt.txt",
+      "bytes": 7196
+    },
+    {
+      "path": "aitts-100-review-v2/nested-red.log",
+      "bytes": 1755
+    },
+    {
+      "path": "aitts-100-review-v2/resources.json",
+      "bytes": 146
+    },
+    {
+      "path": "aitts-model-calibration.log",
+      "bytes": 2744
+    },
+    {
+      "path": "aitts-cutoff-evidence/kokoro-mlx-request.json",
+      "bytes": 504
+    },
+    {
+      "path": "aitts-cutoff-evidence/kokoro-mlx-alloy-request.json",
+      "bytes": 475
+    },
+    {
+      "path": "aitts-cutoff-evidence/regeneration-request.json",
+      "bytes": 474
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/request.json",
+      "bytes": 235
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/model.json",
+      "bytes": 2110
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/playback.jsonl",
+      "bytes": 1714
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/source.txt",
+      "bytes": 715
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/synthesis.jsonl",
+      "bytes": 443
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/generation.json",
+      "bytes": 954
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_deb5b6e0cbdf443d8ad0a72fb24518ff/audio.json",
+      "bytes": 325
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/request.json",
+      "bytes": 274
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/model.json",
+      "bytes": 2110
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/playback.jsonl",
+      "bytes": 1709
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/source.txt",
+      "bytes": 715
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/synthesis.jsonl",
+      "bytes": 440
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/generation.json",
+      "bytes": 954
+    },
+    {
+      "path": "aitts-cutoff-evidence/utt_014173f519924cd7b9a276086c74e23f/audio.json",
+      "bytes": 325
+    },
+    {
+      "path": "aitts-107-darwin-host/command.log",
+      "bytes": 312
+    },
+    {
+      "path": "aitts-107-darwin-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-107-darwin-host/host-resources.json",
+      "bytes": 1812
+    },
+    {
+      "path": "aitts-80-host-guard/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-80-host-guard/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-80-host-guard/host-resources.json",
+      "bytes": 8087
+    },
+    {
+      "path": "aitts-chatterbox-issue.md",
+      "bytes": 2100
+    },
+    {
+      "path": "aitts-68-reference-red.log",
+      "bytes": 5176
+    },
+    {
+      "path": "aitts-95-comments.json",
+      "bytes": 6693
+    },
+    {
+      "path": "aitts-62-nested-green.log",
+      "bytes": 328
+    },
+    {
+      "path": "aitts-102-merge.md",
+      "bytes": 292
+    },
+    {
+      "path": "aitts-103-merge.md",
+      "bytes": 287
+    },
+    {
+      "path": "aitts-102-activity.md",
+      "bytes": 2207
+    },
+    {
+      "path": "aitts-105-static.json",
+      "bytes": 745
+    },
+    {
+      "path": "aitts-105-host-full/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-105-host-full/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-105-host-full/host-resources.json",
+      "bytes": 8610
+    },
+    {
+      "path": "aitts-94-pr.md",
+      "bytes": 2650
+    },
+    {
+      "path": "aitts-105-preflight.json",
+      "bytes": 1962
+    },
+    {
+      "path": "aitts-104-final-body.md",
+      "bytes": 2357
+    },
+    {
+      "path": "aitts-100-self-finding.md",
+      "bytes": 859
+    },
+    {
+      "path": "aitts-74-suite.log",
+      "bytes": 1281
+    },
+    {
+      "path": "aitts-107-identity-final-results.json",
+      "bytes": 4493
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-renderer-premature-end.txt",
+      "bytes": 1858
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-red.txt",
+      "bytes": 6763
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-full.txt",
+      "bytes": 1361
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-reuse-stopping-output.txt",
+      "bytes": 2045
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-full-final.txt",
+      "bytes": 1723
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-input-red.txt",
+      "bytes": 2441
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-review-red-final.txt",
+      "bytes": 3705
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-native.txt",
+      "bytes": 451
+    },
+    {
+      "path": "aitts-94-review-evidence/github.json",
+      "bytes": 29071
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-hidden-open-failure.txt",
+      "bytes": 1321
+    },
+    {
+      "path": "aitts-94-review-evidence/aitts-94-probe-joins-at-exit.txt",
+      "bytes": 4426
+    },
+    {
+      "path": "aitts-history-surface-pr.md",
+      "bytes": 903
+    },
+    {
+      "path": "aitts-104-review/reviewer.log",
+      "bytes": 1032297
+    },
+    {
+      "path": "aitts-104-review/threads-cr.json",
+      "bytes": 2573
+    },
+    {
+      "path": "aitts-104-review/discussion.json",
+      "bytes": 6750
+    },
+    {
+      "path": "aitts-104-review/reviewer-v2.log",
+      "bytes": 71210
+    },
+    {
+      "path": "aitts-104-review/pr.json",
+      "bytes": 4709
+    },
+    {
+      "path": "aitts-104-review/reviewer-v3.log",
+      "bytes": 346845
+    },
+    {
+      "path": "aitts-104-review/prompt-v2-corrected.txt",
+      "bytes": 8793
+    },
+    {
+      "path": "aitts-104-review/verdict.md",
+      "bytes": 11797
+    },
+    {
+      "path": "aitts-104-review/prompt.txt",
+      "bytes": 6936
+    },
+    {
+      "path": "aitts-104-review/verdict-v3.md",
+      "bytes": 14847
+    },
+    {
+      "path": "aitts-104-review/prompt-v3.txt",
+      "bytes": 9053
+    },
+    {
+      "path": "aitts-104-review/prompt-v2.txt",
+      "bytes": 8550
+    },
+    {
+      "path": "aitts-104-review/discussion-current.json",
+      "bytes": 58921
+    },
+    {
+      "path": "aitts-104-review/reviewer-v2-corrected.log",
+      "bytes": 94229
+    },
+    {
+      "path": "aitts-104-review/verdict-v2.md",
+      "bytes": 13281
+    },
+    {
+      "path": "aitts-104-review/merge-gate.json",
+      "bytes": 79124
+    },
+    {
+      "path": "aitts-104-review/pr-current.json",
+      "bytes": 2498
+    },
+    {
+      "path": "aitts-104-review/ci-current.json",
+      "bytes": 1411
+    },
+    {
+      "path": "aitts-107-identity-launch-contract.json",
+      "bytes": 1959
+    },
+    {
+      "path": "aitts-login-swift.log",
+      "bytes": 2133
+    },
+    {
+      "path": "aitts-73-pr-state.json",
+      "bytes": 1911
+    },
+    {
+      "path": "aitts-107-current-final-ci.log",
+      "bytes": 236933
+    },
+    {
+      "path": "aitts-100-formal-review.md",
+      "bytes": 862
+    },
+    {
+      "path": "aitts-94-input-red.txt",
+      "bytes": 2441
+    },
+    {
+      "path": "aitts-74-pr.md",
+      "bytes": 1248
+    },
+    {
+      "path": "aitts-107-activity.md",
+      "bytes": 1690
+    },
+    {
+      "path": "aitts-80-guard-check/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-80-guard-check/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-80-guard-check/host-resources.json",
+      "bytes": 497
+    },
+    {
+      "path": "aitts-107-cleanup-contract.json",
+      "bytes": 2041
+    },
+    {
+      "path": "aitts-94-review-red-final.txt",
+      "bytes": 3705
+    },
+    {
+      "path": "aitts-68-red.log",
+      "bytes": 5694
+    },
+    {
+      "path": "aitts-106-review/reviewer.log",
+      "bytes": 794085
+    },
+    {
+      "path": "aitts-106-review/discussion.json",
+      "bytes": 8774
+    },
+    {
+      "path": "aitts-106-review/pr.json",
+      "bytes": 3344
+    },
+    {
+      "path": "aitts-106-review/verdict.md",
+      "bytes": 15676
+    },
+    {
+      "path": "aitts-106-review/prompt.txt",
+      "bytes": 7529
+    },
+    {
+      "path": "aitts-106-review/merge-gate.json",
+      "bytes": 30384
+    },
+    {
+      "path": "aitts-104-correction.md",
+      "bytes": 1525
+    },
+    {
+      "path": "aitts-107-identity-final-host/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-107-identity-final-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-107-identity-final-host/host-resources.json",
+      "bytes": 1812
+    },
+    {
+      "path": "aitts-73-green.log",
+      "bytes": 168
+    },
+    {
+      "path": "aitts-model-live.log",
+      "bytes": 387
+    },
+    {
+      "path": "aitts-107-darwin-finding.md",
+      "bytes": 1099
+    },
+    {
+      "path": "aitts-107-identity-host/command.log",
+      "bytes": 312
+    },
+    {
+      "path": "aitts-107-identity-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-107-identity-host/host-resources.json",
+      "bytes": 1812
+    },
+    {
+      "path": "aitts-73-mypy.log",
+      "bytes": 45
+    },
+    {
+      "path": "aitts-model-lint.log",
+      "bytes": 12720
+    },
+    {
+      "path": "aitts-107-cleanup-results.json",
+      "bytes": 22133
+    },
+    {
+      "path": "aitts-80-full-resources.json",
+      "bytes": 11365
+    },
+    {
+      "path": "aitts-94-review-prompt.txt",
+      "bytes": 3910
+    },
+    {
+      "path": "aitts-95-review-comment.txt",
+      "bytes": 3998
+    },
+    {
+      "path": "aitts-107-darwin-final-results.json",
+      "bytes": 21557
+    },
+    {
+      "path": "aitts-101-format-inventory.log",
+      "bytes": 72425
+    },
+    {
+      "path": "aitts-68-pr.md",
+      "bytes": 2003
+    },
+    {
+      "path": "aitts-80-commit.txt",
+      "bytes": 590
+    },
+    {
+      "path": "aitts-72-static-final.json",
+      "bytes": 3300
+    },
+    {
+      "path": "aitts-105-launch-contract.json",
+      "bytes": 1954
+    },
+    {
+      "path": "aitts-107-identity-activity.md",
+      "bytes": 1083
+    },
+    {
+      "path": "aitts-model-recovery-calibration.log",
+      "bytes": 269
+    },
+    {
+      "path": "aitts-107-identity-final-contract.json",
+      "bytes": 2000
+    },
+    {
+      "path": "aitts-106-approval.md",
+      "bytes": 968
+    },
+    {
+      "path": "aitts-80-guard-setup-error/command.log",
+      "bytes": 205
+    },
+    {
+      "path": "aitts-80-guard-setup-error/host-resources.json",
+      "bytes": 685
+    },
+    {
+      "path": "aitts-21-body.md",
+      "bytes": 1981
+    },
+    {
+      "path": "aitts-107-cleanup-final-contract.json",
+      "bytes": 2020
+    },
+    {
+      "path": "aitts-68-focused.log",
+      "bytes": 257
+    },
+    {
+      "path": "aitts-105-archive.json",
+      "bytes": 140
+    },
+    {
+      "path": "aitts-94-native.txt",
+      "bytes": 451
+    },
+    {
+      "path": "aitts-107-darwin-results.json",
+      "bytes": 10126
+    },
+    {
+      "path": "aitts-73-pr.md",
+      "bytes": 1019
+    },
+    {
+      "path": "aitts-94-hidden-open-failure.txt",
+      "bytes": 1321
+    },
+    {
+      "path": "aitts-104-activity.md",
+      "bytes": 2505
+    },
+    {
+      "path": "aitts-73-red.log",
+      "bytes": 3080
+    },
+    {
+      "path": "aitts-107-current-ci.log",
+      "bytes": 237053
+    },
+    {
+      "path": "aitts-95-review-state.json",
+      "bytes": 4744
+    },
+    {
+      "path": "aitts-74-green.log",
+      "bytes": 168
+    },
+    {
+      "path": "aitts-audio-hang-issue.md",
+      "bytes": 8394
+    },
+    {
+      "path": "aitts-94-focused.txt",
+      "bytes": 248
+    },
+    {
+      "path": "aitts-94-probe-joins-at-exit.txt",
+      "bytes": 4426
+    },
+    {
+      "path": "aitts-model-tests.log",
+      "bytes": 185
+    },
+    {
+      "path": "aitts-72-static-contract.json",
+      "bytes": 2011
+    },
+    {
+      "path": "aitts-104-approval-request.md",
+      "bytes": 1045
+    },
+    {
+      "path": "aitts-62-cache-falsification.log",
+      "bytes": 1976
+    },
+    {
+      "path": "aitts-68-followup-commit.txt",
+      "bytes": 360
+    },
+    {
+      "path": "aitts-62-red.log",
+      "bytes": 11938
+    },
+    {
+      "path": "aitts-107-identity-results.json",
+      "bytes": 6213
+    },
+    {
+      "path": "aitts-101-activity.md",
+      "bytes": 1923
+    },
+    {
+      "path": "aitts-104-merge.md",
+      "bytes": 677
+    },
+    {
+      "path": "aitts-107-cleanup-activity.md",
+      "bytes": 1179
+    },
+    {
+      "path": "aitts-105-host-green/command.log",
+      "bytes": 0
+    },
+    {
+      "path": "aitts-105-host-green/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-105-host-green/host-resources.json",
+      "bytes": 1248
+    },
+    {
+      "path": "aitts-72-static-host/command.log",
+      "bytes": 294
+    },
+    {
+      "path": "aitts-72-static-host/configuration.json",
+      "bytes": 2397
+    },
+    {
+      "path": "aitts-72-static-host/host-resources.json",
+      "bytes": 685
+    },
+    {
+      "path": "aitts-80-worker-obsolete.txt",
+      "bytes": 2498
+    },
+    {
+      "path": "aitts-100-review/reviewer.log",
+      "bytes": 719613
+    },
+    {
+      "path": "aitts-100-review/discussion.json",
+      "bytes": 4569
+    },
+    {
+      "path": "aitts-100-review/pr.json",
+      "bytes": 6887
+    },
+    {
+      "path": "aitts-100-review/aitts-62-green.log",
+      "bytes": 236
+    },
+    {
+      "path": "aitts-100-review/verdict.md",
+      "bytes": 9366
+    },
+    {
+      "path": "aitts-100-review/aitts-62-verify.log",
+      "bytes": 328
+    },
+    {
+      "path": "aitts-100-review/prompt.txt",
+      "bytes": 5910
+    },
+    {
+      "path": "aitts-100-review/aitts-62-red.log",
+      "bytes": 11938
+    },
+    {
+      "path": "aitts-95-review-public.md",
+      "bytes": 22679
+    },
+    {
+      "path": "aitts-73-suite.log",
+      "bytes": 79584
+    },
+    {
+      "path": "aitts-104-sequence-commit.txt",
+      "bytes": 505
+    },
+    {
+      "path": "aitts-107-darwin-launch-contract.json",
+      "bytes": 1996
+    },
+    {
+      "path": "aitts-captions-issue.md",
+      "bytes": 1723
+    },
+    {
+      "path": "aitts-80-host-caches.json",
+      "bytes": 3862
+    },
+    {
+      "path": "aitts-80-full-results.json",
+      "bytes": 3469
+    }
+  ]
+}

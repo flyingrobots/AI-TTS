@@ -1,0 +1,21 @@
+{
+  "parent": "e6e0252b582ccaf470f179540c6e1dbff7b13a47",
+  "sha256": {
+    "scripts/run_with_deadline.py": "71a9df628da4dac0590bc1a9651385897e29e8bdaae93594725510f4ddf756b9",
+    "tests/test_deadline_runner.py": "79660d6a646320b5906534874bdcf2048341f81a9779e15149309886987774b6",
+    "tests/conftest.py": "da3ffd324832c5501adf01d031c994d67f9c4cdffb84c019d107eb959409c809"
+  },
+  "name": "green",
+  "command": [
+    ".venv/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/test_deadline_runner.py"
+  ],
+  "exit": 0,
+  "output": "...                                                                      [100%]medium: 3 tests, 2.43s including fixtures, p95 call 1977ms, budget 120s\nwall clock 2.45s\n\n"
+}

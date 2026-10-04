@@ -1,0 +1,30 @@
+{
+  "head": "a39c2ea2b7782f594f3b61d08bd4573e316c1d7a",
+  "sha256": {
+    "scripts/run_with_deadline.py": "db3e8cc1b0ac4c468a4ca5a7b61514ad911dd34935bbfd9488f1b15a52314df2",
+    "tests/test_deadline_runner.py": "2e2e6cea48359cd204f70c7982c2ea25d6f7ce27c992f0b6bd7e4d80bb98c9f1",
+    "tests/test_deadline_identity.py": "c050a1b4fd962a5fd777ff474ecbbf0aa97a23b44c294f7b95e37a46fe78c549",
+    "tests/test_deadline_darwin.py": "e47dd9de36ef4e7e8f0d9a5c75955177664624d26ad898aef58191554e0a83b0",
+    "tests/test_deadline_fixture.py": "606d81fe584aa7a1679f3b6e4e3abdfd004317f744a717a4869c575e7061da1a",
+    "tests/test_validation_guard_cleanup.py": "a06b09882f2914014f6cb44a820e25df313f19a7c905951472b2f8a10121abc6"
+  },
+  "run": {
+    "name": "verify",
+    "command": [
+      ".venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests/test_deadline_runner.py",
+      "tests/test_deadline_identity.py",
+      "tests/test_deadline_darwin.py",
+      "tests/test_deadline_fixture.py",
+      "tests/test_validation_guard_cleanup.py"
+    ],
+    "exit": 0,
+    "output": "...............                                                          [100%]small: 12 tests, CPU 0.02s including fixtures and waited children, CPU budget 10s; wall 0.01s, p95 call 3ms\nmedium: 3 tests, CPU 0.16s including fixtures and waited children, CPU budget 120s; wall 4.39s, p95 call 2168ms\nwall clock 4.44s\n\n"
+  }
+}

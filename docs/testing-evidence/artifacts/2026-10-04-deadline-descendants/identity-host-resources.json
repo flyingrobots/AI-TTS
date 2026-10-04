@@ -1,0 +1,71 @@
+{
+  "limits": {
+    "all_work_tmp_dev_bytes": 1073741824,
+    "minimum_free_bytes": 53687091200,
+    "host_log_bytes": 8388608,
+    "deadline_s": 300,
+    "monitor_command_timeout_s": 5
+  },
+  "reason": null,
+  "command_exit": 0,
+  "container_stop_exit": 0,
+  "container_stop_stderr": "",
+  "samples": [
+    {
+      "elapsed_s": 0.06,
+      "host_free_bytes": 763643170816,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325873664,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 1.11,
+      "host_free_bytes": 763643158528,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325873664,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 2.19,
+      "host_free_bytes": 763643125760,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325873664,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 3.27,
+      "host_free_bytes": 763642056704,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325873664,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 4.32,
+      "host_free_bytes": 763642028032,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325881856,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 5.4,
+      "host_free_bytes": 763642044416,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325881856,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 6.45,
+      "host_free_bytes": 763642023936,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325881856,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 7.52,
+      "host_free_bytes": 763642023936,
+      "vm_free_bytes": 725735235584,
+      "all_work_tmp_dev_bytes": 325885952,
+      "host_guard_bytes": 2397
+    }
+  ]
+}

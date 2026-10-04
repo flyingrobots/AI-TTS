@@ -1,0 +1,323 @@
+{
+  "limits": {
+    "all_work_tmp_dev_bytes": 1073741824,
+    "minimum_free_bytes": 53687091200,
+    "host_log_bytes": 8388608,
+    "deadline_s": 300,
+    "monitor_command_timeout_s": 5
+  },
+  "reason": null,
+  "command_exit": 0,
+  "container_stop_exit": 0,
+  "container_stop_stderr": "",
+  "samples": [
+    {
+      "elapsed_s": 0.06,
+      "host_free_bytes": 763860545536,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 324624384,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 1.12,
+      "host_free_bytes": 763860504576,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 324644864,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 2.17,
+      "host_free_bytes": 763860398080,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 324644864,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 3.23,
+      "host_free_bytes": 763860353024,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 325824512,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 4.28,
+      "host_free_bytes": 763860344832,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 332201984,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 5.35,
+      "host_free_bytes": 763860336640,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 334950400,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 6.42,
+      "host_free_bytes": 763860336640,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 335740928,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 7.48,
+      "host_free_bytes": 763853262848,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 335740928,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 8.53,
+      "host_free_bytes": 763853123584,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 335986688,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 9.59,
+      "host_free_bytes": 763853074432,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 343928832,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 10.66,
+      "host_free_bytes": 763853078528,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 345051136,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 11.72,
+      "host_free_bytes": 763853049856,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 349601792,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 12.78,
+      "host_free_bytes": 763852005376,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 349601792,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 13.84,
+      "host_free_bytes": 763844689920,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 352456704,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 14.91,
+      "host_free_bytes": 763844653056,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 354603008,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 15.96,
+      "host_free_bytes": 763844653056,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 359301120,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 17.03,
+      "host_free_bytes": 763844689920,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 359301120,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 18.14,
+      "host_free_bytes": 763844575232,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 359301120,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 19.2,
+      "host_free_bytes": 763844497408,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 359301120,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 20.26,
+      "host_free_bytes": 763844481024,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 361160704,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 21.32,
+      "host_free_bytes": 763838099456,
+      "vm_free_bytes": 725911834624,
+      "all_work_tmp_dev_bytes": 362078208,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 22.38,
+      "host_free_bytes": 763838095360,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 363872256,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 23.44,
+      "host_free_bytes": 763838095360,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 369291264,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 24.5,
+      "host_free_bytes": 763838054400,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 371961856,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 25.56,
+      "host_free_bytes": 763838050304,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 371982336,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 26.62,
+      "host_free_bytes": 763838029824,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372002816,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 27.68,
+      "host_free_bytes": 763837972480,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372023296,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 28.74,
+      "host_free_bytes": 763838185472,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372043776,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 29.8,
+      "host_free_bytes": 763838111744,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372064256,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 30.88,
+      "host_free_bytes": 763838070784,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372084736,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 31.94,
+      "host_free_bytes": 763838033920,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372105216,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 33.01,
+      "host_free_bytes": 763837939712,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372146176,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 34.08,
+      "host_free_bytes": 763837919232,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372166656,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 35.14,
+      "host_free_bytes": 763837878272,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372187136,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 36.2,
+      "host_free_bytes": 763836776448,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372207616,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 37.27,
+      "host_free_bytes": 763778387968,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372228096,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 38.34,
+      "host_free_bytes": 763739820032,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 372842496,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 39.41,
+      "host_free_bytes": 763696844800,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 373014528,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 40.47,
+      "host_free_bytes": 763637456896,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 373067776,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 41.6,
+      "host_free_bytes": 763574583296,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 373227520,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 42.67,
+      "host_free_bytes": 763500457984,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 373563392,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 43.73,
+      "host_free_bytes": 763419013120,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 375017472,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 44.79,
+      "host_free_bytes": 763309170688,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 375181312,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 45.86,
+      "host_free_bytes": 763205554176,
+      "vm_free_bytes": 725891072000,
+      "all_work_tmp_dev_bytes": 375259136,
+      "host_guard_bytes": 2397
+    }
+  ]
+}
