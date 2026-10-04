@@ -1,0 +1,19 @@
+import concurrent.futures
+import itertools
+import json
+import subprocess
+import sys
+nodes = [
+ 'tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]',
+ 'tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]',
+ 'tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository',
+]
+def run(order):
+ command=['.venv/bin/python','-m','pytest','-q','-p','no:cacheprovider',*order]
+ result=subprocess.run(command,capture_output=True,text=True)
+ return {'command':command,'exit':result.returncode,'stdout':result.stdout,'stderr':result.stderr}
+results=[run(order) for order in itertools.permutations(nodes)]
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+ results.extend(pool.map(run,[nodes,list(reversed(nodes))]))
+print(json.dumps({'strategy':'All six permutations sequentially, then two concurrent copies; no retries','runs':results},indent=2))
+sys.exit(any(result['exit'] for result in results))
