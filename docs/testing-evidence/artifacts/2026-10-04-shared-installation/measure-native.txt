@@ -1,0 +1,150 @@
+"""Bounded native fixture comparison; timing observations are not CI thresholds."""
+import ast
+import hashlib
+import json
+import os
+from pathlib import Path
+import resource
+import select
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path.cwd()
+TARGET = ROOT / 'tests/test_make_installation.py'
+BASELINE = Path(sys.argv[1]).read_bytes()
+CANDIDATE = TARGET.read_bytes()
+OUT = Path(sys.argv[2]).resolve()
+OUT.mkdir(parents=True, exist_ok=False)
+LIMIT = 64 * 1024**2
+LOG_LIMIT = 8 * 1024**2
+MIN_FREE = 50 * 1024**3
+sys.path.insert(0, str(ROOT))
+sys.dont_write_bytecode = True
+from scripts.run_with_deadline import _signal_owned_group
+
+before = ast.parse(BASELINE)
+after = ast.parse(CANDIDATE)
+names = [node.name for node in after.body if isinstance(node, ast.FunctionDef)
+         and any(arg.arg == 'default_installation' for arg in node.args.args)]
+if not names:
+    raise RuntimeError('No shared fixture consumers selected')
+def assertions(tree):
+    return {node.name: [ast.dump(x, include_attributes=False) for x in ast.walk(node)
+                       if isinstance(x, ast.Assert)]
+            for node in tree.body if isinstance(node, ast.FunctionDef)
+            and node.name.startswith('test_')}
+if assertions(before) != assertions(after):
+    raise RuntimeError('Existing assertions differ between compared fixtures')
+
+PLUGIN = '''import json, os, subprocess
+from pathlib import Path
+result = {"make_install_calls": 0, "reports": []}
+started_cpu = 0.0
+original = subprocess.run
+def measured_run(args, *rest, **kwargs):
+    if isinstance(args, list) and args[:1] == ["/usr/bin/make"] and "install" in args:
+        result["make_install_calls"] += 1
+    return original(args, *rest, **kwargs)
+def pytest_configure(config):
+    subprocess.run = measured_run
+def pytest_sessionstart(session):
+    global started_cpu
+    started_cpu = sum(os.times()[:4])
+def pytest_runtest_logreport(report):
+    result["reports"].append({"nodeid": report.nodeid, "phase": report.when,
+        "outcome": report.outcome, "duration_s": report.duration})
+def pytest_sessionfinish(session, exitstatus):
+    result["exit"] = int(exitstatus)
+    result["cpu_seconds"] = sum(os.times()[:4]) - started_cpu
+    Path(os.environ["AITTS_MEASUREMENT_RECORD"]).write_text(json.dumps(result, indent=2)+"\\n")
+'''
+(OUT / 'measure_plugin.py').write_text(PLUGIN)
+metadata = {'baseline_sha256': hashlib.sha256(BASELINE).hexdigest(),
+            'candidate_sha256': hashlib.sha256(CANDIDATE).hexdigest(),
+            'selected_tests': names, 'order': ['baseline', 'candidate', 'candidate', 'baseline', 'candidate-reversed'],
+            'assertion_functions': len(assertions(before)),
+            'assertions': sum(map(len, assertions(before).values())), 'runs': []}
+
+def allocation():
+    return int(subprocess.check_output(['du', '-sk', str(OUT)], text=True, timeout=2).split()[0])*1024
+
+def child_limits():
+    resource.setrlimit(resource.RLIMIT_FSIZE, (LOG_LIMIT, LOG_LIMIT))
+    resource.setrlimit(resource.RLIMIT_CPU, (45, 45))
+
+if sys.platform != 'darwin':
+    raise RuntimeError('Native installation measurement requires macOS')
+free = shutil.disk_usage(OUT).free
+if free < MIN_FREE:
+    raise RuntimeError('Less than 50 GiB free: native measurement refused')
+contract = {'owned_outputs': str(OUT), 'output_limit_bytes': LIMIT,
+            'file_limit_bytes': LOG_LIMIT, 'minimum_free_bytes': MIN_FREE,
+            'initial_free_bytes': free, 'per_run_wall_seconds': 45,
+            'per_process_cpu_seconds': 45, 'sampled_group_rss_limit_bytes': 4*1024**3,
+            'iterations': 5, 'concurrency': 1, 'expected_data_bytes': 16*1024**2,
+            'stop_action': 'Observe leader exit without reaping via kqueue; SIGKILL anchored pytest group on every exit, then reap; restore candidate in finally',
+            'storage_enforcement': 'sampled stop guard over owned output/TMPDIR/cache; not quota',
+            'runner': 'existing hosted macOS Python CI worker and venv; no build or downloads'}
+(OUT / 'launch-contract.json').write_text(json.dumps(contract, indent=2)+'\n')
+try:
+    for index, variant in enumerate(metadata['order']):
+        TARGET.write_bytes(BASELINE if variant == 'baseline' else CANDIDATE)
+        for stale in (ROOT / 'tests/__pycache__').glob('test_make_installation.*.pyc'):
+            stale.unlink()
+        run_root = OUT / f'{index}-{variant}'
+        run_root.mkdir()
+        temporary = run_root / 'tmp'
+        temporary.mkdir()
+        record = run_root / 'reports.json'
+        env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+        env.update(PYTHONDONTWRITEBYTECODE='1', TMPDIR=str(temporary),
+                   UV_CACHE_DIR=str(OUT/'uv-cache'), XDG_CACHE_HOME=str(OUT/'xdg-cache'),
+                   AITTS_MEASUREMENT_RECORD=str(record),
+                   PYTHONPATH=os.pathsep.join((str(OUT), str(ROOT), str(ROOT/'src'))))
+        command = [str(ROOT/'.venv/bin/python'), '-B', '-m', 'pytest', '-q',
+                   '-p', 'no:cacheprovider', '-p', 'measure_plugin', '--durations=0',
+                   '--basetemp', str(run_root/'fixtures')]
+        selected = list(reversed(names)) if variant == 'candidate-reversed' else names
+        command += ['tests/test_make_installation.py::'+name for name in selected]
+        began = time.monotonic()
+        samples = []
+        with (run_root/'pytest.log').open('w') as log, select.kqueue() as events:
+            process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=log,
+                stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=child_limits)
+            try:
+                # NOTE_EXIT observes completion without releasing the PID anchor.
+                events.control([select.kevent(process.pid, filter=select.KQ_FILTER_PROC,
+                    flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
+                    fflags=select.KQ_NOTE_EXIT)], 0, 0)
+                while not events.control(None, 1, 0):
+                    used = allocation()
+                    available = shutil.disk_usage(OUT).free
+                    table = subprocess.check_output(['/bin/ps', '-axo', 'pgid=,rss='],
+                                                    text=True, timeout=2)
+                    rss = sum(int(row.split()[1])*1024 for row in table.splitlines()
+                              if row.split()[0] == str(process.pid))
+                    elapsed = time.monotonic()-began
+                    samples.append({'elapsed_s': elapsed, 'allocated_bytes': used,
+                                    'free_bytes': available, 'group_rss_bytes': rss})
+                    if used > LIMIT or available < MIN_FREE or rss > 4*1024**3 or elapsed > 45:
+                        raise RuntimeError('Native fixture resource/deadline guard refused')
+                    time.sleep(0.1)
+            finally:
+                if process.returncode is None:
+                    _signal_owned_group(process.pid, signal.SIGKILL)
+                process.wait(timeout=5)
+        observed = json.loads(record.read_text())
+        row = {'variant': variant, 'test_order': selected, 'wall_s': time.monotonic()-began,
+               'process_exit': process.returncode, 'observations': observed, 'resources': samples}
+        metadata['runs'].append(row)
+        expected = len(names) if variant == 'baseline' else 1
+        if process.returncode or observed['exit'] or observed['make_install_calls'] != expected:
+            raise RuntimeError('Fixture outcomes or actual Make invocation count changed')
+finally:
+    TARGET.write_bytes(CANDIDATE)
+    (OUT/'comparison.json').write_text(json.dumps(metadata, indent=2)+'\n')
+print(json.dumps({'runs': [{'variant': r['variant'], 'wall_s': r['wall_s'],
+    'make_install_calls': r['observations']['make_install_calls']} for r in metadata['runs']]}))
