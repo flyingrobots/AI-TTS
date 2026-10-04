@@ -1,0 +1,56 @@
+{
+  "purpose": "Fresh bounded resource verification after correcting launch-receipt contradictions; no source changes",
+  "head": "a39c2ea2b7782f594f3b61d08bd4573e316c1d7a",
+  "worker": "ai-tts-python-worker",
+  "image": "python:3.12-bookworm",
+  "lock": "/work/validation.lock",
+  "fresh_measurements": {
+    "host_cache_bytes": 4339904512,
+    "host_task_artifact_allocated_bytes": 29298688,
+    "host_log_receipt_bytes": 8294934,
+    "worker_log_receipt_bytes": 432251,
+    "worker_work_tmp_dev_allocated_bytes": 326152192,
+    "host_free_bytes": 763835138048,
+    "vm_free_bytes": 725922209792
+  },
+  "log_accounting": {
+    "existing_host_log_receipts": 8294934,
+    "existing_worker_log_receipts": 432251,
+    "docker_rotation_maximum": 104857600,
+    "new_host_output_allowance": 8388608,
+    "new_worker_output_allowance": 8388608,
+    "inventory_and_metadata_reserve": 1048576,
+    "conservative_total_bytes": 131410577,
+    "project_limit_bytes": 134217728
+  },
+  "data_accounting": "All measured host task artifacts and worker allocation are charged conservatively to the 4 GiB data budget; log files are a separately measured subset, not the entire artifact total. Existing host caches plus worker allocation remain below the 20 GiB build budget.",
+  "outputs": [
+    "/work/repo caches",
+    "/work/full80.py",
+    "/work/evidence107receipt",
+    "/tmp (1 GiB tmpfs)",
+    "/dev including shared memory",
+    "task-owned host resource-inventory/runner/contract files",
+    "task-owned host guard output",
+    "Docker rotated logs"
+  ],
+  "limits": {
+    "aggregate_build_bytes": 21474836480,
+    "aggregate_data_bytes": 4294967296,
+    "aggregate_logs_bytes": 134217728,
+    "worker_sampled_allocation_limit": 1073741824,
+    "new_host_guard_output_bytes": 8388608,
+    "new_worker_evidence_bytes": 8388608,
+    "child_file_bytes": 8388608,
+    "minimum_free_bytes": 53687091200,
+    "cpus": 2,
+    "memory_bytes": 4294967296,
+    "pids": 256,
+    "inner_timeout_s": 240,
+    "outer_timeout_s": 300,
+    "command_timeout_s": 45
+  },
+  "guards": "Safe paired replay guards: readonly root; sole volume /work; accounted /tmp and /dev. Sampled stop guards, not quotas; monitoring errors stop the workload. Docker logs are rotated at 20m x 5.",
+  "stop_action": "Host kills entire owned container, then Popen.kill()/wait retires only its Docker client if still unreaped. Inner runner signals campaign group only while its leader remains unreaped; after reaping, whole-container termination owns lingering descendants. No post-reap process-group signal.",
+  "estimated_growth": "15 bounded focused tests, no downloads or model work; under 10 MiB generated data and the explicit output allowances above."
+}

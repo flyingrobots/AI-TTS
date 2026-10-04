@@ -1,0 +1,42 @@
+{
+  "worker": "ai-tts-python-worker",
+  "image": "python:3.12-bookworm",
+  "lock": "/work/validation.lock",
+  "head": "99510b19805e1b25e34f3b43a126902fb4080e6f",
+  "host_cache_bytes": 4339904512,
+  "host_task_data_and_logs_bytes": 20733952,
+  "worker_allocation_bytes": 324624384,
+  "host_free_bytes": 763664052224,
+  "vm_free_bytes": 725911834624,
+  "outputs": [
+    "/work/repo",
+    "/work/evidence107cleanup",
+    "/work/*-safe.py and fixture-fixed.py",
+    "/work/full80.py",
+    "/tmp",
+    "/dev",
+    "task-owned host guard output",
+    "bounded Docker logs"
+  ],
+  "limits": {
+    "build_aggregate_bytes": 21474836480,
+    "test_data_aggregate_bytes": 4294967296,
+    "logs_aggregate_bytes": 134217728,
+    "worker_allocation_stop_bytes": 1073741824,
+    "per_evidence_directory_bytes": 8388608,
+    "file_bytes": 8388608,
+    "cpu": 2,
+    "memory_bytes": 4294967296,
+    "pids": 256,
+    "outer_timeout_s": 300,
+    "inner_timeout_s": 240,
+    "broad_pytest_timeout_s": 180,
+    "minimum_free_bytes": 53687091200
+  },
+  "guards": "Safe replacement host/inner guards; no group signal after reaping. Host stops whole container, then kills/reaps only its Docker client if needed. Same allocation/free/log/time limits.",
+  "stop_action": "host watchdog docker kill ai-tts-python-worker, then kill/wait docker exec process group; inner watchdog kills campaign group even after leader exits",
+  "estimated_growth": "under 10 MiB; same monitored 1 GiB allocation and 8 MiB output caps",
+  "aggregate_basis": "Conservatively charge all host artifacts and worker allocation to data/log preflight; Docker rotation at most 100 MB plus evidence caps and measured host artifacts remains below 128 MiB. All worker allocation plus measured host caches below 20 GiB. Host archive adds 6.4 MB; no other task workloads launched.",
+  "task": "Final cleanup RED/GREEN and omitted-cleanup/failed-guard falsification",
+  "fresh_worker_measurement": "326111232\t/work\n0\t/tmp\n0\t/dev\n       Avail\n725767950336\n"
+}
