@@ -3,16 +3,27 @@
 
 """Deterministic durability faults and recovery observations at owned boundaries."""
 
+from __future__ import annotations
+
 import sqlite3
 import time
-from pathlib import Path
-
-from tests.test_playback import DeterministicPlaybackSchedule, make_composite_ready, settle
+from typing import TYPE_CHECKING
 
 from aitts.model import State
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from scripts.benchmarks.cases import require, running, session, takeover
+from scripts.benchmarks.support import playback_helpers
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tests.support.playback import DeterministicPlaybackSchedule, make_composite_ready, settle
+else:
+    _support = playback_helpers()
+    DeterministicPlaybackSchedule = _support.DeterministicPlaybackSchedule
+    make_composite_ready = _support.make_composite_ready
+    settle = _support.settle
 
 
 class CommitFault(sqlite3.Connection):

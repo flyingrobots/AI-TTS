@@ -21,7 +21,8 @@ from aitts.playback import FakeSink, PlaybackController, SoundDeviceSink
 from aitts.store import Store
 from aitts.streaming import SpoolingPCMStream, StreamingRegistry
 from tests.conftest import wait_for
-from tests.test_playback import DelayedReleaseSink, DeterministicPlaybackSchedule, start
+from tests.support.playback import DeterministicPlaybackSchedule
+from tests.test_playback import DelayedReleaseSink, start
 from tests.test_streaming_pipeline import ManualCallbackDevice
 
 pytestmark = [

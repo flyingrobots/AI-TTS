@@ -1,0 +1,20 @@
+import hashlib,json,subprocess,os
+from pathlib import Path
+root=Path('/work/repo');out=Path('/work/evidence68')
+commands=[
+ ['.venv/bin/ruff','check','.'],
+ ['.venv/bin/ruff','format','--check','.'],
+ ['.venv/bin/mypy','--platform','darwin'],
+ ['.venv/bin/pytest','--ignore=tests/test_install_integration.py','--ignore=tests/test_installation_upgrades.py','--ignore=tests/test_make_installation.py','--ignore=tests/test_makefile_paths.py','-q'],
+ ['.venv/bin/pytest','tests/test_make_installation.py','-k','uninstall','-q'],
+ ['.venv/bin/python','-B','-m','scripts.benchmarks.run','--source-root','/work/reference','--output','/work/reference-smoke.json','--iterations','1','--warmup','0','--backlog','0'],
+]
+runs=[]
+for command in commands:
+ r=subprocess.run(command,cwd=root,text=True,capture_output=True)
+ runs.append({'command':command,'exit':r.returncode,'stdout':r.stdout,'stderr':r.stderr})
+ if r.returncode:break
+names=json.loads((out/'green.json').read_text())['candidate_sha256'].keys()
+(out/'validation.json').write_text(json.dumps({'environment':{'PATH':os.environ['PATH']},'candidate_sha256':{n:hashlib.sha256((root/n).read_bytes()).hexdigest() for n in names},'runs':runs},indent=2)+'\n')
+print([(r['command'][0],r['exit']) for r in runs])
+raise SystemExit(any(r['exit'] for r in runs))

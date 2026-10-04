@@ -1,0 +1,50 @@
+import concurrent.futures
+import hashlib
+import json
+import random
+import subprocess
+from pathlib import Path
+
+root=Path('/work/repo')
+out=Path('/work/evidence68');out.mkdir(exist_ok=True)
+parent=Path('/work/parent68')
+replaced=[str(p.relative_to(parent)) for p in parent.rglob('*.py')]
+nodes=[
+ 'tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers[test_playback.py]',
+ 'tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers[support/playback.py]',
+ 'tests/test_benchmark_support.py::test_preloaded_candidate_test_package_cannot_contaminate_reference',
+ 'tests/test_benchmark_reference.py::test_modified_reference_helpers_are_rejected[test_playback.py]',
+ 'tests/test_benchmark_reference.py::test_modified_reference_helpers_are_rejected[support/playback.py]',
+ 'tests/test_benchmark_reference.py::test_ignored_reference_helpers_are_rejected[test_playback.py]',
+ 'tests/test_benchmark_reference.py::test_ignored_reference_helpers_are_rejected[support/playback.py]',
+ 'tests/test_benchmark_identity.py::test_controller_report_fingerprints_source_playback_support',
+ 'tests/test_benchmark_identity.py::test_controller_report_fingerprints_the_imported_harness',
+]
+fingerprint_names=sorted(set(replaced+['scripts/benchmarks/support.py','tests/support/playback.py','tests/support/__init__.py','tests/fixtures/benchmark_legacy_playback.txt','tests/test_benchmark_support.py','tests/test_benchmark_reference.py','tests/test_benchmark_identity.py']))
+def hashes():
+ return {name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in fingerprint_names}
+def run(command):
+ result=subprocess.run(command,cwd=root,text=True,capture_output=True)
+ return {'command':command,'exit':result.returncode,'stdout':result.stdout,'stderr':result.stderr}
+base=['.venv/bin/python','-m','pytest','-q','-p','no:cacheprovider']
+candidate={name:(root/name).read_bytes() for name in replaced}
+candidate_hashes=hashes()
+try:
+ for name in replaced:(root/name).write_bytes((parent/name).read_bytes())
+ red={'parent':'501877b0682323bf79b328394b741b2ec927ccd7','parent_files':replaced,'execution_sha256':hashes(),'candidate_sha256':candidate_hashes,**run(base+nodes)}
+ (out/'red.json').write_text(json.dumps(red,indent=2)+'\n')
+finally:
+ for name,data in candidate.items():(root/name).write_bytes(data)
+if red['exit']!=1:raise SystemExit('RED did not produce test failures')
+green={'candidate_sha256':hashes(),**run(base+nodes)}
+(out/'green.json').write_text(json.dumps(green,indent=2)+'\n')
+if green['exit']:raise SystemExit('GREEN failed')
+def ordered(seed):
+ order=list(nodes);random.Random(seed).shuffle(order)
+ return {'seed':seed,**run(base+order)}
+runs=[ordered(seed) for seed in (68,69,70)]
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+ runs.extend(pool.map(ordered,(71,72)))
+(out/'order.json').write_text(json.dumps({'candidate_sha256':hashes(),'strategy':'three seeded sequential permutations and two concurrent copies; no retries','runs':runs},indent=2)+'\n')
+if any(r['exit'] for r in runs):raise SystemExit('order run failed')
+print('Retained RED, GREEN and five seeded repeat runs')

@@ -1,0 +1,98 @@
+{
+  "environment": {
+    "PATH": "/work/bootstrap/bin:/usr/local/bin:/usr/bin:/bin"
+  },
+  "candidate_sha256": {
+    "scripts/benchmarks/cases.py": "4e251c5784b0a7621cdcd6fe0af503f274dc0cc1e8d4b3a8c32feebb0a9bc99a",
+    "scripts/benchmarks/compare.py": "1e1b4ffeeb69235dc2371dbb2b6ddf8d1b07926daf70cbe69b3c9b3812b8383b",
+    "scripts/benchmarks/failures.py": "c3a67cb41329844029f1c9bb97b42fbfeda6aab01bc15ce0bc961e865baf35a7",
+    "scripts/benchmarks/run.py": "00ce3cb7939dd32a18e3a7c3d5fffbcfff611a5935911ec6690f774dab0de34b",
+    "scripts/benchmarks/support.py": "c047b0e663456ff4344aca8ff0612071abf0f522246d92b03cbba630dbb50b3c",
+    "tests/fixtures/benchmark_legacy_playback.txt": "fa42090ffcb227bd11a615be771cc3c5a584ae091dd1d25a40201500bef6acee",
+    "tests/support/__init__.py": "0221aa9716d814baf903f2344e6d167da463572916ea937833d90b0772d4424d",
+    "tests/support/playback.py": "78326c6d714e04c64a1efcdd34b8d79dcc75b9022d084ebbde3db010337061fd",
+    "tests/test_benchmark_identity.py": "251b5e33104eab9a6fcc3766ce7a858515a44f629fc6e5258c958d280097e3ac",
+    "tests/test_benchmark_reference.py": "7c552749507f2f215c27f6dee6983cf6bc174dac21c596491dd72de3b534691d",
+    "tests/test_benchmark_support.py": "d83d086185e983ace52e5c287b613a67a50659379b5aa58f34052c2c8539b5c9",
+    "tests/test_playback.py": "a1e9d6e0536dad0170f656de56d905b13acd398ab216469b457d2ca3c3dbe2b8"
+  },
+  "runs": [
+    {
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "285 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/mypy",
+        "--platform",
+        "darwin"
+      ],
+      "exit": 0,
+      "stdout": "Success: no issues found in 192 source files\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/pytest",
+        "--ignore=tests/test_install_integration.py",
+        "--ignore=tests/test_installation_upgrades.py",
+        "--ignore=tests/test_make_installation.py",
+        "--ignore=tests/test_makefile_paths.py",
+        "-q"
+      ],
+      "exit": 0,
+      "stdout": ".............................ss......................................... [  7%]\n........................................................................ [ 14%]\n........................................................................ [ 21%]\n........................................................................ [ 28%]\n........................................................................ [ 35%]\n........................................................................ [ 43%]\n........................................................................ [ 50%]\n...........................................................ss........... [ 57%]\n........................................................................ [ 64%]\n........................................................................ [ 71%]\n........................................................................ [ 79%]\n........................................................................ [ 86%]\n........................................................................ [ 93%]\n.................................................................        [100%]small: 328 tests, 0.54s including fixtures, p95 call 1ms, budget 10s\nmedium: 669 tests, 23.11s including fixtures, p95 call 111ms, budget 120s\nwall clock 25.56s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/pytest",
+        "tests/test_make_installation.py",
+        "-k",
+        "uninstall",
+        "-q"
+      ],
+      "exit": 0,
+      "stdout": "....                                                                     [100%]medium: 4 tests, 0.64s including fixtures, p95 call 220ms, budget 120s\nwall clock 0.67s\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "scripts.benchmarks.run",
+        "--source-root",
+        "/work/reference",
+        "--output",
+        "/work/reference-smoke.json",
+        "--iterations",
+        "1",
+        "--warmup",
+        "0",
+        "--backlog",
+        "0"
+      ],
+      "exit": 0,
+      "stdout": "Recorded 6 cases: /work/reference-smoke.json\n",
+      "stderr": ""
+    }
+  ]
+}

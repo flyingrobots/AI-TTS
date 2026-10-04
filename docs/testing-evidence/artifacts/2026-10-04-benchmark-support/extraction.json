@@ -1,0 +1,25 @@
+{
+  "candidate_ast_sha256": {
+    "make_composite_ready": "19868eafde97d7f724914741f59a14510546c099cf76dcd595d19901051f3296",
+    "DeterministicPlaybackSchedule": "7ba46cfb470a039d609fcf3bf83ad749f25267ede9d1fa9e703a19a0ec4a6f90",
+    "settle": "6a97eb652ba974d452eb6fb59fc0353784fb2d052ebea20f857b21f170fb9033"
+  },
+  "sources": {
+    "501877b0682323bf79b328394b741b2ec927ccd7": {
+      "ast_sha256": {
+        "make_composite_ready": "19868eafde97d7f724914741f59a14510546c099cf76dcd595d19901051f3296",
+        "DeterministicPlaybackSchedule": "7ba46cfb470a039d609fcf3bf83ad749f25267ede9d1fa9e703a19a0ec4a6f90",
+        "settle": "6a97eb652ba974d452eb6fb59fc0353784fb2d052ebea20f857b21f170fb9033"
+      },
+      "identical": true
+    },
+    "0290f3cf3a0c3930256f42f31500bda59c1eabeb": {
+      "ast_sha256": {
+        "make_composite_ready": "19868eafde97d7f724914741f59a14510546c099cf76dcd595d19901051f3296",
+        "DeterministicPlaybackSchedule": "7ba46cfb470a039d609fcf3bf83ad749f25267ede9d1fa9e703a19a0ec4a6f90",
+        "settle": "6a97eb652ba974d452eb6fb59fc0353784fb2d052ebea20f857b21f170fb9033"
+      },
+      "identical": true
+    }
+  }
+}

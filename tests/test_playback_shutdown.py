@@ -16,7 +16,8 @@ from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.model import State
 from aitts.store import Store
-from tests.test_playback import DelayedReleaseSink, make_composite_ready, make_ready
+from tests.support.playback import make_composite_ready
+from tests.test_playback import DelayedReleaseSink, make_ready
 
 pytestmark = [
     pytest.mark.medium,

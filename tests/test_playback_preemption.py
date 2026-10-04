@@ -14,13 +14,8 @@ import pytest
 from aitts.model import Priority, State, Utterance
 from aitts.playback import FakeSink
 from aitts.store import Store
-from tests.test_playback import (
-    DelayedReleaseSink,
-    make_composite_ready,
-    playback_controller,
-    settle,
-    start,
-)
+from tests.support.playback import make_composite_ready, settle
+from tests.test_playback import DelayedReleaseSink, playback_controller, start
 
 pytestmark = [
     pytest.mark.medium,

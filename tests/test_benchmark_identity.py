@@ -10,7 +10,7 @@ import pytest
 from scripts.benchmarks import mlx, run
 
 pytestmark = [
-    pytest.mark.small,
+    pytest.mark.medium,
     pytest.mark.oracle(
         "Report identity: measured boundary named; measured source and imported harness hashed"
     ),
@@ -31,7 +31,7 @@ def test_controller_report_fingerprints_the_imported_harness() -> None:
         "scripts/benchmarks/failures.py",
         "scripts/benchmarks/pcm.py",
         "scripts/benchmarks/metrics.py",
-        "tests/test_playback.py",
+        "scripts/benchmarks/support.py",
     ]:
         assert harness[name] == sha256(name)
 
@@ -46,3 +46,11 @@ def test_mlx_report_names_and_fingerprints_the_adapter_boundary() -> None:
     assert environment["harness_sha256"]["scripts/benchmarks/mlx.py"] == sha256(
         "scripts/benchmarks/mlx.py"
     )
+
+
+def test_controller_report_fingerprints_source_playback_support() -> None:
+    support = run.identity(ROOT)["playback_support_sha256"]
+    assert support == {
+        name: sha256(name)
+        for name in ["tests/__init__.py", "tests/support/__init__.py", "tests/support/playback.py"]
+    }

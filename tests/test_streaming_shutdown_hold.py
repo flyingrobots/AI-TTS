@@ -14,7 +14,8 @@ from aitts.model import State
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from tests.conftest import wait_for
-from tests.test_playback import DeterministicPlaybackSchedule, make_ready, start
+from tests.support.playback import DeterministicPlaybackSchedule
+from tests.test_playback import make_ready, start
 
 if TYPE_CHECKING:
     from pathlib import Path
