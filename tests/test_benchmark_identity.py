@@ -4,6 +4,7 @@
 """Each benchmark report names its measured boundary and fingerprints the code that produced it."""
 
 import hashlib
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -48,8 +49,11 @@ def test_mlx_report_names_and_fingerprints_the_adapter_boundary() -> None:
     )
 
 
-def test_controller_report_fingerprints_source_playback_support() -> None:
-    support = run.identity(ROOT)["playback_support_sha256"]
+@pytest.mark.parametrize(
+    "sources", [run.CONTROLLER_SOURCES, list(run.CONTROLLER_SOURCES)], ids=["tuple", "list"]
+)
+def test_controller_report_fingerprints_source_playback_support(sources: Sequence[str]) -> None:
+    support = run.identity(ROOT, sources=sources).get("playback_support_sha256")
     assert support == {
         name: sha256(name)
         for name in ["tests/__init__.py", "tests/support/__init__.py", "tests/support/playback.py"]

@@ -1,0 +1,23 @@
+{
+  "sha256": {
+    "tests/test_benchmark_identity.py": "6b1e4f4dacee42fee79c950fcf86f73a88b3cfae8dbf477a7e6edd2287af40cf",
+    "scripts/benchmarks/run.py": "00ce3cb7939dd32a18e3a7c3d5fffbcfff611a5935911ec6690f774dab0de34b"
+  },
+  "runs": [
+    {
+      "name": "red-0",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_benchmark_identity.py"
+      ],
+      "exit": 1,
+      "output": "...F                                                                     [100%]medium: 4 tests, 0.01s including fixtures, p95 call 5ms, budget 120s\nwall clock 0.03s\n\n=================================== FAILURES ===================================\n______ test_controller_report_fingerprints_source_playback_support[list] _______\n\nsources = ['src/aitts/playback.py', 'src/aitts/store.py', 'src/aitts/streaming.py']\n\n    @pytest.mark.parametrize(\n        \"sources\", [run.CONTROLLER_SOURCES, list(run.CONTROLLER_SOURCES)], ids=[\"tuple\", \"list\"]\n    )\n    def test_controller_report_fingerprints_source_playback_support(sources: Sequence[str]) -> None:\n        support = run.identity(ROOT, sources=sources).get(\"playback_support_sha256\")\n>       assert support == {\n            name: sha256(name)\n            for name in [\"tests/__init__.py\", \"tests/support/__init__.py\", \"tests/support/playback.py\"]\n        }\nE       AssertionError: assert None == {'tests/__init__.py': '947ea5c44a44b8e053ea0f5983a68c221160f2b1d10879e43cf2960963c2cbb5', 'tests/support/__init__.py':...937833d90b0772d4424d', 'tests/support/playback.py': '78326c6d714e04c64a1efcdd34b8d79dcc75b9022d084ebbde3db010337061fd'}\n\ntests/test_benchmark_identity.py:57: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_benchmark_identity.py::test_controller_report_fingerprints_source_playback_support[list]\n"
+    }
+  ]
+}

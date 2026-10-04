@@ -62,7 +62,7 @@ def identity(
     harness = Path(__file__).resolve().parents[2]
     support = (
         {"playback_support_sha256": sha256_files(root, helper_sources(root))}
-        if sources == CONTROLLER_SOURCES
+        if tuple(sources) == CONTROLLER_SOURCES
         else {}
     )
     return {
