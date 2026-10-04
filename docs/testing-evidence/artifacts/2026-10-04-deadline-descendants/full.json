@@ -1,0 +1,80 @@
+{
+  "sha256": {
+    "scripts/run_with_deadline.py": "71a9df628da4dac0590bc1a9651385897e29e8bdaae93594725510f4ddf756b9",
+    "tests/test_deadline_runner.py": "79660d6a646320b5906534874bdcf2048341f81a9779e15149309886987774b6",
+    "tests/conftest.py": "c435e019d71f8a4e2921f77fadf4f6350dd3abe77366c9e4900f31f82b1ad7a3"
+  },
+  "runs": [
+    {
+      "name": "full-0",
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "."
+      ],
+      "exit": 0,
+      "output": "All checks passed!\n",
+      "timeout_s": 45
+    },
+    {
+      "name": "full-1",
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit": 0,
+      "output": "290 files already formatted\n",
+      "timeout_s": 45
+    },
+    {
+      "name": "full-2",
+      "command": [
+        ".venv/bin/mypy",
+        "--platform",
+        "darwin"
+      ],
+      "exit": 0,
+      "output": "Success: no issues found in 193 source files\n",
+      "timeout_s": 45
+    },
+    {
+      "name": "full-3",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--ignore=tests/test_install_integration.py",
+        "--ignore=tests/test_installation_upgrades.py",
+        "--ignore=tests/test_make_installation.py",
+        "--ignore=tests/test_makefile_paths.py"
+      ],
+      "exit": 0,
+      "output": ".............................ss......................................... [  7%]\n........................................................................ [ 14%]\n........................................................................ [ 21%]\n........................................................................ [ 28%]\n........................................................................ [ 35%]\n........................................................................ [ 42%]\n........................................................................ [ 49%]\n.............................................................ss......... [ 56%]\n........................................................................ [ 63%]\n........................................................................ [ 70%]\n........................................................................ [ 77%]\n........................................................................ [ 84%]\n........................................................................ [ 92%]\n........................................................................ [ 99%]\n.........                                                                [100%]small: 328 tests, CPU 0.73s including fixtures and waited children, CPU budget 10s; wall 0.67s, p95 call 1ms\nmedium: 687 tests, CPU 26.36s including fixtures and waited children, CPU budget 120s; wall 39.54s, p95 call 292ms\nlarge: 2 tests, CPU 0.00s including fixtures and waited children, CPU budget 120s; wall 0.00s, p95 call 0ms\nwall clock 42.10s\n\n",
+      "timeout_s": 180
+    },
+    {
+      "name": "full-4",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_make_installation.py",
+        "-k",
+        "uninstall"
+      ],
+      "exit": 0,
+      "output": "....                                                                     [100%]medium: 4 tests, CPU 0.70s including fixtures and waited children, CPU budget 120s; wall 0.70s, p95 call 241ms\nwall clock 0.73s\n\n",
+      "timeout_s": 45
+    }
+  ]
+}
