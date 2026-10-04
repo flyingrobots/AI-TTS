@@ -1,0 +1,78 @@
+{
+  "limits": {
+    "all_work_tmp_dev_bytes": 1073741824,
+    "minimum_free_bytes": 53687091200,
+    "host_log_bytes": 8388608,
+    "deadline_s": 300,
+    "monitor_command_timeout_s": 5
+  },
+  "reason": null,
+  "command_exit": 0,
+  "container_stop_exit": 0,
+  "container_stop_stderr": "",
+  "samples": [
+    {
+      "elapsed_s": 0.06,
+      "host_free_bytes": 763735019520,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325926912,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 1.12,
+      "host_free_bytes": 763735003136,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325922816,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 2.18,
+      "host_free_bytes": 763734994944,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325926912,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 3.24,
+      "host_free_bytes": 763734900736,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325926912,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 4.31,
+      "host_free_bytes": 763734884352,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325935104,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 5.38,
+      "host_free_bytes": 763734867968,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325935104,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 6.43,
+      "host_free_bytes": 763734646784,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325935104,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 7.48,
+      "host_free_bytes": 763734564864,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325959680,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 8.56,
+      "host_free_bytes": 763734544384,
+      "vm_free_bytes": 725827719168,
+      "all_work_tmp_dev_bytes": 325971968,
+      "host_guard_bytes": 2397
+    }
+  ]
+}

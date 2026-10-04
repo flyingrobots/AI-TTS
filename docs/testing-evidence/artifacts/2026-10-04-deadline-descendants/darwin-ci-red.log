@@ -1,0 +1,56 @@
+lint, typecheck, test (Python)	Pytest	﻿2026-10-04T09:28:15.8353940Z ##[group]Run uv run --frozen pytest
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:15.8354190Z ^[[36;1muv run --frozen pytest^[[0m
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:15.8381900Z shell: /bin/bash -e {0}
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:15.8382080Z env:
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:15.8382250Z   UV_CACHE_DIR: /Users/runner/work/_temp/setup-uv-cache
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:15.8382500Z ##[endgroup]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:21.7674520Z ........................................................................ [  6%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:25.8498600Z ........................................................................ [ 13%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:31.7777060Z ................................................F....................... [ 19%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:32.6386000Z ........................................................................ [ 26%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:34.3528490Z ........................................................................ [ 33%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:35.6389460Z ........................................................................ [ 39%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:38.6864070Z ........................................................................ [ 46%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:51.0260120Z ........................................................................ [ 53%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:54.8989460Z ........................................................ss.............. [ 59%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:57.4630960Z ........................................................................ [ 66%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:58.0850880Z ........................................................................ [ 73%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:58.2703650Z ........................................................................ [ 79%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:28:59.3120010Z ........................................................................ [ 86%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:10.1353000Z ........................................................................ [ 92%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.1706340Z ........................................................................ [ 99%]
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3618980Z ....                                                                     [100%]small: 340 tests, CPU 1.17s including fixtures and waited children, CPU budget 10s; wall 1.18s, p95 call 4ms
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3620500Z medium: 742 tests, CPU 29.58s including fixtures and waited children, CPU budget 120s; wall 49.47s, p95 call 380ms
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3621280Z large: 2 tests, CPU 0.00s including fixtures and waited children, CPU budget 120s; wall 0.00s, p95 call 0ms
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3621680Z wall clock 54.44s
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3621800Z 
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3621940Z =================================== FAILURES ===================================
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3622350Z ________________ test_deadline_runner_terminates_suite_overrun _________________
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3622590Z 
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3622790Z     def test_deadline_runner_terminates_suite_overrun() -> None:
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3623200Z         """Oracle: declared suite ceiling is a gate with timeout exit status 124."""
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3623590Z         result = subprocess.run(  # noqa: S603
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3623820Z             [
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3624010Z                 sys.executable,
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3624210Z                 str(RUNNER),
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3624430Z                 "0.1",
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3624630Z                 sys.executable,
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3624830Z                 "-c",
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3625050Z                 "import time; time.sleep(10)",
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3625290Z             ],
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3625470Z             check=False,
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3625690Z             capture_output=True,
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3625910Z             text=True,
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3626090Z             timeout=5,
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3626270Z         )
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3626440Z     
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3626610Z >       assert result.returncode == 124
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3626850Z E       AssertionError: assert 1 == 124
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3627640Z E        +  where 1 = CompletedProcess(args=['/Users/runner/work/AI-TTS/AI-TTS/.venv/bin/python', '/Users/runner/work/AI-TTS/AI-TTS/scripts/...id, signal.SIGKILL)\n    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n').returncode
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3629070Z 
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3629170Z tests/test_deadline_runner.py:57: AssertionError
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3629550Z =========================== short test summary info ============================
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3630150Z FAILED tests/test_deadline_runner.py::test_deadline_runner_terminates_suite_overrun - AssertionError: assert 1 == 124
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3631090Z  +  where 1 = CompletedProcess(args=['/Users/runner/work/AI-TTS/AI-TTS/.venv/bin/python', '/Users/runner/work/AI-TTS/AI-TTS/scripts/...id, signal.SIGKILL)\n    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n').returncode
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.3631860Z 1 failed, 1081 passed, 2 skipped in 54.47s
+lint, typecheck, test (Python)	Pytest	2026-10-04T09:29:11.7038220Z ##[error]Process completed with exit code 1.
