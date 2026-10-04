@@ -1,0 +1,37 @@
+[
+  {
+    "name": "static-0",
+    "command": [
+      ".venv/bin/ruff",
+      "check",
+      "tests/conftest.py",
+      "tests/test_tier_budget.py"
+    ],
+    "exit": 0,
+    "output": "All checks passed!\n"
+  },
+  {
+    "name": "static-1",
+    "command": [
+      ".venv/bin/ruff",
+      "format",
+      "--check",
+      "tests/conftest.py",
+      "tests/test_tier_budget.py"
+    ],
+    "exit": 0,
+    "output": "2 files already formatted\n"
+  },
+  {
+    "name": "static-2",
+    "command": [
+      ".venv/bin/mypy",
+      "--platform",
+      "darwin",
+      "tests/conftest.py",
+      "tests/test_tier_budget.py"
+    ],
+    "exit": 0,
+    "output": "Success: no issues found in 2 source files\n"
+  }
+]
