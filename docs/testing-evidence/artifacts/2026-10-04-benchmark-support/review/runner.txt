@@ -1,0 +1,88 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import resource
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path('/work/repo')
+OUT = Path('/work/evidence68-review'); OUT.mkdir(exist_ok=True)
+TEST = ROOT / 'tests/test_benchmark_support.py'
+BASE = ['.venv/bin/python', '-B', '-m', 'pytest', '-q', '-p', 'no:cacheprovider']
+NODE = 'tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers'
+
+def run(name, args):
+    log = OUT / (name + '.log')
+    with log.open('w') as stream:
+        result = subprocess.run(args, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, timeout=45)
+    record = {'name':name, 'command':args, 'exit':result.returncode, 'output':log.read_text()}
+    return record
+
+def campaign():
+    candidate = TEST.read_bytes()
+    paths = {module: ROOT / f'scripts/benchmarks/{module}.py' for module in ('cases','failures')}
+    originals = {module:path.read_text() for module,path in paths.items()}
+    records = []
+    # An uninstrumented, actual candidate helper module: identical behavior, wrong provenance.
+    foreign = '''\nimport importlib.util as _foreign_util\n_foreign_spec = _foreign_util.spec_from_file_location("candidate_playback_support", "/work/repo/tests/support/playback.py")\n_foreign = _foreign_util.module_from_spec(_foreign_spec)\n_foreign_spec.loader.exec_module(_foreign)\n'''
+    helpers = {'composite':'make_composite_ready', 'schedule':'DeterministicPlaybackSchedule', 'settle':'settle'}
+    try:
+        TEST.write_bytes(Path('/work/old-support-test.py').read_bytes())
+        paths['failures'].write_text(originals['failures'] + foreign + '\n'.join(f'{export} = _foreign.{export}' for export in helpers.values()) + '\n')
+        survived = run('old-oracle-survives-wrong-failure-helpers', BASE + [NODE])
+        records.append(survived)
+        if survived['exit'] != 0: raise RuntimeError('old oracle did not demonstrate the reported gap')
+        paths['failures'].write_text(originals['failures'])
+        TEST.write_bytes(candidate)
+        for module,path in paths.items():
+            for helper,export in helpers.items():
+                path.write_text(originals[module] + foreign + f'\n{export} = _foreign.{export}\n')
+                row = run(f'wrong-{module}-{helper}', BASE + [NODE])
+                records.append(row)
+                expected = f'scripts.benchmarks.{module} bypassed reference {helper}'
+                if row['exit'] != 1 or expected not in row['output'] or row['output'].count('FAILED tests/test_benchmark_support.py::') != 2:
+                    raise RuntimeError(f'unexpected falsification outcome: {row["name"]}')
+                path.write_text(originals[module])
+    finally:
+        TEST.write_bytes(candidate)
+        for module,path in paths.items(): path.write_text(originals[module])
+        (OUT / 'calibration.json').write_text(json.dumps({'parent':'ce608f7e009294065ada889a085f8862c55d146d', 'test_sha256':hashlib.sha256(candidate).hexdigest(), 'runs':records}, indent=2)+'\n')
+    green = run('green', BASE + ['tests/test_benchmark_support.py','tests/test_benchmark_reference.py','tests/test_benchmark_identity.py','tests/test_benchmark_cleanup.py'])
+    (OUT / 'green.json').write_text(json.dumps(green,indent=2)+'\n')
+    if green['exit']: raise RuntimeError('green failed')
+    for name,args in [('ruff',['.venv/bin/ruff','check','tests/test_benchmark_support.py']), ('format',['.venv/bin/ruff','format','--check','tests/test_benchmark_support.py']), ('mypy',['.venv/bin/mypy','--platform','darwin','tests/test_benchmark_support.py'])]:
+        row = run(name,args)
+        (OUT / (name+'.json')).write_text(json.dumps(row,indent=2)+'\n')
+        if row['exit']: raise RuntimeError(name+' failed')
+
+if len(sys.argv)>1:
+    resource.setrlimit(resource.RLIMIT_FSIZE,(8*1024**2,8*1024**2))
+    campaign()
+else:
+    os.environ.update(TMPDIR='/tmp', PYTHONDONTWRITEBYTECODE='1', PATH='/work/bootstrap/bin:/usr/local/bin:/usr/bin:/bin')
+    samples=[]
+    proc=None
+    started=time.monotonic()
+    reason=None
+    try:
+        while True:
+            usage=int(subprocess.check_output(['du','-s','-B1','/work','/tmp','/dev/shm'],text=True).splitlines()[0].split()[0])
+            # Separate invocations preserve all mount totals and avoid parent suppression.
+            usage += sum(int(subprocess.check_output(['du','-s','-B1',str(p)],text=True).split()[0]) for p in ('/tmp','/dev/shm'))
+            logs=sum(p.stat().st_size for p in OUT.rglob('*') if p.is_file())
+            free=os.statvfs('/work').f_bavail*os.statvfs('/work').f_frsize
+            samples.append({'elapsed_s':round(time.monotonic()-started,2),'all_work_tmp_shm_bytes':usage,'evidence_bytes':logs,'vm_free_bytes':free})
+            if usage>1024**3 or logs>8*1024**2 or free<50*1024**3 or time.monotonic()-started>240:
+                reason='resource/deadline guard refused'; raise RuntimeError(reason)
+            if proc is None:
+                proc=subprocess.Popen([sys.executable,__file__,'campaign'],start_new_session=True)
+            if proc.poll() is not None: break
+            time.sleep(.5)
+    finally:
+        if proc and proc.poll() is None:
+            os.killpg(proc.pid,signal.SIGKILL);proc.wait()
+        (OUT/'resources.json').write_text(json.dumps({'limits':{'all_work_tmp_shm_bytes':1024**3,'evidence_bytes':8*1024**2,'min_vm_free_bytes':50*1024**3,'deadline_s':240,'file_bytes':8*1024**2},'reason':reason,'samples':samples},indent=2)+'\n')
+    raise SystemExit(proc.returncode)

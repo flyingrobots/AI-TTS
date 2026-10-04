@@ -42,8 +42,10 @@ def test_alternate_source_executes_its_own_playback_helpers(
         module.write(
             f"""
 def record_helper(name):
+    import sys
+    caller = sys._getframe(2).f_globals['__name__']
     with Path({str(marker)!r}).open('a') as journal:
-        journal.write(name + '\\n')
+        journal.write(caller + ':' + name + '\\n')
 
 _original_composite = make_composite_ready
 def make_composite_ready(*args, **kwargs):
@@ -87,7 +89,10 @@ async def settle(*args, **kwargs):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert marker.is_file(), "benchmark executed candidate helpers for the selected reference"
-    assert set(marker.read_text().splitlines()) == {"composite", "schedule", "settle"}
+    calls = set(marker.read_text().splitlines())
+    for caller in ("scripts.benchmarks.cases", "scripts.benchmarks.failures"):
+        for helper in ("composite", "schedule", "settle"):
+            assert f"{caller}:{helper}" in calls, f"{caller} bypassed reference {helper}"
     report = json.loads(output.read_text())
     assert report["environment"]["playback_support_sha256"][f"tests/{helper_name}"] == (
         hashlib.sha256((support / helper_name).read_bytes()).hexdigest()

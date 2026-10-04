@@ -1,0 +1,10 @@
+{
+  "name": "ruff",
+  "command": [
+    ".venv/bin/ruff",
+    "check",
+    "tests/test_benchmark_support.py"
+  ],
+  "exit": 0,
+  "output": "All checks passed!\n"
+}
