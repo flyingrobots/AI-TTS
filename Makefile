@@ -139,7 +139,12 @@ uninstall:
 			"$(MENU_BAR_SERVICE)" >&2; \
 		exit 1; \
 	fi
-	@launchctl bootout "$(SERVICE)" 2>/dev/null || true
+	@if launchctl print "$(SERVICE)" >/dev/null 2>&1 && \
+		! launchctl bootout "$(SERVICE)" 2>/dev/null; then \
+		printf 'launchd could not stop %s; its plist was left in place\n' \
+			"$(SERVICE)" >&2; \
+		exit 1; \
+	fi
 	@rm -f -- "$$AITTS_PLIST" "$$AITTS_MENU_BAR_PLIST"
 	@printf '==> removing the executables\n'
 	@uv tool uninstall ai-tts 2>/dev/null || true

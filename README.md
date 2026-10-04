@@ -192,7 +192,7 @@ The installer sends SIGTERM to an already-running installed menu app, so it need
 
 Each agent activation rolls back independently: if menu-bar registration fails, the already-registered daemon remains available. The installer waits up to ten seconds for the menu app to exit before registering its agent; if it is still running, the installer warns, prints the `launchctl kickstart` command to run after quitting it, and completes. If that registration then fails, the previous menu-bar registration is restored, but a manually opened app that the installer quit stays closed; reopen it.
 
-`make install-all` does all three. `make uninstall` stops and removes the two launchd agents and the executables, and deliberately leaves your speech history, cached audio, and installed app alone.
+`make install-all` does all three. `make uninstall` stops and removes the two launchd agents and the executables, and deliberately leaves your speech history, cached audio, and installed app alone. If launchd refuses to stop either loaded agent, uninstall reports the failure and preserves both agent plists and the CLI; an agent stopped earlier in that attempt stays stopped.
 
 Agent integrations take the agents by name, either through make or by calling
 the installer directly:
