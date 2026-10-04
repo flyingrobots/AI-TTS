@@ -1,0 +1,39 @@
+{
+  "record_kind": "Post-run reconciliation; the original pre-run record is preserved verbatim in cleanup-launch-contract-original.json. This is not a claim that this corrected text existed before execution.",
+  "execution_inputs": "cleanup-inputs.json",
+  "execution_resources": "cleanup-host-resources.json",
+  "worker": "ai-tts-python-worker",
+  "image": "python:3.12-bookworm",
+  "lock": "/work/validation.lock",
+  "fresh_at_that_execution": {
+    "worker_allocation_bytes": 326111232,
+    "vm_free_bytes": 725767950336,
+    "host_free_bytes": 763664052224
+  },
+  "inherited_historical_context": {
+    "head": "99510b19805e1b25e34f3b43a126902fb4080e6f",
+    "host_cache_bytes": 4339904512,
+    "host_task_data_and_logs_bytes": 20733952,
+    "worker_allocation_bytes": 324624384,
+    "vm_free_bytes": 725911834624
+  },
+  "limits": {
+    "build_aggregate_bytes": 21474836480,
+    "test_data_aggregate_bytes": 4294967296,
+    "logs_aggregate_bytes": 134217728,
+    "worker_allocation_stop_bytes": 1073741824,
+    "per_evidence_directory_bytes": 8388608,
+    "file_bytes": 8388608,
+    "cpu": 2,
+    "memory_bytes": 4294967296,
+    "pids": 256,
+    "outer_timeout_s": 300,
+    "inner_timeout_s": 240,
+    "broad_pytest_timeout_s": 180,
+    "minimum_free_bytes": 53687091200
+  },
+  "guards": "Safe replacement host/inner guards; no group signal after reaping. Host stops whole container, then kills/reaps only its Docker client if needed. Same allocation/free/log/time limits.",
+  "stop_action": "Host kills the whole owned container, then retires only its Docker client with Popen.kill()/wait if still unreaped. Inner signals its campaign group only while the leader remains unreaped. After leader reaping, remaining descendants are retired by whole-container termination; no process-group signal follows reaping.",
+  "accounting_correction": "The inherited 20,733,952-byte value described all task artifacts, not logs. Its use in the old asserted log bound was invalid and that assertion is withdrawn. Exact aggregate log usage at the old preflight was not separately recorded. Historical resource samples remain valid for their explicitly measured scopes.",
+  "fresh_verification": "receipt-launch-contract.json records a new pre-run measurement with distinct data/log categories, followed by receipt-verification.json and receipt-host-resources.json. This supplies current bounded verification without retroactively inventing a historical log measurement."
+}

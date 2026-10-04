@@ -1,0 +1,76 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import resource
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path('/work/repo')
+OUT = Path('/work/evidence105'); OUT.mkdir(exist_ok=True)
+BASE = ['.venv/bin/python', '-B', '-m', 'pytest', '-q', '-p', 'no:cacheprovider']
+
+def run(name, args, timeout=45):
+    log = OUT / (name + '.log')
+    with log.open('w') as stream:
+        result = subprocess.run(args, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, timeout=timeout)
+    record = {'name':name, 'command':args, 'exit':result.returncode, 'output':log.read_text()}
+    return record
+
+def campaign():
+    commands=[
+        (['.venv/bin/ruff','check','.'],45),
+        (['.venv/bin/ruff','format','--check','.'],45),
+        (['.venv/bin/mypy','--platform','darwin'],45),
+        (BASE+['--ignore=tests/test_install_integration.py','--ignore=tests/test_installation_upgrades.py','--ignore=tests/test_make_installation.py','--ignore=tests/test_makefile_paths.py'],180),
+        (BASE+['tests/test_make_installation.py','-k','uninstall'],45),
+    ]
+    rows=[]
+    try:
+        for i,(args,timeout) in enumerate(commands):
+            row=run('full-'+str(i),args,timeout)
+            row['timeout_s']=timeout
+            rows.append(row)
+            if row['exit']: break
+    finally:
+        hashes={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in ('scripts/run_with_deadline.py','tests/test_deadline_runner.py','tests/conftest.py')}
+        (OUT/'full.json').write_text(json.dumps({'sha256':hashes,'runs':rows},indent=2)+'\n')
+    raise SystemExit(any(row['exit'] for row in rows))
+
+if len(sys.argv)>1:
+    resource.setrlimit(resource.RLIMIT_FSIZE,(8*1024**2,8*1024**2))
+    campaign()
+else:
+    os.environ.update(TMPDIR='/tmp', PYTHONDONTWRITEBYTECODE='1', PATH='/work/bootstrap/bin:/usr/local/bin:/usr/bin:/bin')
+    samples=[]
+    proc=None
+    started=time.monotonic()
+    reason=None
+    try:
+        while True:
+            usage=int(subprocess.check_output(['du','-s','-B1','/work','/tmp','/dev'],text=True,timeout=3).splitlines()[0].split()[0])
+            # Separate invocations preserve all mount totals and avoid parent suppression.
+            usage += sum(int(subprocess.check_output(['du','-s','-B1',str(p)],text=True,timeout=3).split()[0]) for p in ('/tmp','/dev'))
+            logs=sum(p.stat().st_size for p in OUT.rglob('*') if p.is_file())
+            free=os.statvfs('/work').f_bavail*os.statvfs('/work').f_frsize
+            samples.append({'elapsed_s':round(time.monotonic()-started,2),'all_work_tmp_dev_bytes':usage,'evidence_bytes':logs,'vm_free_bytes':free})
+            if usage>1024**3 or logs>8*1024**2 or free<50*1024**3 or time.monotonic()-started>240:
+                reason='resource/deadline guard refused'; raise RuntimeError(reason)
+            if proc is None:
+                proc=subprocess.Popen([sys.executable,__file__,'campaign'],start_new_session=True)
+            if proc.poll() is not None: break
+            time.sleep(.5)
+    finally:
+        if proc is not None:
+            # Signal only while the unreaped leader anchors the ID.
+            # The mandatory host watchdog retires all container descendants.
+            if proc.returncode is None:
+                try:
+                    os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            proc.wait()
+        (OUT/(os.environ['STAGE']+'-resources.json')).write_text(json.dumps({'limits':{'all_work_tmp_dev_bytes':1024**3,'evidence_bytes':8*1024**2,'min_vm_free_bytes':50*1024**3,'deadline_s':240,'file_bytes':8*1024**2},'reason':reason,'samples':samples},indent=2)+'\n')
+    raise SystemExit(proc.returncode)

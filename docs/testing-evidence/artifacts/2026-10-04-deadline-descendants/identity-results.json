@@ -1,0 +1,70 @@
+{
+  "runs": [
+    {
+      "name": "red",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_deadline_identity.py"
+      ],
+      "exit": 1,
+      "output": "F                                                                        [100%]small: 1 tests, CPU 0.01s including fixtures and waited children, CPU budget 10s; wall 0.00s, p95 call 0ms\nwall clock 0.02s\n\n=================================== FAILURES ===================================\n____________ test_timeout_never_signals_a_replacement_process_group ____________\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xffff813661e0>\n\n    def test_timeout_never_signals_a_replacement_process_group(monkeypatch: pytest.MonkeyPatch) -> None:\n        \"\"\"Retire only with the deadline ownership contract or stronger equivalent coverage.\n    \n        The controlled OS reuses the group ID immediately after the leader is reaped.\n        A signal to that replacement is the failure, regardless of cleanup choreography.\n        \"\"\"\n        owned = True\n        unrelated_signals: list[int] = []\n    \n        class Process:\n            pid = 42\n    \n            def wait(self, timeout: float | None = None) -> int:\n                nonlocal owned\n                if timeout is not None:\n                    command = \"owned command\"\n                    raise subprocess.TimeoutExpired(command, timeout)\n                owned = False\n                return -15\n    \n            def poll(self) -> int:\n                nonlocal owned\n                owned = False\n                return -15\n    \n        def signal_group(pid: int, sig: int) -> None:\n            if pid == Process.pid and not owned and sig:\n                unrelated_signals.append(sig)\n    \n        clock = iter((0.0, 0.0, 3.0))\n        with monkeypatch.context() as patch:\n            patch.setattr(subprocess, \"Popen\", lambda *_args, **_kwargs: Process())\n            patch.setattr(os, \"killpg\", signal_group)\n            patch.setattr(time, \"monotonic\", lambda: next(clock))\n            patch.setattr(time, \"sleep\", lambda _seconds: None)\n            run_with_deadline.main([\"0.05\", \"owned-command\"])\n    \n>       assert unrelated_signals == [], \"cleanup signalled an unrelated group after numeric ID reuse\"\nE       AssertionError: cleanup signalled an unrelated group after numeric ID reuse\nE       assert [<Signals.SIGKILL: 9>] == []\nE         \nE         Left contains one more item: <Signals.SIGKILL: 9>\nE         Use -v to get more diff\n\ntests/test_deadline_identity.py:55: AssertionError\n----------------------------- Captured stderr call -----------------------------\nsuite latency budget exceeded: command ran longer than 0.05s\n=========================== short test summary info ============================\nFAILED tests/test_deadline_identity.py::test_timeout_never_signals_a_replacement_process_group\n"
+    },
+    {
+      "name": "green-0",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_deadline_runner.py",
+        "tests/test_deadline_identity.py"
+      ],
+      "exit": 0,
+      "output": "....                                                                     [100%]small: 1 tests, CPU 0.00s including fixtures and waited children, CPU budget 10s; wall 0.00s, p95 call 0ms\nmedium: 3 tests, CPU 0.18s including fixtures and waited children, CPU budget 120s; wall 4.40s, p95 call 2178ms\nwall clock 4.43s\n\n"
+    },
+    {
+      "name": "green-1",
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "scripts/run_with_deadline.py",
+        "tests/test_deadline_identity.py"
+      ],
+      "exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "green-2",
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "scripts/run_with_deadline.py",
+        "tests/test_deadline_identity.py"
+      ],
+      "exit": 0,
+      "output": "2 files already formatted\n"
+    },
+    {
+      "name": "green-3",
+      "command": [
+        ".venv/bin/mypy",
+        "--platform",
+        "darwin",
+        "scripts/run_with_deadline.py",
+        "tests/test_deadline_identity.py"
+      ],
+      "exit": 0,
+      "output": "Success: no issues found in 2 source files\n"
+    }
+  ]
+}
