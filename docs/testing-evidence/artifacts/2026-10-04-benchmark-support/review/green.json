@@ -1,0 +1,18 @@
+{
+  "name": "green",
+  "command": [
+    ".venv/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/test_benchmark_support.py",
+    "tests/test_benchmark_reference.py",
+    "tests/test_benchmark_identity.py",
+    "tests/test_benchmark_cleanup.py"
+  ],
+  "exit": 0,
+  "output": ".............................                                            [100%]medium: 29 tests, 1.08s including fixtures, p95 call 319ms, budget 120s\nwall clock 1.13s\n\n"
+}

@@ -1,0 +1,59 @@
+# Copyright 2026 James Ross
+# SPDX-License-Identifier: Apache-2.0
+"""Medium process-boundary regression for the retained calibration runner.
+
+Oracle: a completed resource guard leaves no running descendants in its owned group.
+Delete when this retained runner is retired or replaced by the shared guarded runner.
+"""
+import ctypes
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+root=Path('/work/guard104'); root.mkdir(exist_ok=True)
+version=sys.argv[1]
+pid_file=root/(version+'.pid')
+if pid_file.exists(): pid_file.unlink()
+# Become subreaper only in this owned Linux probe, so orphaned fixtures can be reaped.
+if ctypes.CDLL(None).prctl(36, 1, 0, 0, 0) != 0:
+    raise RuntimeError('cannot own orphan cleanup')
+runner=Path('/work/calibrate104.py').read_text().replace("Path('/work/evidence68-review')", repr(root / (version+'-artifacts')).replace('PosixPath', 'Path'))
+child=f"from pathlib import Path; import os,time; Path({str(pid_file)!r}).write_text(str(os.getpid())); time.sleep(30)"
+parent=f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{child!r}]); time.sleep(30)"
+# Replace the campaign workload, preserving the actual outer resource guard.
+fault=f"    subprocess.run([sys.executable, '-c', {parent!r}], timeout=0.5)\n"
+assert runner.count('    campaign()\n')==1
+runner=runner.replace('    campaign()\n',fault)
+owned=root/(version+'-runner.py'); owned.write_text(runner)
+log=root/(version+'.log')
+pid=None
+proc=None
+record={}
+try:
+    with log.open('w') as stream:
+        proc=subprocess.Popen([sys.executable,str(owned)],stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
+        code=proc.wait(timeout=10)
+    if not pid_file.exists(): raise RuntimeError('fault fixture failed to start descendant')
+    pid=int(pid_file.read_text())
+    def state():
+        stat=Path(f'/proc/{pid}/stat')
+        return stat.read_text().split()[2] if stat.exists() else 'gone'
+    deadline=time.monotonic()+1
+    while state() not in ('Z','gone') and time.monotonic()<deadline: time.sleep(.01)
+    observed=state()
+    record={'version':version,'runner_exit':code,'descendant_state':observed,'output':log.read_text()}
+    assert observed in ('Z','gone'), 'completed guard left a running descendant'
+finally:
+    if proc and proc.poll() is None:
+        os.killpg(proc.pid,signal.SIGKILL);proc.wait()
+    if pid_file.exists():
+        pid=int(pid_file.read_text())
+        try: os.kill(pid,signal.SIGKILL)
+        except ProcessLookupError: pass
+        try: os.waitpid(pid,0)
+        except ChildProcessError: pass
+    (root/(version+'.json')).write_text(json.dumps(record,indent=2)+'\n')

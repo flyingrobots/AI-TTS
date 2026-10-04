@@ -1,0 +1,75 @@
+{
+  "sha256": {
+    "tests/test_benchmark_identity.py": "6b1e4f4dacee42fee79c950fcf86f73a88b3cfae8dbf477a7e6edd2287af40cf",
+    "scripts/benchmarks/run.py": "a051f5508a5b86c6a49817b63d7e411c97eb9f66fa77f92aedf94962363e6168"
+  },
+  "runs": [
+    {
+      "name": "green-0",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_benchmark_identity.py"
+      ],
+      "exit": 0,
+      "output": "....                                                                     [100%]medium: 4 tests, 0.00s including fixtures, p95 call 1ms, budget 120s\nwall clock 0.03s\n\n"
+    },
+    {
+      "name": "green-1",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_benchmark_support.py",
+        "tests/test_benchmark_reference.py",
+        "tests/test_benchmark_cleanup.py"
+      ],
+      "exit": 0,
+      "output": "..........................                                               [100%]medium: 26 tests, 1.09s including fixtures, p95 call 325ms, budget 120s\nwall clock 1.14s\n\n"
+    },
+    {
+      "name": "green-2",
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "tests/test_benchmark_identity.py",
+        "scripts/benchmarks/run.py"
+      ],
+      "exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "green-3",
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "tests/test_benchmark_identity.py",
+        "scripts/benchmarks/run.py"
+      ],
+      "exit": 0,
+      "output": "2 files already formatted\n"
+    },
+    {
+      "name": "green-4",
+      "command": [
+        ".venv/bin/mypy",
+        "--platform",
+        "darwin",
+        "tests/test_benchmark_identity.py",
+        "scripts/benchmarks/run.py"
+      ],
+      "exit": 0,
+      "output": "Success: no issues found in 2 source files\n"
+    }
+  ]
+}

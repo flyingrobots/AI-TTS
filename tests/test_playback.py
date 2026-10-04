@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from aitts.application.playback_schedule import PlaybackCheckpoint
 from aitts.model import State, Utterance
 from aitts.playback import FakeSink, PlaybackController
 from aitts.store import Store
 from tests.conftest import wait_for
+from tests.support.playback import DeterministicPlaybackSchedule, make_composite_ready, settle
 
 pytestmark = [
     pytest.mark.medium,
@@ -31,17 +31,6 @@ def make_ready(store: Store, text: str) -> Utterance:
     return store.transition(utt.id, State.READY, audio_path=f"/x/{utt.id}.wav", duration_ms=1000)
 
 
-def make_composite_ready(store: Store, text: str, segments: tuple[str, ...]) -> Utterance:
-    parent = store.submit(text, voice="v", speed=1.0, spoken_segments=segments)
-    for _ in segments:
-        work = store.claim_for_synthesis()
-        assert work is not None
-        store.finish_synthesis(work, audio_path=f"/x/{work.id}.wav", duration_ms=1000)
-    ready = store.get(parent.id)
-    assert ready is not None
-    return ready
-
-
 def state_of(store: Store, utt_id: str) -> State:
     got = store.get(utt_id)
     assert got is not None
@@ -51,44 +40,6 @@ def state_of(store: Store, utt_id: str) -> State:
 def sink_paused(sink: FakeSink) -> bool:
     # Read through a call so mypy does not narrow the attribute across mutations.
     return sink.paused
-
-
-class DeterministicPlaybackSchedule:
-    """Condition-driven playback scheduler with optional one-shot gates."""
-
-    def __init__(self, *, gate_sink_result: bool = False) -> None:
-        self.idle_cycles = 0
-        self._idle_changed = asyncio.Condition()
-        self._block_next_plan = False
-        self.plan_blocked = asyncio.Event()
-        self.release_plan = asyncio.Event()
-        self._gate_sink_result = gate_sink_result
-        self.sink_result_reached = asyncio.Event()
-        self.release_sink_result = asyncio.Event()
-
-    async def checkpoint(self, point: PlaybackCheckpoint) -> None:
-        if point is PlaybackCheckpoint.BEFORE_PLAN:
-            if self._block_next_plan:
-                self._block_next_plan = False
-                self.plan_blocked.set()
-                await self.release_plan.wait()
-            return
-        if point is PlaybackCheckpoint.PLAN_IDLE:
-            async with self._idle_changed:
-                self.idle_cycles += 1
-                self._idle_changed.notify_all()
-            return
-        if self._gate_sink_result:
-            self.sink_result_reached.set()
-            await self.release_sink_result.wait()
-
-    async def wait_for_idle_after(self, cycle: int) -> None:
-        async with asyncio.timeout(1.0):
-            async with self._idle_changed:
-                await self._idle_changed.wait_for(lambda: self.idle_cycles > cycle)
-
-    def block_next_plan(self) -> None:
-        self._block_next_plan = True
 
 
 class DelayedReleaseSink(FakeSink):
@@ -144,15 +95,6 @@ async def start(
     task = asyncio.create_task(controller.run())
     await schedule.wait_for_idle_after(idle_before)
     return task
-
-
-async def settle(
-    controller: PlaybackController,
-    schedule: DeterministicPlaybackSchedule,
-) -> None:
-    idle_before = schedule.idle_cycles
-    controller.notify()
-    await schedule.wait_for_idle_after(idle_before)
 
 
 async def test_plays_serially_in_submission_order(store: Store, sink: FakeSink) -> None:

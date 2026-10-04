@@ -1,0 +1,69 @@
+# Copyright 2026 James Ross
+# SPDX-License-Identifier: Apache-2.0
+
+"""Owned legacy-reference fixture, frozen from the pre-extraction playback helpers."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+from aitts.application.playback_schedule import PlaybackCheckpoint
+from aitts.model import State, Utterance
+from aitts.playback import PlaybackController
+from aitts.store import Store
+
+def make_composite_ready(store: Store, text: str, segments: tuple[str, ...]) -> Utterance:
+    parent = store.submit(text, voice="v", speed=1.0, spoken_segments=segments)
+    for _ in segments:
+        work = store.claim_for_synthesis()
+        assert work is not None
+        store.finish_synthesis(work, audio_path=f"/x/{work.id}.wav", duration_ms=1000)
+    ready = store.get(parent.id)
+    assert ready is not None
+    return ready
+
+class DeterministicPlaybackSchedule:
+    """Condition-driven playback scheduler with optional one-shot gates."""
+
+    def __init__(self, *, gate_sink_result: bool = False) -> None:
+        self.idle_cycles = 0
+        self._idle_changed = asyncio.Condition()
+        self._block_next_plan = False
+        self.plan_blocked = asyncio.Event()
+        self.release_plan = asyncio.Event()
+        self._gate_sink_result = gate_sink_result
+        self.sink_result_reached = asyncio.Event()
+        self.release_sink_result = asyncio.Event()
+
+    async def checkpoint(self, point: PlaybackCheckpoint) -> None:
+        if point is PlaybackCheckpoint.BEFORE_PLAN:
+            if self._block_next_plan:
+                self._block_next_plan = False
+                self.plan_blocked.set()
+                await self.release_plan.wait()
+            return
+        if point is PlaybackCheckpoint.PLAN_IDLE:
+            async with self._idle_changed:
+                self.idle_cycles += 1
+                self._idle_changed.notify_all()
+            return
+        if self._gate_sink_result:
+            self.sink_result_reached.set()
+            await self.release_sink_result.wait()
+
+    async def wait_for_idle_after(self, cycle: int) -> None:
+        async with asyncio.timeout(1.0):
+            async with self._idle_changed:
+                await self._idle_changed.wait_for(lambda: self.idle_cycles > cycle)
+
+    def block_next_plan(self) -> None:
+        self._block_next_plan = True
+
+async def settle(
+    controller: PlaybackController,
+    schedule: DeterministicPlaybackSchedule,
+) -> None:
+    idle_before = schedule.idle_cycles
+    controller.notify()
+    await schedule.wait_for_idle_after(idle_before)

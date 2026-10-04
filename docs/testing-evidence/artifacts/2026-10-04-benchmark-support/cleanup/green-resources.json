@@ -1,0 +1,30 @@
+{
+  "limits": {
+    "all_work_tmp_shm_bytes": 1073741824,
+    "evidence_bytes": 8388608,
+    "min_vm_free_bytes": 53687091200,
+    "deadline_s": 240,
+    "file_bytes": 8388608
+  },
+  "reason": null,
+  "samples": [
+    {
+      "elapsed_s": 0.01,
+      "all_work_tmp_shm_bytes": 308989952,
+      "evidence_bytes": 0,
+      "vm_free_bytes": 726256558080
+    },
+    {
+      "elapsed_s": 0.55,
+      "all_work_tmp_shm_bytes": 308994048,
+      "evidence_bytes": 0,
+      "vm_free_bytes": 726256558080
+    },
+    {
+      "elapsed_s": 1.09,
+      "all_work_tmp_shm_bytes": 308998144,
+      "evidence_bytes": 0,
+      "vm_free_bytes": 726256549888
+    }
+  ]
+}

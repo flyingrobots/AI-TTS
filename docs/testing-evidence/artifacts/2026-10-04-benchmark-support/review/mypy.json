@@ -1,0 +1,11 @@
+{
+  "name": "mypy",
+  "command": [
+    ".venv/bin/mypy",
+    "--platform",
+    "darwin",
+    "tests/test_benchmark_support.py"
+  ],
+  "exit": 0,
+  "output": "Success: no issues found in 1 source file\n"
+}

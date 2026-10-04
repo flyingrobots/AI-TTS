@@ -205,7 +205,11 @@ async def test_nested_live_preemption_resumes_exact_offsets_without_published_fi
     from aitts.model import Priority  # noqa: PLC0415
     from aitts.playback import PlaybackController  # noqa: PLC0415
     from aitts.streaming import StreamingRegistry  # noqa: PLC0415
-    from tests.test_playback import DeterministicPlaybackSchedule, settle, start  # noqa: PLC0415
+    from tests.support.playback import (  # noqa: PLC0415 - scoped shared test helper
+        DeterministicPlaybackSchedule,
+        settle,
+    )
+    from tests.test_playback import start  # noqa: PLC0415 - scoped shared test helper
 
     registry = StreamingRegistry()
     sink = StreamingSink()
