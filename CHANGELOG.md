@@ -280,7 +280,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Git hooks no longer pass repository/index overrides into validation, and pytest clears inherited Git environment variables before each test's fixtures. Git-using fixtures cannot accidentally reinitialize the repository that launched the tests through inherited hook context.
+- Git hooks no longer pass repository/index overrides into validation, and pytest clears inherited Git environment variables before each test's function-scoped fixtures. Module imports and higher-scoped fixtures must still isolate their own Git subprocess environments.
 
 - Benchmark references reject ignored Python source, sourceless bytecode, native modules, symlinks, and opaque nested repositories under `src`, closing the remaining import-shadowing gap. Ordinary tagged bytecode caches remain allowed; the pinned historical reference is unchanged.
 

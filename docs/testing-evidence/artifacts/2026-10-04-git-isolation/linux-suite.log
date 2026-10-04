@@ -1,3 +1,14 @@
+{
+  "source_commit": "09299e6b2e4c389cf0b6d7d0b2d1b7eff60a0bbd",
+  "candidate_sha256": {
+    "scripts/hooks/pre-commit": "18d11689f15db697f45cf20e1682d88afd670fb67102632b67fb9723aad393de",
+    "scripts/hooks/pre-push": "0f1e1489c0b41b09b199b4d292e1c41fec2a8b3407f6cc90fc1d68f23099e798",
+    "tests/conftest.py": "da3ffd324832c5501adf01d031c994d67f9c4cdffb84c019d107eb959409c809",
+    "tests/test_git_environment.py": "9b0cf56cbf738d0196417e72a333053d983a14399e6935181b6b72cf07682451"
+  },
+  "command": "uv run --frozen pytest --ignore=tests/test_install_integration.py --ignore=tests/test_installation_upgrades.py --ignore=tests/test_make_installation.py --ignore=tests/test_makefile_paths.py -q",
+  "exit": 0
+}
 .............................ss......................................... [  7%]
 ........................................................................ [ 14%]
 ........................................................................ [ 21%]
@@ -11,7 +22,7 @@
 ........................................................................ [ 79%]
 ........................................................................ [ 87%]
 ........................................................................ [ 94%]
-.........................................................                [100%]small: 330 tests, 0.55s including fixtures, p95 call 1ms, budget 10s
-medium: 659 tests, 22.32s including fixtures, p95 call 109ms, budget 120s
-wall clock 24.75s
+.........................................................                [100%]small: 330 tests, 0.57s including fixtures, p95 call 1ms, budget 10s
+medium: 659 tests, 22.50s including fixtures, p95 call 110ms, budget 120s
+wall clock 24.97s
 
