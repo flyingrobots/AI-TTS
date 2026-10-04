@@ -1,0 +1,19 @@
+# Deadline process-group cleanup
+
+Change-kind: bug fix. Issue #105. Oracle: a timed-out command cannot leave a running member of its owned process group merely because the group leader exits first.
+
+## Behavior and boundary
+
+The deadline wrapper sends SIGTERM to its owned process group, reaps the direct child while probing whether the group still exists, and escalates remaining group members to SIGKILL after the existing two-second grace period. Group disappearance between probes or signals is benign. The 50 ms maximum polling interval is a cleanup scheduling bound, not a latency-performance claim. Normal child exit propagation, timeout status 124, diagnostics and argument handling remain unchanged. Processes that deliberately create a different process group are outside this helper's ownership boundary; the validation watchdog separately stops the entire owned container.
+
+The new medium regression enters through `main(argv)` with real subprocesses. Its Popen boundary wrapper waits for an owned child PID file, written after SIGTERM is ignored, before returning the real parent process to the runner. This establishes readiness before the actual deadline begins. The parent remains in the runner-created session and group, and exits on SIGTERM; its child remains in that group and ignores SIGTERM. A process-state query observes only the owned PID and fails closed on probe errors. A zombie counts as non-running; the fixture kills the owned group in `finally` and waits for its direct child. The enclosing host watchdog stops the container after either RED or GREEN, retiring remaining fixture state. This is a process-liveness test, not a claim of descendant CPU attribution or a general-purpose process supervisor.
+
+## Focused evidence
+
+The `red.json` receipt uses `scripts/run_with_deadline.py` from `e6e0252b582ccaf470f179540c6e1dbff7b13a47` and the current regression. The two existing cases pass, while the new assertion observes the resistant child still running after the runner returns. With the corrected source, `green.json` records all three cases passing. `static.json` records successful Ruff, formatting and Darwin-targeted mypy checks for both changed Python files. The source, test and conftest hashes in RED/GREEN identify the actual narrow execution inputs. No entire-parent checkout or full branch execution is claimed by these focused runs.
+
+The fixture's readiness deadline is five seconds, runner deadline 50 ms, observation window one second, and child sleep a bounded 30 seconds. Normal successful cleanup finishes within the existing medium test ceiling; unconditional fixture cleanup and container termination protect failing runs. The fixture writes one tiny PID file and creates two owned processes; predicted extra test data is below 1 MiB, with one case running at a time. Test deletion is appropriate only if process-group deadline ownership is retired or stronger equivalent coverage replaces it.
+
+The existing two-CPU, 4 GiB worker and validation lock were reused with the internal storage/deadline guard and the host watchdog retained by #106. Worker allocation was guarded at 1 GiB and evidence/file output at 8 MiB; host and Docker backing storage required at least 50 GiB free. The host watchdog stops the whole worker on completion, failure or monitoring error, including children that create separate groups. Per-stage resource observations are retained. The writable root is disabled; the guards account for `/work`, `/tmp` and `/dev`, including shared memory. These are sampled stop guards rather than quotas. No installed application, daemon or audio device was used.
+
+Full integration validation and hosted CI remain pending. Before that run, record the current launch contract required by the latest working agreement; earlier observations are historical evidence rather than substitutes for fresh resource checks.

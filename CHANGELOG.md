@@ -280,6 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The hard-deadline runner now cleans up remaining members of its process group when the command leader exits on SIGTERM but a descendant ignores it. The existing grace period and timeout exit status are preserved.
+
 - Architecture §9a distinguishes host audio access, native Swift entrypoints, and the daemon's non-macOS platform fallbacks; it no longer claims CoreAudio is required for daemon execution.
 
 - Git hooks no longer pass repository/index overrides into validation, and pytest clears inherited Git environment variables before each test's function-scoped fixtures. Module imports and higher-scoped fixtures must still isolate their own Git subprocess environments.

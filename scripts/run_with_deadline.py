@@ -5,10 +5,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import signal
 import subprocess
 import sys
+import time
 
 _TERMINATION_GRACE_SECONDS = 2.0
 _TIMEOUT_EXIT = 124
@@ -18,12 +20,26 @@ _MINIMUM_ARGUMENTS = 2
 
 def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
     """Terminate the owned child process group, escalating only after a grace period."""
-    os.killpg(process.pid, signal.SIGTERM)
     try:
-        process.wait(timeout=_TERMINATION_GRACE_SECONDS)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
         process.wait()
+        return
+    deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
+    while True:
+        process.poll()  # Reap the leader so its zombie alone cannot keep the group alive.
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            break
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            # The last member may exit between the probe and escalation.
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            break
+        time.sleep(min(0.05, remaining))
+    process.wait()
 
 
 def main(argv: list[str] | None = None) -> int:
