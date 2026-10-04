@@ -25,20 +25,11 @@ def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
     except ProcessLookupError:
         process.wait()
         return
-    deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
-    while True:
-        process.poll()  # Reap the leader so its zombie alone cannot keep the group alive.
-        try:
-            os.killpg(process.pid, 0)
-        except ProcessLookupError:
-            break
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            # The last member may exit between the probe and escalation.
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
-            break
-        time.sleep(min(0.05, remaining))
+    # Keep the unreaped leader as an identity anchor until the last group signal.
+    # Reaping it early could let the numeric PGID be reused by an unrelated group.
+    time.sleep(_TERMINATION_GRACE_SECONDS)
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGKILL)
     process.wait()
 
 

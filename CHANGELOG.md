@@ -282,7 +282,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The hard-deadline runner now cleans up remaining members of its process group when the command leader exits on SIGTERM but a descendant ignores it. The existing grace period and timeout exit status are preserved.
+- The hard-deadline runner now cleans up remaining members of its process group when the command leader exits on SIGTERM but a descendant ignores it. The existing grace period and timeout exit status are preserved, and the leader remains unreaped until the final signal so a reused group identifier cannot target unrelated processes.
 
 - Architecture §9a distinguishes host audio access, native Swift entrypoints, and the daemon's non-macOS platform fallbacks; it no longer claims CoreAudio is required for daemon execution.
 
