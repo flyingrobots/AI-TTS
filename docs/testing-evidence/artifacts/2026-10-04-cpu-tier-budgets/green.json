@@ -1,0 +1,20 @@
+{
+  "parent": "fad2bc07aa90a96f7f273c5d11cbe01552b421af",
+  "sha256": {
+    "tests/conftest.py": "c435e019d71f8a4e2921f77fadf4f6350dd3abe77366c9e4900f31f82b1ad7a3",
+    "tests/test_tier_budget.py": "b82c45692b9b5863c88f1511282fb55e71bc24b3e1a0fc8cf6f61c4c5f675785"
+  },
+  "name": "green",
+  "command": [
+    ".venv/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/test_tier_budget.py"
+  ],
+  "exit": 0,
+  "output": "..............                                                           [100%]medium: 14 tests, CPU 11.38s including fixtures and waited children, CPU budget 120s; wall 11.44s, p95 call 836ms\nwall clock 11.46s\n\n"
+}

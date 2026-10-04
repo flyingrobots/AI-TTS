@@ -1,0 +1,19 @@
+# CPU-based test tier budgets
+
+Change-kind: behavior change. Issue #80 replaces the noisy summed-wall-time gate with process CPU accounting while retaining per-test wall deadlines. Oracle: runner contention alone cannot fail the tier gate; pytest and waited-child user/system CPU across setup, call and teardown all contribute to the established 10/120/120-second limits.
+
+## Contract and scope
+
+The pytest protocol wrapper reads `os.times()` before setup and after teardown, including exception/skip paths, and charges the difference in its four CPU fields to the item's size class. It leaves fixture-level Git isolation, metadata validation, per-test timeout markers and nonzero pytest exit statuses intact. Wall totals, call p95 and suite elapsed time remain visible but do not determine tier success. Counts now include setup-only items, with zero call p95 if a tier has no calls. CPU includes reporting overhead inside the protocol; collection/session hooks and unowned external services are excluded. Waited-child CPU is charged when reaped, so owned processes must be awaited within their fixture/test lifetime. Multi-core CPU can exceed elapsed wall time. This is not GPU accounting or a claim that CPU cost is identical on every machine.
+
+## Focused RED and GREEN
+
+The medium child-pytest fixture copies the actual conftest into an owned suite, supplies a public clock plugin that controls `os.times()` and reported phase wall durations, and observes only the child exit status. Thirteen cases are RED with the conftest from `fad2bc07aa90a96f7f273c5d11cbe01552b421af`: one false failure from 123 reported wall seconds with one CPU second, and twelve missed CPU overruns spanning the four counters and three phases. The inclusive 120-second boundary case already passes on the parent. The same fourteen cases pass with CPU accounting. The separate boundary fault changes only strict greater-than to greater-than-or-equal; it fails exactly the inclusive-boundary case, proving that remaining assertion discriminates its promised edge. The runner restores the fixed source after that fault.
+
+Raw `red.json`, `green.json` and `boundary.json` contain commands, source/test hashes, exit statuses and full output. `static.json` records changed-file Ruff, formatting and Darwin-targeted mypy. No original application assertion was changed. Delete this policy suite when CPU tier budgets are retired or stronger, cheaper public-boundary coverage replaces it; a failing budget is not a deletion criterion.
+
+## Execution bounds and remaining validation
+
+The existing Docker worker and its environment were reused; only the owned conftest and new policy test were copied for these focused executions. Application source imported by the fixture is unchanged across the base and worker checkout. These are narrow contract runs, not a claim of executing the entire branch tree. Full-suite validation and current-head hosted CI remain pending.
+
+The replay runner and resource samples are retained beside the test receipts. The inherited sampled guard limits total worker/temporary allocation to 1 GiB, campaign evidence and individual files to 8 MiB, requires 50 GiB Docker backing free space, and limits campaigns/commands to 240/45 seconds. It terminates the owned process group even after leader exit. Each child pytest has a ten-second process timeout. The bounded fixture writes two tiny Python files and one configuration per case and starts one pytest child at a time; expected aggregate temporary data is under 10 MiB. Host free space was 712 GiB and Docker backing free space about 677 GiB before the run. Actual allocation, evidence sizes and VM free space are in the per-stage resource files. These are sampled stop guards, not filesystem quotas. No native audio, installed daemon, duplicate worker, image, compiler target or model download is used.

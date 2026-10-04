@@ -26,7 +26,7 @@ Commit bodies use `Change-kind: <kind>`. Pull requests carry the same field.
 
 ## Enforced Python test classes and budgets
 
-| Class | Ceiling per test | Tier budget | Resource posture |
+| Class | Wall ceiling per test | Tier CPU budget | Resource posture |
 |---|---:|---:|---|
 | small | 2 seconds | 10 seconds | one process; no sockets, subprocesses, threads, or sleeps |
 | medium | 15 seconds | 120 seconds | one machine; owned filesystem, Unix sockets, subprocesses, or threads allowed |
@@ -46,13 +46,11 @@ budgets by class for the reason that showed up here: one number means every
 test pays the slowest test's schedule, and it can be met by relabelling a slow
 test rather than fixing it.
 
-The budget is charged on measured test time, setup and teardown included — a
-fixture that starts a daemon costs the same feedback latency as a slow
-assertion, and charging only the call is how a suite gets slow without any
-test looking slow. Each run prints the count, the charged total and the p95
-call latency per class, which is the SLO reading rule 9 asks for; the
-budgets sit several times above the current cost on purpose, so they alarm on
-decay rather than on a busy machine.
+The tier gate charges CPU time across each test's complete setup/call/teardown protocol: user and system CPU for pytest itself plus user and system CPU of waited child processes, measured with `os.times()`. This includes fixture work and subprocess-heavy installation checks. Child work is charged when it is reaped, so fixtures must finish and wait for their owned processes within their lifetime. CPU seconds across parallel threads/processes can exceed elapsed wall seconds. These are process CPU observations, not GPU cost or a measure of unowned external services.
+
+Wall totals, call p95, and whole-suite elapsed time remain visible as informational latency observations. Summed wall time cannot fail the tier gate. The existing 2/15/30-second per-test wall deadlines remain enforced, so blocked I/O and hangs are still bounded. CPU is sampled around the full test protocol, including reporting overhead; collection and session-only plugin work are outside the per-test tier budget. Setup-only skipped/failed items are included in the charged test count; a tier without calls reports a zero call p95. No retries are introduced.
+
+**CPU budget migration, issue #80.** Change-kind: behavior change. The 10/120/120-second tier numbers remain unchanged, now expressed as CPU seconds. The former wall-time figures below are historical and are not CPU calibration measurements. The [CPU-budget receipt](../testing-evidence/2026-10-04-cpu-tier-budgets.md) records controlled false-alarm/overrun regressions and the inclusive-boundary falsification.
 
 **Medium re-baseline, 2026-10-02.** Change-kind: deliberate standards change, approved by James (decision Q). The medium tier budget moves from 45 to 120 seconds; the small and large budgets and every per-test ceiling are unchanged. The tier had grown to cost 22–56 seconds across main and CI runs, so 45 seconds no longer sat several times above the current cost, and it alarmed on machine noise rather than decay. Evidence: CI measured 46.53 seconds on PR #47 with every test passing, a rerun on identical code measured 32.72 seconds, and PR #65's CI measured 55.61 seconds with 992 passed. Most of #65's increase is seven Make-entrypoint installation tests at about 1.4 seconds each; issue #72 tracks sharing one fake `make install` across them. The re-baseline needs no red test; the evidence that it holds is PR #65's CI Python job passing with the new budget.
 
