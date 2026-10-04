@@ -1,0 +1,39 @@
+{
+  "source_head": "d100be34ca0577fbaabe273195b77b88615998b2",
+  "fault": "reject normal tagged cache instead of continuing",
+  "mutated_compare_sha256": "482de05bbcbcc222a9c62cb3fcfb06b8aad3a52130b74f21af2aabf3e55e63cb",
+  "command": [
+    "docker",
+    "exec",
+    "-e",
+    "PATH=/work/bootstrap/bin:/usr/local/bin:/usr/bin:/bin",
+    "ai-tts-python-worker",
+    "sh",
+    "-c",
+    "cd /work/repo && flock /work/validation.lock uv run --frozen pytest tests/test_benchmark_reference.py -k ordinary_bytecode_cache -q"
+  ],
+  "exit": 1
+}
+F                                                                        [100%]medium: 1 tests, 0.01s including fixtures, p95 call 8ms, budget 120s
+wall clock 0.04s
+
+=================================== FAILURES ===================================
+________ test_ordinary_bytecode_cache_and_unrelated_scratch_are_allowed ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-7/test_ordinary_bytecode_cache_a0')
+
+    def test_ordinary_bytecode_cache_and_unrelated_scratch_are_allowed(tmp_path: Path) -> None:
+        """Oracle: issue #62; normal caches and files outside src do not taint the pin."""
+        commit = reference(tmp_path)
+        (tmp_path / ".git" / "info" / "exclude").write_text("__pycache__/\n")
+        cache = tmp_path / "src" / "aitts" / "__pycache__"
+        cache.mkdir()
+        (cache / "__init__.cpython-312.pyc").write_bytes(b"owned bytecode cache")
+        (tmp_path / "notes.txt").write_text("unrelated notes")
+>       assert reference_is_clean(tmp_path, commit)
+E       AssertionError: assert False
+E        +  where False = reference_is_clean(PosixPath('/tmp/pytest-of-root/pytest-7/test_ordinary_bytecode_cache_a0'), 'efad32373ec2b956f3808221809f1e5213ea0ab4')
+
+tests/test_benchmark_reference.py:166: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_benchmark_reference.py::test_ordinary_bytecode_cache_and_unrelated_scratch_are_allowed

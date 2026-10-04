@@ -1,0 +1,11 @@
+{
+  "implementation_commit": "d100be34ca0577fbaabe273195b77b88615998b2",
+  "compare_sha256": "760c5f8d3f80f9882c1a50d2d1a8ce096b6e67e14a8e76e2daed93a212c99099",
+  "test_sha256": "f6a408ed41c09ad164cdd041a3183371947721abf0b7fa9ae8df1d8611ce3709",
+  "command": "uv run --frozen pytest tests/test_benchmark*.py -q",
+  "exit": 0
+}
+........................................................                 [100%]small: 23 tests, 0.01s including fixtures, p95 call 1ms, budget 10s
+medium: 33 tests, 0.36s including fixtures, p95 call 13ms, budget 120s
+wall clock 0.46s
+

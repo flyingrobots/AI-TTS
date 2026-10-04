@@ -19,3 +19,9 @@ Validation used the existing two-CPU, 4 GiB Docker worker with copied source and
 ## Code Lawyer nested-repository follow-up
 
 Change-kind: bug fix. An owned Docker probe showed that Git lists an ignored nested repository as `src/vendor/`, without enumerating its Python files. The new `test_ignored_nested_repository_cannot_hide_importable_source` failed on `e8dd99c2771f83484ec2c05c2ee3cef8e955ce40`: the guard returned true for an ignored package inside its own Git repository. The inventory now rejects opaque directory entries conservatively. All 56 benchmark tests pass after this fix (23 small, 33 medium), along with Ruff, formatting, and Darwin-targeted mypy. The historical 55-test result above describes the first candidate, not the final test inventory.
+
+## Independent-review evidence follow-up
+
+The local Codex review of `e8dd99c` independently confirmed the nested-repository defect and identified missing falsification for normal-cache acceptance. A seeded fault changed the successful tagged-cache parser branch from `continue` to `return False`. `test_ordinary_bytecode_cache_and_unrelated_scratch_are_allowed` failed at its acceptance assertion; restoring production code returned the complete benchmark suite to green.
+
+[Retained raw receipts](artifacts/2026-10-04-reference-guard/) record source commit identities, implementation/test SHA-256 fingerprints, exact commands and exit codes. The refreshed parent run uses the final 17-test reference inventory, so it records ten failures and seven passes on `75edb22`; the earlier nine-failure result above used 16 cases. The nested-only run fails on `e8dd99c`; the 56-test suite and lint/type checks pass with `d100be3`. `resources.json` records the worker's inspected CPU, memory, process, root-filesystem and tmpfs bounds. No claim is made that the independent reviewer executed these tests; Docker access was unavailable to its read-only session.

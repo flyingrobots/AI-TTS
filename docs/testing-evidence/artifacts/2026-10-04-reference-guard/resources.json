@@ -1,0 +1,9 @@
+{
+  "Memory": 4294967296,
+  "NanoCpus": 2000000000,
+  "ReadonlyRootfs": true,
+  "Tmpfs": {
+    "/tmp": "rw,exec,size=1g"
+  },
+  "PidsLimit": 256
+}
