@@ -82,7 +82,12 @@ else:
             if proc.poll() is not None: break
             time.sleep(.5)
     finally:
-        if proc and proc.poll() is None:
-            os.killpg(proc.pid,signal.SIGKILL);proc.wait()
+        if proc is not None:
+            # The leader may already be gone while its descendants are still alive.
+            try:
+                os.killpg(proc.pid,signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.wait()
         (OUT/'resources.json').write_text(json.dumps({'limits':{'all_work_tmp_shm_bytes':1024**3,'evidence_bytes':8*1024**2,'min_vm_free_bytes':50*1024**3,'deadline_s':240,'file_bytes':8*1024**2},'reason':reason,'samples':samples},indent=2)+'\n')
     raise SystemExit(proc.returncode)
