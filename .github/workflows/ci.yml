@@ -14,7 +14,7 @@ jobs:
   python:
     name: lint, typecheck, test (Python)
     runs-on: macos-15
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -36,6 +36,20 @@ jobs:
         run: uv run --frozen mypy
       - name: Pytest
         run: uv run --frozen pytest
+      # Temporary issue #72 measurement; remove after retaining the native receipt.
+      - name: Compare shared installation fixture against the pinned baseline
+        run: |
+          git fetch --no-tags --depth=1 origin 1c92ee205c485acaf0bff9951e07efc5f4e195a1
+          git show 1c92ee205c485acaf0bff9951e07efc5f4e195a1:tests/test_make_installation.py > "$RUNNER_TEMP/installation-baseline.py"
+          .venv/bin/python -B docs/testing-evidence/artifacts/2026-10-04-shared-installation/measure-native.txt "$RUNNER_TEMP/installation-baseline.py" "$RUNNER_TEMP/installation-comparison"
+      - name: Retain installation comparison
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: installation-comparison-${{ github.sha }}
+          path: ${{ runner.temp }}/installation-comparison/
+          if-no-files-found: error
+          retention-days: 14
       - name: Build Python release artifacts
         run: uv build --offline
 
