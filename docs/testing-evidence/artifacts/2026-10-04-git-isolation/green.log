@@ -1,0 +1,21 @@
+{
+  "parent": "2378f24df72384c1e774cfcb7cc8d9244e38718c",
+  "candidate_sha256": {
+    "scripts/hooks/pre-commit": "18d11689f15db697f45cf20e1682d88afd670fb67102632b67fb9723aad393de",
+    "scripts/hooks/pre-push": "0f1e1489c0b41b09b199b4d292e1c41fec2a8b3407f6cc90fc1d68f23099e798",
+    "tests/conftest.py": "da3ffd324832c5501adf01d031c994d67f9c4cdffb84c019d107eb959409c809",
+    "tests/test_git_environment.py": "9b0cf56cbf738d0196417e72a333053d983a14399e6935181b6b72cf07682451"
+  },
+  "command": "uv run --frozen pytest tests/test_git_environment.py tests/test_benchmark*.py -q && uv run --frozen pytest tests/test_make_installation.py -k uninstall -q && uv run --frozen ruff check . && uv run --frozen ruff format --check . && uv run --frozen mypy --platform darwin",
+  "exit": 0
+}
+...........................................................              [100%]small: 23 tests, 0.01s including fixtures, p95 call 1ms, budget 10s
+medium: 36 tests, 1.16s including fixtures, p95 call 60ms, budget 120s
+wall clock 1.27s
+
+....                                                                     [100%]medium: 4 tests, 0.70s including fixtures, p95 call 238ms, budget 120s
+wall clock 0.73s
+
+All checks passed!
+281 files already formatted
+Success: no issues found in 188 source files

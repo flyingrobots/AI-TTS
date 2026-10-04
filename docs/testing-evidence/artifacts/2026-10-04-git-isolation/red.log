@@ -1,0 +1,179 @@
+{
+  "parent": "2378f24df72384c1e774cfcb7cc8d9244e38718c",
+  "candidate_sha256": {
+    "scripts/hooks/pre-commit": "18d11689f15db697f45cf20e1682d88afd670fb67102632b67fb9723aad393de",
+    "scripts/hooks/pre-push": "0f1e1489c0b41b09b199b4d292e1c41fec2a8b3407f6cc90fc1d68f23099e798",
+    "tests/conftest.py": "da3ffd324832c5501adf01d031c994d67f9c4cdffb84c019d107eb959409c809",
+    "tests/test_git_environment.py": "9b0cf56cbf738d0196417e72a333053d983a14399e6935181b6b72cf07682451"
+  },
+  "command": "uv run --frozen pytest tests/test_git_environment.py -q",
+  "exit": 1
+}
+FFF                                                                      [100%]medium: 3 tests, 0.87s including fixtures, p95 call 775ms, budget 120s
+wall clock 0.89s
+
+=================================== FAILURES ===================================
+_____ test_hooks_do_not_pass_repository_context_to_validation[pre-commit] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-21/test_hooks_do_not_pass_reposit0')
+hook = 'pre-commit'
+
+    @pytest.mark.parametrize("hook", ["pre-commit", "pre-push"])
+    def test_hooks_do_not_pass_repository_context_to_validation(tmp_path: Path, hook: str) -> None:
+        """Oracle: hook tools receive no caller-specific repository or index override."""
+        project = tmp_path / "project"
+        init_repository(project)
+        commands = tmp_path / "commands"
+        commands.mkdir()
+        uv = commands / "uv"
+        uv.write_text('#!/bin/sh\nenv >> "$AITTS_HOOK_ENVIRONMENT"\n')
+        uv.chmod(0o755)
+        recorded = tmp_path / "tool-environment"
+        inherited = {
+            "GIT_DIR": str(project / ".git"),
+            "GIT_WORK_TREE": str(project),
+            "GIT_COMMON_DIR": str(project / ".git"),
+            "GIT_INDEX_FILE": str(project / ".git" / "alternate-index"),
+            "GIT_PREFIX": "",
+        }
+        result = subprocess.run(  # noqa: S603 - real hook with owned uv and Git repository
+            ["/bin/sh", str(REPOSITORY / "scripts" / "hooks" / hook)],
+            cwd=project,
+            env={
+                **clean_environment(),
+                **inherited,
+                "PATH": f"{commands}:/usr/bin:/bin",
+                "AITTS_HOOK_ENVIRONMENT": str(recorded),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        observed = {line.split("=", 1)[0] for line in recorded.read_text().splitlines()}
+>       assert observed.isdisjoint(inherited), "hook leaked Git repository context to validation"
+E       AssertionError: hook leaked Git repository context to validation
+E       assert False
+E        +  where False = <built-in method isdisjoint of set object at 0xffffa9da4200>({'GIT_DIR': '/tmp/pytest-of-root/pytest-21/test_hooks_do_not_pass_reposit0/project/.git', 'GIT_WORK_TREE': '/tmp/pytes...', 'GIT_INDEX_FILE': '/tmp/pytest-of-root/pytest-21/test_hooks_do_not_pass_reposit0/project/.git/alternate-index', ...})
+E        +    where <built-in method isdisjoint of set object at 0xffffa9da4200> = {'AITTS_HOOK_ENVIRONMENT', 'GIT_COMMON_DIR', 'GIT_DIR', 'GIT_INDEX_FILE', 'GIT_PREFIX', 'GIT_WORK_TREE', ...}.isdisjoint
+
+tests/test_git_environment.py:65: AssertionError
+______ test_hooks_do_not_pass_repository_context_to_validation[pre-push] _______
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-21/test_hooks_do_not_pass_reposit1')
+hook = 'pre-push'
+
+    @pytest.mark.parametrize("hook", ["pre-commit", "pre-push"])
+    def test_hooks_do_not_pass_repository_context_to_validation(tmp_path: Path, hook: str) -> None:
+        """Oracle: hook tools receive no caller-specific repository or index override."""
+        project = tmp_path / "project"
+        init_repository(project)
+        commands = tmp_path / "commands"
+        commands.mkdir()
+        uv = commands / "uv"
+        uv.write_text('#!/bin/sh\nenv >> "$AITTS_HOOK_ENVIRONMENT"\n')
+        uv.chmod(0o755)
+        recorded = tmp_path / "tool-environment"
+        inherited = {
+            "GIT_DIR": str(project / ".git"),
+            "GIT_WORK_TREE": str(project),
+            "GIT_COMMON_DIR": str(project / ".git"),
+            "GIT_INDEX_FILE": str(project / ".git" / "alternate-index"),
+            "GIT_PREFIX": "",
+        }
+        result = subprocess.run(  # noqa: S603 - real hook with owned uv and Git repository
+            ["/bin/sh", str(REPOSITORY / "scripts" / "hooks" / hook)],
+            cwd=project,
+            env={
+                **clean_environment(),
+                **inherited,
+                "PATH": f"{commands}:/usr/bin:/bin",
+                "AITTS_HOOK_ENVIRONMENT": str(recorded),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        observed = {line.split("=", 1)[0] for line in recorded.read_text().splitlines()}
+>       assert observed.isdisjoint(inherited), "hook leaked Git repository context to validation"
+E       AssertionError: hook leaked Git repository context to validation
+E       assert False
+E        +  where False = <built-in method isdisjoint of set object at 0xffffa9da49e0>({'GIT_DIR': '/tmp/pytest-of-root/pytest-21/test_hooks_do_not_pass_reposit1/project/.git', 'GIT_WORK_TREE': '/tmp/pytes...', 'GIT_INDEX_FILE': '/tmp/pytest-of-root/pytest-21/test_hooks_do_not_pass_reposit1/project/.git/alternate-index', ...})
+E        +    where <built-in method isdisjoint of set object at 0xffffa9da49e0> = {'AITTS_HOOK_ENVIRONMENT', 'GIT_COMMON_DIR', 'GIT_DIR', 'GIT_INDEX_FILE', 'GIT_PREFIX', 'GIT_WORK_TREE', ...}.isdisjoint
+
+tests/test_git_environment.py:65: AssertionError
+_____ test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository _____
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-21/test_pytest_git_fixture_cannot0')
+
+    def test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository(tmp_path: Path) -> None:
+        """Oracle: issue #74 incident; an owned git init must leave the decoy unchanged."""
+        decoy = tmp_path / "decoy"
+        init_repository(decoy)
+        original_config = (decoy / ".git" / "config").read_bytes()
+        suite = tmp_path / "suite"
+        suite.mkdir()
+        shutil.copyfile(REPOSITORY / "tests" / "conftest.py", suite / "conftest.py")
+        (suite / "pytest.ini").write_text(
+            "[pytest]\nmarkers =\n    medium: owned process test\n    oracle(authority): contract\n"
+        )
+        (suite / "test_owned_git.py").write_text(
+            """import subprocess
+    import pytest
+    pytestmark = [pytest.mark.medium, pytest.mark.oracle('issue #74 owned Git fixture')]
+    @pytest.fixture
+    def owned_repository(tmp_path):
+        target = tmp_path / 'owned.git'
+        target.mkdir()
+        subprocess.run(['/usr/bin/git', '-C', str(target), 'init', '--bare', '--quiet'], check=True)
+        return target
+    
+    def test_owned_repository_is_the_only_destination(owned_repository):
+        assert (owned_repository / 'HEAD').is_file(), 'git init escaped the owned fixture'
+    """
+        )
+        result = subprocess.run(  # noqa: S603 - isolated pytest with an owned decoy Git context
+            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(suite)],
+            cwd=suite,
+            env={**clean_environment(), "GIT_DIR": str(decoy / ".git")},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+>       assert {
+            "fixture_passed": result.returncode == 0,
+            "decoy_unchanged": (decoy / ".git" / "config").read_bytes() == original_config,
+        } == {"fixture_passed": True, "decoy_unchanged": True}, result.stdout + result.stderr
+E       AssertionError: F                                                                        [100%]medium: 1 tests, 0.00s including fixtures, p95 call 0ms, budget 120s
+E         wall clock 0.02s
+E         
+E         =================================== FAILURES ===================================
+E         ________________ test_owned_repository_is_the_only_destination _________________
+E         
+E         owned_repository = PosixPath('/tmp/pytest-of-root/pytest-22/test_owned_repository_is_the_o0/owned.git')
+E         
+E             def test_owned_repository_is_the_only_destination(owned_repository):
+E         >       assert (owned_repository / 'HEAD').is_file(), 'git init escaped the owned fixture'
+E         E       AssertionError: git init escaped the owned fixture
+E         E       assert False
+E         E        +  where False = is_file()
+E         E        +    where is_file = (PosixPath('/tmp/pytest-of-root/pytest-22/test_owned_repository_is_the_o0/owned.git') / 'HEAD').is_file
+E         
+E         test_owned_git.py:12: AssertionError
+E         =========================== short test summary info ============================
+E         FAILED test_owned_git.py::test_owned_repository_is_the_only_destination - Ass...
+E         1 failed in 0.28s
+E         
+E       assert {'fixture_pas...anged': False} == {'fixture_pas...hanged': True}
+E         
+E         Differing items:
+E         {'fixture_passed': False} != {'fixture_passed': True}
+E         {'decoy_unchanged': False} != {'decoy_unchanged': True}
+E         Use -v to get more diff
+
+tests/test_git_environment.py:102: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-commit]
+FAILED tests/test_git_environment.py::test_hooks_do_not_pass_repository_context_to_validation[pre-push]
+FAILED tests/test_git_environment.py::test_pytest_git_fixture_cannot_reinitialize_the_inherited_repository
