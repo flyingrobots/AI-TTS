@@ -15,3 +15,7 @@ After the fix, all 55 benchmark tests pass in Docker (23 small, 32 medium). The 
 The original benchmark pin and all historical results remain untouched. No claim is made that previous benchmark reports were contaminated. Native-module fixtures check admission by filename, not execution of a foreign binary. Ordinary bytecode cache contents are not authenticated; this is a source-identity guard, not a sandbox against an adversarial filesystem or concurrent mutation after validation. Actual paired performance campaigns are not needed to exercise this admission defect and were not run.
 
 Validation used the existing two-CPU, 4 GiB Docker worker with copied source and a 1 GiB temporary filesystem. No new worker, image, or compilation cache was created for this issue.
+
+## Code Lawyer nested-repository follow-up
+
+Change-kind: bug fix. An owned Docker probe showed that Git lists an ignored nested repository as `src/vendor/`, without enumerating its Python files. The new `test_ignored_nested_repository_cannot_hide_importable_source` failed on `e8dd99c2771f83484ec2c05c2ee3cef8e955ce40`: the guard returned true for an ignored package inside its own Git repository. The inventory now rejects opaque directory entries conservatively. All 56 benchmark tests pass after this fix (23 small, 33 medium), along with Ruff, formatting, and Darwin-targeted mypy. The historical 55-test result above describes the first candidate, not the final test inventory.

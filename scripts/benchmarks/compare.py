@@ -65,7 +65,9 @@ def reference_is_clean(root: Path, commit: str) -> bool:
         if not entry:
             continue
         path = root / os.fsdecode(entry)
-        if path.is_symlink():
+        # Git reports an ignored nested repository as one opaque directory.
+        # Its contents cannot be certified by this inventory.
+        if path.is_symlink() or path.is_dir():
             return False
         if path.suffix.lower() in {".py", ".pyc", ".pyo", ".so", ".pyd"}:
             if path.suffix == ".pyc" and path.parent.name == "__pycache__":

@@ -195,3 +195,14 @@ def test_sourceless_module_in_cache_directory_is_not_a_normal_cache(tmp_path: Pa
     cache.mkdir()
     (cache / "hidden.pyc").write_bytes(b"untrusted sourceless module")
     assert not reference_is_clean(tmp_path, commit)
+
+
+def test_ignored_nested_repository_cannot_hide_importable_source(tmp_path: Path) -> None:
+    """Oracle: issue #62; opaque Git directory entries cannot hide unpinned packages."""
+    commit = reference(tmp_path)
+    nested = tmp_path / "src" / "vendor"
+    nested.mkdir()
+    git(nested, "init", "--quiet")
+    (nested / "__init__.py").write_text("VALUE = 'nested repository'\n")
+    (tmp_path / ".git" / "info" / "exclude").write_text("src/vendor/\n")
+    assert not reference_is_clean(tmp_path, commit)
