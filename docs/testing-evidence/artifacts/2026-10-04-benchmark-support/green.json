@@ -10,7 +10,7 @@
     "tests/support/playback.py": "78326c6d714e04c64a1efcdd34b8d79dcc75b9022d084ebbde3db010337061fd",
     "tests/test_benchmark_identity.py": "251b5e33104eab9a6fcc3766ce7a858515a44f629fc6e5258c958d280097e3ac",
     "tests/test_benchmark_reference.py": "7c552749507f2f215c27f6dee6983cf6bc174dac21c596491dd72de3b534691d",
-    "tests/test_benchmark_support.py": "d83d086185e983ace52e5c287b613a67a50659379b5aa58f34052c2c8539b5c9",
+    "tests/test_benchmark_support.py": "9ec7055e77011f249324e1ac84a2a4ddf91d653ef3e2a4ec650dbfde96f3946e",
     "tests/test_playback.py": "a1e9d6e0536dad0170f656de56d905b13acd398ab216469b457d2ca3c3dbe2b8"
   },
   "command": [
@@ -31,6 +31,6 @@
     "tests/test_benchmark_identity.py::test_controller_report_fingerprints_the_imported_harness"
   ],
   "exit": 0,
-  "stdout": ".........                                                                [100%]medium: 9 tests, 1.00s including fixtures, p95 call 335ms, budget 120s\nwall clock 1.03s\n\n",
+  "stdout": ".........                                                                [100%]medium: 9 tests, 1.23s including fixtures, p95 call 405ms, budget 120s\nwall clock 1.27s\n\n",
   "stderr": ""
 }

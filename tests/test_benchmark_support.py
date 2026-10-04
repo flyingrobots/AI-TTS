@@ -39,7 +39,29 @@ def test_alternate_source_executes_its_own_playback_helpers(
     marker = tmp_path / "reference-helper-executed"
     # The witness belongs to the selected source, outside the candidate's import tree.
     with (support / helper_name).open("a") as module:
-        module.write(f"\nPath({str(marker)!r}).write_text('selected reference')\n")
+        module.write(
+            f"""
+def record_helper(name):
+    with Path({str(marker)!r}).open('a') as journal:
+        journal.write(name + '\\n')
+
+_original_composite = make_composite_ready
+def make_composite_ready(*args, **kwargs):
+    record_helper('composite')
+    return _original_composite(*args, **kwargs)
+
+_original_schedule = DeterministicPlaybackSchedule
+class DeterministicPlaybackSchedule(_original_schedule):
+    def __init__(self, *args, **kwargs):
+        record_helper('schedule')
+        super().__init__(*args, **kwargs)
+
+_original_settle = settle
+async def settle(*args, **kwargs):
+    record_helper('settle')
+    return await _original_settle(*args, **kwargs)
+"""
+        )
     output = tmp_path / "report.json"
     result = subprocess.run(  # noqa: S603 - owned source and fixed benchmark CLI
         [
@@ -65,7 +87,7 @@ def test_alternate_source_executes_its_own_playback_helpers(
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert marker.is_file(), "benchmark executed candidate helpers for the selected reference"
-    assert marker.read_text() == "selected reference"
+    assert set(marker.read_text().splitlines()) == {"composite", "schedule", "settle"}
     report = json.loads(output.read_text())
     assert report["environment"]["playback_support_sha256"][f"tests/{helper_name}"] == (
         hashlib.sha256((support / helper_name).read_bytes()).hexdigest()

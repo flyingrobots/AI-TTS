@@ -10,7 +10,7 @@
     "tests/support/playback.py": "78326c6d714e04c64a1efcdd34b8d79dcc75b9022d084ebbde3db010337061fd",
     "tests/test_benchmark_identity.py": "251b5e33104eab9a6fcc3766ce7a858515a44f629fc6e5258c958d280097e3ac",
     "tests/test_benchmark_reference.py": "7c552749507f2f215c27f6dee6983cf6bc174dac21c596491dd72de3b534691d",
-    "tests/test_benchmark_support.py": "d83d086185e983ace52e5c287b613a67a50659379b5aa58f34052c2c8539b5c9",
+    "tests/test_benchmark_support.py": "9ec7055e77011f249324e1ac84a2a4ddf91d653ef3e2a4ec650dbfde96f3946e",
     "tests/test_playback.py": "a1e9d6e0536dad0170f656de56d905b13acd398ab216469b457d2ca3c3dbe2b8"
   },
   "strategy": "three seeded sequential permutations and two concurrent copies; no retries",
@@ -35,7 +35,7 @@
         "tests/test_benchmark_identity.py::test_controller_report_fingerprints_source_playback_support"
       ],
       "exit": 0,
-      "stdout": ".........                                                                [100%]medium: 9 tests, 1.00s including fixtures, p95 call 332ms, budget 120s\nwall clock 1.03s\n\n",
+      "stdout": ".........                                                                [100%]medium: 9 tests, 1.20s including fixtures, p95 call 397ms, budget 120s\nwall clock 1.24s\n\n",
       "stderr": ""
     },
     {
@@ -58,7 +58,7 @@
         "tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers[test_playback.py]"
       ],
       "exit": 0,
-      "stdout": ".........                                                                [100%]medium: 9 tests, 1.00s including fixtures, p95 call 333ms, budget 120s\nwall clock 1.03s\n\n",
+      "stdout": ".........                                                                [100%]medium: 9 tests, 1.25s including fixtures, p95 call 419ms, budget 120s\nwall clock 1.29s\n\n",
       "stderr": ""
     },
     {
@@ -81,7 +81,7 @@
         "tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers[support/playback.py]"
       ],
       "exit": 0,
-      "stdout": ".........                                                                [100%]medium: 9 tests, 1.00s including fixtures, p95 call 334ms, budget 120s\nwall clock 1.04s\n\n",
+      "stdout": ".........                                                                [100%]medium: 9 tests, 1.19s including fixtures, p95 call 394ms, budget 120s\nwall clock 1.23s\n\n",
       "stderr": ""
     },
     {
@@ -104,7 +104,7 @@
         "tests/test_benchmark_reference.py::test_ignored_reference_helpers_are_rejected[test_playback.py]"
       ],
       "exit": 0,
-      "stdout": ".........                                                                [100%]medium: 9 tests, 1.10s including fixtures, p95 call 373ms, budget 120s\nwall clock 1.13s\n\n",
+      "stdout": ".........                                                                [100%]medium: 9 tests, 1.15s including fixtures, p95 call 383ms, budget 120s\nwall clock 1.19s\n\n",
       "stderr": ""
     },
     {
@@ -127,7 +127,7 @@
         "tests/test_benchmark_support.py::test_alternate_source_executes_its_own_playback_helpers[support/playback.py]"
       ],
       "exit": 0,
-      "stdout": ".........                                                                [100%]medium: 9 tests, 1.10s including fixtures, p95 call 375ms, budget 120s\nwall clock 1.13s\n\n",
+      "stdout": ".........                                                                [100%]medium: 9 tests, 1.15s including fixtures, p95 call 380ms, budget 120s\nwall clock 1.19s\n\n",
       "stderr": ""
     }
   ]
