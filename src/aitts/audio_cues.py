@@ -1,30 +1,30 @@
 # Copyright 2026 James Ross
 # SPDX-License-Identifier: Apache-2.0
 
-"""Short playback cues, kept separate from generated speech and its evidence."""
+"""Packaged playback cues, separate from speech and its source clock."""
 
-from __future__ import annotations
-
-import math
-import struct
 from functools import cache
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
+
+def cue_path(name: str) -> Path:
+    """Locate a bundled cue independently of the working directory."""
+    packaged = Path(__file__).parent / "assets" / name
+    return packaged if packaged.is_file() else Path(__file__).parents[2] / "assets" / name
 
 
 @cache
 def earcon_pcm() -> bytes:
-    """Return a 100 ms, 880 Hz chime as 24 kHz mono little-endian PCM16.
+    """Decode the ascending intro to the sink's 24 kHz mono PCM16 format."""
+    samples, rate = sf.read(str(cue_path("chime_intro_ascending.wav")), dtype="int16")
+    frames = round(len(samples) * 24000 / rate)
+    converted = np.interp(np.arange(frames) * rate / 24000, np.arange(len(samples)), samples)
+    return bytes(converted.round().astype("<i2").tobytes())
 
-    A sine-squared envelope begins and ends at silence; 12% peak amplitude keeps
-    the cue gentle. Playback speed does not change its pitch or duration.
-    """
-    frames = 2400
-    samples = [
-        round(
-            32767
-            * 0.12
-            * math.sin(math.pi * index / (frames - 1)) ** 2
-            * math.sin(2 * math.pi * 880 * index / 24000)
-        )
-        for index in range(frames)
-    ]
-    return struct.pack(f"<{frames}h", *samples)
+
+def cue_padding_pcm() -> bytes:
+    """Return 150 ms of silence at the cue's fixed 24 kHz PCM16 rate."""
+    return bytes(3600 * 2)

@@ -829,6 +829,7 @@ class PlaybackController:
         self._current_segment_index: int | None = None
         self._preempted_stack: list[tuple[str, int | None]] = []
         self._sink_active = False
+        self._cue_session_open = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
         # Releasing the device is an await, so two transport commands can
@@ -940,7 +941,8 @@ class PlaybackController:
         if rate not in PLAYBACK_RATES:
             msg = f"unsupported playback rate {rate}"
             raise ValueError(msg)
-        self._sink.set_rate(rate)
+        if not (self._sink_active and self._current_id is None):
+            self._sink.set_rate(rate)
         self._store.set_setting("playback_rate", str(rate))
         self.playback_rate = rate
         self._record_control("rate_changed", "explicit_control")
@@ -951,8 +953,9 @@ class PlaybackController:
             await self._schedule.checkpoint(PlaybackCheckpoint.BEFORE_PLAN)
             async with self._transport_lock:
                 await self._plan_preemption()
-            if self._current_id is None and not self.held:
+            if self._current_id is None and not self.held and not self._sink_active:
                 nxt = self._store.next_pending()
+                self._finish_cue_session(nxt)
                 if nxt is not None and nxt.state is State.READY:
                     segment = self._store.next_unfinished_segment(nxt.id)
                     if segment is not None and segment.state is State.READY:
@@ -1129,12 +1132,38 @@ class PlaybackController:
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
 
     def _configure_cue(self, new_document: bool) -> None:  # noqa: FBT001 - internal state decision
-        from aitts.audio_cues import earcon_pcm  # noqa: PLC0415
+        from aitts.audio_cues import cue_padding_pcm, earcon_pcm  # noqa: PLC0415
 
         set_prefix = getattr(self._sink, "set_prefix", None)
         if callable(set_prefix):
             enabled = self._store.get_setting("earcon_enabled", "false") == "true"
-            set_prefix(earcon_pcm() if enabled and new_document else b"")
+            prefix = b""
+            if enabled and new_document:
+                prefix = (b"" if self._cue_session_open else earcon_pcm()) + cue_padding_pcm()
+            set_prefix(prefix)
+        self._cue_session_open = True
+
+    def _finish_cue_session(self, pending: Utterance | None) -> None:
+        if pending is not None or not self._cue_session_open:
+            return
+        self._cue_session_open = False
+        if self._store.get_setting("earcon_enabled", "false") == "true":
+            from aitts.audio_cues import cue_padding_pcm, cue_path  # noqa: PLC0415
+
+            set_prefix = getattr(self._sink, "set_prefix", None)
+            if callable(set_prefix):
+                set_prefix(cue_padding_pcm())
+            self._sink.set_rate(1.0)
+            self._sink.start(cue_path("chime_outro_descending.wav"))
+            self._sink_active = True
+            self._watcher = asyncio.create_task(self._watch_outro())
+
+    async def _watch_outro(self) -> None:
+        await self._sink.wait()
+        self._sink.set_rate(self.playback_rate)
+        self._sink_active = False
+        self._watcher = None
+        self.notify()
 
     def _live_source(self, artifact_id: str) -> SpoolingPCMStream | None:
         return self._streams.get(artifact_id) if self._streams is not None else None
@@ -1248,6 +1277,8 @@ class PlaybackController:
         if self._sink_active:
             self._sink.stop()
             await self._sink.wait()
+            if self._current_id is None:
+                self._sink.set_rate(self.playback_rate)
             self._sink_active = False
 
     def _record_control(self, event: str, cause: str) -> None:
@@ -1287,6 +1318,8 @@ class PlaybackController:
         self.held = True
         self._store.set_setting("playback_held", "true")
         current = self._current()
+        if current is None and self._sink_active:
+            await self._release_sink()
         if current is not None and current.state is State.PLAYING:
             position = self._current_heard_ms()
             if self._sink_active:
