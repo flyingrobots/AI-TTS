@@ -259,6 +259,7 @@ public struct Snapshot: Equatable, Sendable {
     public let models: [LocalSpeechModel]
     public let speed: Double
     public let playbackRate: Double
+    public let voiceLanguages: [String]
     public let earconEnabled: Bool
     public let duckingEnabled: Bool
     public let captionsEnabled: Bool
@@ -275,6 +276,7 @@ public struct Snapshot: Equatable, Sendable {
         voices: [String],
         speed: Double,
         playbackRate: Double,
+        voiceLanguages: [String] = ["en"],
         earconEnabled: Bool = false,
         duckingEnabled: Bool = false,
         captionsEnabled: Bool = false,
@@ -296,6 +298,7 @@ public struct Snapshot: Equatable, Sendable {
         self.voices = voices
         self.speed = speed
         self.playbackRate = playbackRate
+        self.voiceLanguages = voiceLanguages
         self.earconEnabled = earconEnabled
         self.duckingEnabled = duckingEnabled
         self.captionsEnabled = captionsEnabled

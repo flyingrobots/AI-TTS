@@ -18,6 +18,16 @@ final class ListenerTransportTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testLanguageSelectionCombinesEnglishAccentsAndIncludesSpanish() {
+        XCTAssertEqual(VoiceLanguage.options(of: ["bm_daniel"], selected: []), [
+            VoiceLanguage.Option(code: "en", name: "English"),
+        ])
+        XCTAssertEqual(VoiceLanguage.options(of: ["af_heart", "bm_daniel", "ef_dora"], selected: ["en"]), [
+            VoiceLanguage.Option(code: "en", name: "English"),
+            VoiceLanguage.Option(code: "es", name: "Spanish"),
+        ])
+    }
+
     // MARK: - Commands out
 
     func testChunkAndInterruptCommandsMapToExactDaemonRequests() throws {

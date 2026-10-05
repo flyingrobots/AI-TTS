@@ -63,6 +63,7 @@ final class AppState: ObservableObject {
     @Published var selectedTab: PlaybackTab = .queue
     private var knownFailedIDs: Set<String>?
     @Published var voiceAssignments: [VoiceAssignment] = []
+    @Published var voiceLanguages = ["en"]
     @Published var earconEnabled = false
     @Published var duckingEnabled = false
     @Published var duckingStatus = "Ducking is available while the menu-bar app is running."
@@ -335,6 +336,7 @@ final class AppState: ObservableObject {
         self.observeFailures(snapshot.history)
         self.speed = snapshot.speed
         self.playbackRate = snapshot.playbackRate
+        self.voiceLanguages = snapshot.voiceLanguages
         self.earconEnabled = snapshot.earconEnabled
         self.duckingEnabled = snapshot.duckingEnabled
         updateDucking()
@@ -458,6 +460,9 @@ final class AppState: ObservableObject {
     func setEngine(_ name: String) { send(.setEngine(name)) }
     func installModel(_ name: String) { send(.installModel(name)) }
     func cancelModelSetup() { send(.cancelModelSetup) }
+    func setVoiceLanguages(_ languages: [String]) {
+        send(.setVoiceLanguages(languages))
+    }
     func setEarconEnabled(_ enabled: Bool) {
         send(.setEarconEnabled(enabled))
     }

@@ -26,6 +26,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from aitts.application.cache import DEFAULT_CACHE_MAX_BYTES
+from aitts.application.voice_languages import (
+    LANGUAGE_CODES,
+    automatic_voice_pool,
+    stored_voice_languages,
+)
 from aitts.ipc import BAD_REQUEST, ApiError
 from aitts.playback import PLAYBACK_RATES
 
@@ -99,6 +104,9 @@ class SettingsService:
         return {
             "engine": self._environment.engine_name(),
             "voice": self.speaking_voice(),
+            "voice_languages": stored_voice_languages(
+                self._store.get_setting("voice_languages", "en")
+            ),
             "speed": float(self._store.get_setting("speed", "1.0")),
             "playback_rate": self._environment.playback_rate(),
             "cache_max_bytes": self.cache_limit(),
@@ -140,6 +148,7 @@ class SettingsService:
             raise ApiError(BAD_REQUEST, "engine must be a registered name")
         catalog = self._environment.engine_voices(selected)
         planners["voice"] = lambda value: self._plan_voice(value, catalog=catalog)
+        planners["voice_languages"] = lambda value: self._plan_voice_languages(value, catalog)
         planned: list[Callable[[], None]] = []
         for key, value in sorted(updates.items(), key=lambda item: item[0] != "engine"):
             planner = planners.get(key)
@@ -149,6 +158,20 @@ class SettingsService:
             planned.append(planner(value))
         for effect in planned:
             effect()
+
+    def _plan_voice_languages(self, value: object, catalog: list[str]) -> Callable[[], None]:
+        if (
+            not isinstance(value, list)
+            or not value
+            or any(not isinstance(code, str) or code not in LANGUAGE_CODES for code in value)
+        ):
+            raise ApiError(
+                BAD_REQUEST, "voice_languages must be a non-empty list of language codes"
+            )
+        selected = [code for code in LANGUAGE_CODES if code in value]
+        if not automatic_voice_pool(catalog, selected):
+            raise ApiError(BAD_REQUEST, "selected languages have no voices in this engine")
+        return lambda: self._store.set_setting("voice_languages", ",".join(selected))
 
     def _plan_engine(self, value: object) -> Callable[[], None]:
         if not isinstance(value, str):
