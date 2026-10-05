@@ -64,6 +64,9 @@ supply-chain = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/aitts"]
 
+[tool.hatch.build.targets.sdist.force-include]
+"assets" = "assets"
+
 [tool.hatch.build.targets.wheel.force-include]
 "assets" = "aitts/assets"
 

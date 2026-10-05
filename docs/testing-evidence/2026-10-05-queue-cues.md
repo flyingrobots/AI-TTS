@@ -51,3 +51,9 @@ Acoustic feedback is manual acceptance, not an automated acoustic oracle.
 Session scratch evidence and the installed wheel remain under the original
 checkout's .scratch/chime (about 1.2 MiB). They can be removed after this PR is
 integrated; the installed package does not depend on their continued presence.
+
+## Source release packaging regression
+
+Hosted CI and local `uv build --offline` failed on ab8fb5d because the source
+archive omitted assets. The sdist now explicitly includes the original WAVs.
+The same complete sdist-to-wheel build succeeds with byte-preserving cues.
