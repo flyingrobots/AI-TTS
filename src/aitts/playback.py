@@ -829,6 +829,7 @@ class PlaybackController:
         self._current_segment_index: int | None = None
         self._preempted_stack: list[tuple[str, int | None]] = []
         self._sink_active = False
+        self._cue_session_open = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
         # Releasing the device is an await, so two transport commands can
@@ -951,8 +952,9 @@ class PlaybackController:
             await self._schedule.checkpoint(PlaybackCheckpoint.BEFORE_PLAN)
             async with self._transport_lock:
                 await self._plan_preemption()
-            if self._current_id is None and not self.held:
+            if self._current_id is None and not self.held and not self._sink_active:
                 nxt = self._store.next_pending()
+                self._finish_cue_session(nxt)
                 if nxt is not None and nxt.state is State.READY:
                     segment = self._store.next_unfinished_segment(nxt.id)
                     if segment is not None and segment.state is State.READY:
@@ -1008,7 +1010,7 @@ class PlaybackController:
 
     async def _plan_preemption(self) -> None:
         """Transfer the device only once the interrupting clip can speak."""
-        if bool(self.held):
+        if bool(self.held) or (self._sink_active and self._current_id is None):
             return
         current = self._current()
         candidate = next(
@@ -1134,7 +1136,29 @@ class PlaybackController:
         set_prefix = getattr(self._sink, "set_prefix", None)
         if callable(set_prefix):
             enabled = self._store.get_setting("earcon_enabled", "false") == "true"
-            set_prefix(earcon_pcm() if enabled and new_document else b"")
+            set_prefix(
+                earcon_pcm() if enabled and new_document and not self._cue_session_open else b""
+            )
+        self._cue_session_open = True
+
+    def _finish_cue_session(self, pending: Utterance | None) -> None:
+        if pending is not None or not self._cue_session_open:
+            return
+        self._cue_session_open = False
+        if self._store.get_setting("earcon_enabled", "false") == "true":
+            from aitts.audio_cues import cue_path  # noqa: PLC0415
+
+            self._sink.set_rate(1.0)
+            self._sink.start(cue_path("chime_outro_descending.wav"))
+            self._sink_active = True
+            self._watcher = asyncio.create_task(self._watch_outro())
+
+    async def _watch_outro(self) -> None:
+        await self._sink.wait()
+        self._sink.set_rate(self.playback_rate)
+        self._sink_active = False
+        self._watcher = None
+        self.notify()
 
     def _live_source(self, artifact_id: str) -> SpoolingPCMStream | None:
         return self._streams.get(artifact_id) if self._streams is not None else None
@@ -1248,6 +1272,8 @@ class PlaybackController:
         if self._sink_active:
             self._sink.stop()
             await self._sink.wait()
+            if self._current_id is None:
+                self._sink.set_rate(self.playback_rate)
             self._sink_active = False
 
     def _record_control(self, event: str, cause: str) -> None:

@@ -15,28 +15,27 @@ from typing import Any
 
 import numpy as np
 import pytest
+import soundfile as sf
 
 from aitts.application.audio_device import FakeAudioDevice
-from aitts.audio_cues import earcon_pcm
+from aitts.audio_cues import cue_path, earcon_pcm
 from aitts.playback import FakeSink, SoundDeviceSink
 from aitts.store import Store
 from aitts.streaming import PCMStreamRenderer, SpoolingPCMStream
-from tests.support.playback import make_composite_ready
+from tests.support.playback import make_composite_ready, make_ready
 from tests.test_audio_device import RecordingStreams
 from tests.test_playback import playback_controller, start
 from tests.test_streaming_pipeline import ManualCallbackDevice
 
 
 @pytest.mark.small
-@pytest.mark.oracle("100 ms 880 Hz mono PCM16 chime, bounded gain and silent endpoints")
-def test_earcon_has_expected_duration_pitch_and_envelope() -> None:
-    samples = np.frombuffer(earcon_pcm(), dtype="<i2") / 32768.0
-    assert len(samples) == 2400
-    assert samples[0] == samples[-1] == 0
-    assert 0.10 < np.max(np.abs(samples)) <= 0.12
-    spectrum = np.abs(np.fft.rfft(samples))
-    assert np.argmax(spectrum) * 24000 / len(samples) == 880
-    assert np.max(np.abs(np.diff(samples))) < 0.03
+@pytest.mark.oracle("user ascending WAV decoded to 24 kHz mono PCM16")
+def test_earcon_uses_user_waveform() -> None:
+
+    samples, rate = sf.read(str(cue_path("chime_intro_ascending.wav")), dtype="int16")
+    actual = np.frombuffer(earcon_pcm(), dtype="<i2")
+    assert len(actual) == round(len(samples) * 24000 / rate)
+    np.testing.assert_array_equal(actual[::80], samples[::147][: len(actual[::80])])
 
 
 @pytest.mark.medium
@@ -319,3 +318,49 @@ async def test_file_sink_cue_close_holds_the_last_sample_when_little_remains(
     assert np.all(written[:2048] == 0.25)
     assert np.max(np.abs(np.diff(written))) <= 0.01, "the fade has an audible step"
     assert np.all(written[-2400:] == 0)
+
+
+@pytest.mark.medium
+@pytest.mark.oracle("one intro per queue, no cue between speakers, outro after drain")
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_queue_cues(store: Store, *, enabled: bool) -> None:
+
+    class CueSink(FakeSink):
+        def __init__(self) -> None:
+            super().__init__()
+            self.prefixes: list[bytes] = []
+
+        def set_prefix(self, pcm: bytes) -> None:
+            self.prefixes.append(pcm)
+
+    sink = CueSink()
+    store.set_setting("earcon_enabled", str(enabled).lower())
+    make_ready(store, "first speaker")
+    make_ready(store, "second speaker")
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        assert sink.prefixes == [earcon_pcm() if enabled else b""]
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert sink.prefixes == [earcon_pcm() if enabled else b"", b""]
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert len(sink.started) == (3 if enabled else 2)
+        if enabled:
+            assert sink.started[-1] == cue_path("chime_outro_descending.wav")
+            cycle = schedule.idle_cycles
+            sink.finish_current()
+            await schedule.wait_for_idle_after(cycle)
+        make_ready(store, "new session")
+        cycle = schedule.idle_cycles
+        controller.notify()
+        await schedule.wait_for_idle_after(cycle)
+        assert sink.prefixes[-1] == (earcon_pcm() if enabled else b"")
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.shutdown()
