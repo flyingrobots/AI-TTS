@@ -94,3 +94,30 @@ def test_metadata_free_backend_keeps_its_catalog(store: Store) -> None:
         announce=lambda _: None,
     )
     assert voices.resolve(source="agent", requested=None) == "default"
+
+
+class LanguageEngineEnvironment(FakeEnvironment):
+    def engine_voices(self, name: str) -> list[str]:
+        return ["ef_dora"] if name == "kokoro-mlx" else super().engine_voices(name)
+
+    def available_voices(self) -> list[str]:
+        return self.engine_voices(self.engine)
+
+    def default_voice(self) -> str:
+        return self.available_voices()[0]
+
+
+def test_engine_switch_preserves_a_usable_stored_language_selection(store: Store) -> None:
+    environment = LanguageEngineEnvironment()
+    settings = SettingsService(store, environment)
+    before = settings.values()
+    with pytest.raises(ApiError, match="selected languages have no voices"):
+        settings.apply({"engine": "kokoro-mlx", "speed": 1.5})
+    assert settings.values() == before
+
+
+def test_engine_and_compatible_language_can_change_together(store: Store) -> None:
+    settings = SettingsService(store, LanguageEngineEnvironment())
+    settings.apply({"engine": "kokoro-mlx", "voice_languages": ["es"]})
+    assert settings.values()["engine"] == "kokoro-mlx"
+    assert settings.values()["voice_languages"] == ["es"]

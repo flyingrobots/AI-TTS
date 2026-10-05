@@ -28,6 +28,21 @@ final class ListenerTransportTests: XCTestCase {
         ])
     }
 
+    func testLanguageOptionsKeepSelectionWithEmptyCatalogAndClassifyUnknownIDs() {
+        XCTAssertEqual(VoiceLanguage.options(of: [], selected: ["en"]), [
+            VoiceLanguage.Option(code: "en", name: "English"),
+        ])
+        for voice in ["voice_without_gender", "qf_mystery", "af_", "bm_"] {
+            XCTAssertEqual(VoiceLanguage.options(of: [voice], selected: []), [
+                VoiceLanguage.Option(code: "other", name: "Other"),
+            ], voice)
+        }
+        XCTAssertEqual(VoiceLanguage.options(of: ["ef_dora", "bm_daniel"], selected: []), [
+            VoiceLanguage.Option(code: "en", name: "English"),
+            VoiceLanguage.Option(code: "es", name: "Spanish"),
+        ])
+    }
+
     // MARK: - Commands out
 
     func testChunkAndInterruptCommandsMapToExactDaemonRequests() throws {

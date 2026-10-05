@@ -227,7 +227,8 @@ enum VoiceLanguage {
         ]
         let available = Set(voices.map { voice -> String in
             let suffix = voice.dropFirst()
-            guard suffix.hasPrefix("f_") || suffix.hasPrefix("m_") else { return "other" }
+            guard voice.count > 3, suffix.hasPrefix("f_") || suffix.hasPrefix("m_")
+            else { return "other" }
             return voice.first.flatMap { codes[$0] } ?? "other"
         })
         return names.filter { available.contains($0.0) || selected.contains($0.0) }

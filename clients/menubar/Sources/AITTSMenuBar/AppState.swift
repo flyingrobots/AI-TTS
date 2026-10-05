@@ -461,6 +461,8 @@ final class AppState: ObservableObject {
     func installModel(_ name: String) { send(.installModel(name)) }
     func cancelModelSetup() { send(.cancelModelSetup) }
     func setVoiceLanguages(_ languages: [String]) {
+        guard !languages.isEmpty else { return }
+        voiceLanguages = languages
         send(.setVoiceLanguages(languages))
     }
     func setEarconEnabled(_ enabled: Bool) {

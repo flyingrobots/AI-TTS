@@ -147,6 +147,10 @@ class SettingsService:
         if not isinstance(selected, str):
             raise ApiError(BAD_REQUEST, "engine must be a registered name")
         catalog = self._environment.engine_voices(selected)
+        if "engine" in updates and "voice_languages" not in updates:
+            languages = stored_voice_languages(self._store.get_setting("voice_languages", "en"))
+            if not automatic_voice_pool(catalog, languages):
+                raise ApiError(BAD_REQUEST, "selected languages have no voices in this engine")
         planners["voice"] = lambda value: self._plan_voice(value, catalog=catalog)
         planners["voice_languages"] = lambda value: self._plan_voice_languages(value, catalog)
         planned: list[Callable[[], None]] = []

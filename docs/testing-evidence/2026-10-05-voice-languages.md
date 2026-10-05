@@ -61,3 +61,34 @@ checkout's .scratch/languages. The stable compiler/cache is intentionally reused
 not a new per-branch cache. Guard monitoring failures and limit breaches terminate
 the owned group. Retain logs through integration, then remove owned temporary
 stores and redundant task artifacts while preserving the shared compiler cache.
+
+
+## Review follow-up on 836dcb6
+
+CodeRabbit's five comments were verified against the current source. Before
+fixes, a Python regression showed engine-only switching silently accepting a
+catalog incompatible with stored English selection. Three native regressions
+failed for stale local selection after rapid changes, an empty setting crossing
+the serialized speech-service port, and classifying af_/bm_ as English despite
+missing a voice name. The empty-request observation uses a later valid command
+on the same serial queue as its completion witness, not a sleep.
+
+The native setter now updates its published selection before sending it and
+centrally ignores empty arrays, including stale checkbox callbacks. Native
+classification requires a name after the language/gender prefix. Engine-only
+updates validate stored languages before any write; a coordinated engine and
+compatible language update remains accepted.
+
+The options test also covers an initially empty catalog, selected-language
+preservation, unknown IDs, and stable ordering independent of catalog order.
+Seeding dropped selections, an incorrect unknown-language fallback, and reversed
+ordering failed these added checks. Seeding validation of the old language even
+when a new one was supplied failed the coordinated engine/language assertion.
+Every seed was restored. All 176 native tests passed on the repaired source;
+106 focused Python language/settings tests passed. Ruff lint/format and all
+199 mypy targets passed. These counts describe this follow-up, not the earlier
+installed integration's 1,113-test run.
+
+Final follow-up verification: all 1,109 Python tests passed (2 skipped) on
+the language PR alone; all 176 native tests passed. The chime PR remains a
+separate change and is not counted in this Python run.
