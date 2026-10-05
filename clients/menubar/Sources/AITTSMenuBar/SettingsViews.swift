@@ -41,6 +41,8 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 LocalModelSettings()
                 Divider()
+                VoiceLanguageSettings()
+                Divider()
                 Text("Default voice").font(.caption.smallCaps()).foregroundStyle(.secondary)
                 Text("Used for anything you read yourself, and for clients with no voice of their own.")
                     .font(.caption2)
@@ -207,6 +209,32 @@ enum VoiceLanguage {
         let voices: [String]
     }
 
+    struct Option: Identifiable, Equatable {
+        let code: String
+        let name: String
+        var id: String { code }
+    }
+
+    static func options(of voices: [String], selected: [String]) -> [Option] {
+        let names = [
+            ("en", "English"), ("es", "Spanish"), ("fr", "French"), ("hi", "Hindi"),
+            ("it", "Italian"), ("pt", "Portuguese"), ("ja", "Japanese"),
+            ("zh", "Mandarin Chinese"), ("other", "Other"),
+        ]
+        let codes: [Character: String] = [
+            "a": "en", "b": "en", "e": "es", "f": "fr", "h": "hi", "i": "it",
+            "p": "pt", "j": "ja", "z": "zh",
+        ]
+        let available = Set(voices.map { voice -> String in
+            let suffix = voice.dropFirst()
+            guard voice.count > 3, suffix.hasPrefix("f_") || suffix.hasPrefix("m_")
+            else { return "other" }
+            return voice.first.flatMap { codes[$0] } ?? "other"
+        })
+        return names.filter { available.contains($0.0) || selected.contains($0.0) }
+            .map { Option(code: $0.0, name: $0.1) }
+    }
+
     private static let names: [Character: String] = [
         "a": "American English",
         "b": "British English",
@@ -239,6 +267,29 @@ enum VoiceLanguage {
             return offset
         }
         return order.count
+    }
+}
+
+/// Select a pool for automatic assignments; explicit listener pins remain overrides.
+struct VoiceLanguageSettings: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        Text("Voice languages").font(.caption.smallCaps()).foregroundStyle(.secondary)
+        Text("Automatic agent voices use these languages and repeat when all are taken. Voices you assign yourself override this selection.")
+            .font(.caption2).foregroundStyle(.secondary)
+        ForEach(VoiceLanguage.options(of: state.voices, selected: state.voiceLanguages)) { option in
+            Toggle(option.name, isOn: Binding(
+                get: { state.voiceLanguages.contains(option.code) },
+                set: { enabled in
+                    var selected = Set(state.voiceLanguages)
+                    if enabled { selected.insert(option.code) } else { selected.remove(option.code) }
+                    state.setVoiceLanguages(selected.sorted())
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .disabled(state.voiceLanguages == [option.code])
+        }
     }
 }
 

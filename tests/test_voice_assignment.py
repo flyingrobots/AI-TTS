@@ -211,6 +211,7 @@ async def test_agents_speaking_for_the_first_time_end_up_on_distinct_voices(
 
 
 async def test_an_agent_keeps_its_voice_across_submissions(voice_daemon: Daemon) -> None:
+    await voice_daemon.dispatch({"op": "settings", "set": {"voice_languages": ["en", "it"]}})
     first = await voice_daemon.dispatch({"op": "submit", "text": "one", "source": "steady"})
     second = await voice_daemon.dispatch({"op": "submit", "text": "two", "source": "steady"})
 
@@ -224,6 +225,7 @@ async def test_an_agent_keeps_its_voice_across_submissions(voice_daemon: Daemon)
 async def test_an_agent_can_explicitly_change_voice_across_submissions(
     voice_daemon: Daemon,
 ) -> None:
+    await voice_daemon.dispatch({"op": "settings", "set": {"voice_languages": ["en", "it"]}})
     first = await voice_daemon.dispatch({"op": "submit", "text": "one", "source": "steady"})
     second = await voice_daemon.dispatch(
         {"op": "submit", "text": "two", "source": "steady", "voice": "im_nicola"}

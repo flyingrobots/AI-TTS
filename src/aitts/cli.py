@@ -251,7 +251,7 @@ def _settings_payload(args: argparse.Namespace) -> dict[str, Any]:
                 raise SystemExit(msg)
             updates[key] = value == "true"
         else:
-            updates[key] = value
+            updates[key] = value.split(",") if key == "voice_languages" else value
     return {"op": "settings", "set": updates} if updates else {"op": "settings"}
 
 
