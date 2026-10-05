@@ -1131,14 +1131,15 @@ class PlaybackController:
         self._watcher = asyncio.get_running_loop().create_task(self._watch())
 
     def _configure_cue(self, new_document: bool) -> None:  # noqa: FBT001 - internal state decision
-        from aitts.audio_cues import earcon_pcm  # noqa: PLC0415
+        from aitts.audio_cues import cue_padding_pcm, earcon_pcm  # noqa: PLC0415
 
         set_prefix = getattr(self._sink, "set_prefix", None)
         if callable(set_prefix):
             enabled = self._store.get_setting("earcon_enabled", "false") == "true"
-            set_prefix(
-                earcon_pcm() if enabled and new_document and not self._cue_session_open else b""
-            )
+            prefix = b""
+            if enabled and new_document:
+                prefix = (b"" if self._cue_session_open else earcon_pcm()) + cue_padding_pcm()
+            set_prefix(prefix)
         self._cue_session_open = True
 
     def _finish_cue_session(self, pending: Utterance | None) -> None:
@@ -1146,8 +1147,11 @@ class PlaybackController:
             return
         self._cue_session_open = False
         if self._store.get_setting("earcon_enabled", "false") == "true":
-            from aitts.audio_cues import cue_path  # noqa: PLC0415
+            from aitts.audio_cues import cue_padding_pcm, cue_path  # noqa: PLC0415
 
+            set_prefix = getattr(self._sink, "set_prefix", None)
+            if callable(set_prefix):
+                set_prefix(cue_padding_pcm())
             self._sink.set_rate(1.0)
             self._sink.start(cue_path("chime_outro_descending.wav"))
             self._sink_active = True
@@ -1313,6 +1317,8 @@ class PlaybackController:
         self.held = True
         self._store.set_setting("playback_held", "true")
         current = self._current()
+        if current is None and self._sink_active:
+            await self._release_sink()
         if current is not None and current.state is State.PLAYING:
             position = self._current_heard_ms()
             if self._sink_active:

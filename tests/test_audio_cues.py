@@ -18,13 +18,13 @@ import pytest
 import soundfile as sf
 
 from aitts.application.audio_device import FakeAudioDevice
-from aitts.audio_cues import cue_path, earcon_pcm
+from aitts.audio_cues import cue_padding_pcm, cue_path, earcon_pcm
 from aitts.playback import FakeSink, SoundDeviceSink
 from aitts.store import Store
 from aitts.streaming import PCMStreamRenderer, SpoolingPCMStream
-from tests.support.playback import make_composite_ready, make_ready
+from tests.support.playback import make_composite_ready
 from tests.test_audio_device import RecordingStreams
-from tests.test_playback import playback_controller, start
+from tests.test_playback import make_ready, playback_controller, start
 from tests.test_streaming_pipeline import ManualCallbackDevice
 
 
@@ -93,7 +93,7 @@ async def test_document_cue_does_not_repeat_on_pause_or_chunk(
     controller, schedule = playback_controller(store, sink)
     task = await start(controller, schedule)
     try:
-        assert sink.prefixes == [earcon_pcm() if enabled else b""]
+        assert sink.prefixes == [earcon_pcm() + cue_padding_pcm() if enabled else b""]
         await controller.pause()
         await controller.resume()
         assert all(not prefix for prefix in sink.prefixes[1:])
@@ -171,11 +171,19 @@ def _write_mono(path: Path, frames: int, rate: int = 24000) -> None:
         wav.writeframes(struct.pack(f"<{frames}h", *([8192] * frames)))
 
 
+def _interruption_pcm() -> bytes:
+    """Own a short, loud waveform so close tests do not depend on product cues."""
+    index = np.arange(2400)
+    envelope = np.sin(math.pi * index / 2399) ** 2
+    samples = np.round(32767 * 0.12 * envelope * np.sin(2 * math.pi * 880 * index / 24000))
+    return bytes(samples.astype("<i2").tobytes())
+
+
 async def _uninterrupted_cue(path: Path, speech_frames: int) -> Any:
     """The cue exactly as this file stream plays it when nothing interrupts it."""
     streams = RecordingStreams(FakeAudioDevice())
     sink = SoundDeviceSink(device=FakeAudioDevice(), open_stream=streams)
-    sink.set_prefix(earcon_pcm())
+    sink.set_prefix(_interruption_pcm())
     sink.start(path)
     assert await asyncio.wait_for(sink.wait(), 1)
     return np.concatenate(streams.opened[0].blocks)[:-speech_frames, 0]
@@ -213,7 +221,7 @@ async def test_file_sink_cue_interrupted_mid_waveform_closes_softly(
             getattr(sink, interrupt)()
 
     streams.on_write = interrupt_after_first_cue_block
-    sink.set_prefix(earcon_pcm())
+    sink.set_prefix(_interruption_pcm())
     sink.start(path)
     try:
         assert await asyncio.to_thread(closed.wait, 1)
@@ -250,7 +258,7 @@ async def test_file_sink_reports_an_underflow_while_writing_the_cue(
 
     streams.on_write = underflow_on_the_cue_block
     sink = SoundDeviceSink(device=device, open_stream=streams)
-    sink.set_prefix(earcon_pcm())
+    sink.set_prefix(_interruption_pcm())
     with caplog.at_level(logging.WARNING, logger="aitts.playback"):
         sink.start(path)
         assert await asyncio.wait_for(sink.wait(), 1)
@@ -271,8 +279,10 @@ def test_callback_close_during_the_cue_fades_the_rest_of_the_cue(
     _write_mono(path, 4800)
     source = SpoolingPCMStream.from_cached(path)
     try:
-        cue = np.frombuffer(earcon_pcm(), dtype="<i2").astype(np.float32) / 32768.0
-        renderer = PCMStreamRenderer(source, skip_leading_silence=True, prefix_pcm=earcon_pcm())
+        cue = np.frombuffer(_interruption_pcm(), dtype="<i2").astype(np.float32) / 32768.0
+        renderer = PCMStreamRenderer(
+            source, skip_leading_silence=True, prefix_pcm=_interruption_pcm()
+        )
         assert source.wait_buffered(4800, timeout=1)
         played = renderer.render(heard)[:, 0]
         np.testing.assert_array_equal(played, cue[:heard])
@@ -340,16 +350,20 @@ async def test_queue_cues(store: Store, *, enabled: bool) -> None:
     controller, schedule = playback_controller(store, sink)
     task = await start(controller, schedule)
     try:
-        assert sink.prefixes == [earcon_pcm() if enabled else b""]
+        assert sink.prefixes == [earcon_pcm() + cue_padding_pcm() if enabled else b""]
         cycle = schedule.idle_cycles
         sink.finish_current()
         await schedule.wait_for_idle_after(cycle)
-        assert sink.prefixes == [earcon_pcm() if enabled else b"", b""]
+        assert sink.prefixes == [
+            earcon_pcm() + cue_padding_pcm() if enabled else b"",
+            cue_padding_pcm() if enabled else b"",
+        ]
         cycle = schedule.idle_cycles
         sink.finish_current()
         await schedule.wait_for_idle_after(cycle)
         assert len(sink.started) == (3 if enabled else 2)
         if enabled:
+            assert sink.prefixes[-1] == cue_padding_pcm()
             assert sink.started[-1] == cue_path("chime_outro_descending.wav")
             cycle = schedule.idle_cycles
             sink.finish_current()
@@ -358,7 +372,38 @@ async def test_queue_cues(store: Store, *, enabled: bool) -> None:
         cycle = schedule.idle_cycles
         controller.notify()
         await schedule.wait_for_idle_after(cycle)
-        assert sink.prefixes[-1] == (earcon_pcm() if enabled else b"")
+        assert sink.prefixes[-1] == (earcon_pcm() + cue_padding_pcm() if enabled else b"")
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.shutdown()
+
+
+@pytest.mark.small
+@pytest.mark.oracle("requested slight delay: 150 ms of exact silence at 24 kHz PCM16")
+def test_cue_padding_is_150ms_silence() -> None:
+    assert cue_padding_pcm() == bytes(7200)
+
+
+@pytest.mark.medium
+@pytest.mark.oracle("global playback hold stops an outro and restores the speech rate")
+async def test_hold_stops_outro(store: Store) -> None:
+    sink = FakeSink()
+    store.set_setting("earcon_enabled", "true")
+    store.set_setting("playback_rate", "2.0")
+    make_ready(store, "last speaker")
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert sink.started[-1] == cue_path("chime_outro_descending.wav")
+        await controller.pause()
+        assert await asyncio.wait_for(sink.wait(), 0.1) is False
+        assert sink.playback_rate == 2.0
+        assert controller.held
     finally:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):

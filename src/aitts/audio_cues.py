@@ -23,3 +23,8 @@ def earcon_pcm() -> bytes:
     frames = round(len(samples) * 24000 / rate)
     converted = np.interp(np.arange(frames) * rate / 24000, np.arange(len(samples)), samples)
     return bytes(converted.round().astype("<i2").tobytes())
+
+
+def cue_padding_pcm() -> bytes:
+    """Return 150 ms of silence at the cue's fixed 24 kHz PCM16 rate."""
+    return bytes(3600 * 2)
