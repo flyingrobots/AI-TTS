@@ -25,6 +25,7 @@ from aitts.streaming import PCMStreamRenderer, SpoolingPCMStream
 from tests.support.playback import make_composite_ready
 from tests.test_audio_device import RecordingStreams
 from tests.test_playback import make_ready, playback_controller, start
+from tests.test_playback_preemption import preempting_clip
 from tests.test_streaming_pipeline import ManualCallbackDevice
 
 
@@ -404,6 +405,60 @@ async def test_hold_stops_outro(store: Store) -> None:
         assert await asyncio.wait_for(sink.wait(), 0.1) is False
         assert sink.playback_rate == 2.0
         assert controller.held
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.shutdown()
+
+
+@pytest.mark.medium
+@pytest.mark.oracle("ready preempting speech interrupts a serialized outro without overlap")
+async def test_ready_preempting_clip_interrupts_outro(store: Store) -> None:
+    sink = FakeSink()
+    store.set_setting("earcon_enabled", "true")
+    make_ready(store, "last speaker")
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert sink.started[-1] == cue_path("chime_outro_descending.wav")
+        alert = preempting_clip(store, "urgent speech")
+        cycle = schedule.idle_cycles
+        controller.notify()
+        await schedule.wait_for_idle_after(cycle)
+        assert controller.current_id == alert.id
+        assert sink.started[-1].name == f"{alert.id}.wav"
+        assert sink.overlaps == 0
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.shutdown()
+
+
+@pytest.mark.medium
+@pytest.mark.oracle("outro stays at normal speed while new speech rate is saved and restored")
+async def test_speech_rate_change_does_not_accelerate_outro(store: Store) -> None:
+    sink = FakeSink()
+    store.set_setting("earcon_enabled", "true")
+    make_ready(store, "last speaker")
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert sink.started[-1] == cue_path("chime_outro_descending.wav")
+        controller.set_playback_rate(2.0)
+        assert sink.playback_rate == 1.0
+        assert store.get_setting("playback_rate", "") == "2.0"
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert sink.playback_rate == 2.0
     finally:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):

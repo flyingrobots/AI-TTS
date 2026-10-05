@@ -57,3 +57,12 @@ integrated; the installed package does not depend on their continued presence.
 Hosted CI and local `uv build --offline` failed on ab8fb5d because the source
 archive omitted assets. The sdist now explicitly includes the original WAVs.
 The same complete sdist-to-wheel build succeeds with byte-preserving cues.
+
+## Outro control regressions from review
+
+Both new deterministic boundary tests failed on 7c8ad18: urgent speech remained
+blocked behind the outro, and changing speech rate accelerated the outro.
+The existing preemption path now releases an active outro before starting the
+ready alert; speech-rate updates are saved while the outro stays at normal
+speed, and restored when it ends or is stopped. Focused validation includes
+61 cue/playback/preemption/shutdown tests.

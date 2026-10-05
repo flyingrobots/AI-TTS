@@ -941,7 +941,8 @@ class PlaybackController:
         if rate not in PLAYBACK_RATES:
             msg = f"unsupported playback rate {rate}"
             raise ValueError(msg)
-        self._sink.set_rate(rate)
+        if not (self._sink_active and self._current_id is None):
+            self._sink.set_rate(rate)
         self._store.set_setting("playback_rate", str(rate))
         self.playback_rate = rate
         self._record_control("rate_changed", "explicit_control")
@@ -1010,7 +1011,7 @@ class PlaybackController:
 
     async def _plan_preemption(self) -> None:
         """Transfer the device only once the interrupting clip can speak."""
-        if bool(self.held) or (self._sink_active and self._current_id is None):
+        if bool(self.held):
             return
         current = self._current()
         candidate = next(
