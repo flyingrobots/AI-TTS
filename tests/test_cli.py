@@ -420,3 +420,34 @@ def test_tui_missing_extra_explains_installation(
     hint = capsys.readouterr().err
     assert "make install" in hint
     assert "uv tool install" not in hint, f"the hint suggests a reinstall that drops Kokoro: {hint}"
+
+
+async def test_get_tracks_an_accepted_clip_without_waiting_for_playback(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Oracle: admission ID addresses the same pending and cancelled clip under a hold.
+
+    Retire when per-ID lookup is removed or a stronger public lifecycle test replaces it.
+    """
+    assert await run_cli(daemon, "pause") == EXIT_OK
+    capsys.readouterr()
+    assert await run_cli(daemon, "say", "track this request") == EXIT_OK
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["accepted"] is True
+    utt_id = receipt["id"]
+    assert await run_cli(daemon, "get", utt_id) == EXIT_OK
+    item = json.loads(capsys.readouterr().out)["item"]
+    assert (item["id"], item["text"]) == (utt_id, "track this request")
+    assert item["state"] in {"Queued", "Synthesizing", "Ready"}
+    assert await run_cli(daemon, "cancel", utt_id) == EXIT_OK
+    capsys.readouterr()
+    assert await run_cli(daemon, "get", utt_id) == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["item"]["state"] == "Cancelled"
+
+
+async def test_get_unknown_id_reports_a_daemon_error(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Oracle: lookup refuses an absent ID rather than reporting successful admission."""
+    assert await run_cli(daemon, "get", "utt_missing") == EXIT_DAEMON_ERROR
+    assert json.loads(capsys.readouterr().out)["error"]["type"] == "not_found"

@@ -342,7 +342,13 @@ machine-wide agent instructions.
 
 The final command prints a JSON receipt. `"accepted": true` means the daemon
 owns the utterance and has placed it in the plan; it does not mean playback has
-already finished. If `status` reports `"playback_held": true`, the check is
+already finished. Keep the receipt's `id` and use `ai-tts get <id>` in a separate
+call to read `item.state` without waiting: `Queued`, `Synthesizing`, `Ready`,
+`Playing`, `Paused`, `Played`, `Skipped`, `Cancelled`, or `Failed`. A held clip
+can remain `Ready`; `status` reports the global playback hold. An unknown ID
+returns an error. Ordinary agent submissions should omit `--wait`; use
+`ai-tts wait <id> --timeout 570` separately only when completed playback is
+required. If `status` reports `"playback_held": true`, the check is
 still accepted and remains silent until the user resumes playback. Do not make
 an installer or an agent release that hold automatically.
 
