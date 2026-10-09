@@ -18,7 +18,7 @@ suffixed with `/ai-tts`.
 ## Run it
 
 ```bash
-<AI_TTS_BIN> say --source <your-agent-name> --wait --timeout 570 \
+<AI_TTS_BIN> say --source <your-agent-name> \
   "$(cat /path/to/speech.txt)"
 ```
 
@@ -27,13 +27,30 @@ of the way and leaves a re-playable record. Put it in the session scratchpad
 rather than a shared temp directory. The text is a **positional argument**;
 there is no `-f` flag.
 
-Set the Bash tool's `timeout` to **600000**. Generation is roughly real-time,
-so keep `--timeout` just under it. For anything longer than a few paragraphs,
-run it in the background instead of waiting.
+Return after the daemon accepts the request into its queue. Do not add `--wait`
+for ordinary agent speech, and do not poll until playback finishes inside the
+submission tool call. Exit 0 means admission succeeded; it does not mean the
+listener has heard the speech. An error means admission was not confirmed.
 
-`--wait` is what makes the exit code mean something: **exit 0 only for
-`Played`**. Without it, exit 0 means "accepted onto the queue", not "was
-heard". The JSON receipt ends with `"final_state": "Played"` on success.
+Keep the JSON receipt's `id` (for example `utt_...`). To check progress later,
+make a separate, nonblocking call:
+
+```bash
+<AI_TTS_BIN> get <utterance-id>
+```
+
+If an older installed CLI does not yet support `get`, inspect `list input`,
+`list playback`, and `history` for the receipt ID instead. Never resubmit the
+same text merely to check progress.
+
+Read `item.state`: `Queued`, `Synthesizing`, `Ready`, `Playing`, `Paused`,
+`Played`, `Skipped`, `Cancelled`, or `Failed`. `Played` means playback completed;
+`Ready` means audio is prepared. A global hold may leave a clip `Ready` while
+waiting for Resume; use `status` to inspect that hold.
+
+Only when the user explicitly needs confirmation of completed playback, use
+`wait <utterance-id> --timeout 570` as a separate call. Exit 0 from `wait` means
+`Played`; its receipt has `final_state`. A timeout does not cancel speech.
 
 ## Queue speech even while paused
 
@@ -49,8 +66,7 @@ later.
 <AI_TTS_BIN> status
 ```
 
-- `"playback_held": true`: enqueue normally. For a long hold, omit `--wait`
-  and report "Queued for playback when the pause ends."
+- `"playback_held": true`: enqueue normally. Report "Queued for playback when the pause ends."
 - `"interruption"` is non-null: enqueue normally. Microphone pauses resume
   automatically when no input is active under the default `when_idle` policy.
   Leave playback controls to the listener and daemon.

@@ -415,10 +415,15 @@ def test_skill_preserves_newlines_in_executable_path(
 
     assert result.returncode == 0, result.stderr
     installed = Path(env["AITTS_CLAUDE_SKILLS_DIR"]) / "speak" / "SKILL.md"
-    # The second fenced command is the complete status example. Parse it as a
-    # shell command, not physical lines: a quoted pathname may span lines.
-    status = installed.read_text().split("```bash\n")[2].split("```", 1)[0]
-    assert shell_words(status) == [str(binary), "status"]
+    # Find the status example by its arguments; adding another example must
+    # not change this path-preservation contract. Quoted paths may span lines.
+    commands = [
+        shell_words(block.split("```", 1)[0])
+        for block in installed.read_text().split("```bash\n")[1:]
+    ]
+    assert [command for command in commands if command[1:] == ["status"]] == [
+        [str(binary), "status"]
+    ]
 
 
 @pytest.mark.parametrize("name", ["line\nbreak/ai-tts-mcp", "ai-tts-mcp\n"])
@@ -433,3 +438,21 @@ def test_mcp_dry_run_preserves_newlines_in_server_path(
     assert result.returncode == 0, result.stderr
     command = result.stdout.split("-> ", 1)[1].removesuffix(" (dry run)\n")
     assert shell_words(command) == ["claude", "mcp", "add", "ai-tts", "--", str(server)]
+
+
+def test_installed_speech_submission_does_not_wait_for_playback(
+    sandbox: dict[str, str],
+) -> None:
+    """Oracle: the default installed say command ends at admission, preserving its ID.
+
+    Retire when agents no longer submit through the speak skill.
+    """
+    result = run(sandbox, "skill", "--codex")
+    assert result.returncode == 0, result.stderr
+    installed = Path(sandbox["AITTS_CODEX_SKILLS_DIR"]) / "speak" / "SKILL.md"
+    body = installed.read_text(encoding="utf-8")
+    command = body.split("```bash\n", 1)[1].split("```", 1)[0]
+    assert " say --source " in command
+    assert "--wait" not in command
+    assert "--timeout" not in command
+    assert "receipt's `id`" in body

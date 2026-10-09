@@ -91,9 +91,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     say.add_argument("--timeout", type=float, help="seconds to wait with --wait")
 
-    wait = sub.add_parser("wait", help="block until an utterance finishes")
-    wait.add_argument("id")
-    wait.add_argument("--timeout", type=float)
+    _add_lookup_parsers(sub)
 
     listing = sub.add_parser("list", help="show a queue")
     listing.add_argument("queue", choices=["input", "playback"])
@@ -167,6 +165,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _add_lookup_parsers(sub: argparse._SubParsersAction[Any]) -> None:
+    """Expose immediate lookup separately from opt-in playback waiting."""
+    get = sub.add_parser("get", help="read one utterance by id without waiting for playback")
+    get.add_argument("id")
+
+    wait = sub.add_parser("wait", help="block until an utterance finishes")
+    wait.add_argument("id")
+    wait.add_argument("--timeout", type=float)
 
 
 def _settings_parser(settings: argparse.ArgumentParser) -> None:
@@ -260,6 +268,7 @@ _PAYLOAD_BUILDERS: dict[str, Any] = {
     "cancel-model-setup": lambda _args: {"op": "cancel_model_setup"},
     "say": _say_payload,
     "history": _history_payload,
+    "get": lambda args: {"op": "get", "id": args.id},
     "settings": _settings_payload,
     "list": lambda args: {"op": "list", "queue": args.queue},
     "rewind": lambda args: {"op": "rewind", "to": args.to} if args.to else {"op": "rewind"},
