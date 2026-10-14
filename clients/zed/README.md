@@ -84,9 +84,13 @@ engine, and a silent sink. They verify exact literal selection admission,
 Markdown interpretation, attribution, confidentiality, preserved holds,
 inclusive byte limits, and refusal without queue admission.
 
-The automated suite does not prove Zed's save prompt, task rendering, or process
-environment limits. Host acceptance must exercise a dirty file, an untitled
-document, selection changes, and an unavailable daemon in an installed Zed.
+Installed Zed 1.23.3 acceptance verified a dirty file saved before admission,
+literal selection submission, a changed unsaved selection without saving, and
+visible daemon-unavailable failure followed by successful recovery. It also
+established the missing-context limitation for buffers outside an open
+worktree. These checks used a separate paused test daemon and produced no
+audible output. Optional keyboard bindings and process-environment size limits
+were not exercised. See the [testing receipt](../../docs/testing-evidence/2026-10-14-zed-tasks.md).
 
 See [Zed's task documentation](https://zed.dev/docs/tasks) for global task
 installation, save behavior, environment variables, and custom keybindings.

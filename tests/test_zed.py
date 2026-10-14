@@ -132,8 +132,9 @@ async def test_invalid_input_is_refused_without_admission(
     if kind == "encoded-selection":
         assert "encoded" in output.err
     assert not output.out
-    history = await asyncio.to_thread(Client(daemon.socket_path).request, {"op": "history"})
-    assert history["items"] == []
+    snapshot = await asyncio.to_thread(Client(daemon.socket_path).request, {"op": "snapshot"})
+    assert snapshot["plan"] == []
+    assert snapshot["history"] == []
 
 
 async def test_file_at_byte_limit_is_admitted(
