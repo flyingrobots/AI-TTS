@@ -1,0 +1,9 @@
+[
+  {
+    "context": "Editor",
+    "bindings": {
+      "cmd-alt-r": ["task::Spawn", {"task_name": "Read with AI-TTS"}],
+      "cmd-alt-shift-r": ["task::Spawn", {"task_name": "Read Selection with AI-TTS"}]
+    }
+  }
+]

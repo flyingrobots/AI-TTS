@@ -43,6 +43,7 @@ allow-direct-references = true
 [project.scripts]
 ai-tts = "aitts.cli:main"
 ai-tts-mcp = "aitts.adapters.mcp:main"
+ai-tts-zed-read = "aitts.zed:main"
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,26 @@
+[
+  {
+    "label": "Read with AI-TTS",
+    "command": "ai-tts-zed-read",
+    "args": ["file"],
+    "env": {"ZED_FILE": "$ZED_FILE"},
+    "save": "current",
+    "reveal": "no_focus",
+    "hide": "on_success",
+    "show_command": false,
+    "show_summary": false,
+    "allow_concurrent_runs": false
+  },
+  {
+    "label": "Read Selection with AI-TTS",
+    "command": "ai-tts-zed-read",
+    "args": ["selection"],
+    "env": {"ZED_SELECTED_TEXT": "$ZED_SELECTED_TEXT"},
+    "save": "none",
+    "reveal": "no_focus",
+    "hide": "on_success",
+    "show_command": false,
+    "show_summary": false,
+    "allow_concurrent_runs": false
+  }
+]
