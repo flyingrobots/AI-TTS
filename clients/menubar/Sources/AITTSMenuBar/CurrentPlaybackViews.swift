@@ -167,22 +167,39 @@ struct CurrentPlaybackCard: View {
     @ViewBuilder
     private func chunkProgress(for current: Utterance) -> some View {
         if let active = current.activeSegment, current.segmentCount > 1 {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Text("Chunk \(active.number) of \(active.count)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
-                // Array, not a Range: ForEach reads only a Range's initial
-                // count, and this one changes with every clip.
-                ForEach(Array(0..<current.segmentCount), id: \.self) { index in
-                    Capsule()
-                        .fill(
-                            index == active.index
-                                ? Color.accentColor
-                                : Color.primary.opacity(index < active.index ? 0.28 : 0.12)
-                        )
-                        .frame(height: 3)
+                    .layoutPriority(1)
+                    .fixedSize()
+
+                if current.segmentCount <= 16 {
+                    HStack(spacing: 3) {
+                        // Array, not a Range: ForEach reads only a Range's initial
+                        // count, and this one changes with every clip.
+                        ForEach(Array(0..<current.segmentCount), id: \.self) { index in
+                            Capsule()
+                                .fill(
+                                    index == active.index
+                                        ? Color.accentColor
+                                        : Color.primary.opacity(index < active.index ? 0.28 : 0.12)
+                                )
+                                .frame(height: 3)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    ProgressView(
+                        value: Double(active.number),
+                        total: Double(active.count)
+                    )
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity)
             // The pips restate the counter beside them; announcing both would
             // read the same fact twice.
             .accessibilityElement(children: .ignore)
