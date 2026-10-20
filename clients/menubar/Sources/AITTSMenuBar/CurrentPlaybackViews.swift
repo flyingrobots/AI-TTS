@@ -163,6 +163,13 @@ struct CurrentPlaybackCard: View {
         return active.index >= current.segmentCount - 1
     }
 
+    static func linearProgress(active: ActiveSegment, segmentCount: Int) -> (value: Double, total: Double) {
+        (
+            value: Double(min(max(active.index, 0), segmentCount)),
+            total: Double(max(segmentCount, 1))
+        )
+    }
+
     /// Which chunk of a document is being heard, and how many there are.
     @ViewBuilder
     private func chunkProgress(for current: Utterance) -> some View {
@@ -191,9 +198,10 @@ struct CurrentPlaybackCard: View {
                     }
                     .frame(maxWidth: .infinity)
                 } else {
+                    let progress = Self.linearProgress(active: active, segmentCount: current.segmentCount)
                     ProgressView(
-                        value: Double(active.number),
-                        total: Double(active.count)
+                        value: progress.value,
+                        total: progress.total
                     )
                     .progressViewStyle(.linear)
                     .frame(maxWidth: .infinity)
