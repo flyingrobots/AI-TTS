@@ -48,9 +48,15 @@ Read `item.state`: `Queued`, `Synthesizing`, `Ready`, `Playing`, `Paused`,
 `Ready` means audio is prepared. A global hold may leave a clip `Ready` while
 waiting for Resume; use `status` to inspect that hold.
 
-Only when the user explicitly needs confirmation of completed playback, use
-`wait <utterance-id> --timeout 570` as a separate call. Exit 0 from `wait` means
-`Played`; its receipt has `final_state`. A timeout does not cancel speech.
+Only when the user explicitly needs confirmation of completed playback, make a
+separate call:
+
+```bash
+<AI_TTS_BIN> wait <utterance-id> --timeout 570
+```
+
+Exit 0 from `wait` means `Played`; its receipt has `final_state`. A timeout does
+not cancel speech.
 
 ## Queue speech even while paused
 

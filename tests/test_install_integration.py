@@ -456,5 +456,11 @@ def test_installed_speech_submission_does_not_wait_for_playback(
     assert "--wait" not in command
     assert "--timeout" not in command
     assert "receipt's `id`" in body
-    assert " get <utterance-id>" in body
-    assert "`wait <utterance-id> --timeout 570`" in body
+    blocks = [block.split("```", 1)[0] for block in body.split("```bash\n")[1:]]
+    follow_ups = [
+        shell_words(line)[1:]
+        for block in blocks
+        for line in block.replace("\\\n", " ").splitlines()
+    ]
+    assert ["get", "<utterance-id>"] in follow_ups
+    assert ["wait", "<utterance-id>", "--timeout", "570"] in follow_ups
