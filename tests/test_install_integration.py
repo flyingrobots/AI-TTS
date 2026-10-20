@@ -458,12 +458,8 @@ def test_installed_speech_submission_does_not_wait_for_playback(
     assert "receipt's `id`" in body
     blocks = [block.split("```", 1)[0] for block in body.split("```bash\n")[1:]]
     commands = [
-        shell_words(line)
-        for block in blocks
-        for line in block.replace("\\\n", " ").splitlines()
+        shell_words(line) for block in blocks for line in block.replace("\\\n", " ").splitlines()
     ]
-    follow_ups = [
-        words[1:] for words in commands if words[:1] == [sandbox["AITTS_BIN"]]
-    ]
+    follow_ups = [words[1:] for words in commands if words[:1] == [sandbox["AITTS_BIN"]]]
     assert ["get", "<utterance-id>"] in follow_ups
     assert ["wait", "<utterance-id>", "--timeout", "570"] in follow_ups
