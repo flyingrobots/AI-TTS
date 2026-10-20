@@ -128,4 +128,26 @@ final class ContextMenuTests: XCTestCase {
         let nextPartMulti = menu.items.first { $0.title == "Next Part" }
         XCTAssertEqual(nextPartMulti?.isEnabled, true)
     }
+
+    func testMenuDisablesAutomaticItemValidationToPreserveManualGating() throws {
+        let singleChunkSnapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+            "status": [
+                "playback_state": "playing",
+                "current": [
+                    "id": "utt-1",
+                    "text": "Hello",
+                    "voice": "af_alloy",
+                    "state": "Playing",
+                    "segment_count": 1,
+                ],
+            ]
+        ]))
+        state.applySnapshot(singleChunkSnapshot)
+        let menu = controller.buildContextMenu()
+        XCTAssertFalse(menu.autoenablesItems)
+
+        menu.update()
+        let nextPartItem = menu.items.first { $0.title == "Next Part" }
+        XCTAssertEqual(nextPartItem?.isEnabled, false)
+    }
 }

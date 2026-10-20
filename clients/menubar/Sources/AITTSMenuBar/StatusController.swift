@@ -154,6 +154,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
     func buildContextMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.autoenablesItems = false
         let isPlaying = state.status?.playbackState == "playing"
         let hasCurrent = state.status?.current != nil
         let hasMultipleChunks = (state.status?.current?.segmentCount ?? 0) > 1
