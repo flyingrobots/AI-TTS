@@ -573,6 +573,9 @@ ai-tts say $'# Release notes\n\nEverything is **ready**.' --format markdown
 # exit 0 only after the clip reaches Played
 ai-tts say "Deploy finished." --wait
 
+# read one clip's current state without waiting for playback
+ai-tts get utt_1a2b3c4d
+
 # block on one clip you already have the id of
 ai-tts wait utt_1a2b3c4d
 
