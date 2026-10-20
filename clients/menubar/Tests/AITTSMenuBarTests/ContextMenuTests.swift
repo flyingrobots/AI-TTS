@@ -1,5 +1,7 @@
 // Copyright 2026 James Ross
 // SPDX-License-Identifier: Apache-2.0
+// Test-Size: medium
+// Test-Oracle: status tray context menu item actions and gating
 
 import AppKit
 import XCTest
@@ -31,8 +33,11 @@ final class ContextMenuTests: XCTestCase {
     private var suiteName: String!
     private var defaults: UserDefaults!
 
+    deinit {}
+
     override func setUp() {
         super.setUp()
+        executionTimeAllowance = 15
         suiteName = "ai-tts-context-menu-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)!
         let ports = ContextMenuTestPorts()
