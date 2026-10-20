@@ -152,12 +152,20 @@ final class StatusController: NSObject, NSPopoverDelegate {
         }
     }
 
+    private func canAdvanceChunk() -> Bool {
+        guard let status = state.status, status.playbackState == "playing", let current = status.current else {
+            return false
+        }
+        guard let active = current.activeSegment else { return false }
+        return current.segmentCount > 1 && active.index < current.segmentCount - 1
+    }
+
     func buildContextMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
         let isPlaying = state.status?.playbackState == "playing"
         let hasCurrent = state.status?.current != nil
-        let hasMultipleChunks = (state.status?.current?.segmentCount ?? 0) > 1
+        let canAdvance = canAdvanceChunk()
 
         let playPauseItem = NSMenuItem(
             title: isPlaying ? "Pause" : "Play",
@@ -174,7 +182,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
             keyEquivalent: ""
         )
         nextPartItem.target = self
-        nextPartItem.isEnabled = state.reachable && hasMultipleChunks
+        nextPartItem.isEnabled = state.reachable && canAdvance
         menu.addItem(nextPartItem)
 
         let nextItem = NSMenuItem(

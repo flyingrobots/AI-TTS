@@ -91,7 +91,7 @@ final class ContextMenuTests: XCTestCase {
         XCTAssertEqual(menu.items.first?.title, "Pause")
     }
 
-    func testNextPartEnabledOnlyWhenCurrentClipHasMultipleChunks() throws {
+    func testNextPartEnabledOnlyWhenCurrentClipHasNavigableChunks() throws {
         // Clip with 1 chunk -> Next Part disabled
         let singleChunkSnapshot = try XCTUnwrap(Snapshot(daemonJSON: [
             "status": [
@@ -110,7 +110,59 @@ final class ContextMenuTests: XCTestCase {
         let nextPartSingle = menu.items.first { $0.title == "Next Part" }
         XCTAssertEqual(nextPartSingle?.isEnabled, false)
 
-        // Clip with 5 chunks -> Next Part enabled
+        // Clip with 5 chunks but paused -> Next Part disabled
+        let pausedMultiChunkSnapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+            "status": [
+                "playback_state": "paused",
+                "current": [
+                    "id": "utt-paused",
+                    "text": "Hello world",
+                    "voice": "af_alloy",
+                    "state": "Paused",
+                    "segment_count": 5,
+                    "active_segment": [
+                        "index": 1,
+                        "number": 2,
+                        "count": 5,
+                        "text": "world",
+                        "position_ms": 0,
+                        "duration_ms": 1000,
+                    ],
+                ],
+            ]
+        ]))
+        state.applySnapshot(pausedMultiChunkSnapshot)
+        menu = controller.buildContextMenu()
+        let nextPartPaused = menu.items.first { $0.title == "Next Part" }
+        XCTAssertEqual(nextPartPaused?.isEnabled, false)
+
+        // Clip with 5 chunks on last chunk (index 4) -> Next Part disabled
+        let lastChunkSnapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+            "status": [
+                "playback_state": "playing",
+                "current": [
+                    "id": "utt-last",
+                    "text": "Hello world",
+                    "voice": "af_alloy",
+                    "state": "Playing",
+                    "segment_count": 5,
+                    "active_segment": [
+                        "index": 4,
+                        "number": 5,
+                        "count": 5,
+                        "text": "final",
+                        "position_ms": 0,
+                        "duration_ms": 1000,
+                    ],
+                ],
+            ]
+        ]))
+        state.applySnapshot(lastChunkSnapshot)
+        menu = controller.buildContextMenu()
+        let nextPartLast = menu.items.first { $0.title == "Next Part" }
+        XCTAssertEqual(nextPartLast?.isEnabled, false)
+
+        // Clip with 5 chunks on chunk 0 while playing -> Next Part enabled
         let multiChunkSnapshot = try XCTUnwrap(Snapshot(daemonJSON: [
             "status": [
                 "playback_state": "playing",
@@ -120,6 +172,15 @@ final class ContextMenuTests: XCTestCase {
                     "voice": "af_alloy",
                     "state": "Playing",
                     "segment_count": 5,
+                    "active_segment": [
+                        "index": 0,
+                        "number": 1,
+                        "count": 5,
+                        "text": "Hello",
+                        "state": "Playing",
+                        "position_ms": 0,
+                        "duration_ms": 1000,
+                    ],
                 ],
             ]
         ]))
