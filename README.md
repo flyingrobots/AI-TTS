@@ -2,6 +2,10 @@
 
 A local text-to-speech application for macOS, built for agents that talk.
 
+For document reading in Zed, install the [Read with AI-TTS tasks](clients/zed/README.md).
+The document task saves and reads the active UTF-8 file; the selection task
+reads highlighted text without saving.
+
 You send it text. It queues that text, synthesizes audio in the background with the model held warm in memory, and plays it back through a separate, strictly serialized queue that you control from the menu bar.
 
 > **Status: v0.1.0 release candidate.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. No `v0.1.0` tag or release has been published yet. See [Project status](#project-status) and [Using it](#using-it).
