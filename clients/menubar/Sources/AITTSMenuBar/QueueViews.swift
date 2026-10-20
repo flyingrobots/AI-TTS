@@ -43,11 +43,13 @@ struct QueueView: View {
                 List {
                     ForEach(state.upcoming) { item in
                         QueueRow(item: item)
+                            .listRowBackground(Color.clear)
                             .moveDisabled(!state.canReorderQueue)
                     }
                     .onMove(perform: move)
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .confirmationDialog(
