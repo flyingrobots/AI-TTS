@@ -420,3 +420,11 @@ def test_tui_missing_extra_explains_installation(
     hint = capsys.readouterr().err
     assert "make install" in hint
     assert "uv tool install" not in hint, f"the hint suggests a reinstall that drops Kokoro: {hint}"
+
+
+async def test_cli_persists_selected_voice_languages(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "settings", "--set", "voice_languages=en,es") == EXIT_OK
+    reply = json.loads(capsys.readouterr().out)
+    assert reply["settings"]["voice_languages"] == ["en", "es"]

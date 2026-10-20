@@ -15,6 +15,24 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testVoiceLanguagesDecodeWithEnglishFallbackForOlderDaemons() throws {
+        var configured = snapshotResponse
+        configured["settings"] = ["voice_languages": ["en", "es"]]
+        let transport = RecordingDaemonTransport(responses: [snapshotResponse, configured])
+        let service = UnixSocketSpeechService(transport: transport)
+        XCTAssertEqual(try service.snapshot().voiceLanguages, ["en"])
+        XCTAssertEqual(try service.snapshot().voiceLanguages, ["en", "es"])
+    }
+
+    func testVoiceLanguagesMapToExactDaemonRequest() throws {
+        let transport = RecordingDaemonTransport()
+        let service = UnixSocketSpeechService(transport: transport)
+        try service.perform(.setVoiceLanguages(["en", "es"]))
+        XCTAssertEqual(try transport.canonicalRequests(), try canonicalize([
+            ["op": "settings", "set": ["voice_languages": ["en", "es"]]],
+        ]))
+    }
+
     func testLocalModelCommandsMapToExactSetupAndSelectionRequests() throws {
         let transport = RecordingDaemonTransport()
         let service = UnixSocketSpeechService(transport: transport)
