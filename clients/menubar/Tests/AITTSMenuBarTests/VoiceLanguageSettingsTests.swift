@@ -33,6 +33,24 @@ final class VoiceLanguageSettingsTests: XCTestCase {
     }
 
     @MainActor
+    func testSnapshotRequestedBeforeSelectionDoesNotRevertIt() async throws {
+        let ports = LanguageSettingsPorts()
+        ports.holdFirstSnapshot = true
+        let performStarted = expectation(description: "language change reached the port")
+        ports.performStarted = performStarted
+        let state = try makeState(ports)
+        state.refresh()
+        state.setVoiceLanguages(["en", "fr"])
+        ports.releaseFirstSnapshot()
+        await fulfillment(of: [performStarted], timeout: 1)
+        let deadline = Date().addingTimeInterval(1)
+        while !state.reachable, Date() < deadline { try await Task.sleep(nanoseconds: 5_000_000) }
+        XCTAssertTrue(state.reachable, "the stale snapshot should have been applied")
+        XCTAssertEqual(state.voiceLanguages, ["en", "fr"])
+        ports.releasePerform()
+    }
+
+    @MainActor
     func testEmptySelectionSendsNoInvalidSetting() async throws {
         let ports = LanguageSettingsPorts()
         let marker = expectation(description: "later command crossed the serialized port")
@@ -50,13 +68,35 @@ private final class LanguageSettingsPorts: SpeechServicePort, DocumentEnqueueing
     CurrentSelectionEnqueueing, ClipboardEnqueueing, @unchecked Sendable {
     private let lock = NSLock()
     private var recorded: [SpeechCommand] = []
+    private var daemonLanguages = ["en"]
+    private let firstSnapshotGate = DispatchSemaphore(value: 0)
+    private let performGate = DispatchSemaphore(value: 0)
+    private var snapshotCount = 0
     var marker: XCTestExpectation?
+    var holdFirstSnapshot = false
+    var performStarted: XCTestExpectation?
     func commands() -> [SpeechCommand] { lock.withLock { recorded } }
-    func snapshot() throws -> Snapshot { throw SpeechServiceError.unavailable }
+    func releaseFirstSnapshot() { firstSnapshotGate.signal() }
+    func releasePerform() { performGate.signal() }
+    func snapshot() throws -> Snapshot {
+        guard holdFirstSnapshot else { throw SpeechServiceError.unavailable }
+        let first = lock.withLock { snapshotCount += 1; return snapshotCount == 1 }
+        if first { firstSnapshotGate.wait() }
+        let languages = lock.withLock { daemonLanguages }
+        return Snapshot(status: DaemonStatus(playbackState: "idle", current: nil, counts: [:],
+                                             voice: "v", engine: "fake"),
+                        plan: [], input: [], history: [], voices: ["v"], speed: 1,
+                        playbackRate: 1, voiceLanguages: languages)
+    }
     func submit(_ submission: SpeechSubmission) throws { throw SpeechServiceError.unavailable }
     func perform(_ command: SpeechCommand) throws {
         lock.withLock { recorded.append(command) }
         if command == .setEarconEnabled(true) { marker?.fulfill() }
+        if case let .setVoiceLanguages(languages) = command, holdFirstSnapshot {
+            performStarted?.fulfill()
+            performGate.wait()
+            lock.withLock { daemonLanguages = languages }
+        }
     }
     func purgeCachedAudio() throws -> CachePurgeReceipt { throw SpeechServiceError.unavailable }
     func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {}

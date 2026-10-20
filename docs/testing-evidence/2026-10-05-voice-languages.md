@@ -92,3 +92,13 @@ installed integration's 1,113-test run.
 Final follow-up verification: all 1,109 Python tests passed (2 skipped) on
 the language PR alone; all 176 native tests passed. The chime PR remains a
 separate change and is not counted in this Python run.
+
+## Review follow-up (2026-10-20)
+
+A snapshot requested before a local language change could be applied after it
+and revert the optimistic selection, so the next checkbox toggle would drop
+the earlier choice. Each local change now advances a generation counter, and
+a snapshot requested under an older generation leaves the selection alone.
+`testSnapshotRequestedBeforeSelectionDoesNotRevertIt` holds the first snapshot
+until after the change is made; with the generation check removed the test
+fails, and with it restored it passes.

@@ -110,6 +110,10 @@ final class AppState: ObservableObject {
     private let eventsFlag = AtomicFlag()
     private var priorApplicationProcessIdentifier: Int32?
     private var captionMigrationAttempted = false
+    /// Incremented by each local voice-language change. A snapshot requested before the latest
+    /// change may predate it on the serial transport queue, so it must not replace the
+    /// optimistic selection; later snapshots reconcile with the daemon's value.
+    private var voiceLanguagesGeneration = 0
 
     init(
         speech: any SpeechServicePort,
@@ -306,17 +310,22 @@ final class AppState: ObservableObject {
     }
 
     func refresh() {
+        let languagesGeneration = voiceLanguagesGeneration
         queue.async { [speech, self] in
             let snapshot = try? speech.snapshot()
             let observedAt = Date()
             Task { @MainActor [weak self] in
-                self?.applySnapshot(snapshot, observedAt: observedAt)
+                self?.applySnapshot(snapshot, observedAt: observedAt,
+                                    voiceLanguagesGeneration: languagesGeneration)
             }
         }
     }
 
     /// Apply the daemon's typed snapshot at the UI boundary, independently of transport scheduling.
-    func applySnapshot(_ snapshot: Snapshot?, observedAt: Date = Date()) {
+    /// `voiceLanguagesGeneration` identifies when the snapshot was requested; a snapshot requested
+    /// before the latest local language change keeps the pending optimistic selection.
+    func applySnapshot(_ snapshot: Snapshot?, observedAt: Date = Date(),
+                       voiceLanguagesGeneration requestedGeneration: Int? = nil) {
         self.reachable = snapshot != nil
         self.runtime = snapshot?.runtime
         guard let snapshot else {
@@ -336,7 +345,9 @@ final class AppState: ObservableObject {
         self.observeFailures(snapshot.history)
         self.speed = snapshot.speed
         self.playbackRate = snapshot.playbackRate
-        self.voiceLanguages = snapshot.voiceLanguages
+        if requestedGeneration.map({ $0 == voiceLanguagesGeneration }) ?? true {
+            self.voiceLanguages = snapshot.voiceLanguages
+        }
         self.earconEnabled = snapshot.earconEnabled
         self.duckingEnabled = snapshot.duckingEnabled
         updateDucking()
@@ -462,6 +473,7 @@ final class AppState: ObservableObject {
     func cancelModelSetup() { send(.cancelModelSetup) }
     func setVoiceLanguages(_ languages: [String]) {
         guard !languages.isEmpty else { return }
+        voiceLanguagesGeneration += 1
         voiceLanguages = languages
         send(.setVoiceLanguages(languages))
     }
