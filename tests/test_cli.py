@@ -451,3 +451,11 @@ async def test_get_unknown_id_reports_a_daemon_error(
     """Oracle: lookup refuses an absent ID rather than reporting successful admission."""
     assert await run_cli(daemon, "get", "utt_missing") == EXIT_DAEMON_ERROR
     assert json.loads(capsys.readouterr().out)["error"]["type"] == "not_found"
+
+
+async def test_cli_persists_selected_voice_languages(
+    daemon: Daemon, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await run_cli(daemon, "settings", "--set", "voice_languages=en,es") == EXIT_OK
+    reply = json.loads(capsys.readouterr().out)
+    assert reply["settings"]["voice_languages"] == ["en", "es"]

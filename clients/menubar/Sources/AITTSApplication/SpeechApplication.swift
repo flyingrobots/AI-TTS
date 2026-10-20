@@ -128,6 +128,7 @@ public enum SpeechCommand: Equatable, Sendable {
     case requeue(id: String, priority: RequeuePriority)
     case reorder(ids: [String])
     case setVoice(String)
+    case setVoiceLanguages([String])
     case setEngine(String)
     case installModel(String)
     case cancelModelSetup
