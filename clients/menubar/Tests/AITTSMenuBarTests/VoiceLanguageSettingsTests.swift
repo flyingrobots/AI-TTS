@@ -5,6 +5,7 @@
 
 import AITTSApplication
 import AppKit
+import Combine
 import XCTest
 @testable import AITTSMenuBar
 
@@ -38,16 +39,17 @@ final class VoiceLanguageSettingsTests: XCTestCase {
         ports.holdFirstSnapshot = true
         let performStarted = expectation(description: "language change reached the port")
         ports.performStarted = performStarted
+        // Unblock the fake's transport on every exit path so the queued work cannot outlive the test.
+        addTeardownBlock { ports.releaseFirstSnapshot(); ports.releasePerform() }
         let state = try makeState(ports)
+        let staleApplied = expectation(description: "the stale snapshot was applied")
+        let observation = state.$reachable.first(where: { $0 }).sink { _ in staleApplied.fulfill() }
+        defer { observation.cancel() }
         state.refresh()
         state.setVoiceLanguages(["en", "fr"])
         ports.releaseFirstSnapshot()
-        await fulfillment(of: [performStarted], timeout: 1)
-        let deadline = Date().addingTimeInterval(1)
-        while !state.reachable, Date() < deadline { try await Task.sleep(nanoseconds: 5_000_000) }
-        XCTAssertTrue(state.reachable, "the stale snapshot should have been applied")
+        await fulfillment(of: [performStarted, staleApplied], timeout: 1)
         XCTAssertEqual(state.voiceLanguages, ["en", "fr"])
-        ports.releasePerform()
     }
 
     @MainActor
