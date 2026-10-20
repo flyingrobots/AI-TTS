@@ -60,6 +60,7 @@ async def test_selection_is_admitted_literally_without_shell_effects(
     assert utterance.text == text
     assert utterance.source == "zed:selection"
     assert utterance.sensitivity.value == "confidential"
+    assert utterance.priority.value == "normal"
     assert daemon.store.segments(utterance.id) == []
     assert text not in output
     status = await asyncio.to_thread(Client(daemon.socket_path).request, {"op": "status"})
@@ -86,6 +87,11 @@ async def test_file_format_follows_extension(
     actual = "".join(part.text for part in parts) if parts else utterance.text
     assert actual == spoken
     assert utterance.source == "zed:file"
+    assert utterance.priority.value == "normal"
+    provenance = await asyncio.to_thread(
+        Client(daemon.socket_path).request, {"op": "provenance", "id": utterance.id}
+    )
+    assert provenance["provenance"]["origin"] == "Zed"
 
 
 @pytest.mark.parametrize(
@@ -152,6 +158,41 @@ async def test_file_at_byte_limit_is_admitted(
     utterance = daemon.store.get(response["id"])
     assert utterance is not None
     assert utterance.text == text
+
+
+async def test_file_at_byte_limit_after_bom_is_admitted(
+    daemon: Daemon,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "bom.txt"
+    text = "a" * (512 * 1024)
+    path.write_bytes(b"\xef\xbb\xbf" + text.encode("utf-8"))
+    monkeypatch.setenv("ZED_FILE", str(path))
+    assert await asyncio.to_thread(main, ["file"]) == 0
+    response = json.loads(capsys.readouterr().out)
+    utterance = daemon.store.get(response["id"])
+    assert utterance is not None
+    assert utterance.text == text
+
+
+def test_send_failure_is_reported_as_daemon_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def broken_request(_self: Client, _payload: dict[str, Any]) -> dict[str, Any]:
+        raise BrokenPipeError(32, "Broken pipe")
+
+    monkeypatch.setenv("AI_TTS_SOCKET", str(tmp_path / "d.sock"))
+    monkeypatch.setenv("ZED_SELECTED_TEXT", "hello")
+    monkeypatch.setattr(Client, "request", broken_request)
+    assert main(["selection"]) == 2
+    output = capsys.readouterr()
+    assert "daemon is unavailable" in output.err
+    assert "Cannot read document" not in output.err
+    assert not output.out
 
 
 def test_unreachable_daemon_has_actionable_error(

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import os
 import sys
@@ -33,11 +34,14 @@ def _input(mode: str) -> tuple[str, str]:
             msg = "The active document must be an existing regular file."
             raise ValueError(msg)
         with path.open("rb") as stream:
-            raw = stream.read(_MAX_TEXT_BYTES + 1)
+            raw = stream.read(len(codecs.BOM_UTF8) + _MAX_TEXT_BYTES + 1)
+        # The limit applies to the text after BOM removal, so read the BOM's
+        # bytes beyond it and strip them before measuring.
+        raw = raw.removeprefix(codecs.BOM_UTF8)
         if len(raw) > _MAX_TEXT_BYTES:
             msg = "The document exceeds the 512 KiB text limit. Select a smaller passage."
             raise ValueError(msg)
-        text = raw.decode("utf-8-sig")
+        text = raw.decode("utf-8")
         content_format = "markdown" if path.suffix.lower() in {".md", ".markdown"} else "plain_text"
     if not text.strip():
         msg = "No text to read. Select some text or open a nonempty document."
@@ -55,7 +59,7 @@ def _payload(mode: str) -> dict[str, Any]:
     text, content_format = _input(mode)
     payload = {
         "op": "submit",
-        "origin": "CLI",
+        "origin": "Zed",
         "text": text,
         "content_format": content_format,
         "source": f"zed:{mode}",
@@ -74,16 +78,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("mode", choices=["file", "selection"])
     args = parser.parse_args(argv)
     try:
-        response = Client(default_socket()).request(_payload(args.mode))
-    except DaemonUnreachableError:
-        sys.stderr.write("AI-TTS daemon is unavailable. Start AI-TTS, then run this task again.\n")
-        return 2
-    except DaemonError as exc:
-        sys.stderr.write(f"AI-TTS refused the document: {exc}\n")
-        return 1
+        payload = _payload(args.mode)
     except (OSError, ValueError) as exc:
         sys.stderr.write(f"Cannot read document: {exc}\n")
         return 1
+    try:
+        response = Client(default_socket()).request(payload)
+    except DaemonError as exc:
+        sys.stderr.write(f"AI-TTS refused the document: {exc}\n")
+        return 1
+    except (DaemonUnreachableError, OSError):
+        # A transport failure after connecting (for example a broken pipe while
+        # sending) is still a daemon failure, not a document-reading failure.
+        sys.stderr.write("AI-TTS daemon is unavailable. Start AI-TTS, then run this task again.\n")
+        return 2
     sys.stdout.write(json.dumps({"queued": True, "id": response["id"]}) + "\n")
     return 0
 

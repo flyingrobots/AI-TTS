@@ -17,9 +17,20 @@ Use **zed: open tasks** from the command palette to open your global tasks file,
 usually `~/.config/zed/tasks.json`. Append the objects from [tasks.json](tasks.json)
 to its existing array. For a development install, change each `command` to the
 absolute path of `.venv/bin/ai-tts-zed-read` in this checkout. An absolute path
-also avoids differences between your shell's PATH and Zed's environment.
+also avoids differences between your shell's PATH and Zed's environment. Zed
+runs `command` through a shell, so if that path contains spaces or other shell
+metacharacters, set `command` to `/usr/bin/env` and put the absolute helper
+path as the first entry of `args`, before `file` or `selection`:
 
-These global tasks work across projects. Each task explicitly maps its required
+```json
+"command": "/usr/bin/env",
+"args": ["/Users/me/My Projects/ai-tts/.venv/bin/ai-tts-zed-read", "file"],
+```
+
+These global tasks work across local projects. They do not support SSH or
+other remote workspaces: Zed runs tasks on the remote host there, where neither
+the helper, the AI-TTS daemon socket, nor a local copy of the file exists.
+Each task explicitly maps its required
 Zed variable into the environment, which also filters it out when that context
 is unavailable. You can instead put the definitions
 in one project's `.zed/tasks.json` if you only want them there.
@@ -56,11 +67,12 @@ selections: spawn the named task again, or bind `task::Rerun` with
 
 - File input comes from `ZED_FILE`. `.md` and `.markdown` extensions, ignoring
   case, use Markdown interpretation. Other UTF-8 text files remain literal.
-  A UTF-8 BOM is removed; line endings and remaining characters are preserved.
+  A UTF-8 BOM is removed before the size limit is applied; line endings and
+  remaining characters are preserved.
 - Selection input comes from `ZED_SELECTED_TEXT` and stays literal, including
   Markdown punctuation, Unicode, quotes, and shell-looking text.
 - Both inputs are confidential, Normal priority, and attributed to `zed:file`
-  or `zed:selection`. They use the daemon's configured voice, engine, and speed.
+  or `zed:selection`; provenance reports their origin as `Zed`. They use the daemon's configured voice, engine, and speed.
 - The helper reads Zed's environment directly and sends text over the existing
   Unix-socket client. Document text is never interpolated into a shell command
   or passed as a process argument. Its success output contains only the queued
@@ -73,7 +85,7 @@ selections: spawn the named task again, or bind `task::Rerun` with
 - Requests exceeding the daemon's 1 MiB encoded JSONL limit are refused locally.
   Some Unicode or control-heavy documents hit this limit below 512 KiB.
 - Exit 1 means a local refusal or a daemon refusal. Exit 2 means the daemon is
-  unreachable. Failure never prints a document preview. A transport failure
+  unreachable or the connection failed while sending or awaiting the request. Failure never prints a document preview. A transport failure
   can leave admission uncertain; check AI-TTS's queue before retrying to avoid
   submitting the same text twice.
 
@@ -81,8 +93,10 @@ selections: spawn the named task again, or bind `task::Rerun` with
 
 The daemon tests in `tests/test_zed.py` use an owned paused daemon, a fake speech
 engine, and a silent sink. They verify exact literal selection admission,
-Markdown interpretation, attribution, confidentiality, preserved holds,
-inclusive byte limits, and refusal without queue admission.
+Markdown interpretation, attribution, Normal priority, `Zed` provenance origin,
+confidentiality, preserved holds, inclusive byte limits (including after BOM
+removal), refusal without queue admission, and send-side transport failures
+reported as daemon failures.
 
 Installed Zed 1.23.3 acceptance verified a dirty file saved before admission,
 literal selection submission, a changed unsaved selection without saving, and
