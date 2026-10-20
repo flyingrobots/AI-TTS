@@ -69,7 +69,8 @@ final class StatusController: NSObject, NSPopoverDelegate {
         }.store(in: &cancellables)
 
         if let button = statusItem.button {
-            button.action = #selector(togglePopover(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.action = #selector(statusButtonClicked(_:))
             button.target = self
         }
         render()
@@ -136,6 +137,119 @@ final class StatusController: NSObject, NSPopoverDelegate {
     private func render() {
         statusItem.button?.image = TrayIcon.frame(state: trayState, phase: phase)
         statusItem.button?.setAccessibilityLabel(trayState.accessibilityLabel)
+    }
+
+    @objc private func statusButtonClicked(_ sender: Any?) {
+        guard let event = NSApp.currentEvent else {
+            togglePopover(sender)
+            return
+        }
+
+        if event.type == .rightMouseUp || (event.type == .leftMouseUp && event.modifierFlags.contains(.control)) {
+            showContextMenu()
+        } else {
+            togglePopover(sender)
+        }
+    }
+
+    private func canAdvanceChunk() -> Bool {
+        guard let status = state.status, status.playbackState == "playing", let current = status.current else {
+            return false
+        }
+        guard let active = current.activeSegment else { return false }
+        return current.segmentCount > 1 && active.index < current.segmentCount - 1
+    }
+
+    func buildContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let isPlaying = state.status?.playbackState == "playing"
+        let hasCurrent = state.status?.current != nil
+        let canAdvance = canAdvanceChunk()
+
+        let playPauseItem = NSMenuItem(
+            title: isPlaying ? "Pause" : "Play",
+            action: #selector(contextPlayPause),
+            keyEquivalent: ""
+        )
+        playPauseItem.target = self
+        playPauseItem.isEnabled = state.reachable
+        menu.addItem(playPauseItem)
+
+        let nextPartItem = NSMenuItem(
+            title: "Next Part",
+            action: #selector(contextNextPart),
+            keyEquivalent: ""
+        )
+        nextPartItem.target = self
+        nextPartItem.isEnabled = state.reachable && canAdvance
+        menu.addItem(nextPartItem)
+
+        let nextItem = NSMenuItem(
+            title: "Next",
+            action: #selector(contextNext),
+            keyEquivalent: ""
+        )
+        nextItem.target = self
+        nextItem.isEnabled = state.reachable && hasCurrent
+        menu.addItem(nextItem)
+
+        let clearItem = NSMenuItem(
+            title: "Clear",
+            action: #selector(contextClear),
+            keyEquivalent: ""
+        )
+        clearItem.target = self
+        clearItem.isEnabled = state.reachable
+        menu.addItem(clearItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit",
+            action: #selector(contextQuit),
+            keyEquivalent: "q"
+        )
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        return menu
+    }
+
+    private func showContextMenu() {
+        if popover.isShown {
+            popover.performClose(nil)
+        }
+        guard let button = statusItem.button else { return }
+        let menu = buildContextMenu()
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
+    }
+
+    @objc func contextPlayPause() {
+        if state.status?.playbackState == "playing" {
+            state.pause()
+        } else {
+            state.resume()
+        }
+    }
+
+    @objc func contextNextPart() {
+        state.nextChunk()
+    }
+
+    @objc func contextNext() {
+        state.skip()
+    }
+
+    @objc func contextClear() {
+        state.clearQueue()
+        if state.status?.current != nil {
+            state.skip()
+        }
+    }
+
+    @objc func contextQuit() {
+        NSApplication.shared.terminate(nil)
     }
 
     @objc private func togglePopover(_ sender: Any?) {
