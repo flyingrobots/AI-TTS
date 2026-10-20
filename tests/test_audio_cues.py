@@ -381,6 +381,48 @@ async def test_queue_cues(store: Store, *, enabled: bool) -> None:
         await controller.shutdown()
 
 
+@pytest.mark.medium
+@pytest.mark.oracle("returning to an interrupted speaker after preemption is padded")
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_return_to_interrupted_speaker_is_padded(store: Store, *, enabled: bool) -> None:
+    class CueSink(FakeSink):
+        def __init__(self) -> None:
+            super().__init__()
+            self.prefixes: list[bytes] = []
+
+        def set_prefix(self, pcm: bytes) -> None:
+            self.prefixes.append(pcm)
+
+    sink = CueSink()
+    store.set_setting("earcon_enabled", str(enabled).lower())
+    document = make_ready(store, "interrupted speaker")
+    controller, schedule = playback_controller(store, sink)
+    task = await start(controller, schedule)
+    try:
+        sink.advance_to(250)
+        alert = preempting_clip(store, "alert")
+        cycle = schedule.idle_cycles
+        controller.notify()
+        await schedule.wait_for_idle_after(cycle)
+        assert controller.current_id == alert.id
+        assert sink.prefixes[-1] == (cue_padding_pcm() if enabled else b"")
+        cycle = schedule.idle_cycles
+        sink.finish_current()
+        await schedule.wait_for_idle_after(cycle)
+        assert controller.current_id == document.id
+        assert sink.prefixes[-1] == (cue_padding_pcm() if enabled else b"")
+        before_resume = len(sink.prefixes)
+        await controller.pause()
+        await controller.resume()
+        assert all(not prefix for prefix in sink.prefixes[before_resume:])
+        assert sink.overlaps == 0
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await controller.shutdown()
+
+
 @pytest.mark.small
 @pytest.mark.oracle("requested slight delay: 150 ms of exact silence at 24 kHz PCM16")
 def test_cue_padding_is_150ms_silence() -> None:

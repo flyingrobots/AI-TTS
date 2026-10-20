@@ -66,3 +66,12 @@ The existing preemption path now releases an active outro before starting the
 ready alert; speech-rate updates are saved while the outro stays at normal
 speed, and restored when it ends or is stopped. Focused validation includes
 61 cue/playback/preemption/shutdown tests.
+
+## Review follow-up (2026-10-20)
+
+Resuming an interrupted utterance after a preempting clip finished installed
+no prefix, so playback changed speakers without the 150 ms padding. Restoring
+preempted speech now counts as a speaker change and installs padding only;
+ordinary pause/resume and contiguous chunks remain unpadded.
+`test_return_to_interrupted_speaker_is_padded` covers both settings; removing
+the new padding branch fails its enabled case.

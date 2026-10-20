@@ -830,6 +830,7 @@ class PlaybackController:
         self._preempted_stack: list[tuple[str, int | None]] = []
         self._sink_active = False
         self._cue_session_open = False
+        self._speaker_returning = False
         self._wake = asyncio.Event()
         self._watcher: asyncio.Task[None] | None = None
         # Releasing the device is an await, so two transport commands can
@@ -1039,7 +1040,11 @@ class PlaybackController:
             utt_id, index = self._preempted_stack.pop()
             saved = self._store.get(utt_id)
             if saved is not None and saved.state is State.PAUSED:
+                # Returning to the interrupted speaker is a speaker change, unlike
+                # an ordinary resume, so it gets the inter-speaker padding.
+                self._speaker_returning = True
                 self._start_saved(saved, index)
+                self._speaker_returning = False
                 self._record_control("resumed", "preemption_complete")
                 break
 
@@ -1140,7 +1145,10 @@ class PlaybackController:
             prefix = b""
             if enabled and new_document:
                 prefix = (b"" if self._cue_session_open else earcon_pcm()) + cue_padding_pcm()
+            elif enabled and self._speaker_returning:
+                prefix = cue_padding_pcm()
             set_prefix(prefix)
+        self._speaker_returning = False
         self._cue_session_open = True
 
     def _finish_cue_session(self, pending: Utterance | None) -> None:
