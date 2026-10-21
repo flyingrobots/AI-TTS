@@ -72,8 +72,8 @@ enum TransportAction: String, CaseIterable {
         switch self {
         case .playPause: "Pause or resume playback"
         case .restart: "Restart this clip"
-        case .previousChunk: "Previous chunk"
-        case .nextChunk: "Next chunk"
+        case .previousChunk: "Previous part"
+        case .nextChunk: "Next part"
         case .skip: "Skip this clip"
         case .fullText: "Read the full text"
         }

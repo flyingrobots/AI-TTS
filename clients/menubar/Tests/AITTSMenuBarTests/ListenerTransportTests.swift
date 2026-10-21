@@ -344,4 +344,9 @@ extension ListenerTransportTests {
 
         XCTAssertEqual(Set(needing), [.previousChunk, .nextChunk])
     }
+
+    func testTransportActionLabelsUsePartInsteadOfChunk() {
+        XCTAssertEqual(TransportAction.previousChunk.label, "Previous part")
+        XCTAssertEqual(TransportAction.nextChunk.label, "Next part")
+    }
 }

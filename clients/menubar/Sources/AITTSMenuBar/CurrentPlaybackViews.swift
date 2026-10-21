@@ -63,7 +63,7 @@ struct CurrentPlaybackCard: View {
                 }
                 .buttonStyle(.plain)
                 .help("Read the whole thing in its own window")
-                chunkProgress(for: current)
+                partProgress(for: current)
                 progress(for: current)
                 HStack(spacing: 14) {
                     ForEach(TransportAction.allCases.filter { !$0.isPrimary }, id: \.self) {
@@ -146,7 +146,7 @@ struct CurrentPlaybackCard: View {
             return "Resume playback before using \(action.label.lowercased())"
         }
         if action.needsChunks && current.segmentCount <= 1 {
-            return "\(action.label) (clip has only 1 chunk)"
+            return "\(action.label) (clip has only 1 part)"
         }
         return action.label
     }
@@ -170,48 +170,19 @@ struct CurrentPlaybackCard: View {
         )
     }
 
-    /// Which chunk of a document is being heard, and how many there are.
-    @ViewBuilder
-    private func chunkProgress(for current: Utterance) -> some View {
-        if let active = current.activeSegment, current.segmentCount > 1 {
-            HStack(spacing: 6) {
-                Text("Chunk \(active.number) of \(active.count)")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .layoutPriority(1)
-                    .fixedSize()
+    static func partLabel(active: ActiveSegment) -> String {
+        "Part \(active.number) of \(active.count)"
+    }
 
-                if current.segmentCount <= 16 {
-                    HStack(spacing: 3) {
-                        // Array, not a Range: ForEach reads only a Range's initial
-                        // count, and this one changes with every clip.
-                        ForEach(Array(0..<current.segmentCount), id: \.self) { index in
-                            Capsule()
-                                .fill(
-                                    index == active.index
-                                        ? Color.accentColor
-                                        : Color.primary.opacity(index < active.index ? 0.28 : 0.12)
-                                )
-                                .frame(height: 3)
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    let progress = Self.linearProgress(active: active, segmentCount: current.segmentCount)
-                    ProgressView(
-                        value: progress.value,
-                        total: progress.total
-                    )
-                    .progressViewStyle(.linear)
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            // The pips restate the counter beside them; announcing both would
-            // read the same fact twice.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Chunk \(active.number) of \(active.count)")
+    /// Which part of a document is being heard, and how many there are.
+    @ViewBuilder
+    private func partProgress(for current: Utterance) -> some View {
+        if let active = current.activeSegment, current.segmentCount > 1 {
+            Text(Self.partLabel(active: active))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel(Self.partLabel(active: active))
         }
     }
 
