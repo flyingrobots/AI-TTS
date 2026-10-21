@@ -111,31 +111,35 @@ try:
         command += ['tests/test_make_installation.py::'+name for name in selected]
         began = time.monotonic()
         samples = []
-        with (run_root/'pytest.log').open('w') as log, select.kqueue() as events:
-            process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=log,
-                stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=child_limits)
-            try:
-                # NOTE_EXIT observes completion without releasing the PID anchor.
-                events.control([select.kevent(process.pid, filter=select.KQ_FILTER_PROC,
-                    flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
-                    fflags=select.KQ_NOTE_EXIT)], 0, 0)
-                while not events.control(None, 1, 0):
-                    used = allocation()
-                    available = shutil.disk_usage(OUT).free
-                    table = subprocess.check_output(['/bin/ps', '-axo', 'pgid=,rss='],
-                                                    text=True, timeout=2)
-                    rss = sum(int(row.split()[1])*1024 for row in table.splitlines()
-                              if row.split()[0] == str(process.pid))
-                    elapsed = time.monotonic()-began
-                    samples.append({'elapsed_s': elapsed, 'allocated_bytes': used,
-                                    'free_bytes': available, 'group_rss_bytes': rss})
-                    if used > LIMIT or available < MIN_FREE or rss > 4*1024**3 or elapsed > 45:
-                        raise RuntimeError('Native fixture resource/deadline guard refused')
-                    time.sleep(0.1)
-            finally:
-                if process.returncode is None:
-                    _signal_owned_group(process.pid, signal.SIGKILL)
-                process.wait(timeout=5)
+        events = select.kqueue()
+        try:
+            with (run_root/'pytest.log').open('w') as log:
+                process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=log,
+                    stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=child_limits)
+                try:
+                    # NOTE_EXIT observes completion without releasing the PID anchor.
+                    events.control([select.kevent(process.pid, filter=select.KQ_FILTER_PROC,
+                        flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
+                        fflags=select.KQ_NOTE_EXIT)], 0, 0)
+                    while not events.control(None, 1, 0):
+                        used = allocation()
+                        available = shutil.disk_usage(OUT).free
+                        table = subprocess.check_output(['/bin/ps', '-axo', 'pgid=,rss='],
+                                                        text=True, timeout=2)
+                        rss = sum(int(row.split()[1])*1024 for row in table.splitlines()
+                                  if row.split()[0] == str(process.pid))
+                        elapsed = time.monotonic()-began
+                        samples.append({'elapsed_s': elapsed, 'allocated_bytes': used,
+                                        'free_bytes': available, 'group_rss_bytes': rss})
+                        if used > LIMIT or available < MIN_FREE or rss > 4*1024**3 or elapsed > 45:
+                            raise RuntimeError('Native fixture resource/deadline guard refused')
+                        time.sleep(0.1)
+                finally:
+                    if process.returncode is None:
+                        _signal_owned_group(process.pid, signal.SIGKILL)
+                    process.wait(timeout=5)
+        finally:
+            events.close()
         observed = json.loads(record.read_text())
         row = {'variant': variant, 'test_order': selected, 'wall_s': time.monotonic()-began,
                'process_exit': process.returncode, 'observations': observed, 'resources': samples}

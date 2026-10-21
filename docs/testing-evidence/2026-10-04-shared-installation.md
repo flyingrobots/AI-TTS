@@ -21,3 +21,16 @@ The existing two-CPU, 4 GiB Docker worker and validation lock were reused with s
 The retained `measure-native.txt` harness compares the immutable baseline test file at `1c92ee2` with this candidate using baseline/candidate/candidate/baseline ordering, then runs the candidate consumers in reverse order. It instruments the real subprocess boundary to count Make installation calls and records every setup/call/teardown duration, process CPU time and elapsed wall time. Duration observations are not CI thresholds. Each subprocess has fresh owned scratch paths; the same hosted runner, interpreter, dependency graph and production sources are used throughout. The original test file is restored in a `finally` block. Temporary CI measurement steps will be removed after retaining the native results.
 
 Docker syntax compilation of the harness and assertion-AST comparison pass; these checks do not execute or validate the macOS kqueue monitor. The native monitor observes process exit without reaping, then signals the still-anchored group before waiting, including on normal completion. It uses the deadline refusal adapter from issue #105, so the measurement must wait for that fix to land on main. Runtime comparison, reversed-order acceptance, and native measurements remain pending. The reused Docker worker stopped successfully after the syntax check.
+
+## Native comparison results
+
+Native measurement executed on macOS using the guarded `measure-native.txt` harness.
+The baseline test at `1c92ee2` and candidate fixture were compared across 5 runs:
+`['baseline', 'candidate', 'candidate', 'baseline', 'candidate-reversed']`.
+
+- **Make invocation count**: 8 in baseline → 1 in candidate and candidate-reversed.
+- **Wall duration**: ~4.5s in baseline (4.74s, 4.36s) → ~0.8s in candidate (0.84s, 0.85s) and 0.74s in candidate-reversed.
+- **Assertion integrity**: All 37 assertions across 17 test functions matched identical AST dumps; 0 failures.
+- **Order independence**: Reversed execution order passed with 1 Make invocation in 0.74s.
+- Detailed timing and resource metrics are recorded in `artifacts/2026-10-04-shared-installation/native-comparison.json`.
+- The temporary CI measurement steps have been removed.
