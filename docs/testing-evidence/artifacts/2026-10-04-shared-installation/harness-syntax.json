@@ -1,0 +1,24 @@
+{
+  "sha256": {
+    "scripts/run_with_deadline.py": "db3e8cc1b0ac4c468a4ca5a7b61514ad911dd34935bbfd9488f1b15a52314df2",
+    "tests/test_deadline_runner.py": "2e2e6cea48359cd204f70c7982c2ea25d6f7ce27c992f0b6bd7e4d80bb98c9f1",
+    "tests/conftest.py": "c435e019d71f8a4e2921f77fadf4f6350dd3abe77366c9e4900f31f82b1ad7a3"
+  },
+  "runs": [
+    {
+      "name": "full-0",
+      "command": [
+        "/work/repo/.venv/bin/python",
+        "-B",
+        "-c",
+        "from pathlib import Path; import ast; p=Path('/work/measure72.txt'); compile(p.read_text(),str(p),'exec'); old=ast.parse(Path('/work/baseline72.py').read_text()); new=ast.parse(Path('tests/test_make_installation.py').read_text()); harvest=lambda tree: {n.name:[ast.dump(x,include_attributes=False) for x in ast.walk(n) if isinstance(x,ast.Assert)] for n in tree.body if isinstance(n,ast.FunctionDef) and n.name.startswith('test_')}; assert harvest(old)==harvest(new); print('Harness syntax valid; assertions identical in',len(harvest(new)),'test functions')"
+      ],
+      "exit": 0,
+      "output": "Harness syntax valid; assertions identical in 17 test functions\n",
+      "timeout_s": 10
+    }
+  ],
+  "scope": "Syntax compilation and assertion AST comparison only; no native harness execution.",
+  "local_candidate_sha256": "db8a4611e09a18798d375d978d68381879d68d8ddfe07030e4e3893a23971888",
+  "harness_sha256": "29d096e97c6c9ad705c0be4a3e3997af5503890e6d519778250903dbdc938620"
+}

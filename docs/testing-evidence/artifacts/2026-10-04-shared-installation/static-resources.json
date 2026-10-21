@@ -1,0 +1,43 @@
+{
+  "limits": {
+    "all_work_tmp_dev_bytes": 1073741824,
+    "minimum_free_bytes": 53687091200,
+    "host_log_bytes": 8388608,
+    "deadline_s": 300,
+    "monitor_command_timeout_s": 5
+  },
+  "reason": null,
+  "command_exit": 1,
+  "container_stop_exit": 0,
+  "container_stop_stderr": "",
+  "samples": [
+    {
+      "elapsed_s": 0.07,
+      "host_free_bytes": 763740700672,
+      "vm_free_bytes": 725822046208,
+      "all_work_tmp_dev_bytes": 326012928,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 1.12,
+      "host_free_bytes": 763739856896,
+      "vm_free_bytes": 725822046208,
+      "all_work_tmp_dev_bytes": 326017024,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 2.18,
+      "host_free_bytes": 763737874432,
+      "vm_free_bytes": 725822046208,
+      "all_work_tmp_dev_bytes": 326246400,
+      "host_guard_bytes": 2397
+    },
+    {
+      "elapsed_s": 3.23,
+      "host_free_bytes": 763737673728,
+      "vm_free_bytes": 725822046208,
+      "all_work_tmp_dev_bytes": 326246400,
+      "host_guard_bytes": 2691
+    }
+  ]
+}

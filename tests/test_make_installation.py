@@ -49,6 +49,11 @@ def test_doctor_reports_failed_daemon_check_from_uv_tool_directory(tmp_path: Pat
 
 @pytest.fixture
 def install_environment(tmp_path: Path) -> dict[str, str]:
+    return make_install_environment(tmp_path)
+
+
+def make_install_environment(tmp_path: Path) -> dict[str, str]:
+    """Create owned tools; callers choose isolated or shared installation lifetime."""
     import sys  # noqa: PLC0415 - the owned tool shim uses this test interpreter
 
     commands = tmp_path / "commands"
@@ -183,7 +188,8 @@ else:
 """
     )
     (tmp_path / "cli-version").write_text("old cli")
-    env = dict(os.environ, PATH=f"{commands}:/usr/bin:/bin")
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    env["PATH"] = f"{commands}:/usr/bin:/bin"
     env["AITTS_TEST_ROOT"] = str(tmp_path)
     env["AITTS_TEST_PYTHON"] = sys.executable
     real_uv = shutil.which("uv")
@@ -211,6 +217,19 @@ def run_installation(tmp_path: Path, env: dict[str, str]) -> subprocess.Complete
     )
 
 
+@pytest.fixture(scope="module")
+def default_installation(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[Path, subprocess.CompletedProcess[str]]:
+    """Share only the read-only observations of one default Make installation.
+
+    Retire when these contracts no longer inspect the same default installation.
+    Stateful and failure-injection tests keep their own installation environments.
+    """
+    root = tmp_path_factory.mktemp("default-installation")
+    return root, run_installation(root, make_install_environment(root))
+
+
 def test_install_build_failure_does_not_replace_cli(
     tmp_path: Path, install_environment: dict[str, str]
 ) -> None:
@@ -220,13 +239,12 @@ def test_install_build_failure_does_not_replace_cli(
 
 
 def test_install_publishes_prepared_artifacts_to_explicit_destinations(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
-    env = dict(install_environment)
+    tmp_path, result = default_installation
     app = tmp_path / "AI-TTS.app"
     agent = tmp_path / "agent.plist"
     log_path = tmp_path / "logs" / "daemon.log"
-    result = run_installation(tmp_path, env)
     assert result.returncode == 0, result.stderr
     assert {
         "cli": (tmp_path / "cli-version").read_text(),
@@ -260,10 +278,10 @@ def test_failed_service_activation_restores_previous_configuration(
 
 
 def test_install_reports_registration_without_claiming_daemon_health(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     # The owned launchctl accepts registration; no daemon process is running.
-    result = run_installation(tmp_path, install_environment)
+    _root, result = default_installation
 
     assert result.returncode == 0, result.stderr
     assert "daemon is registered" in result.stdout
@@ -272,10 +290,10 @@ def test_install_reports_registration_without_claiming_daemon_health(
 
 
 def test_install_includes_the_english_model_in_the_daemon_environment(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     """Oracle: installed English speech needs no runtime package installer."""
-    result = run_installation(tmp_path, install_environment)
+    tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     extras = [
@@ -289,9 +307,9 @@ def test_install_includes_the_english_model_in_the_daemon_environment(
 
 # Retire only when installation no longer owns the menu-bar login/crash policy.
 def test_install_registers_independent_menu_bar_startup(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
-    result = run_installation(tmp_path, install_environment)
+    tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     payload = plistlib.loads((tmp_path / "com.flyingrobots.ai-tts.menubar.plist").read_bytes())
     assert {
@@ -462,14 +480,14 @@ def test_uninstall_preserves_files_when_launchd_keeps_an_agent_loaded(
 
 
 def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     """Oracle: the locked constraints deliver a modern tokenizer, avoiding the obsolete Rust build.
 
     Unconstrained, uv resolved transformers 4.12.2 / tokenizers 0.10.3, whose
     source build failed. A separate `--with` range can contradict uv.lock.
     """
-    result = run_installation(tmp_path, install_environment)
+    tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     extras = [
@@ -491,7 +509,7 @@ def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
 
 
 def test_install_resolves_the_daemon_environment_to_the_locked_versions(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     """Oracle: uv.lock is the tested runtime graph, so installation must not resolve past it.
 
@@ -501,7 +519,7 @@ def test_install_resolves_the_daemon_environment_to_the_locked_versions(
     """
     import tomllib  # noqa: PLC0415
 
-    result = run_installation(tmp_path, install_environment)
+    tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     assert "--constraints" in arguments, "the tool install resolves without the lockfile"
@@ -521,7 +539,7 @@ def test_install_resolves_the_daemon_environment_to_the_locked_versions(
 
 
 def test_install_includes_the_terminal_dashboard_at_its_locked_versions(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     """Oracle: README "Terminal dashboard": `ai-tts tui` works after `make install`.
 
@@ -532,7 +550,7 @@ def test_install_includes_the_terminal_dashboard_at_its_locked_versions(
     """
     import tomllib  # noqa: PLC0415
 
-    result = run_installation(tmp_path, install_environment)
+    tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     package = arguments[-1]
@@ -549,7 +567,7 @@ def test_install_includes_the_terminal_dashboard_at_its_locked_versions(
 
 
 def test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build(
-    tmp_path: Path, install_environment: dict[str, str]
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     """Oracle: `make install` installs this checkout's code.
 
@@ -557,7 +575,7 @@ def test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build(
     the version unchanged at 0.1.0, a reinstall reported success and left the
     daemon running the previous code.
     """
-    result = run_installation(tmp_path, install_environment)
+    tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     assert "--reinstall-package" in arguments, "uv may install a stale cached build"

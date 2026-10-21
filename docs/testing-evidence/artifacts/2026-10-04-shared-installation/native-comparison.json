@@ -1,0 +1,1441 @@
+{
+  "baseline_sha256": "089135379e30f3655959ba720fe6a70f26e7d2cd7662609e2e550250b6aa341e",
+  "candidate_sha256": "db8a4611e09a18798d375d978d68381879d68d8ddfe07030e4e3893a23971888",
+  "selected_tests": [
+    "test_install_publishes_prepared_artifacts_to_explicit_destinations",
+    "test_install_reports_registration_without_claiming_daemon_health",
+    "test_install_includes_the_english_model_in_the_daemon_environment",
+    "test_install_registers_independent_menu_bar_startup",
+    "test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+    "test_install_resolves_the_daemon_environment_to_the_locked_versions",
+    "test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+    "test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build"
+  ],
+  "order": [
+    "baseline",
+    "candidate",
+    "candidate",
+    "baseline",
+    "candidate-reversed"
+  ],
+  "assertion_functions": 17,
+  "assertions": 37,
+  "runs": [
+    {
+      "variant": "baseline",
+      "test_order": [
+        "test_install_publishes_prepared_artifacts_to_explicit_destinations",
+        "test_install_reports_registration_without_claiming_daemon_health",
+        "test_install_includes_the_english_model_in_the_daemon_environment",
+        "test_install_registers_independent_menu_bar_startup",
+        "test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+        "test_install_resolves_the_daemon_environment_to_the_locked_versions",
+        "test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+        "test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build"
+      ],
+      "wall_s": 4.73844408406876,
+      "process_exit": 0,
+      "observations": {
+        "make_install_calls": 8,
+        "reports": [
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0013049999251961708
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.7323659160174429
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.00010158400982618332
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012088329531252384
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.4962106660241261
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.00011204101610928774
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012945830821990967
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5037556249881163
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.68750100582838e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0013133329339325428
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5217972910031676
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.0001004580408334732
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0014605000615119934
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5241429170127958
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 8.800008799880743e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012064999900758266
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5490795420482755
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 8.79999715834856e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0020687079522758722
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5114104580134153
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.737501386553049e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0013624581042677164
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.4977983341086656
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.00015154201537370682
+          }
+        ],
+        "exit": 0,
+        "cpu_seconds": 2.5
+      },
+      "resources": [
+        {
+          "elapsed_s": 0.01801683404482901,
+          "allocated_bytes": 8192,
+          "free_bytes": 646433898496,
+          "group_rss_bytes": 14319616
+        },
+        {
+          "elapsed_s": 0.1354064999613911,
+          "allocated_bytes": 8192,
+          "free_bytes": 646433771520,
+          "group_rss_bytes": 45645824
+        },
+        {
+          "elapsed_s": 0.2547769589582458,
+          "allocated_bytes": 53248,
+          "free_bytes": 646433546240,
+          "group_rss_bytes": 57884672
+        },
+        {
+          "elapsed_s": 0.3761734169675037,
+          "allocated_bytes": 53248,
+          "free_bytes": 646433517568,
+          "group_rss_bytes": 57884672
+        },
+        {
+          "elapsed_s": 0.49906658404506743,
+          "allocated_bytes": 53248,
+          "free_bytes": 646433435648,
+          "group_rss_bytes": 57966592
+        },
+        {
+          "elapsed_s": 0.6161499170120806,
+          "allocated_bytes": 53248,
+          "free_bytes": 646433247232,
+          "group_rss_bytes": 80134144
+        },
+        {
+          "elapsed_s": 0.7319627499673516,
+          "allocated_bytes": 102400,
+          "free_bytes": 646433013760,
+          "group_rss_bytes": 80134144
+        },
+        {
+          "elapsed_s": 0.848909541964531,
+          "allocated_bytes": 110592,
+          "free_bytes": 646432808960,
+          "group_rss_bytes": 80314368
+        },
+        {
+          "elapsed_s": 0.9648659590166062,
+          "allocated_bytes": 151552,
+          "free_bytes": 646431031296,
+          "group_rss_bytes": 58015744
+        },
+        {
+          "elapsed_s": 1.0818484589690343,
+          "allocated_bytes": 151552,
+          "free_bytes": 646430969856,
+          "group_rss_bytes": 58638336
+        },
+        {
+          "elapsed_s": 1.1970707919681445,
+          "allocated_bytes": 192512,
+          "free_bytes": 646430883840,
+          "group_rss_bytes": 80183296
+        },
+        {
+          "elapsed_s": 1.314359209034592,
+          "allocated_bytes": 200704,
+          "free_bytes": 646428241920,
+          "group_rss_bytes": 80183296
+        },
+        {
+          "elapsed_s": 1.4324044999666512,
+          "allocated_bytes": 200704,
+          "free_bytes": 646416666624,
+          "group_rss_bytes": 98598912
+        },
+        {
+          "elapsed_s": 1.550655375001952,
+          "allocated_bytes": 237568,
+          "free_bytes": 646414409728,
+          "group_rss_bytes": 58163200
+        },
+        {
+          "elapsed_s": 1.6691870839567855,
+          "allocated_bytes": 249856,
+          "free_bytes": 646414295040,
+          "group_rss_bytes": 80396288
+        },
+        {
+          "elapsed_s": 1.7875045420369133,
+          "allocated_bytes": 282624,
+          "free_bytes": 646412046336,
+          "group_rss_bytes": 93487104
+        },
+        {
+          "elapsed_s": 1.9053037500707433,
+          "allocated_bytes": 286720,
+          "free_bytes": 646412042240,
+          "group_rss_bytes": 80560128
+        },
+        {
+          "elapsed_s": 2.025738500058651,
+          "allocated_bytes": 323584,
+          "free_bytes": 646411927552,
+          "group_rss_bytes": 58015744
+        },
+        {
+          "elapsed_s": 2.1414859170326963,
+          "allocated_bytes": 323584,
+          "free_bytes": 646407663616,
+          "group_rss_bytes": 74055680
+        },
+        {
+          "elapsed_s": 2.2598531669937074,
+          "allocated_bytes": 364544,
+          "free_bytes": 646399152128,
+          "group_rss_bytes": 80117760
+        },
+        {
+          "elapsed_s": 2.375885459012352,
+          "allocated_bytes": 372736,
+          "free_bytes": 646390685696,
+          "group_rss_bytes": 80281600
+        },
+        {
+          "elapsed_s": 2.494083416997455,
+          "allocated_bytes": 409600,
+          "free_bytes": 646373638144,
+          "group_rss_bytes": 58048512
+        },
+        {
+          "elapsed_s": 2.612713292008266,
+          "allocated_bytes": 409600,
+          "free_bytes": 646373425152,
+          "group_rss_bytes": 58130432
+        },
+        {
+          "elapsed_s": 2.7299391250126064,
+          "allocated_bytes": 421888,
+          "free_bytes": 646373396480,
+          "group_rss_bytes": 97943552
+        },
+        {
+          "elapsed_s": 2.845439917058684,
+          "allocated_bytes": 454656,
+          "free_bytes": 646373163008,
+          "group_rss_bytes": 80117760
+        },
+        {
+          "elapsed_s": 2.960931250010617,
+          "allocated_bytes": 458752,
+          "free_bytes": 646372974592,
+          "group_rss_bytes": 90669056
+        },
+        {
+          "elapsed_s": 3.0819095419719815,
+          "allocated_bytes": 495616,
+          "free_bytes": 646372712448,
+          "group_rss_bytes": 58048512
+        },
+        {
+          "elapsed_s": 3.1992672090418637,
+          "allocated_bytes": 499712,
+          "free_bytes": 646372282368,
+          "group_rss_bytes": 95944704
+        },
+        {
+          "elapsed_s": 3.3167270000558347,
+          "allocated_bytes": 536576,
+          "free_bytes": 646372052992,
+          "group_rss_bytes": 94257152
+        },
+        {
+          "elapsed_s": 3.435595624963753,
+          "allocated_bytes": 544768,
+          "free_bytes": 646371979264,
+          "group_rss_bytes": 80429056
+        },
+        {
+          "elapsed_s": 3.554423875059001,
+          "allocated_bytes": 581632,
+          "free_bytes": 646370873344,
+          "group_rss_bytes": 59097088
+        },
+        {
+          "elapsed_s": 3.6745677089784294,
+          "allocated_bytes": 581632,
+          "free_bytes": 646370566144,
+          "group_rss_bytes": 72646656
+        },
+        {
+          "elapsed_s": 3.7930826250230893,
+          "allocated_bytes": 606208,
+          "free_bytes": 646369902592,
+          "group_rss_bytes": 82853888
+        },
+        {
+          "elapsed_s": 3.911144334007986,
+          "allocated_bytes": 630784,
+          "free_bytes": 646369050624,
+          "group_rss_bytes": 82886656
+        },
+        {
+          "elapsed_s": 4.030756124993786,
+          "allocated_bytes": 622592,
+          "free_bytes": 646368751616,
+          "group_rss_bytes": 58458112
+        },
+        {
+          "elapsed_s": 4.152486959006637,
+          "allocated_bytes": 667648,
+          "free_bytes": 646368657408,
+          "group_rss_bytes": 62324736
+        },
+        {
+          "elapsed_s": 4.271694042021409,
+          "allocated_bytes": 675840,
+          "free_bytes": 646368403456,
+          "group_rss_bytes": 82788352
+        },
+        {
+          "elapsed_s": 4.3917089169844985,
+          "allocated_bytes": 712704,
+          "free_bytes": 646368243712,
+          "group_rss_bytes": 83017728
+        },
+        {
+          "elapsed_s": 4.505279375007376,
+          "allocated_bytes": 716800,
+          "free_bytes": 646367084544,
+          "group_rss_bytes": 84901888
+        },
+        {
+          "elapsed_s": 4.620058125001378,
+          "allocated_bytes": 716800,
+          "free_bytes": 646366801920,
+          "group_rss_bytes": 63307776
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "test_order": [
+        "test_install_publishes_prepared_artifacts_to_explicit_destinations",
+        "test_install_reports_registration_without_claiming_daemon_health",
+        "test_install_includes_the_english_model_in_the_daemon_environment",
+        "test_install_registers_independent_menu_bar_startup",
+        "test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+        "test_install_resolves_the_daemon_environment_to_the_locked_versions",
+        "test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+        "test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build"
+      ],
+      "wall_s": 0.8385239170165733,
+      "process_exit": 0,
+      "observations": {
+        "make_install_calls": 1,
+        "reports": [
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.5084552919724956
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00036754098255187273
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.866703577339649e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00011187500786036253
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 4.512490704655647e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 3.658304922282696e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.645797450095415e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00012149999383836985
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 2.9249931685626507e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.454107981175184e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00013308401685208082
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 2.8292066417634487e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.845903746783733e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00017200002912431955
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 3.0375085771083832e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.729197386652231e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.030798458959907293
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.4459087550640106e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00011487503070384264
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.03077145793940872
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.800009239464998e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00011795794125646353
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00010762503370642662
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 4.9208058044314384e-05
+          }
+        ],
+        "exit": 0,
+        "cpu_seconds": 0.37
+      },
+      "resources": [
+        {
+          "elapsed_s": 0.017423667013645172,
+          "allocated_bytes": 716800,
+          "free_bytes": 646366556160,
+          "group_rss_bytes": 13942784
+        },
+        {
+          "elapsed_s": 0.13637924997601658,
+          "allocated_bytes": 716800,
+          "free_bytes": 646366429184,
+          "group_rss_bytes": 52428800
+        },
+        {
+          "elapsed_s": 0.2561598749598488,
+          "allocated_bytes": 761856,
+          "free_bytes": 646366121984,
+          "group_rss_bytes": 74563584
+        },
+        {
+          "elapsed_s": 0.3749397919746116,
+          "allocated_bytes": 802816,
+          "free_bytes": 646365941760,
+          "group_rss_bytes": 79970304
+        },
+        {
+          "elapsed_s": 0.4902974999276921,
+          "allocated_bytes": 802816,
+          "free_bytes": 646365806592,
+          "group_rss_bytes": 82264064
+        },
+        {
+          "elapsed_s": 0.605311332968995,
+          "allocated_bytes": 811008,
+          "free_bytes": 646365667328,
+          "group_rss_bytes": 97632256
+        },
+        {
+          "elapsed_s": 0.7223477920051664,
+          "allocated_bytes": 806912,
+          "free_bytes": 646365614080,
+          "group_rss_bytes": 58441728
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "test_order": [
+        "test_install_publishes_prepared_artifacts_to_explicit_destinations",
+        "test_install_reports_registration_without_claiming_daemon_health",
+        "test_install_includes_the_english_model_in_the_daemon_environment",
+        "test_install_registers_independent_menu_bar_startup",
+        "test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+        "test_install_resolves_the_daemon_environment_to_the_locked_versions",
+        "test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+        "test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build"
+      ],
+      "wall_s": 0.8467197089921683,
+      "process_exit": 0,
+      "observations": {
+        "make_install_calls": 1,
+        "reports": [
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.4413918339414522
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.0003714999184012413
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 7.991702295839787e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00011312495917081833
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 4.445796366780996e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 3.4708064049482346e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 8.13750084489584e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00010037492029368877
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 3.15000070258975e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.85409938544035e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00013458309695124626
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 2.7916976250708103e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.687497418373823e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00016604200936853886
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 2.6709050871431828e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.174990605562925e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.03226491704117507
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.766702815890312e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00011766597162932158
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.031829291023314
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.695794243365526e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00011749996338039637
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 9.874999523162842e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.224999040365219e-05
+          }
+        ],
+        "exit": 0,
+        "cpu_seconds": 0.37
+      },
+      "resources": [
+        {
+          "elapsed_s": 0.015590625000186265,
+          "allocated_bytes": 815104,
+          "free_bytes": 646365593600,
+          "group_rss_bytes": 14139392
+        },
+        {
+          "elapsed_s": 0.13361512508708984,
+          "allocated_bytes": 815104,
+          "free_bytes": 646365507584,
+          "group_rss_bytes": 53018624
+        },
+        {
+          "elapsed_s": 0.2530876670498401,
+          "allocated_bytes": 860160,
+          "free_bytes": 646365421568,
+          "group_rss_bytes": 75579392
+        },
+        {
+          "elapsed_s": 0.37122633401304483,
+          "allocated_bytes": 901120,
+          "free_bytes": 646365278208,
+          "group_rss_bytes": 79937536
+        },
+        {
+          "elapsed_s": 0.4888297920115292,
+          "allocated_bytes": 909312,
+          "free_bytes": 646365163520,
+          "group_rss_bytes": 79937536
+        },
+        {
+          "elapsed_s": 0.6085445419885218,
+          "allocated_bytes": 905216,
+          "free_bytes": 646364962816,
+          "group_rss_bytes": 57491456
+        },
+        {
+          "elapsed_s": 0.7281700420426205,
+          "allocated_bytes": 913408,
+          "free_bytes": 646364905472,
+          "group_rss_bytes": 63258624
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "test_order": [
+        "test_install_publishes_prepared_artifacts_to_explicit_destinations",
+        "test_install_reports_registration_without_claiming_daemon_health",
+        "test_install_includes_the_english_model_in_the_daemon_environment",
+        "test_install_registers_independent_menu_bar_startup",
+        "test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+        "test_install_resolves_the_daemon_environment_to_the_locked_versions",
+        "test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+        "test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build"
+      ],
+      "wall_s": 4.3567388750379905,
+      "process_exit": 0,
+      "observations": {
+        "make_install_calls": 8,
+        "reports": [
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012417079415172338
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.4564525840105489
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.0001032920554280281
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0013949160929769278
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.4958426660159603
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.00010029191616922617
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.001346832956187427
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.48866929195355624
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.275006595999002e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0011997079709544778
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.53019687498454
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.183399379253387e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012169999536126852
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.516251708031632
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.520899038761854e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.001294290996156633
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5330812499159947
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.937502909451723e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012574170250445604
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.5344607089646161
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 9.054201655089855e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0012347920564934611
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.4956932079512626
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 0.00010750000365078449
+          }
+        ],
+        "exit": 0,
+        "cpu_seconds": 2.45
+      },
+      "resources": [
+        {
+          "elapsed_s": 0.018664165982045233,
+          "allocated_bytes": 913408,
+          "free_bytes": 646364848128,
+          "group_rss_bytes": 14483456
+        },
+        {
+          "elapsed_s": 0.13570304098539054,
+          "allocated_bytes": 913408,
+          "free_bytes": 646364725248,
+          "group_rss_bytes": 52248576
+        },
+        {
+          "elapsed_s": 0.2563699580496177,
+          "allocated_bytes": 958464,
+          "free_bytes": 646364565504,
+          "group_rss_bytes": 57982976
+        },
+        {
+          "elapsed_s": 0.37499204103369266,
+          "allocated_bytes": 999424,
+          "free_bytes": 646364520448,
+          "group_rss_bytes": 79953920
+        },
+        {
+          "elapsed_s": 0.48939775000326335,
+          "allocated_bytes": 1007616,
+          "free_bytes": 646364508160,
+          "group_rss_bytes": 79953920
+        },
+        {
+          "elapsed_s": 0.6080070410389453,
+          "allocated_bytes": 1007616,
+          "free_bytes": 646364442624,
+          "group_rss_bytes": 97058816
+        },
+        {
+          "elapsed_s": 0.7283705410081893,
+          "allocated_bytes": 1048576,
+          "free_bytes": 646364368896,
+          "group_rss_bytes": 72663040
+        },
+        {
+          "elapsed_s": 0.8469952910672873,
+          "allocated_bytes": 1089536,
+          "free_bytes": 646364274688,
+          "group_rss_bytes": 80150528
+        },
+        {
+          "elapsed_s": 0.9664575409842655,
+          "allocated_bytes": 1093632,
+          "free_bytes": 646364246016,
+          "group_rss_bytes": 98238464
+        },
+        {
+          "elapsed_s": 1.0838897080393508,
+          "allocated_bytes": 1097728,
+          "free_bytes": 646365179904,
+          "group_rss_bytes": 94519296
+        },
+        {
+          "elapsed_s": 1.2052853329805657,
+          "allocated_bytes": 1134592,
+          "free_bytes": 646365081600,
+          "group_rss_bytes": 58425344
+        },
+        {
+          "elapsed_s": 1.3255925410194322,
+          "allocated_bytes": 1159168,
+          "free_bytes": 646364901376,
+          "group_rss_bytes": 98156544
+        },
+        {
+          "elapsed_s": 1.4407473329920322,
+          "allocated_bytes": 1179648,
+          "free_bytes": 646372036608,
+          "group_rss_bytes": 80478208
+        },
+        {
+          "elapsed_s": 1.5563050410710275,
+          "allocated_bytes": 1183744,
+          "free_bytes": 646371983360,
+          "group_rss_bytes": 94584832
+        },
+        {
+          "elapsed_s": 1.676161332987249,
+          "allocated_bytes": 1220608,
+          "free_bytes": 646371942400,
+          "group_rss_bytes": 57999360
+        },
+        {
+          "elapsed_s": 1.7906171249924228,
+          "allocated_bytes": 1232896,
+          "free_bytes": 646371930112,
+          "group_rss_bytes": 97337344
+        },
+        {
+          "elapsed_s": 1.9148037909762934,
+          "allocated_bytes": 1261568,
+          "free_bytes": 646371868672,
+          "group_rss_bytes": 80216064
+        },
+        {
+          "elapsed_s": 2.0355082909809425,
+          "allocated_bytes": 1269760,
+          "free_bytes": 646372171776,
+          "group_rss_bytes": 80216064
+        },
+        {
+          "elapsed_s": 2.1541589580010623,
+          "allocated_bytes": 1306624,
+          "free_bytes": 646371794944,
+          "group_rss_bytes": 57835520
+        },
+        {
+          "elapsed_s": 2.273244208074175,
+          "allocated_bytes": 1306624,
+          "free_bytes": 646376054784,
+          "group_rss_bytes": 78888960
+        },
+        {
+          "elapsed_s": 2.3875717910705134,
+          "allocated_bytes": 1347584,
+          "free_bytes": 646375993344,
+          "group_rss_bytes": 80216064
+        },
+        {
+          "elapsed_s": 2.504781165975146,
+          "allocated_bytes": 1351680,
+          "free_bytes": 646375960576,
+          "group_rss_bytes": 97189888
+        },
+        {
+          "elapsed_s": 2.629631540970877,
+          "allocated_bytes": 1355776,
+          "free_bytes": 646375755776,
+          "group_rss_bytes": 98058240
+        },
+        {
+          "elapsed_s": 2.7563050410244614,
+          "allocated_bytes": 1392640,
+          "free_bytes": 646375485440,
+          "group_rss_bytes": 58195968
+        },
+        {
+          "elapsed_s": 2.880683208000846,
+          "allocated_bytes": 1433600,
+          "free_bytes": 646375288832,
+          "group_rss_bytes": 80003072
+        },
+        {
+          "elapsed_s": 2.9963424999732524,
+          "allocated_bytes": 1437696,
+          "free_bytes": 646374830080,
+          "group_rss_bytes": 80003072
+        },
+        {
+          "elapsed_s": 3.1205092910677195,
+          "allocated_bytes": 1441792,
+          "free_bytes": 646374760448,
+          "group_rss_bytes": 80183296
+        },
+        {
+          "elapsed_s": 3.245021541020833,
+          "allocated_bytes": 1478656,
+          "free_bytes": 646374629376,
+          "group_rss_bytes": 60538880
+        },
+        {
+          "elapsed_s": 3.3696444580564275,
+          "allocated_bytes": 1490944,
+          "free_bytes": 646374535168,
+          "group_rss_bytes": 106692608
+        },
+        {
+          "elapsed_s": 3.494608332985081,
+          "allocated_bytes": 1519616,
+          "free_bytes": 646374440960,
+          "group_rss_bytes": 99745792
+        },
+        {
+          "elapsed_s": 3.6199244579765946,
+          "allocated_bytes": 1527808,
+          "free_bytes": 646374408192,
+          "group_rss_bytes": 82690048
+        },
+        {
+          "elapsed_s": 3.7421527080005035,
+          "allocated_bytes": 1564672,
+          "free_bytes": 646374129664,
+          "group_rss_bytes": 60391424
+        },
+        {
+          "elapsed_s": 3.8672978329705074,
+          "allocated_bytes": 1572864,
+          "free_bytes": 646373912576,
+          "group_rss_bytes": 82722816
+        },
+        {
+          "elapsed_s": 3.9946200409904122,
+          "allocated_bytes": 1605632,
+          "free_bytes": 646373871616,
+          "group_rss_bytes": 82493440
+        },
+        {
+          "elapsed_s": 4.118270208011381,
+          "allocated_bytes": 1613824,
+          "free_bytes": 646373863424,
+          "group_rss_bytes": 82493440
+        },
+        {
+          "elapsed_s": 4.242888416047208,
+          "allocated_bytes": 1613824,
+          "free_bytes": 646372745216,
+          "group_rss_bytes": 60801024
+        }
+      ]
+    },
+    {
+      "variant": "candidate-reversed",
+      "test_order": [
+        "test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+        "test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+        "test_install_resolves_the_daemon_environment_to_the_locked_versions",
+        "test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+        "test_install_registers_independent_menu_bar_startup",
+        "test_install_includes_the_english_model_in_the_daemon_environment",
+        "test_install_reports_registration_without_claiming_daemon_health",
+        "test_install_publishes_prepared_artifacts_to_explicit_destinations"
+      ],
+      "wall_s": 0.7414482079911977,
+      "process_exit": 0,
+      "observations": {
+        "make_install_calls": 1,
+        "reports": [
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.42529454198665917
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.0002249159151688218
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_rebuilds_the_checkout_instead_of_reusing_a_cached_build",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.170807708054781e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 9.900005534291267e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.033563666976988316
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_terminal_dashboard_at_its_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 6.062502507120371e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0001281670993193984
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.03331508405972272
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_resolves_the_daemon_environment_to_the_locked_versions",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 4.9915979616343975e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.0001087080454453826
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00016854098066687584
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 3.0166935175657272e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.841596379876137e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.0001871250569820404
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_registers_independent_menu_bar_startup",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 3.10409814119339e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 8.437503129243851e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 6.808398757129908e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_includes_the_english_model_in_the_daemon_environment",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 2.8082984499633312e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 7.233303040266037e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 3.179104533046484e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_reports_registration_without_claiming_daemon_health",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 2.4124979972839355e-05
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "setup",
+            "outcome": "passed",
+            "duration_s": 0.00013533304445445538
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "call",
+            "outcome": "passed",
+            "duration_s": 0.00021487509366124868
+          },
+          {
+            "nodeid": "tests/test_make_installation.py::test_install_publishes_prepared_artifacts_to_explicit_destinations",
+            "phase": "teardown",
+            "outcome": "passed",
+            "duration_s": 5.0791073590517044e-05
+          }
+        ],
+        "exit": 0,
+        "cpu_seconds": 0.37
+      },
+      "resources": [
+        {
+          "elapsed_s": 0.019191875006072223,
+          "allocated_bytes": 1613824,
+          "free_bytes": 646372720640,
+          "group_rss_bytes": 15106048
+        },
+        {
+          "elapsed_s": 0.1403739999514073,
+          "allocated_bytes": 1613824,
+          "free_bytes": 646372696064,
+          "group_rss_bytes": 52051968
+        },
+        {
+          "elapsed_s": 0.2631148749496788,
+          "allocated_bytes": 1658880,
+          "free_bytes": 646372405248,
+          "group_rss_bytes": 76234752
+        },
+        {
+          "elapsed_s": 0.37934804090764374,
+          "allocated_bytes": 1699840,
+          "free_bytes": 646372020224,
+          "group_rss_bytes": 79937536
+        },
+        {
+          "elapsed_s": 0.502940124948509,
+          "allocated_bytes": 1708032,
+          "free_bytes": 646371872768,
+          "group_rss_bytes": 85426176
+        },
+        {
+          "elapsed_s": 0.6276714159175754,
+          "allocated_bytes": 1703936,
+          "free_bytes": 646371876864,
+          "group_rss_bytes": 58179584
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "parent_test_sha256": "089135379e30f3655959ba720fe6a70f26e7d2cd7662609e2e550250b6aa341e",
+  "candidate_test_sha256": "db8a4611e09a18798d375d978d68381879d68d8ddfe07030e4e3893a23971888",
+  "identical_assertion_functions": 17,
+  "assertion_count": 37,
+  "runs": [
+    {
+      "name": "static-0",
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "tests/test_make_installation.py"
+      ],
+      "exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "static-1",
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "tests/test_make_installation.py"
+      ],
+      "exit": 0,
+      "output": "1 file already formatted\n"
+    },
+    {
+      "name": "static-2",
+      "command": [
+        ".venv/bin/mypy",
+        "--platform",
+        "darwin",
+        "tests/test_make_installation.py"
+      ],
+      "exit": 0,
+      "output": "Success: no issues found in 1 source file\n"
+    },
+    {
+      "name": "static-3",
+      "command": [
+        ".venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_make_installation.py",
+        "-k",
+        "uninstall or doctor"
+      ],
+      "exit": 1,
+      "output": "F....                                                                    [100%]medium: 5 tests, CPU 0.72s including fixtures and waited children, CPU budget 120s; wall 0.72s, p95 call 240ms\nwall clock 0.76s\n\n=================================== FAILURES ===================================\n________ test_doctor_reports_failed_daemon_check_from_uv_tool_directory ________\n\ntmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_doctor_reports_failed_dae0')\n\n    def test_doctor_reports_failed_daemon_check_from_uv_tool_directory(tmp_path: Path) -> None:\n        commands = tmp_path / \"commands\"\n        commands.mkdir()\n        tool_bin = tmp_path / \"tool-bin\"\n        tool_bin.mkdir()\n        uv = commands / \"uv\"\n        uv.write_text('#!/bin/sh\\nprintf \"%s\\\\n\" \"$AITTS_TEST_TOOL_BIN\"\\n')\n        uv.chmod(0o755)\n        cli = tool_bin / \"ai-tts\"\n        cli.write_text(\"#!/bin/sh\\nexit 7\\n\")\n        cli.chmod(0o755)\n        env = dict(os.environ, PATH=f\"{commands}:/usr/bin:/bin\")\n        env[\"AITTS_TEST_TOOL_BIN\"] = str(tool_bin)\n    \n        result = subprocess.run(\n            [\"/usr/bin/make\", \"--no-print-directory\", \"doctor\", \"INSTALLER=/usr/bin/true\"],\n            cwd=REPOSITORY,\n            env=env,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n    \n>       assert \"daemon is not answering (exit 7)\" in result.stdout\nE       assert 'daemon is not answering (exit 7)' in ''\nE        +  where '' = CompletedProcess(args=['/usr/bin/make', '--no-print-directory', 'doctor', 'INSTALLER=/usr/bin/true'], returncode=2, st...dio output device and installs a launchd user agent, neither of which exists elsewhere. Nothing was changed.  Stop.\\n\").stdout\n\ntests/test_make_installation.py:47: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_make_installation.py::test_doctor_reports_failed_daemon_check_from_uv_tool_directory\n"
+    }
+  ]
+}
