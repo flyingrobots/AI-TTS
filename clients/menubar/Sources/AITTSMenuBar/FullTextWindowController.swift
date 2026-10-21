@@ -93,7 +93,7 @@ struct FullTextView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text(subject.isChunked ? "\(subject.segmentCount) chunks" : "One clip")
+            Text(subject.isChunked ? "\(subject.segmentCount) parts" : "One clip")
                 .font(.caption2.smallCaps().weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(subject.voice)

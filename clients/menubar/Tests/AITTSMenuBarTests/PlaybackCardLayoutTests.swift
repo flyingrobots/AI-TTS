@@ -75,6 +75,11 @@ final class PlaybackCardLayoutTests: XCTestCase {
         XCTAssertEqual(tot49, 50.0)
     }
 
+    func testPartLabelUsesPartTerminology() {
+        let segment = ActiveSegment(index: 28, number: 29, count: 47, text: "Middle", state: "Playing", durationMs: 1000, positionMs: 0)
+        XCTAssertEqual(CurrentPlaybackCard.partLabel(active: segment), "Part 29 of 47")
+    }
+
     func testPlaybackCardWithManyChunksFitsWithinStandardPopoverWidth() throws {
         let snapshot = try XCTUnwrap(Snapshot(daemonJSON: [
             "status": [
@@ -105,5 +110,71 @@ final class PlaybackCardLayoutTests: XCTestCase {
 
         // Standard popover width is 368pt; card must fit inside without horizontal blowout
         XCTAssertLessThanOrEqual(fittingWidth, 368.0)
+    }
+
+    func testFortySevenPartDocumentRendersCompactlyAtBeginningMiddleAndEnd() throws {
+        for (index, number) in [(0, 1), (23, 24), (46, 47)] {
+            let snapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+                "status": [
+                    "playback_state": "playing",
+                    "current": [
+                        "id": "utt-47-parts",
+                        "text": "A long 47-part document reading",
+                        "voice": "af_alloy",
+                        "state": "Playing",
+                        "segment_count": 47,
+                        "active_segment": [
+                            "index": index,
+                            "number": number,
+                            "count": 47,
+                            "text": "Part \(number) text",
+                            "position_ms": 1500,
+                            "duration_ms": 4000,
+                        ],
+                    ],
+                ]
+            ]))
+            state.applySnapshot(snapshot)
+
+            let card = CurrentPlaybackCard().environmentObject(state)
+            let hostingView = NSHostingView(rootView: card)
+            hostingView.layoutSubtreeIfNeeded()
+            let size = hostingView.fittingSize
+
+            XCTAssertLessThanOrEqual(size.width, 368.0, "Card width should not exceed standard popover width on part \(number)")
+            XCTAssertLessThanOrEqual(size.height, 200.0, "Card height should remain compact on part \(number)")
+        }
+    }
+
+    func testSinglePartDocumentRendersCleanly() throws {
+        let snapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+            "status": [
+                "playback_state": "playing",
+                "current": [
+                    "id": "utt-single",
+                    "text": "Single part short utterance",
+                    "voice": "af_alloy",
+                    "state": "Playing",
+                    "segment_count": 1,
+                    "active_segment": [
+                        "index": 0,
+                        "number": 1,
+                        "count": 1,
+                        "text": "Single part short utterance",
+                        "position_ms": 500,
+                        "duration_ms": 1200,
+                    ],
+                ],
+            ]
+        ]))
+        state.applySnapshot(snapshot)
+
+        let card = CurrentPlaybackCard().environmentObject(state)
+        let hostingView = NSHostingView(rootView: card)
+        hostingView.layoutSubtreeIfNeeded()
+        let size = hostingView.fittingSize
+
+        XCTAssertLessThanOrEqual(size.width, 368.0)
+        XCTAssertLessThanOrEqual(size.height, 200.0)
     }
 }

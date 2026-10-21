@@ -138,7 +138,7 @@ struct HistoryRow: View {
                     Text("\(item.segmentCount)◦")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(.tertiary)
-                        .help("\(item.segmentCount) chunks")
+                        .help("\(item.segmentCount) parts")
                 }
                 Button {
                     state.readFullText(of: item)
