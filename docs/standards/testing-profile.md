@@ -1082,3 +1082,12 @@ Change-kind: bug fix, with an approved change to an existing test's expected env
 ## October 3 native audio shutdown and input-probe isolation
 
 Change-kind: bug fix. Issue #94 separates prepared-output stop requests from native completion and isolates microphone queries from the daemon event loop. Owned native-completion schedules cover explicit close, renderer failure, refused reuse, FLOAT-WAV handoff and preparation failure. Real IPC and subprocess checks cover a held input read and interpreter shutdown. The [receipt](../testing-evidence/2026-10-03-audio-shutdown.md) records red-on-parent failures, four seeded faults, suite cost and ten silent native handoffs. The original CoreAudio mutex interleaving remains timing-dependent; successful native runs do not prove every driver or shutdown schedule safe.
+
+
+## October 9 agent queue admission
+
+Change-kind: behavior change. Agent speech defaults to admission-only submission;
+per-ID CLI lookup exposes existing daemon state. Owned installer and socket
+checks, seeded-failure calibration and installation boundaries are recorded in
+[the queue admission receipt](../testing-evidence/2026-10-09-queue-admission.md).
+Explicit playback waits remain opt-in.
