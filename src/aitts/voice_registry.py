@@ -31,7 +31,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from aitts.application.voice_assignment import decide_speaking_voice
+from aitts.application.voice_assignment import decide_speaking_voice, is_agent_source
+from aitts.application.voice_languages import automatic_voice_pool, stored_voice_languages
 from aitts.ipc import BAD_REQUEST, ILLEGAL_STATE, NOT_FOUND, ApiError
 
 if TYPE_CHECKING:
@@ -95,6 +96,16 @@ class VoiceRegistry:
             raise ApiError(BAD_REQUEST, msg)
         assignment = self._store.voice_assignment(source) if source is not None else None
         assignment = self._reconcile(assignment, catalog)
+        if is_agent_source(source) and not (assignment is not None and assignment.pinned):
+            selected = stored_voice_languages(self._store.get_setting("voice_languages", "en"))
+            catalog = automatic_voice_pool(catalog, selected)
+            if not catalog:
+                raise ApiError(BAD_REQUEST, "selected languages have no voices in this engine")
+            if requested is not None and requested not in catalog:
+                raise ApiError(BAD_REQUEST, "requested voice is outside selected voice languages")
+            if assignment is not None and assignment.voice not in catalog:
+                self._release(assignment.source)
+                assignment = None
         other_taken = self._store.claimed_voices() - (
             {assignment.voice} if assignment is not None else set()
         )

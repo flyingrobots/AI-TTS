@@ -2,6 +2,10 @@
 
 A local text-to-speech application for macOS, built for agents that talk.
 
+For document reading in Zed, install the [Read with AI-TTS tasks](clients/zed/README.md).
+The document task saves and reads the active UTF-8 file; the selection task
+reads highlighted text without saving.
+
 You send it text. It queues that text, synthesizes audio in the background with the model held warm in memory, and plays it back through a separate, strictly serialized queue that you control from the menu bar.
 
 > **Status: v0.1.0 release candidate.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. No `v0.1.0` tag or release has been published yet. See [Project status](#project-status) and [Using it](#using-it).
@@ -342,7 +346,13 @@ machine-wide agent instructions.
 
 The final command prints a JSON receipt. `"accepted": true` means the daemon
 owns the utterance and has placed it in the plan; it does not mean playback has
-already finished. If `status` reports `"playback_held": true`, the check is
+already finished. Keep the receipt's `id` and use `ai-tts get <id>` in a separate
+call to read `item.state` without waiting: `Queued`, `Synthesizing`, `Ready`,
+`Playing`, `Paused`, `Played`, `Skipped`, `Cancelled`, or `Failed`. A held clip
+can remain `Ready`; `status` reports the global playback hold. An unknown ID
+returns an error. Ordinary agent submissions should omit `--wait`; use
+`ai-tts wait <id> --timeout 570` separately only when completed playback is
+required. If `status` reports `"playback_held": true`, the check is
 still accepted and remains silent until the user resumes playback. Do not make
 an installer or an agent release that hold automatically.
 
@@ -566,6 +576,9 @@ ai-tts say $'# Release notes\n\nEverything is **ready**.' --format markdown
 
 # exit 0 only after the clip reaches Played
 ai-tts say "Deploy finished." --wait
+
+# read one clip's current state without waiting for playback
+ai-tts get utt_1a2b3c4d
 
 # block on one clip you already have the id of
 ai-tts wait utt_1a2b3c4d

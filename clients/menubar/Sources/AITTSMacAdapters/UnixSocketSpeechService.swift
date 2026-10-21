@@ -82,6 +82,8 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Gen
             payload = ["op": "cancel_model_setup"]
         case .setVoice(let voice):
             payload = ["op": "settings", "set": ["voice": voice]]
+        case .setVoiceLanguages(let languages):
+            payload = ["op": "settings", "set": ["voice_languages": languages]]
         case .setSynthesisSpeed(let speed):
             payload = ["op": "settings", "set": ["speed": speed]]
         case .setPlaybackRate(let rate):
@@ -356,6 +358,8 @@ extension Snapshot {
             speed: (json["settings"] as? [String: Any])?["speed"] as? Double ?? 1.0,
             playbackRate: (json["settings"] as? [String: Any])?["playback_rate"] as? Double
                 ?? 1.0,
+            voiceLanguages: (json["settings"] as? [String: Any])?["voice_languages"]
+                as? [String] ?? ["en"],
             earconEnabled: (json["settings"] as? [String: Any])?["earcon_enabled"] as? Bool ?? false,
             duckingEnabled: (json["settings"] as? [String: Any])?["ducking_enabled"] as? Bool ?? false,
             captionsEnabled: (json["settings"] as? [String: Any])?["captions_enabled"]

@@ -163,26 +163,51 @@ struct CurrentPlaybackCard: View {
         return active.index >= current.segmentCount - 1
     }
 
+    static func linearProgress(active: ActiveSegment, segmentCount: Int) -> (value: Double, total: Double) {
+        (
+            value: Double(min(max(active.index, 0), segmentCount)),
+            total: Double(max(segmentCount, 1))
+        )
+    }
+
     /// Which chunk of a document is being heard, and how many there are.
     @ViewBuilder
     private func chunkProgress(for current: Utterance) -> some View {
         if let active = current.activeSegment, current.segmentCount > 1 {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Text("Chunk \(active.number) of \(active.count)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
-                // Array, not a Range: ForEach reads only a Range's initial
-                // count, and this one changes with every clip.
-                ForEach(Array(0..<current.segmentCount), id: \.self) { index in
-                    Capsule()
-                        .fill(
-                            index == active.index
-                                ? Color.accentColor
-                                : Color.primary.opacity(index < active.index ? 0.28 : 0.12)
-                        )
-                        .frame(height: 3)
+                    .layoutPriority(1)
+                    .fixedSize()
+
+                if current.segmentCount <= 16 {
+                    HStack(spacing: 3) {
+                        // Array, not a Range: ForEach reads only a Range's initial
+                        // count, and this one changes with every clip.
+                        ForEach(Array(0..<current.segmentCount), id: \.self) { index in
+                            Capsule()
+                                .fill(
+                                    index == active.index
+                                        ? Color.accentColor
+                                        : Color.primary.opacity(index < active.index ? 0.28 : 0.12)
+                                )
+                                .frame(height: 3)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    let progress = Self.linearProgress(active: active, segmentCount: current.segmentCount)
+                    ProgressView(
+                        value: progress.value,
+                        total: progress.total
+                    )
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity)
             // The pips restate the counter beside them; announcing both would
             // read the same fact twice.
             .accessibilityElement(children: .ignore)

@@ -13,7 +13,7 @@ authors = [{ name = "James Ross" }]
 dependencies = [
     "blake3>=1,<2",
     "markdown-it-py>=4.2,<5",
-    "mcp>=2,<3",
+    "mcp>=2.2.0,<3",
     "numpy>=1.26",
     "pydantic>=2.11,<3",
     "sounddevice>=0.5",
@@ -43,6 +43,7 @@ allow-direct-references = true
 [project.scripts]
 ai-tts = "aitts.cli:main"
 ai-tts-mcp = "aitts.adapters.mcp:main"
+ai-tts-zed-read = "aitts.zed:main"
 
 [dependency-groups]
 dev = [
@@ -55,6 +56,8 @@ dev = [
     "textual>=0.70.0",
     # Exercise the optional model-download HTTP stack in security regressions.
     "urllib3>=2.8.0,<3",
+    # Exercise the frozen CA bundle in security regressions.
+    "certifi>=2026.10.19",
 ]
 supply-chain = [
     "pip-audit==2.10.1",
@@ -63,6 +66,12 @@ supply-chain = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aitts"]
+
+[tool.hatch.build.targets.sdist.force-include]
+"assets" = "assets"
+
+[tool.hatch.build.targets.wheel.force-include]
+"assets" = "aitts/assets"
 
 [tool.ruff]
 target-version = "py312"

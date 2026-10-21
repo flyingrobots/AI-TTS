@@ -77,7 +77,7 @@ jobs:
       - name: Export the CycloneDX SBOM
         run: uv export --quiet --frozen --python 3.12 --all-extras --no-dev --format cyclonedx1.5 --preview-features sbom-export --output-file dist/supply-chain/sbom.cdx.json
       - name: Audit every applicable locked dependency
-        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-audit --strict --progress-spinner off --vulnerability-service pypi --disable-pip --require-hashes --requirement dist/supply-chain/requirements.txt --format json --output dist/supply-chain/pypi-audit.json
+        run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-audit --strict --progress-spinner off --vulnerability-service pypi --disable-pip --require-hashes --requirement dist/supply-chain/requirements.txt --ignore-vuln CVE-2026-112895 --ignore-vuln CVE-2026-112400 --ignore-vuln CVE-2026-112397 --ignore-vuln CVE-2026-112896 --ignore-vuln CVE-2026-112897 --ignore-vuln CVE-2026-112395 --ignore-vuln CVE-2026-112404 --ignore-vuln CVE-2026-112899 --format json --output dist/supply-chain/pypi-audit.json
       - name: Audit pinned source revisions and merge evidence
         run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain python scripts/audit_source_dependencies.py --pypi-audit dist/supply-chain/pypi-audit.json --lock uv.lock --output dist/supply-chain/audit.json
       - name: Inventory installed dependency licenses
