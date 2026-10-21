@@ -56,6 +56,8 @@ dev = [
     "textual>=0.70.0",
     # Exercise the optional model-download HTTP stack in security regressions.
     "urllib3>=2.8.0,<3",
+    # Exercise the frozen CA bundle in security regressions.
+    "certifi>=2026.10.19",
 ]
 supply-chain = [
     "pip-audit==2.10.1",

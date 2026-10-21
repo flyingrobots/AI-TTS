@@ -59,6 +59,7 @@ tui = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "certifi" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pytest" },
@@ -95,6 +96,7 @@ provides-extras = ["kokoro", "mlx", "chatterbox", "tui"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "certifi", specifier = ">=2026.10.19" },
     { name = "hypothesis", specifier = ">=6.138" },
     { name = "mypy", specifier = ">=1.14" },
     { name = "pytest", specifier = ">=8.3" },
