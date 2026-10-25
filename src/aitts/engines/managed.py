@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from aitts.engine import SynthesisError
 from aitts.model_catalog import MODELS
+from aitts.timing import WordMark
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -132,6 +133,13 @@ class ManagedEngine:
 
     def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
         """Preserve the existing artifact boundary through the private pipe."""
+        duration, _marks = self.synthesize_timed(text, voice, speed, out_path)
+        return duration
+
+    def synthesize_timed(
+        self, text: str, voice: str, speed: float, out_path: Path
+    ) -> tuple[int, tuple[WordMark, ...]]:
+        """Ask for token times too; a worker that predates them simply sends none."""
         with self._lock:
             self._send(
                 {
@@ -140,6 +148,7 @@ class ManagedEngine:
                     "voice": voice,
                     "speed": speed,
                     "path": str(out_path),
+                    "timings": True,
                 }
             )
             reply = self._receive()
@@ -147,7 +156,7 @@ class ManagedEngine:
             if reply.get("ok") is not True or type(duration) is not int or duration <= 0:
                 message = "model returned invalid audio duration"
                 raise SynthesisError(message)
-            return duration
+            return duration, wire_marks(reply.get("marks"))
 
     def evidence(self, voice: str) -> dict[str, Any]:
         """Retain actual weight/voice identities and versions from the inference runtime."""
@@ -191,8 +200,24 @@ class ManagedStreamingEngine(ManagedEngine):
 
     def stream_synthesize(self, text: str, voice: str, speed: float) -> Iterator[bytes]:
         """Yield actual producer blocks, never synthetic progress audio."""
+        for item in self._stream(text, voice, speed, timings=False):
+            if isinstance(item, bytes):
+                yield item
+
+    def stream_synthesize_timed(
+        self, text: str, voice: str, speed: float
+    ) -> Iterator[bytes | tuple[WordMark, ...]]:
+        """Yield producer blocks and any token times the worker reports."""
+        yield from self._stream(text, voice, speed, timings=True)
+
+    def _stream(
+        self, text: str, voice: str, speed: float, *, timings: bool
+    ) -> Iterator[bytes | tuple[WordMark, ...]]:
+        request: dict[str, Any] = {"op": "stream", "text": text, "voice": voice, "speed": speed}
+        if timings:
+            request["timings"] = True
         with self._lock:
-            self._send({"op": "stream", "text": text, "voice": voice, "speed": speed})
+            self._send(request)
             complete = False
             try:
                 while True:
@@ -200,6 +225,11 @@ class ManagedStreamingEngine(ManagedEngine):
                     if reply.get("ok") is True:
                         complete = True
                         return
+                    if timings and "marks" in reply and "pcm" not in reply:
+                        marks = wire_marks(reply["marks"])
+                        if marks:
+                            yield marks
+                        continue
                     try:
                         pcm = base64.b64decode(reply["pcm"], validate=True)
                     except (KeyError, ValueError, TypeError) as exc:
@@ -213,6 +243,27 @@ class ManagedStreamingEngine(ManagedEngine):
                 if not complete:
                     # Retire unread responses so the next clip cannot consume stale PCM.
                     self._stop_worker()
+
+
+def wire_marks(value: object) -> tuple[WordMark, ...]:
+    """Validate worker marks; anything malformed costs the marks, never the audio."""
+    if not isinstance(value, list):
+        return ()
+    marks: list[WordMark] = []
+    for entry in value:
+        if (
+            not isinstance(entry, list)
+            or len(entry) != 3  # noqa: PLR2004 - [text, start_ms, end_ms]
+            or not isinstance(entry[0], str)
+            or not all(
+                isinstance(time_ms, (int, float)) and not isinstance(time_ms, bool)
+                for time_ms in entry[1:]
+            )
+            or not 0 <= entry[1] <= entry[2] < float("inf")
+        ):
+            return ()
+        marks.append(WordMark(entry[0], float(entry[1]), float(entry[2])))
+    return tuple(marks)
 
 
 def managed_engine(name: str, root: Path) -> ManagedEngine:

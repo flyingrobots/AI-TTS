@@ -63,6 +63,26 @@ been re-measured. This remains above the 150 ms optimization target; see the
 [streaming acceptance receipt](docs/testing-evidence/2026-09-30-streaming-audio.md).
 The measurements used silent hardware callbacks, not an acoustic recording.
 
+## Following along word by word
+
+A client can highlight the word and sentence being spoken, for captions or a
+reading app. Ask for a clip's words with `timings`, or subscribe with
+`playback_position: true` to be told as the spoken word changes:
+
+```sh
+# every word's [start_ms, end_ms, from, to], offsets into the text you submitted
+printf '%s\n' '{"op":"timings","id":"utt_...","offset_unit":"utf16"}' \
+  | nc -U "$HOME/Library/Application Support/ai-tts/ai-tts.sock"
+```
+
+Kokoro and Kokoro MLX report each word's time from their own duration
+predictions (`"timing": "engine"`, within about 25 ms of each other). Other
+engines get an estimate anchored on the pauses in their audio
+(`"timing": "estimated"`). Offsets survive segmentation and Markdown
+projection, in code points or UTF-16 units. A model runtime installed before
+this feature is estimated until its model setup is rerun. The wire contract, versioning and limits are in
+[architecture §5](docs/design/architecture.md#word-timing-and-following-along).
+
 ## Interrupting and resuming speech
 
 `ai-tts say "Build failed" --preempt` (or `--priority preempt`) interrupts

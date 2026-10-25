@@ -34,6 +34,8 @@ NOT_FOUND = "not_found"
 ILLEGAL_STATE = "illegal_state"
 INTERNAL = "internal"
 _PROGRESS_BACKLOG_BYTES = 65536
+POSITION_OFFSET_UNITS = ("codepoint", "utf16")
+POSITION_EVENT_VERSION = 1
 
 
 class ApiError(Exception):
@@ -67,6 +69,8 @@ class IPCServer:
         self._clients: set[asyncio.StreamWriter] = set()
         self._subscribers: set[asyncio.StreamWriter] = set()
         self._progress_subscribers: set[asyncio.StreamWriter] = set()
+        # Writer -> offset unit for opted-in word-position followers.
+        self._position_subscribers: dict[asyncio.StreamWriter, str] = {}
 
     @property
     def socket_path(self) -> Path:
@@ -127,6 +131,7 @@ class IPCServer:
         self._clients.clear()
         self._subscribers.clear()
         self._progress_subscribers.clear()
+        self._position_subscribers.clear()
         if server is not None:
             await server.wait_closed()
         if self._lease.held:
@@ -162,6 +167,23 @@ class IPCServer:
             except (ConnectionError, RuntimeError):
                 self._progress_subscribers.discard(writer)
 
+    @property
+    def position_offset_units(self) -> tuple[str, ...]:
+        """The offset units current position followers asked for (empty: none)."""
+        return tuple(sorted(set(self._position_subscribers.values())))
+
+    def broadcast_position(self, events: dict[str, dict[str, Any]]) -> None:
+        """Send each follower the event in its unit; drop it for a slow reader."""
+        lines = {unit: encode_json_object(event) for unit, event in events.items()}
+        for writer, unit in list(self._position_subscribers.items()):
+            line = lines.get(unit)
+            if line is None or writer.transport.get_write_buffer_size() > _PROGRESS_BACKLOG_BYTES:
+                continue
+            try:
+                writer.write(line)
+            except (ConnectionError, RuntimeError):
+                self._position_subscribers.pop(writer, None)
+
     async def _serve_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
@@ -193,6 +215,7 @@ class IPCServer:
             self._clients.discard(writer)
             self._subscribers.discard(writer)
             self._progress_subscribers.discard(writer)
+            self._position_subscribers.pop(writer, None)
             writer.close()
             with contextlib.suppress(ConnectionError):
                 await writer.wait_closed()
@@ -204,10 +227,21 @@ class IPCServer:
             await self._reply(writer, _error(BAD_REQUEST, str(exc)))
             return
         if payload.get("op") == "subscribe":
+            follow = payload.get("playback_position") is True
+            unit = payload.get("offset_unit", "codepoint")
+            if follow and unit not in POSITION_OFFSET_UNITS:
+                await self._reply(
+                    writer, _error(BAD_REQUEST, "offset_unit must be codepoint or utf16")
+                )
+                return
             self._subscribers.add(writer)
             if payload.get("playback_progress") is True:
                 self._progress_subscribers.add(writer)
-            await self._reply(writer, {"ok": True, "subscribed": True})
+            reply: dict[str, Any] = {"ok": True, "subscribed": True}
+            if follow:
+                self._position_subscribers[writer] = unit
+                reply["playback_position"] = {"v": POSITION_EVENT_VERSION, "offset_unit": unit}
+            await self._reply(writer, reply)
             return
         try:
             response = await self._api.dispatch(payload)

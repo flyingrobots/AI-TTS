@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from aitts.engine import Engine, StreamingEngine
+from aitts.engine import Engine, StreamingEngine, TimedEngine, TimedStreamingEngine
 from aitts.model_catalog import MODELS
 
 
@@ -81,11 +81,7 @@ def serve(name: str, root: Path) -> None:
                     engine.warmup()
                     _write(wire, {"ok": True})
                 elif op == "stream" and isinstance(engine, StreamingEngine):
-                    for block in engine.stream_synthesize(
-                        request["text"], request["voice"], request["speed"]
-                    ):
-                        _write(wire, {"pcm": base64.b64encode(block).decode("ascii")})
-                    _write(wire, {"ok": True})
+                    _stream(wire, engine, request)
                 elif op == "evidence":
                     from aitts.adapters.clip_evidence import runtime_metadata  # noqa: PLC0415
 
@@ -99,14 +95,41 @@ def serve(name: str, root: Path) -> None:
                         wire, {"ok": True, "metadata": {**metadata, "runtime": runtime_metadata()}}
                     )
                 elif op == "synthesize":
-                    duration = engine.synthesize(
-                        request["text"], request["voice"], request["speed"], Path(request["path"])
-                    )
-                    _write(wire, {"ok": True, "duration_ms": duration})
+                    _synthesize(wire, engine, request)
                 else:
                     _write(wire, {"ok": False})
             except Exception:  # noqa: BLE001 - private worker failure stays typed and content-free
                 _write(wire, {"ok": False})
+
+
+def _stream(wire: Any, engine: StreamingEngine, request: dict[str, Any]) -> None:  # noqa: ANN401
+    """Frame PCM, plus token marks only for a daemon that asked for them."""
+    text, voice, speed = request["text"], request["voice"], request["speed"]
+    if request.get("timings") is True and isinstance(engine, TimedStreamingEngine):
+        for item in engine.stream_synthesize_timed(text, voice, speed):
+            if isinstance(item, bytes):
+                _write(wire, {"pcm": base64.b64encode(item).decode("ascii")})
+            else:
+                _write(wire, {"marks": _wire_marks(item)})
+    else:
+        for block in engine.stream_synthesize(text, voice, speed):
+            _write(wire, {"pcm": base64.b64encode(block).decode("ascii")})
+    _write(wire, {"ok": True})
+
+
+def _synthesize(wire: Any, engine: Engine, request: dict[str, Any]) -> None:  # noqa: ANN401
+    """Render one file; include marks only when they were requested and exist."""
+    arguments = (request["text"], request["voice"], request["speed"], Path(request["path"]))
+    if request.get("timings") is True and isinstance(engine, TimedEngine):
+        duration, marks = engine.synthesize_timed(*arguments)
+        _write(wire, {"ok": True, "duration_ms": duration, "marks": _wire_marks(marks)})
+    else:
+        _write(wire, {"ok": True, "duration_ms": engine.synthesize(*arguments)})
+
+
+def _wire_marks(marks: Any) -> list[list[Any]]:  # noqa: ANN401 - engine mark tuples
+    """Frame marks compactly: ``[text, start_ms, end_ms]`` on the clip clock."""
+    return [[mark.text, round(mark.start_ms, 1), round(mark.end_ms, 1)] for mark in marks]
 
 
 def _write(wire: Any, payload: dict[str, Any]) -> None:  # noqa: ANN401 - redirected text stream

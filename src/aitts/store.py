@@ -96,6 +96,10 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS artifact_timings (
+    artifact_id TEXT PRIMARY KEY,
+    timings TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS voice_assignments (
     source TEXT PRIMARY KEY,
     voice TEXT NOT NULL,
@@ -1033,6 +1037,7 @@ class Store:
             f"DELETE FROM utterances WHERE id = ? AND state IN ({placeholders})",  # noqa: S608
             (utt_id, *(state.value for state in TERMINAL)),
         )
+        self._prune_timings()
         self._commit_or_rollback()
         return cursor.rowcount == 1
 
@@ -1043,8 +1048,42 @@ class Store:
             f"DELETE FROM utterances WHERE state IN ({placeholders})",  # noqa: S608
             tuple(state.value for state in TERMINAL),
         )
+        self._prune_timings()
         self._commit_or_rollback()
         return cursor.rowcount
+
+    # -- word timings ----------------------------------------------------
+
+    def save_timings(self, artifact_id: str, encoded: str) -> None:
+        """Record one generation's word timings under its artifact identity.
+
+        Keyed like the audio, not like the row: a rewind or replay that reuses
+        a cached artifact reuses its timings, and a re-synthesis gets its own.
+        """
+        self._db.execute(
+            "INSERT OR REPLACE INTO artifact_timings (artifact_id, timings) VALUES (?, ?)",
+            (artifact_id, encoded),
+        )
+        self._commit_or_rollback()
+
+    def timings(self, artifact_id: str | None) -> str | None:
+        """Return the encoded timings recorded for one generation, if any."""
+        if artifact_id is None:
+            return None
+        row = self._db.execute(
+            "SELECT timings FROM artifact_timings WHERE artifact_id = ?", (artifact_id,)
+        ).fetchone()
+        return None if row is None else str(row["timings"])
+
+    def _prune_timings(self) -> None:
+        """Forget timings no utterance or segment refers to any more."""
+        self._db.execute(
+            "DELETE FROM artifact_timings WHERE artifact_id NOT IN ("
+            "SELECT generation_artifact_id FROM utterances "
+            "WHERE generation_artifact_id IS NOT NULL UNION "
+            "SELECT generation_artifact_id FROM utterance_segments "
+            "WHERE generation_artifact_id IS NOT NULL)"
+        )
 
     def recover(self) -> None:
         """Repair state after a daemon restart (architecture §6).
@@ -1054,6 +1093,8 @@ class Store:
         and immediately begins speaking talks when nobody expects it.
         """
         self._recover_streaming_jobs()
+        self._prune_timings()
+        self._commit_or_rollback()
         synthesizing_segments = self._segments_by_states((State.SYNTHESIZING,))
         for segment in synthesizing_segments:
             self.transition_segment(segment.utterance_id, segment.index, State.QUEUED)

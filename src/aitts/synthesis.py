@@ -17,8 +17,15 @@ import logging
 from typing import TYPE_CHECKING
 
 from aitts.adapters.diagnostic_logging import utterance_trace
-from aitts.engine import StreamingEngine, SynthesisError, eligible_engine_names
+from aitts.engine import (
+    StreamingEngine,
+    SynthesisError,
+    TimedEngine,
+    TimedStreamingEngine,
+    eligible_engine_names,
+)
 from aitts.streaming import SpoolingPCMStream, StreamingRegistry
+from aitts.timing import ClipTimings, WordMark, detect_pauses, estimate_timings, timings_from_marks
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping
@@ -29,6 +36,7 @@ if TYPE_CHECKING:
     from aitts.engine import Engine
     from aitts.model import SynthesisWork
     from aitts.store import Store
+    from aitts.word_timing import LiveTimings
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +56,7 @@ class SynthesisPool:
         engines: Mapping[str, Engine] | None = None,
         prepare_engine: Callable[[str], None] | None = None,
         held_engines: Callable[[], Collection[str]] | None = None,
+        live_timings: LiveTimings | None = None,
     ) -> None:
         """Create a pool of ``workers`` synthesis workers over ``engine``.
 
@@ -55,6 +64,7 @@ class SynthesisPool:
         yet, so one model's preparation never holds another model's clips.
         """
         self._held_engines = held_engines
+        self._live_timings = live_timings
         self._streams = streams
         self._loop: asyncio.AbstractEventLoop | None = None
         self._running = False
@@ -125,18 +135,29 @@ class SynthesisPool:
         except Exception as exc:  # noqa: BLE001 - adapter failure is per-item
             self._record_failure(work, f"artifact target failed: {exc}")
             return
+        key = (work.utterance_id, work.segment_index)
+        if self._live_timings is not None:
+            self._live_timings.begin(key, work.text)
         try:
-            duration_ms = await asyncio.to_thread(
-                self._render,
-                work,
-                out_path,
+            try:
+                duration_ms, timings = await asyncio.to_thread(
+                    self._render,
+                    work,
+                    out_path,
+                )
+            except Exception as exc:  # noqa: BLE001 - any engine failure is Failed, not fatal
+                self._finish(work, error=str(exc), out_path=out_path)
+                self._finish_stream(work, error=str(exc))
+                return
+            published = self._finish(
+                work, duration_ms=duration_ms, out_path=out_path, timings=timings
             )
-        except Exception as exc:  # noqa: BLE001 - any engine failure is Failed, not fatal
-            self._finish(work, error=str(exc), out_path=out_path)
-            self._finish_stream(work, error=str(exc))
-            return
-        published = self._finish(work, duration_ms=duration_ms, out_path=out_path)
-        self._finish_stream(work, error=None if published else "stream publication failed")
+            self._finish_stream(work, error=None if published else "stream publication failed")
+        finally:
+            # Final timings are durable before live marks are dropped, so a
+            # listener following this clip never sees its words disappear.
+            if self._live_timings is not None:
+                self._live_timings.discard(key)
 
     def _finish_stream(self, work: SynthesisWork, *, error: str | None) -> None:
         if self._streams is not None:
@@ -147,25 +168,40 @@ class SynthesisPool:
         if self._running:
             self._store.start_streaming(work)
 
-    def _render_stream(self, work: SynthesisWork, out_path: Path, engine: StreamingEngine) -> int:
+    def _render_stream(
+        self, work: SynthesisWork, out_path: Path, engine: StreamingEngine
+    ) -> tuple[int, list[WordMark]]:
         assert self._streams is not None  # noqa: S101 - streaming admission checked
         assert self._loop is not None  # noqa: S101 - worker started by run
         source = SpoolingPCMStream(out_path)
         self._streams.add(work.id, source)
+        marks: list[WordMark] = []
         first = True
-        for pcm in engine.stream_synthesize(work.text, work.voice, work.speed):
-            if not pcm:
+        items = (
+            engine.stream_synthesize_timed(work.text, work.voice, work.speed)
+            if isinstance(engine, TimedStreamingEngine)
+            else engine.stream_synthesize(work.text, work.voice, work.speed)
+        )
+        for item in items:
+            if isinstance(item, tuple):
+                # Marks precede the PCM they describe, so a listener reaching
+                # that audio can already be told which word it is.
+                marks.extend(item)
+                if self._live_timings is not None:
+                    self._live_timings.extend((work.utterance_id, work.segment_index), item)
                 continue
-            source.append(pcm)
+            if not item:
+                continue
+            source.append(item)
             if first:
                 self._loop.call_soon_threadsafe(self._stream_ready, work)
                 first = False
         if first:
             msg = "streaming engine produced no audio"
             raise ValueError(msg)
-        return source.seal()
+        return source.seal(), marks
 
-    def _render(self, work: SynthesisWork, out_path: Path) -> int:
+    def _render(self, work: SynthesisWork, out_path: Path) -> tuple[int, ClipTimings | None]:
         name = work.engine or self._engine.name
         if self._evidence is not None:
             self._evidence.prepare(work, name)
@@ -176,11 +212,15 @@ class SynthesisPool:
             engine = self._engines[name]
             if self._prepare_engine is not None:
                 self._prepare_engine(name)
-            duration = (
-                self._render_stream(work, out_path, engine)
-                if self._streams is not None and isinstance(engine, StreamingEngine)
-                else engine.synthesize(work.text, work.voice, work.speed, out_path)
-            )
+            marks: list[WordMark] | tuple[WordMark, ...] = ()
+            if self._streams is not None and isinstance(engine, StreamingEngine):
+                duration, marks = self._render_stream(work, out_path, engine)
+            elif isinstance(engine, TimedEngine):
+                duration, marks = engine.synthesize_timed(
+                    work.text, work.voice, work.speed, out_path
+                )
+            else:
+                duration = engine.synthesize(work.text, work.voice, work.speed, out_path)
         except Exception as exc:
             if self._evidence is not None:
                 self._evidence.record(work.id, "synthesis", "failed", error=str(exc))
@@ -198,7 +238,7 @@ class SynthesisPool:
                 self._evidence.record(work.id, "synthesis", "model_metadata_unavailable")
             self._evidence.audio_generated(work.id, out_path)
             self._evidence.record(work.id, "synthesis", "rendered", duration_ms=duration)
-        return duration
+        return duration, clip_timings(work.text, marks, out_path, speed=work.speed)
 
     def _finish(  # noqa: C901 - publication and evidence stay in one lifecycle operation
         self,
@@ -207,6 +247,7 @@ class SynthesisPool:
         duration_ms: int | None = None,
         error: str | None = None,
         out_path: Path,
+        timings: ClipTimings | None = None,
     ) -> bool:
         if not self._store.synthesis_work_is_active(work):
             # Cancelled underneath us: the engine could not abort, so the
@@ -241,6 +282,7 @@ class SynthesisPool:
         # never an unowned final WAV between these two calls.
         if self._evidence is not None:
             self._evidence.record(work.id, "synthesis", "published", duration_ms=duration_ms)
+        self._save_timings(work, timings)
         try:
             self._store.finish_synthesis(
                 work,
@@ -253,6 +295,15 @@ class SynthesisPool:
             return False
 
         return True
+
+    def _save_timings(self, work: SynthesisWork, timings: ClipTimings | None) -> None:
+        """Record timings under the artifact identity before it becomes Ready."""
+        if timings is None:
+            return
+        try:
+            self._store.save_timings(work.id, timings.encode())
+        except Exception:  # noqa: BLE001 - timings are an aid; audio still publishes
+            log.warning("event=word_timings_save_failed")
 
     def _discard(self, out_path: Path) -> None:
         try:
@@ -267,3 +318,31 @@ class SynthesisPool:
         if self._store.synthesis_work_is_active(work):
             self._store.fail_synthesis(work, error)
         log.warning("event=synthesis_failed trace=%s", utterance_trace(work.utterance_id))
+
+
+def clip_timings(
+    text: str,
+    marks: list[WordMark] | tuple[WordMark, ...],
+    audio_path: Path,
+    *,
+    speed: float = 1.0,
+) -> ClipTimings | None:
+    """Prefer the engine's own token times; otherwise estimate from the audio.
+
+    Never raises: a clip without timings still speaks.
+    """
+    try:
+        if marks:
+            timed = timings_from_marks(text, marks)
+            if timed is not None:
+                return timed
+        import soundfile as sf  # noqa: PLC0415 - audio dependency stays off import time
+
+        samples, rate = sf.read(str(audio_path), dtype="float32", always_2d=True)
+        mono = samples.mean(axis=1)
+        return estimate_timings(
+            text, len(mono) / rate * 1000, detect_pauses(mono, rate), speed=speed
+        )
+    except Exception:  # noqa: BLE001 - timing failure is never a synthesis failure
+        log.warning("event=word_timings_unavailable")
+        return None

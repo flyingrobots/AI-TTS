@@ -68,6 +68,7 @@ from aitts.store import Store, TransitionError
 from aitts.streaming import StreamingRegistry
 from aitts.synthesis import SynthesisPool
 from aitts.voice_registry import VoiceRegistry
+from aitts.word_timing import OFFSET_UNITS, LiveTimings, WordTimingService
 
 if TYPE_CHECKING:
     from aitts.application.input_activity import InputActivityPort
@@ -83,6 +84,7 @@ _CANCELLABLE = (State.QUEUED, State.SYNTHESIZING, State.READY)
 _TRACED_STATES = (State.READY, State.PLAYING, State.PLAYED, State.FAILED)
 _PLAYBACK_RESTART_MIN_SECONDS = 0.05
 _PLAYBACK_RESTART_MAX_SECONDS = 5.0
+_POSITION_SAMPLE_SECONDS = 0.05
 
 
 log = logging.getLogger(__name__)
@@ -149,6 +151,8 @@ class Daemon:
         self._workers = workers
         self._store = Store(home / "state.db")
         self._store.bind_legacy_engine(engine.name)
+        self._live_timings = LiveTimings()
+        self._word_timing = WordTimingService(self._store, self._live_timings)
         self._cache_dir = home / "cache"
         self._evidence = ClipEvidence(self._cache_dir)
         self._generated_storage = GeneratedStorage(self._cache_dir)
@@ -218,6 +222,7 @@ class Daemon:
                 held_engines=self._engines_held_for_warmup,
                 evidence=self._evidence,
                 streams=self._streams,
+                live_timings=self._live_timings,
             )
             self._store.on_transition.append(self._on_transition)
             self._store.on_segment_transition.append(self._on_segment_transition)
@@ -229,6 +234,7 @@ class Daemon:
                 loop.create_task(self._listener.run(), name="aitts-input"),
                 loop.create_task(self._expire_files_loop(), name="aitts-retention"),
                 loop.create_task(self._playback_progress_loop(), name="aitts-progress"),
+                loop.create_task(self._playback_position_loop(), name="aitts-position"),
             ]
         except BaseException:
             await self.stop()
@@ -254,6 +260,69 @@ class Daemon:
                     "audio_peak": peak,
                 }
             )
+
+    async def _playback_position_loop(self) -> None:
+        """Tell opted-in followers which word is being spoken, as it changes.
+
+        Sampled at 20 Hz while anyone follows. An event is sent when the
+        clip, segment, word, state or hold changes, and at least once a second
+        while playing so a client can re-anchor its own interpolation.
+        """
+        last_key: tuple[Any, ...] | None = None
+        last_sent = 0.0
+        while True:
+            await asyncio.sleep(_POSITION_SAMPLE_SECONDS)
+            units = self._server.position_offset_units
+            if not units or self._controller is None:
+                last_key = None
+                continue
+            events = self.position_events(units)
+            sample = next(iter(events.values()))
+            key = tuple(
+                sample[field]
+                for field in ("id", "state", "segment_index", "word_index", "playback_held")
+            )
+            now = time.monotonic()
+            heartbeat = sample["state"] == "playing" and now - last_sent >= 1.0
+            if key != last_key or heartbeat:
+                self._server.broadcast_position(events)
+                last_key, last_sent = key, now
+
+    def position_events(self, units: tuple[str, ...]) -> dict[str, dict[str, Any]]:
+        """Describe the current word for each offset unit (exposed for tests)."""
+        controller = self._require_controller()
+        current = self._store.get(controller.current_id) if controller.current_id else None
+        segment = controller.current_segment
+        position = (
+            controller.current_segment_position_ms()
+            if segment is not None
+            else controller.current_position_ms()
+        )
+        return self._word_timing.position(
+            utterance=current,
+            segment=segment,
+            position_ms=position,
+            utterance_position_ms=controller.current_position_ms(),
+            held=bool(controller.held),
+            rate=controller.playback_rate,
+            offset_units=units,
+        )
+
+    async def _op_timings(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Return word times and source offsets for one utterance's clips."""
+        utt_id = payload.get("id")
+        if not isinstance(utt_id, str):
+            raise ApiError(BAD_REQUEST, "'id' must be an utterance id")
+        unit = payload.get("offset_unit", "codepoint")
+        if unit not in OFFSET_UNITS:
+            raise ApiError(BAD_REQUEST, "offset_unit must be codepoint or utf16")
+        segment = payload.get("segment")
+        if segment is not None and (type(segment) is not int or segment < 0):
+            raise ApiError(BAD_REQUEST, "'segment' must be a non-negative integer")
+        utterance = self._store.get(utt_id)
+        if utterance is None:
+            raise ApiError(NOT_FOUND, f"no utterance {utt_id!r}")
+        return self._word_timing.describe(utterance, segment_index=segment, offset_unit=unit)
 
     async def _run_synthesis(self) -> None:
         """Run synthesis; startup warmup holds only its own engine's queued text."""
@@ -397,6 +466,7 @@ class Daemon:
             "clear": self._op_clear,
             "purge_cache": self._op_purge_cache,
             "status": self._op_status,
+            "timings": self._op_timings,
             "metrics": self._op_metrics,
             "snapshot": self._op_snapshot,
             "voices": self._op_voices,

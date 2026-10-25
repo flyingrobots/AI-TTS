@@ -32,9 +32,10 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from aitts.engine import SynthesisError
 from aitts.streaming import pcm16_frames
+from aitts.timing import WordMark
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
 log = logging.getLogger(__name__)
 
@@ -391,34 +392,59 @@ class KokoroEngine:
 
     def synthesize(self, text: str, voice: str, speed: float, out_path: Path) -> int:
         """Render ``text`` to a WAV at ``out_path``; return its duration in ms."""
+        duration, _marks = self.synthesize_timed(text, voice, speed, out_path)
+        return duration
+
+    def synthesize_timed(
+        self, text: str, voice: str, speed: float, out_path: Path
+    ) -> tuple[int, tuple[WordMark, ...]]:
+        """Render a WAV and return its duration with the model's own token times."""
         import numpy as np  # noqa: PLC0415 - keep numpy out of module import time
         import soundfile as sf  # noqa: PLC0415
 
-        pipeline = self._pipeline(voice)
-        # A path, not the id: the id would be resolved through the model host.
-        voice_pack = self._assets.voice_path(voice)
         chunks: list[Any] = []
-        try:
-            for result in pipeline(text, voice=voice_pack, speed=speed):
-                audio = result.audio if hasattr(result, "audio") else result[-1]
-                if audio is not None:
-                    chunks.append(audio.numpy() if hasattr(audio, "numpy") else audio)
-        except Exception as exc:
-            raise SynthesisError(str(exc)) from exc
+        marks: list[WordMark] = []
+        for samples, chunk_marks in self._rendered(text, voice, speed):
+            chunks.append(samples)
+            marks.extend(chunk_marks)
         if not chunks:
             msg = "the engine produced no audio"
             raise SynthesisError(msg)
         samples = np.concatenate(chunks)
         sf.write(str(out_path), samples, _SAMPLE_RATE, format="WAV")
-        return int(len(samples) / _SAMPLE_RATE * 1000)
+        return int(len(samples) / _SAMPLE_RATE * 1000), tuple(marks)
 
     def stream_synthesize(self, text: str, voice: str, speed: float) -> Iterator[bytes]:
         """Yield 100 ms PCM frames as each upstream inference result becomes available."""
+        for item in self.stream_synthesize_timed(text, voice, speed):
+            if isinstance(item, bytes):
+                yield item
+
+    def stream_synthesize_timed(
+        self, text: str, voice: str, speed: float
+    ) -> Iterator[bytes | tuple[WordMark, ...]]:
+        """Yield each result's token times, then its PCM frames, as inference proceeds."""
+        produced = False
+        for samples, marks in self._rendered(text, voice, speed):
+            if marks:
+                yield marks
+            for frame in pcm16_frames(samples):
+                produced = True
+                yield frame
+        if not produced:
+            msg = "the engine produced no audio"
+            raise SynthesisError(msg)
+
+    def _rendered(
+        self, text: str, voice: str, speed: float
+    ) -> Iterator[tuple[Any, tuple[WordMark, ...]]]:
+        """Yield validated mono samples and clip-relative marks per pipeline result."""
         import numpy as np  # noqa: PLC0415 - inference owns array conversion
 
         pipeline = self._pipeline(voice)
+        # A path, not the id: the id would be resolved through the model host.
         voice_pack = self._assets.voice_path(voice)
-        produced = False
+        offset_ms = 0.0
         try:
             for result in pipeline(text, voice=voice_pack, speed=speed):
                 audio = result.audio if hasattr(result, "audio") else result[-1]
@@ -428,16 +454,13 @@ class KokoroEngine:
                 if samples.ndim != 1 or not np.all(np.isfinite(samples)):
                     msg = "streaming engine produced invalid mono samples"
                     raise SynthesisError(msg)  # noqa: TRY301 - all pipeline failures share the engine boundary
-                for frame in pcm16_frames(samples):
-                    produced = True
-                    yield frame
+                marks = token_marks(getattr(result, "tokens", None), offset_ms)
+                offset_ms += len(samples) / _SAMPLE_RATE * 1000
+                yield samples, marks
         except SynthesisError:
             raise
         except Exception as exc:
             raise SynthesisError(str(exc)) from exc
-        if not produced:
-            msg = "the engine produced no audio"
-            raise SynthesisError(msg)
 
     def restart(self) -> None:
         """Reload the model after the daemon has suspended and drained synthesis."""
@@ -478,3 +501,69 @@ class KokoroEngine:
     def warmup(self) -> None:
         """Load the default-language pipeline so first synthesis is not cold."""
         self._pipeline("bm_daniel")
+
+
+def token_marks(tokens: Iterable[Any] | None, offset_ms: float) -> tuple[WordMark, ...]:
+    """Project Kokoro tokens timed by ``join_timestamps`` onto the clip clock.
+
+    Upstream sets ``start_ts``/``end_ts`` in seconds from the start of that
+    result's audio; results are concatenated, so each is shifted by the audio
+    already produced. Tokens without times (non-English G2P) yield nothing.
+    """
+    marks: list[WordMark] = []
+    for token in tokens or ():
+        start = getattr(token, "start_ts", None)
+        end = getattr(token, "end_ts", None)
+        text = getattr(token, "text", None)
+        if (
+            isinstance(text, str)
+            and isinstance(start, (int, float))
+            and isinstance(end, (int, float))
+        ):
+            marks.append(WordMark(text, offset_ms + start * 1000, offset_ms + end * 1000))
+    return tuple(marks)
+
+
+def duration_marks(
+    tokens: Iterable[Any], durations: list[int], offset_ms: float
+) -> tuple[WordMark, ...]:
+    """Time tokens from per-phoneme frame durations, as upstream ``join_timestamps`` does.
+
+    Ported from kokoro 0.9.4 ``KPipeline.join_timestamps`` (Apache-2.0,
+    hexgrad) for backends that expose durations but not timed tokens.
+    ``durations`` covers the padded id sequence: BOS, one entry per phoneme
+    character, EOS. Counts are 600-sample frames, tracked in half-frames.
+    """
+    divisor = 80  # half-frames per second at 24 kHz with a 600-sample frame
+    marks: list[WordMark] = []
+    if len(durations) < 3:  # noqa: PLR2004 - BOS, at least one phoneme, EOS
+        return ()
+    left = right = 2 * max(0, durations[0] - 3)
+    index = 1
+    for token in tokens:
+        if index >= len(durations) - 1:
+            break
+        phonemes = getattr(token, "phonemes", None) or ""
+        whitespace = bool(getattr(token, "whitespace", ""))
+        if not phonemes:
+            if whitespace:
+                index += 1
+                left = right + durations[index]
+                right = left + durations[index]
+                index += 1
+            continue
+        end = index + len(phonemes)
+        if end >= len(durations):
+            break
+        start_ts = left / divisor
+        token_frames = sum(durations[index:end])
+        space = durations[end] if whitespace else 0
+        left = right + 2 * token_frames + space
+        text = getattr(token, "text", "")
+        if isinstance(text, str):
+            marks.append(
+                WordMark(text, offset_ms + start_ts * 1000, offset_ms + left / divisor * 1000)
+            )
+        right = left + space
+        index = end + (1 if whitespace else 0)
+    return tuple(marks)

@@ -430,6 +430,23 @@ limit does not poison the connection, so a corrected next request can proceed. D
 → {"op":"subscribe", "playback_progress":true}
 ← {"ok":true, "subscribed":true}
 ← {"event":"playback_progress", "id":"utt_...", "playback_held":false, "position_ms":400, "audio_peak":0.25}
+
+// word timing: every clip's words, sentences and times, as offsets into the submitted text
+→ {"op":"timings", "id":"utt_...", "segment":0, "offset_unit":"utf16"}   // segment optional
+← {"ok":true, "id":"utt_...", "timing_version":1, "offset_unit":"utf16", "text_length":412,
+   "segment_count":3,
+   "segments":[{"index":0, "state":"Played", "duration_ms":16375, "timing":"engine",
+                "complete":true, "source_start":0, "source_end":131,
+                "words":[[250,312,0,2], [312,1350,3,8], ...],   // [start_ms, end_ms, from, to]
+                "sentences":[[0,55,0,10], [56,131,11,19]]}]}    // [from, to, first_word, last_word]
+
+// follow along: which word is being heard, as it changes
+→ {"op":"subscribe", "playback_position":true, "offset_unit":"utf16"}
+← {"ok":true, "subscribed":true, "playback_position":{"v":1, "offset_unit":"utf16"}}
+← {"event":"playback_position", "v":1, "id":"utt_...", "state":"playing", "playback_held":false,
+   "sampled_at":1792960000.125, "rate":1.0, "segment_index":0, "segment_count":3,
+   "position_ms":3000, "utterance_position_ms":3000, "timing":"engine", "word_index":9,
+   "char_start":59, "char_end":66, "sentence_start":56, "sentence_end":131, "offset_unit":"utf16"}
 ```
 
 Admission publishes `state_changed` with `from` null and `to` `Queued`, for a submission and for a history replay. Without it, a clip queued behind busy workers or startup warmup stays invisible to subscribers until a worker claims it.
@@ -449,6 +466,73 @@ normally and receives `accepted: true` plus `spooled_until_resume`. The MCP
 playback-state preflight.
 
 **A caller that must know an utterance was actually spoken subscribes and waits for its terminal state.** It does not read an exit code. That is the whole lesson of F1–F3 expressed as protocol.
+
+### Word timing and following along
+
+A client that highlights the word being spoken (captions, a reading app)
+needs two things: when each word is heard, and where that word is in the text
+it submitted. The daemon owns both, because both depend on things only it
+knows. Segmentation, Markdown projection, the engine's own durations and the
+playhead all live there.
+
+**A clip's words** are the maximal non-whitespace runs of the exact text an
+engine was given: one document segment, or the whole text of a single clip.
+Each word has `[start_ms, end_ms]` on the clip's source-audio clock, the same
+clock as `position_ms`, so playback rate, holds and seeks need no correction.
+`timing` names where the times came from, and the two are never mixed within
+a clip:
+
+- `engine`: the synthesis model's own duration predictions. Kokoro and Kokoro
+  MLX predict how many frames each phoneme lasts, so their token boundaries
+  are the audio's boundaries, quantized to 12.5 ms.
+- `estimated`: engines that report nothing (Chatterbox, OpenAI-compatible
+  servers, model runtimes installed before word timing) get a proportional
+  estimate. It weights digits and symbols for their spoken length and anchors
+  sentence and clause boundaries on pauses detected in the rendered audio. It
+  is approximate: ~100–200 ms mean word-start error where measured. Audio
+  too short for its text times only the prefix it could hold.
+- `null`: no times yet (the clip has not been synthesized). Word offsets are
+  still present, so a client can lay out highlights ahead of audio.
+
+`complete: true` with `null` word times means the audio does not contain
+those words (a truncated render), so they are never shown as spoken.
+`complete: false` marks a clip still generating. Its timed prefix grows, and
+untimed words have `null` times. Engine marks arrive before the PCM they
+describe, so a streamed clip can be followed from its first audible word.
+
+**Offsets** index the utterance's exact submitted `text`, in Unicode code
+points (`offset_unit: "codepoint"`, the default) or UTF-16 code units
+(`"utf16"`, for JavaScript and `NSString`). Spoken words are located in order
+through segmentation and Markdown projection. Markdown syntax that is not
+spoken has no word on it, and a leading YAML front-matter block is skipped. A
+word the projection added (a heading's terminal period) maps to its core
+characters, or to `null` when it has none in the source. Sentences follow
+terminal punctuation and blank lines, but not periods in known abbreviations
+(`Dr.`, `p.m.`, `Jan.`, initials).
+
+**Position events** are opt-in and transient, like `playback_progress`. A
+follower gets an event when the clip, segment, word, state or hold changes,
+sampled at 20 Hz, and at least once a second while playing. Events are
+dropped for a reader whose write backlog exceeds 64 KiB. `state` is
+`playing`, `paused`, `held` or `idle`. Between events, a client may
+extrapolate: while `playing`, it adds `(now − sampled_at) × rate` to
+`position_ms` and looks the word up in `timings`. `position_ms` is the source
+frame handed to the output device, so a word is heard one output latency later
+(tens of ms on built-in speakers, more on Bluetooth).
+
+**Compatibility and versioning.** Both additions are additive and opt-in:
+no existing request or event changes. The event carries `v: 1` and the reply
+carries `timing_version: 1`. Fields may be added within a version; a change
+of meaning gets a new version. Clients must ignore unknown fields, and an older
+daemon answers `timings` with `bad_request` ("unknown op"). The model-worker
+pipe stays at worker protocol 1. The daemon asks for marks with
+`"timings": true`, and a runtime installed before this change ignores the flag
+and is estimated until its model setup is rerun.
+
+**Storage.** Final timings are stored in SQLite `artifact_timings`, keyed by
+the clip's generation artifact identity rather than its row. A cached replay
+or rewind that reuses audio therefore reuses its timings. Rows go with the
+last history row that references them, and orphans are pruned at startup.
 
 ### MCP: JSONL stdio adapter around a public port
 
@@ -509,6 +593,7 @@ than inferred from happy-path reopen tests.
 | Global playback hold | **Yes** | Restarting during a meeting must not unexpectedly speak |
 | On-screen captions | **Yes** | Menu and MCP clients share one daemon-owned preference |
 | Current position within an utterance | Yes, best-effort | Resume mid-sentence if the offset is known |
+| Word timings of synthesized clips | **Yes, with their history** | Keyed by audio artifact; a follower can map any saved position back to a word |
 | Audio cache | Yes, subject to eviction | |
 
 **A restored playback queue comes back `Paused`, never `Playing`.** A daemon that restarts and immediately begins speaking is a daemon that talks when nobody expects it, a worse failure than silence, because it happens in a room.

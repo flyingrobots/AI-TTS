@@ -117,6 +117,11 @@ def prepare_speech_segments(
     )
 
 
+def front_matter_length(text: str) -> int:
+    """Return how many leading characters a Markdown projection omits as metadata."""
+    return len(text) - len(_without_front_matter(text))
+
+
 def _without_front_matter(text: str) -> str:
     """Remove one leading YAML metadata fence before Markdown parsing."""
     lines = text.splitlines(keepends=True)

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
     from pathlib import Path
 
+    from aitts.timing import WordMark
+
 
 class SynthesisError(Exception):
     """Raised when an engine cannot render text to audio."""
@@ -52,6 +54,33 @@ class StreamingEngine(Protocol):
 
     def stream_synthesize(self, text: str, voice: str, speed: float) -> Iterator[bytes]:
         """Yield PCM chunks before the complete source has been generated."""
+        ...
+
+
+@runtime_checkable
+class TimedEngine(Protocol):
+    """Optional: the engine reports when each token it rendered is heard.
+
+    Times are milliseconds from the clip's first sample. An engine that can
+    only sometimes report (a language without timed G2P, an older worker)
+    returns no marks, and the daemon estimates instead.
+    """
+
+    def synthesize_timed(
+        self, text: str, voice: str, speed: float, out_path: Path
+    ) -> tuple[int, tuple[WordMark, ...]]:
+        """Render like ``synthesize``; also return the rendered tokens' times."""
+        ...
+
+
+@runtime_checkable
+class TimedStreamingEngine(Protocol):
+    """Optional: streaming PCM interleaved with token times as they are known."""
+
+    def stream_synthesize_timed(
+        self, text: str, voice: str, speed: float
+    ) -> Iterator[bytes | tuple[WordMark, ...]]:
+        """Yield PCM chunks and, before the PCM they describe, batches of marks."""
         ...
 
 

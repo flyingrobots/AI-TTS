@@ -1091,3 +1091,21 @@ per-ID CLI lookup exposes existing daemon state. Owned installer and socket
 checks, seeded-failure calibration and installation boundaries are recorded in
 [the queue admission receipt](../testing-evidence/2026-10-09-queue-admission.md).
 Explicit playback waits remain opt-in.
+
+## October 25 word timing and caption sync
+
+Change-kind: feature (word timing, the `timings` op and `playback_position`
+events). New trust
+boundary: engine-reported token times and the model-worker `marks` frames.
+Engine marks are validated (types, finite, non-negative, ordered), and
+malformed marks cost the marks, never the clip. MLX observations are kept
+only when the predicted frame total reproduces the chunk's exact sample
+count. The oracle for times is the engine's own duration prediction. Offsets
+are checked against exact substrings of the submitted text, by generated
+plain-text segment plans and owned Markdown and UTF-16 cases, through a real
+Unix-socket follower. Twelve load-bearing mutations were each observed red.
+Real-engine accuracy
+is a dated observation, not a CI threshold:
+[the caption word-timing receipt](../testing-evidence/2026-10-25-caption-word-timing.md).
+Accepted blind spots: no acoustic (microphone) check of output latency;
+Chatterbox word-level accuracy has no independent reference.
