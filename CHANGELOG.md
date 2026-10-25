@@ -223,6 +223,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to one 2 MiB owner-only log plus two backups, suppresses exception payloads,
   and reserves stdout/stderr for no persistent output.
 
+### Fixed
+
+- Menu-bar captions follow the voice. They had assumed speech time is proportional to letters, which drifted by 0.2–1.4 s on Kokoro and up to 2.9 s on Chatterbox. Captions stayed on the first cue for a streaming clip's whole generation time, and abbreviation periods (`Dr.`, `p.m.`, `Jan.`) split cues mid-sentence. Captions now show the cue holding the word being heard. The proportional estimate remains only for daemons without word timing. Measurements: `docs/testing-evidence/2026-10-25-caption-word-timing.md`.
+
 ### Security
 
 - Guided model setup checks every downloaded model file against a SHA-256 digest pinned in the catalog before any file is loaded, so a substituted or corrupted download (including pickled torch weights) is rejected instead of deserialized.

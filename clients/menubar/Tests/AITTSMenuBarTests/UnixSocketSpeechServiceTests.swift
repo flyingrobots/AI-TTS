@@ -288,6 +288,41 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         }
     }
 
+    func testCaptionTimingMapsToOneClipRequestAndDecodesWordStarts() throws {
+        let reply: [String: Any] = [
+            "ok": true, "id": "utt_1", "timing_version": 1, "offset_unit": "codepoint",
+            "text_length": 11, "segment_count": 3,
+            "segments": [[
+                "index": 2, "state": "Ready", "duration_ms": NSNull(), "timing": "engine",
+                "complete": false, "source_start": 0, "source_end": 11,
+                "words": [[0, 120, 0, 5], [NSNull(), NSNull(), 6, 11]],
+                "sentences": [[0, 11, 0, 1]],
+            ]],
+        ]
+        let transport = RecordingDaemonTransport(responses: [reply])
+        let service = UnixSocketSpeechService(transport: transport)
+
+        let timing = try service.captionTiming(utteranceID: "utt_1", segmentIndex: 2)
+
+        XCTAssertEqual(timing, CaptionTiming(wordStartsMs: [0, nil], complete: false))
+        XCTAssertEqual(try transport.canonicalRequests(), try canonicalize([
+            ["op": "timings", "id": "utt_1", "segment": 2],
+        ]))
+    }
+
+    func testCaptionTimingIsAbsentFromDaemonsThatPredateIt() throws {
+        let older = RecordingDaemonTransport(
+            requestError: WireError.daemon(type: "bad_request", message: "unknown op 'timings'")
+        )
+        let untimed = RecordingDaemonTransport(responses: [[
+            "ok": true, "timing_version": 1,
+            "segments": [["timing": NSNull(), "complete": false, "words": [[NSNull(), NSNull(), 0, 2]]]],
+        ]])
+
+        XCTAssertNil(try UnixSocketSpeechService(transport: older).captionTiming(utteranceID: "u", segmentIndex: 0))
+        XCTAssertNil(try UnixSocketSpeechService(transport: untimed).captionTiming(utteranceID: "u", segmentIndex: 0))
+    }
+
     func testSubscriptionProjectsTransportEventsAsChangeSignals() throws {
         let transport = RecordingDaemonTransport(subscriptionEventCount: 2)
         let service = UnixSocketSpeechService(transport: transport)

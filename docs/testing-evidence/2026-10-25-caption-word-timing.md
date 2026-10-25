@@ -1,7 +1,7 @@
 # Caption drift and word timing
 
-Change-kind: feature (word timing, `timings` op, `playback_position` events).
-The menu-bar caption fix that uses it follows separately.
+Change-kind: feature (word timing, `timings` op, `playback_position` events),
+with one bug fix (menu-bar captions drift from the voice) built on it.
 
 ## Diagnosis: why captions drift
 
@@ -89,6 +89,11 @@ passages are fixed, generated public text.
   The clip then gets an estimate. A runtime gets engine timing only after
   its adapter snapshot is reinstalled (model setup **Retry**/reinstall); no
   manifest version changes.
+- **Captions.** The menu fetches the active clip's timing and shows the cue
+  holding the word whose start was most recently reached. This needs no
+  duration, so streaming clips caption correctly. Without timing (an older
+  daemon), the proportional estimate remains. Abbreviation periods no longer
+  end a cue.
 
 ## Accuracy after the change
 
@@ -125,7 +130,7 @@ New Python tests (47): `tests/test_timing.py` (36 small),
 `tests/test_store_timings.py` (2 small), `tests/test_engine_timing_adapters.py`
 (3 small), `tests/test_managed_timings.py` (2 medium), and
 `tests/test_word_timing_daemon.py` (4 medium, including a real Unix-socket
-follower in UTF-16).
+follower in UTF-16). New Swift tests (6): 4 caption tests and 2 adapter tests.
 The oracle for times is the engine's own duration prediction, or owned
 synthetic audio with known silences. The oracle for offsets is exact
 substrings of the submitted text.
@@ -149,6 +154,13 @@ Every one went red, and every mutation was reverted:
 - truncation rate check removed: the short-audio test fails;
 - unspoken suffix stamped at the clip end: the untimed-suffix test fails.
 
+**Bug fix, red on the unfixed caption code.** The parent's `CaptionCueTrack`
+(`c081d50`) was restored behind the new initializer, with timing ignored. 3
+of 10 caption tests failed (7 assertions): the abbreviation cues ("In 1995,
+Dr." / "Smith paid …"), the timed cue at 6,600 ms, and incomplete timing. The
+last one reproduces cause 2: with no duration, the parent returned the first
+cue at 13 s. All pass with the fix.
+
 ## Validation
 
 On the final candidate, based on `main` at `c081d50`:
@@ -157,13 +169,13 @@ On the final candidate, based on `main` at `c081d50`:
 - Python: 1,184 passed and 2 skipped, out of 1,186 collected (the 1,137
   existing plus 47 new). Small tier 1.16 s CPU, medium tier 16.77 s CPU, both
   within budget.
-- Swift: unchanged by this commit.
+- Swift: 193 tests, 0 failures, 0 warnings.
 - Real engines: three runs per engine, each under the `host/gpu/` workstation
   lock. Diagnosis used direct adapter calls. The end-to-end check used an
   isolated daemon instance; no installed daemon, LaunchAgent, socket or
   runtime was modified.
 
-Not done: no installed-daemon or acoustic check.
+Not done: no installed-app or acoustic check, and no listening acceptance.
 Installed runtimes report `estimated` timing until their model setup is
 rerun with this adapter. MCP tools do not expose `timings` yet.
 

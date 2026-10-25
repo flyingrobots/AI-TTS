@@ -3,6 +3,7 @@
 // Test-Size: medium (menu presentation model under XCTest)
 // Test-Oracle: approved bounded phrase captions preserve provenance and playback progress
 
+import AITTSApplication
 import Foundation
 import XCTest
 
@@ -63,6 +64,82 @@ final class CaptionCueTests: XCTestCase {
             track.cue(positionMs: 7_999, durationMs: 8_000),
             "Second concise thought."
         )
+    }
+
+    // Kokoro (bm_daniel, 1x) word starts for this passage, measured from the
+    // engine's own duration predictions on 2026-10-25; the clip is 16,375 ms.
+    // See docs/testing-evidence/2026-10-25-caption-word-timing.md.
+    private static let measuredText =
+        "In 1995, Dr. Smith paid $3,450.75 for 12 GB of memory. The meeting starts at 3:30 p.m. "
+        + "on Jan. 5th. Version 2.14.1 fixed 37 bugs. Call 555-0142 for details."
+    private static let measuredStarts: [Int?] = [
+        250, 312, 1350, 1675, 1975, 2250, 5050, 5175, 5512, 5862, 5950, 6725, 6825, 7200, 7512,
+        7612, 8225, 8612, 8788, 9388, 9938, 10338, 11388, 11650, 12300, 12975, 13250, 15100, 15225,
+    ]
+    private static let measuredDurationMs = 16_375
+
+    func testAbbreviationPeriodsDoNotSplitACue() {
+        let track = CaptionCueTrack(text: Self.measuredText)
+
+        XCTAssertEqual(
+            track.cues,
+            [
+                "In 1995, Dr. Smith paid $3,450.75 for 12 GB of memory.",
+                "The meeting starts at 3:30 p.m. on Jan. 5th.",
+                "Version 2.14.1 fixed 37 bugs.",
+                "Call 555-0142 for details.",
+            ])
+    }
+
+    func testTimedCaptionShowsTheCueOfTheWordBeingHeard() {
+        let timed = CaptionCueTrack(
+            text: Self.measuredText,
+            timing: CaptionTiming(wordStartsMs: Self.measuredStarts, complete: true)
+        )
+        let estimated = CaptionCueTrack(text: Self.measuredText)
+        let duration = Self.measuredDurationMs
+
+        XCTAssertTrue(timed.isTimed)
+        // 6,600 ms: "memory." (5,950) is still sounding; "The" begins at 6,725.
+        XCTAssertEqual(
+            timed.cue(positionMs: 6_600, durationMs: duration),
+            "In 1995, Dr. Smith paid $3,450.75 for 12 GB of memory."
+        )
+        // The proportional estimate has already moved on: the drift this fixes.
+        XCTAssertEqual(
+            estimated.cue(positionMs: 6_600, durationMs: duration),
+            "The meeting starts at 3:30 p.m. on Jan. 5th."
+        )
+        XCTAssertEqual(
+            timed.cue(positionMs: 6_725, durationMs: duration),
+            "The meeting starts at 3:30 p.m. on Jan. 5th."
+        )
+        // A streaming clip has no duration yet; timing does not need one.
+        XCTAssertEqual(timed.cue(positionMs: 13_000, durationMs: nil), "Call 555-0142 for details.")
+        XCTAssertEqual(timed.cue(positionMs: 0, durationMs: nil), timed.cues[0])
+    }
+
+    func testIncompleteTimingHoldsTheLastTimedWordsCue() {
+        let prefix = Array(Self.measuredStarts.prefix(12)) + Array(repeating: nil, count: 17)
+        let track = CaptionCueTrack(
+            text: Self.measuredText,
+            timing: CaptionTiming(wordStartsMs: prefix, complete: false)
+        )
+
+        XCTAssertEqual(
+            track.cue(positionMs: 9_000, durationMs: nil),
+            "The meeting starts at 3:30 p.m. on Jan. 5th."
+        )
+    }
+
+    func testTimingForDifferentWordsIsIgnored() {
+        let track = CaptionCueTrack(
+            text: "First concise thought. Second concise thought.",
+            timing: CaptionTiming(wordStartsMs: [0, 7_000], complete: true)
+        )
+
+        XCTAssertFalse(track.isTimed)
+        XCTAssertEqual(track.cue(positionMs: 7_999, durationMs: 8_000), "Second concise thought.")
     }
 
     func testCaptionTimelineAdvancesOnlyDuringPlaybackAtTheObservedRate() {

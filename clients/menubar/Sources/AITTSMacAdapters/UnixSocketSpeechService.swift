@@ -207,6 +207,17 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Gen
         )
     }
 
+    public func captionTiming(utteranceID: String, segmentIndex: Int) throws -> CaptionTiming? {
+        let response: [String: Any]
+        do {
+            response = try request(["op": "timings", "id": utteranceID, "segment": segmentIndex])
+        } catch SpeechServiceError.rejected {
+            // A daemon that predates word timing, or a clip that is gone.
+            return nil
+        }
+        return CaptionTiming(daemonJSON: response)
+    }
+
     public func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws {
         do {
             try transport.subscribe(
@@ -254,6 +265,31 @@ extension ActiveSegment {
             durationMs: json["duration_ms"] as? Int,
             positionMs: json["position_ms"] as? Int
         )
+    }
+}
+
+extension CaptionTiming {
+    /// Decode one clip of a `timings` reply: `words` are `[start, end, from, to]`.
+    init?(daemonJSON json: [String: Any]) {
+        guard json["timing_version"] as? Int == 1,
+            let segments = json["segments"] as? [[String: Any]],
+            segments.count == 1,
+            let segment = segments.first,
+            segment["timing"] is String,
+            let words = segment["words"] as? [[Any]]
+        else { return nil }
+        var starts: [Int?] = []
+        for word in words {
+            guard word.count == 4 else { return nil }
+            if word[0] is NSNull {
+                starts.append(nil)
+            } else if let start = word[0] as? Int, start >= 0 {
+                starts.append(start)
+            } else {
+                return nil
+            }
+        }
+        self.init(wordStartsMs: starts, complete: segment["complete"] as? Bool ?? false)
     }
 }
 

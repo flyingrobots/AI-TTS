@@ -74,6 +74,9 @@ final class AppState: ObservableObject {
 
     private(set) var statusObservedAt = Date()
     private(set) var observedPlaybackRate: Double = 1.0
+    /// Word timing for the clip being captioned, keyed by `captionTimingKey`.
+    @Published private(set) var captionTiming: (key: String, timing: CaptionTiming)?
+    private var captionTimingInFlight = false
 
     /// The one user-facing queue: every clip that will play after the current one.
     var upcoming: [Utterance] {
@@ -352,6 +355,7 @@ final class AppState: ObservableObject {
         self.duckingEnabled = snapshot.duckingEnabled
         updateDucking()
         self.applyCaptionSettings(snapshot)
+        self.refreshCaptionTiming()
         self.voiceAssignments = snapshot.voiceAssignments
         self.inputInterruptEnabled = snapshot.inputInterruptEnabled
         self.inputInterruptResume = snapshot.inputInterruptResume
@@ -393,6 +397,47 @@ final class AppState: ObservableObject {
     func dismissError() {
         failureNotice = nil
         lastError = nil
+    }
+
+    /// Identifies one spoken clip: the utterance and its active segment.
+    static func captionTimingKey(utteranceID: String, segmentIndex: Int) -> String {
+        "\(utteranceID)#\(segmentIndex)"
+    }
+
+    /// Timing for the active clip, when it describes that clip.
+    func captionTiming(utteranceID: String, segmentIndex: Int) -> CaptionTiming? {
+        guard let captionTiming,
+            captionTiming.key == Self.captionTimingKey(utteranceID: utteranceID, segmentIndex: segmentIndex)
+        else { return nil }
+        return captionTiming.timing
+    }
+
+    /// Fetch word timing when the captioned clip changes, and again while it
+    /// is still generating; a finished clip's timing never changes.
+    private func refreshCaptionTiming() {
+        guard captionsEnabled, let current = status?.current, let segment = current.activeSegment
+        else {
+            captionTiming = nil
+            return
+        }
+        let key = Self.captionTimingKey(utteranceID: current.id, segmentIndex: segment.index)
+        if let existing = captionTiming, existing.key == key, existing.timing.complete { return }
+        guard !captionTimingInFlight else { return }
+        captionTimingInFlight = true
+        let id = current.id
+        let index = segment.index
+        queue.async { [speech] in
+            let timing = try? speech.captionTiming(utteranceID: id, segmentIndex: index)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.captionTimingInFlight = false
+                if let timing {
+                    self.captionTiming = (key, timing)
+                } else if self.captionTiming?.key != key {
+                    self.captionTiming = nil
+                }
+            }
+        }
     }
 
     private func applyCaptionSettings(_ snapshot: Snapshot) {

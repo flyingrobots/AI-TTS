@@ -150,6 +150,21 @@ public enum SpeechCommand: Equatable, Sendable {
     case releaseVoice(source: String)
 }
 
+/// When each word of one spoken clip starts, on the clip's source-audio clock.
+///
+/// Words are the clip text's whitespace-separated runs, in order. A word the
+/// daemon has no time for yet (a clip still generating) is `nil`.
+public struct CaptionTiming: Equatable, Sendable {
+    public let wordStartsMs: [Int?]
+    /// Whether the clip finished generating; incomplete timing grows.
+    public let complete: Bool
+
+    public init(wordStartsMs: [Int?], complete: Bool) {
+        self.wordStartsMs = wordStartsMs
+        self.complete = complete
+    }
+}
+
 /// Outbound port for every speech capability used by a native macOS client.
 public protocol SpeechServicePort: Sendable {
     func snapshot() throws -> Snapshot
@@ -157,6 +172,15 @@ public protocol SpeechServicePort: Sendable {
     func perform(_ command: SpeechCommand) throws
     func purgeCachedAudio() throws -> CachePurgeReceipt
     func subscribe(shouldContinue: () -> Bool, onChange: () -> Void) throws
+    /// Word start times for one clip; `nil` when the daemon has none to give.
+    func captionTiming(utteranceID: String, segmentIndex: Int) throws -> CaptionTiming?
+}
+
+extension SpeechServicePort {
+    /// Services without word timing (and test doubles) caption proportionally.
+    public func captionTiming(utteranceID: String, segmentIndex: Int) throws -> CaptionTiming? {
+        nil
+    }
 }
 
 /// Outbound port for projecting a user-selected URL into speakable source text.

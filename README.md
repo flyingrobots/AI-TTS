@@ -80,7 +80,8 @@ predictions (`"timing": "engine"`, within about 25 ms of each other). Other
 engines get an estimate anchored on the pauses in their audio
 (`"timing": "estimated"`). Offsets survive segmentation and Markdown
 projection, in code points or UTF-16 units. A model runtime installed before
-this feature is estimated until its model setup is rerun. The wire contract, versioning and limits are in
+this feature is estimated until its model setup is rerun. The menu-bar
+captions use the same timings. The wire contract, versioning and limits are in
 [architecture §5](docs/design/architecture.md#word-timing-and-following-along).
 
 ## Interrupting and resuming speech

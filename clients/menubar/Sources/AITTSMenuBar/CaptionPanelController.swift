@@ -107,10 +107,11 @@ struct CaptionOverlayView: View {
 
     var body: some View {
         Group {
-            if let segment = state.status?.current?.activeSegment {
+            if let current = state.status?.current, let segment = current.activeSegment {
                 CaptionCueView(
                     segment: segment,
-                    source: state.status?.current?.source,
+                    timing: state.captionTiming(utteranceID: current.id, segmentIndex: segment.index),
+                    source: current.source,
                     playbackState: state.status?.playbackState ?? "idle",
                     observedAt: state.statusObservedAt,
                     playbackRate: state.observedPlaybackRate
@@ -135,6 +136,7 @@ private struct CaptionCueView: View {
 
     init(
         segment: ActiveSegment,
+        timing: CaptionTiming?,
         source: String?,
         playbackState: String,
         observedAt: Date,
@@ -144,7 +146,7 @@ private struct CaptionCueView: View {
         self.playbackState = playbackState
         self.observedAt = observedAt
         self.playbackRate = playbackRate
-        self.track = CaptionCueTrack(text: segment.text)
+        self.track = CaptionCueTrack(text: segment.text, timing: timing)
         self.metadata = CaptionMetadata(
             source: source,
             segmentNumber: segment.number,
