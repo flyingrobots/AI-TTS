@@ -226,3 +226,13 @@ formatting, strict all-target Clippy, all 43 debug tests, and all 43 release tes
 Ten shuffled repetitions of the five voice tests passed all 50 executions, each under a
 two-second wall deadline. The parser, its patch/provenance records, and the 40 golden
 strings are unchanged by this repair.
+
+## Numeric star-span review
+
+Post-ready review found that preserving a numeric star match did not consume its
+closing operator. The public RED case `2 * 0 * words *` incorrectly became
+`2 * 0 words`. The cleanup now preserves and consumes the complete syntactic match,
+so its closing multiplication star cannot become a later formatting opener.
+The Python public boundary independently preserved all 128 cases from numbers
+0–31 and star widths 1–4. The new Rust boundary sweep and all seven segmentation
+tests pass, including the unchanged 40-case corpus.

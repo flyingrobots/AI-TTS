@@ -90,6 +90,22 @@ fn embedded_star_runs_keep_original_preceding_character_context() {
 }
 
 #[test]
+fn numeric_star_matches_are_preserved_and_consumed_before_following_words() {
+    // Python's public prepare boundary preserves the complete numeric match;
+    // its closing multiplication operator cannot reopen a later formatting match.
+    for number in 0..32 {
+        for width in 1..=4 {
+            let stars = "*".repeat(width);
+            let input = format!("2 {stars} {number} {stars} words {stars}");
+            assert_eq!(
+                prepare(&input, Some(ContentFormat::Markdown)).unwrap(),
+                vec![input]
+            );
+        }
+    }
+}
+
+#[test]
 fn front_matter_recognizes_python_line_separators() {
     // Python splitlines accepts these separators in addition to LF and CRLF.
     for separator in [

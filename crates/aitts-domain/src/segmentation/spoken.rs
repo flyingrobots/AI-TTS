@@ -50,9 +50,16 @@ pub(super) fn clean_stars(text: &str) -> String {
             .chars()
             .next()
             .is_none_or(|character| character.is_whitespace() || ".,!?;:)]".contains(character));
-        if valid_start && valid_end && content.chars().any(char::is_alphabetic) {
+        if valid_start && valid_end {
             result.push_str(prefix);
-            result.push_str(content);
+            if content.chars().any(char::is_alphabetic) {
+                result.push_str(content);
+            } else {
+                // A syntactic numeric match stays literal, but its closing star
+                // is consumed just as Python's regex substitution consumes it.
+                let matched = tail.len().saturating_sub(suffix.len());
+                result.push_str(tail.get(..matched).unwrap_or_default());
+            }
             remaining = suffix;
         } else {
             let end = start.saturating_add(1);
