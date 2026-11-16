@@ -209,3 +209,20 @@ the documented medium resource/prose cases used 15 seconds.
 The 52 upstream unit tests and 192 unbounded API comparisons were repeated after the final
 bulk-move changes and passed. Final hosted CI and review status remain tied to the published
 PR head; these local results do not substitute for those gates.
+
+## Voice source whitespace review
+
+Independent API review identified a difference between Rust's Unicode whitespace and
+Python's `str.strip()`: Python also treats U+001C–U+001F as blank. The Python public
+`decide_speaking_voice` returned the listener's default voice without a claim for each
+separator. Before the repair, the Rust public `voices::decide` regression instead selected
+the first agent voice and acquired a claim. The classification predicate now preserves
+Python's blank-source rule without changing prefix or nonblank-name handling.
+
+The regression covers all four separators, mixed blank whitespace, explicit listener
+requests, a nonblank name surrounded by separators, and U+200B (which is not whitespace).
+The targeted assertion failed before the source change and passed afterward. Workspace
+formatting, strict all-target Clippy, all 43 debug tests, and all 43 release tests passed.
+Ten shuffled repetitions of the five voice tests passed all 50 executions, each under a
+two-second wall deadline. The parser, its patch/provenance records, and the 40 golden
+strings are unchanged by this repair.

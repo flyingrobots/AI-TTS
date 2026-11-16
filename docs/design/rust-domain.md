@@ -48,6 +48,8 @@ Voice decisions use the same precedence as the Python voice-assignment function.
 The listener's pin wins. A request for a voice held by another client keeps the requester's
 existing claim, or selects the first available catalog voice. Exhaustion permits sharing the
 catalog's first voice. An empty catalog is an error only when automatic allocation is needed.
+Blank sources follow Python's whitespace classification, including U+001C–U+001F, and
+use a listener voice without creating a claim. Source prefixes remain case-sensitive.
 The caller must validate explicit requests, remove stale claims, apply language restrictions,
 and exclude the current client's claim from the other clients' taken voices.
 

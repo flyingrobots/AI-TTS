@@ -60,6 +60,40 @@ fn listener_override_and_ui_requests_preserve_claims() {
 }
 
 #[test]
+fn python_blank_sources_select_listener_voice_without_claiming() {
+    let base = request();
+    for source in ["\u{1c}", "\u{1d}", "\u{1e}", "\u{1f}", " \u{1c}\t\u{1f}\n"] {
+        assert_decision(
+            VoiceRequest {
+                source: Some(source),
+                ..base
+            },
+            "default",
+            Claim::Preserve,
+        );
+        assert_decision(
+            VoiceRequest {
+                source: Some(source),
+                requested: Some("b"),
+                ..base
+            },
+            "b",
+            Claim::Preserve,
+        );
+    }
+    for source in ["\u{1c}agent\u{1f}", "\u{200b}"] {
+        assert_decision(
+            VoiceRequest {
+                source: Some(source),
+                ..base
+            },
+            "a",
+            Claim::Acquire,
+        );
+    }
+}
+
+#[test]
 fn available_requests_claims_and_other_client_conflicts_follow_precedence() {
     let base = request();
     assert_decision(

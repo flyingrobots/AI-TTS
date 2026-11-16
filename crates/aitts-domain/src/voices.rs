@@ -62,7 +62,11 @@ impl core::error::Error for EmptyCatalog {}
 /// Whether this source should hold a distinct client voice.
 pub fn is_agent_source(source: Option<&str>) -> bool {
     source.is_some_and(|name| {
-        !name.trim().is_empty() && !name.starts_with("macos-") && !name.starts_with("menubar-")
+        // Python's strip also treats these four control separators as whitespace.
+        let blank = name
+            .chars()
+            .all(|character| character.is_whitespace() || matches!(character, '\u{1c}'..='\u{1f}'));
+        !blank && !name.starts_with("macos-") && !name.starts_with("menubar-")
     })
 }
 
