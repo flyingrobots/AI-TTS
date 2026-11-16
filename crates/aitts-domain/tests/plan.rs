@@ -49,6 +49,13 @@ fn keys_order_stably_and_priority_only_changes_admission() {
     }
     assert_eq!(admission_key(&[], Priority::Normal).unwrap().value(), 1.0);
     assert_eq!(admission_key(&[], Priority::Preempt).unwrap().value(), 0.0);
+    let historical = [entry("completed", 8.0, Priority::Normal, State::Played)];
+    assert_eq!(
+        admission_key(&historical, Priority::Normal)
+            .unwrap()
+            .value(),
+        9.0
+    );
     let zeros = [
         entry("positive", 0.0, Priority::Normal, State::Ready),
         entry("negative", -0.0, Priority::Preempt, State::Ready),

@@ -9,13 +9,17 @@ use aitts_domain::settings::{
 
 #[test]
 fn numeric_kinds_limits_and_nonfinite_values_are_checked() {
-    for value in [
-        Value::Number(0.5),
-        Value::Number(2.0),
-        Value::Integer(1),
-        Value::Integer(2),
+    for (value, expected) in [
+        (Value::Number(0.5), 0.5),
+        (Value::Number(2.0), 2.0),
+        (Value::Integer(1), 1.0),
+        (Value::Integer(2), 2.0),
     ] {
-        assert!(Speed::parse(value).is_ok(), "{value:?}");
+        assert_eq!(
+            Speed::parse(value).map(Speed::multiplier),
+            Ok(expected),
+            "{value:?}"
+        );
     }
     for value in [
         Value::Number(0.499),

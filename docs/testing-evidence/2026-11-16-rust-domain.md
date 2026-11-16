@@ -53,6 +53,11 @@ input contract; this shrank to the one-word input `word0` and independently chal
 conservation, rather than only the nonempty-output assertion. The same source was restored
 and the segmentation suite passed.
 
+Two further value-boundary calibrations checked that accepted speeds retain their actual
+multiplier and that normal admission follows completed history. Replacing speed with 1.0,
+or excluding terminal entries from tail-key selection, produced assertion failures. Restored
+sources passed formatting, strict Clippy, and the complete suite.
+
 ## Toolchain and repeated execution
 
 Final debug validation used these recorded binaries:
@@ -106,5 +111,7 @@ The enabled production dependency graph and actual locked source were inspected 
 unsafe code, features, and build scripts. This is a source review plus graph evidence, not a
 universal sandbox proof. Corpus agreement does not establish all-Markdown parity, production
 integration, device behavior, persistence recovery, or performance under unbounded inputs.
-Release-mode validation, integration with the latest main branch, normal final hooks, and
-hosted CI are reported in the PR as they complete.
+All 21 tests also passed in release mode. The branch then integrated main through `38d967c`,
+including the socket fixture and runtime-manifest repairs. The normal push hook passed
+1,239 Python tests with two skips, followed by the unchanged Swift build. Hosted CI and
+the final review disposition are reported in the PR against its published head.
