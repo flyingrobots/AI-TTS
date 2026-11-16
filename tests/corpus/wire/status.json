@@ -1,0 +1,24 @@
+[
+  {
+    "reply": {
+      "accepting_speech": true,
+      "counts": {},
+      "current": null,
+      "engine": "fake",
+      "engine_preparing": null,
+      "input_active": false,
+      "interruption": null,
+      "ok": true,
+      "playback_held": false,
+      "playback_state": "idle",
+      "state": "accepting",
+      "submission_disposition": "queued_for_playback",
+      "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+      "version": "0.2.0",
+      "voice": "bm_daniel"
+    },
+    "request": {
+      "op": "status"
+    }
+  }
+]

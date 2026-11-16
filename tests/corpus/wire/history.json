@@ -1,0 +1,112 @@
+[
+  {
+    "reply": {
+      "ok": true,
+      "subscribed": true
+    },
+    "request": {
+      "op": "subscribe"
+    }
+  },
+  {
+    "reply": {
+      "accepted": true,
+      "accepting_speech": true,
+      "composite": false,
+      "eligible_engines": [
+        "fake"
+      ],
+      "id": "<id:1>",
+      "ok": true,
+      "playback": true,
+      "playback_held": false,
+      "segment_count": 1,
+      "sensitivity": "confidential",
+      "state": "Queued",
+      "submission_disposition": "queued_for_playback",
+      "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+      "voice": "bm_daniel"
+    },
+    "request": {
+      "op": "submit",
+      "text": "Contract text."
+    }
+  },
+  {
+    "event": {
+      "at": "<time>",
+      "event": "state_changed",
+      "from": null,
+      "id": "<id:1>",
+      "to": "Queued"
+    }
+  },
+  {
+    "event": {
+      "at": "<time>",
+      "event": "state_changed",
+      "from": "Queued",
+      "id": "<id:1>",
+      "to": "Synthesizing"
+    }
+  },
+  {
+    "event": {
+      "at": "<time>",
+      "event": "state_changed",
+      "from": "Synthesizing",
+      "id": "<id:1>",
+      "to": "Ready"
+    }
+  },
+  {
+    "event": {
+      "at": "<time>",
+      "event": "state_changed",
+      "from": "Ready",
+      "id": "<id:1>",
+      "to": "Playing"
+    }
+  },
+  {
+    "event": {
+      "at": "<time>",
+      "event": "state_changed",
+      "from": "Playing",
+      "id": "<id:1>",
+      "to": "Played"
+    }
+  },
+  {
+    "reply": {
+      "items": [
+        {
+          "audio_cached": true,
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": "<time>",
+          "error": null,
+          "final_state": "Played",
+          "finished_at": "<time>",
+          "id": "<id:1>",
+          "playback": true,
+          "played_ms": 100,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1.0,
+          "state": "Played",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ],
+      "ok": true
+    },
+    "request": {
+      "op": "history"
+    }
+  }
+]
