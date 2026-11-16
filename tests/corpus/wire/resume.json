@@ -1,0 +1,24 @@
+[
+  {
+    "reply": {
+      "current": null,
+      "held": true,
+      "ok": true,
+      "state": null
+    },
+    "request": {
+      "op": "pause"
+    }
+  },
+  {
+    "reply": {
+      "current": null,
+      "held": false,
+      "ok": true,
+      "state": null
+    },
+    "request": {
+      "op": "resume"
+    }
+  }
+]

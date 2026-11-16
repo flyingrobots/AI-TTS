@@ -13,6 +13,10 @@ The portable [Testing Standards](testing.md) are binding. This profile records
 the local risk map, budgets, enforcement, and known blind spots. It narrows the
 standard to this repository; it does not weaken it.
 
+The [external daemon contract](../../tests/corpus/wire/README.md) explains how
+to select a daemon command and compare its socket replies with the checked-in
+wire transcripts.
+
 ## Change declaration
 
 Every commit and pull request declares exactly one kind:

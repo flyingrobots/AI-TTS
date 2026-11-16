@@ -21,6 +21,7 @@ from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.model import Priority, State
 from aitts.playback import FakeSink, PlaybackController
+from tests.socket_daemon import SocketDaemon, daemon_process
 
 pytestmark = [
     pytest.mark.medium,
@@ -28,7 +29,7 @@ pytestmark = [
 ]
 
 
-async def send_raw(daemon: Daemon, line: bytes) -> dict[str, Any]:
+async def send_raw(daemon: SocketDaemon | Daemon, line: bytes) -> dict[str, Any]:
     """Write one raw line to the socket and read the single reply."""
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     try:
@@ -59,6 +60,12 @@ async def rpc(sock: Path, payload: dict[str, Any]) -> dict[str, Any]:
 
 @pytest.fixture
 async def daemon(tmp_path: Path) -> Any:
+    async with daemon_process(tmp_path) as process:
+        yield process
+
+
+@pytest.fixture
+async def python_daemon(tmp_path: Path) -> Any:
     # AF_UNIX paths are capped at 104 bytes on macOS; pytest tmp_paths exceed
     # that, so the socket lives in a short-lived $TMPDIR directory instead.
     sock_dir = Path(tempfile.mkdtemp(prefix="aitts-"))
@@ -75,7 +82,8 @@ async def daemon(tmp_path: Path) -> Any:
     shutil.rmtree(sock_dir, ignore_errors=True)
 
 
-async def test_submit_fails_closed_to_confidential(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_submit_fails_closed_to_confidential(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "submit", "text": "secret thing"})
     assert res["ok"] is True
     assert res["state"] == "Queued"
@@ -84,7 +92,8 @@ async def test_submit_fails_closed_to_confidential(daemon: Daemon) -> None:
     assert res["id"].startswith("utt_")
 
 
-async def test_submit_echoes_declared_sensitivity(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_submit_echoes_declared_sensitivity(daemon: SocketDaemon) -> None:
     res = await rpc(
         daemon.socket_path, {"op": "submit", "text": "release note", "sensitivity": "public"}
     )
@@ -92,8 +101,9 @@ async def test_submit_echoes_declared_sensitivity(daemon: Daemon) -> None:
 
 
 async def test_submit_preserves_markdown_parent_and_creates_clean_internal_plan(
-    daemon: Daemon,
+    python_daemon: Daemon,
 ) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     opening = " ".join(f"opening{i}." for i in range(260))
     details = " ".join(f"detail{i}." for i in range(260))
@@ -136,7 +146,10 @@ async def test_submit_preserves_markdown_parent_and_creates_clean_internal_plan(
     }
 
 
-async def test_explicit_plain_text_does_not_interpret_markdown_syntax(daemon: Daemon) -> None:
+async def test_explicit_plain_text_does_not_interpret_markdown_syntax(
+    python_daemon: Daemon,
+) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     text = "# Not a heading\n\nSay **stars**, `ticks`, and --- literally."
 
@@ -161,8 +174,9 @@ async def test_explicit_plain_text_does_not_interpret_markdown_syntax(daemon: Da
 
 
 async def test_legacy_submit_without_format_retains_automatic_markdown_projection(
-    daemon: Daemon,
+    python_daemon: Daemon,
 ) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     text = "# Legacy heading\n\nKeep **existing** wire behavior."
 
@@ -176,8 +190,9 @@ async def test_legacy_submit_without_format_retains_automatic_markdown_projectio
 
 
 @pytest.mark.parametrize("content_format", ["ssml", None])
+@pytest.mark.socket_contract
 async def test_submit_rejects_invalid_content_format(
-    daemon: Daemon, content_format: str | None
+    daemon: SocketDaemon, content_format: str | None
 ) -> None:
     response = await rpc(
         daemon.socket_path,
@@ -193,7 +208,8 @@ async def test_submit_rejects_invalid_content_format(
     }
 
 
-async def test_paused_daemon_advertises_spooling_and_accepts_speech(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_paused_daemon_advertises_spooling_and_accepts_speech(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     status = await rpc(daemon.socket_path, {"op": "status"})
     assert status["state"] == "accepting"
@@ -211,13 +227,15 @@ async def test_paused_daemon_advertises_spooling_and_accepts_speech(daemon: Daem
     assert submitted["submission_guidance"].startswith("Speak freely")
 
 
-async def test_submit_without_text_is_bad_request(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_submit_without_text_is_bad_request(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "submit"})
     assert res["ok"] is False
     assert res["error"]["type"] == "bad_request"
 
 
-async def test_subscribe_sees_the_full_lifecycle(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_subscribe_sees_the_full_lifecycle(daemon: SocketDaemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     writer.write(b'{"op": "subscribe"}\n')
     await writer.drain()
@@ -239,7 +257,8 @@ async def test_subscribe_sees_the_full_lifecycle(daemon: Daemon) -> None:
     await writer.wait_closed()
 
 
-async def test_list_both_queues(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_list_both_queues(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})  # hold playback so items pile up
     a = await rpc(daemon.socket_path, {"op": "submit", "text": "a"})
     res_in = await rpc(daemon.socket_path, {"op": "list", "queue": "input"})
@@ -262,19 +281,22 @@ async def wait_for_async(predicate: Any, timeout: float = 5.0) -> None:
         await asyncio.sleep(0.01)
 
 
-async def test_list_requires_valid_queue(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_list_requires_valid_queue(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "list", "queue": "everything"})
     assert res["ok"] is False
     assert res["error"]["type"] == "bad_request"
 
 
-async def test_clear_requires_naming_a_queue(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_clear_requires_naming_a_queue(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "clear"})
     assert res["ok"] is False
     assert res["error"]["type"] == "bad_request"
 
 
-async def test_cancel_queued_ok_and_missing_id_not_found(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_cancel_queued_ok_and_missing_id_not_found(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     sub = await rpc(daemon.socket_path, {"op": "submit", "text": "x"})
     res = await rpc(daemon.socket_path, {"op": "cancel", "id": sub["id"]})
@@ -284,13 +306,15 @@ async def test_cancel_queued_ok_and_missing_id_not_found(daemon: Daemon) -> None
     assert res2["error"]["type"] == "not_found"
 
 
-async def test_unknown_op_is_bad_request(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_unknown_op_is_bad_request(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "frobnicate"})
     assert res["ok"] is False
     assert res["error"]["type"] == "bad_request"
 
 
-async def test_malformed_json_gets_error_not_disconnect(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_malformed_json_gets_error_not_disconnect(daemon: SocketDaemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     writer.write(b"this is not json\n")
     await writer.drain()
@@ -305,7 +329,8 @@ async def test_malformed_json_gets_error_not_disconnect(daemon: Daemon) -> None:
     await writer.wait_closed()
 
 
-async def test_invalid_utf8_gets_typed_error_without_disconnect(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_invalid_utf8_gets_typed_error_without_disconnect(daemon: SocketDaemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     writer.write(b"\xff\n")
     await writer.drain()
@@ -333,7 +358,8 @@ async def test_invalid_utf8_gets_typed_error_without_disconnect(daemon: Daemon) 
     ]
 
 
-async def test_valid_request_below_one_mib_line_limit_is_accepted(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_valid_request_below_one_mib_line_limit_is_accepted(daemon: SocketDaemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     request = json.dumps({"op": "status"}).encode() + (b" " * 70_000) + b"\n"
     writer.write(request)
@@ -360,7 +386,8 @@ async def test_valid_request_below_one_mib_line_limit_is_accepted(daemon: Daemon
     }
 
 
-async def test_over_one_mib_line_gets_typed_error_before_disconnect(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_over_one_mib_line_gets_typed_error_before_disconnect(daemon: SocketDaemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     writer.write((b" " * (1024 * 1024 + 2)) + b"\n")
     await writer.drain()
@@ -374,12 +401,14 @@ async def test_over_one_mib_line_gets_typed_error_before_disconnect(daemon: Daem
     }
 
 
-async def test_socket_is_user_only(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_socket_is_user_only(daemon: SocketDaemon) -> None:
     mode = stat.S_IMODE(daemon.socket_path.stat().st_mode)
     assert mode == 0o600
 
 
-async def test_status_reports_shape(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_status_reports_shape(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "status"})
     assert res["ok"] is True
     assert res["state"] == "accepting"
@@ -389,7 +418,8 @@ async def test_status_reports_shape(daemon: Daemon) -> None:
     assert res["engine"] == "fake"
 
 
-async def test_playback_rate_setting_accepts_only_ui_choices(daemon: Daemon) -> None:
+async def test_playback_rate_setting_accepts_only_ui_choices(python_daemon: Daemon) -> None:
+    daemon = python_daemon
     accepted: list[float] = []
     for rate in (0.5, 0.75, 1.0, 1.5, 2.0, 3.0):
         response = await rpc(
@@ -631,13 +661,15 @@ async def test_resume_recovers_after_playback_worker_crash(
         shutil.rmtree(sock_dir, ignore_errors=True)
 
 
-async def test_voices_lists_engine_voices(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_voices_lists_engine_voices(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "voices"})
     assert res["ok"] is True
     assert res["voices"] == ["bm_daniel", "af_bella"]
 
 
-async def test_settings_get_and_set(daemon: Daemon) -> None:
+async def test_settings_get_and_set(python_daemon: Daemon) -> None:
+    daemon = python_daemon
     res = await rpc(daemon.socket_path, {"op": "settings"})
     assert res["ok"] is True
     assert "voice" in res["settings"]
@@ -661,7 +693,8 @@ async def test_settings_get_and_set(daemon: Daemon) -> None:
     assert res3["error"]["type"] == "bad_request"
 
 
-async def test_caption_setting_change_is_pushed_to_subscribers(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_caption_setting_change_is_pushed_to_subscribers(daemon: SocketDaemon) -> None:
     reader, writer = await asyncio.open_unix_connection(str(daemon.socket_path))
     writer.write(b'{"op": "subscribe"}\n')
     await writer.drain()
@@ -683,8 +716,9 @@ async def test_caption_setting_change_is_pushed_to_subscribers(daemon: Daemon) -
 
 
 async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
-    daemon: Daemon, tmp_path: Path
+    python_daemon: Daemon, tmp_path: Path
 ) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     cache_dir = tmp_path / "cache"
     terminal_path = cache_dir / "terminal.wav"
@@ -737,7 +771,8 @@ async def test_cache_cap_setting_immediately_evicts_only_terminal_audio(
     }
 
 
-async def test_history_after_playback(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_history_after_playback(daemon: SocketDaemon) -> None:
     sub = await rpc(daemon.socket_path, {"op": "submit", "text": "remembered"})
 
     async def played() -> bool:
@@ -751,7 +786,8 @@ async def test_history_after_playback(daemon: Daemon) -> None:
     assert await played()
 
 
-async def test_urgent_priority_jumps_the_plan(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_urgent_priority_jumps_the_plan(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     normal = await rpc(daemon.socket_path, {"op": "submit", "text": "later"})
     urgent = await rpc(daemon.socket_path, {"op": "submit", "text": "now", "priority": "urgent"})
@@ -793,7 +829,8 @@ async def test_status_streams_live_position_while_playing(tmp_path: Path) -> Non
         shutil.rmtree(sock_dir, ignore_errors=True)
 
 
-async def test_snapshot_returns_everything_in_one_request(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_snapshot_returns_everything_in_one_request(daemon: SocketDaemon) -> None:
     res = await rpc(daemon.socket_path, {"op": "snapshot"})
     assert res["ok"] is True
     assert res["status"]["state"] == "accepting"
@@ -810,7 +847,8 @@ async def test_snapshot_returns_everything_in_one_request(daemon: Daemon) -> Non
     assert res["settings"]["captions_enabled"] is False
 
 
-async def test_history_items_carry_finished_at(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_history_items_carry_finished_at(daemon: SocketDaemon) -> None:
     sub = await rpc(daemon.socket_path, {"op": "submit", "text": "timed"})
 
     async def played() -> bool:
@@ -825,7 +863,8 @@ async def test_history_items_carry_finished_at(daemon: Daemon) -> None:
     assert item["finished_at"] >= item["enqueued_at"]
 
 
-async def test_snapshot_plan_is_merged_in_plan_order(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_snapshot_plan_is_merged_in_plan_order(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     first = await rpc(daemon.socket_path, {"op": "submit", "text": "first"})
     urgent = await rpc(daemon.socket_path, {"op": "submit", "text": "now", "priority": "urgent"})
@@ -836,7 +875,10 @@ async def test_snapshot_plan_is_merged_in_plan_order(daemon: Daemon) -> None:
     assert ids.index(urgent["id"]) < ids.index(first["id"])
 
 
-async def test_requeue_uses_fresh_priority_and_preserves_original_history(daemon: Daemon) -> None:
+async def test_requeue_uses_fresh_priority_and_preserves_original_history(
+    python_daemon: Daemon,
+) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     original = daemon.store.submit(
         "historical alert", voice="bm_daniel", speed=1.0, priority=Priority.URGENT
@@ -865,7 +907,10 @@ async def test_requeue_uses_fresh_priority_and_preserves_original_history(daemon
     assert ids.index(urgent["id"]) < ids.index(backlog["id"]) < ids.index(normal["id"])
 
 
-async def test_requeue_preserves_composite_plan_and_reuses_child_cache(daemon: Daemon) -> None:
+async def test_requeue_preserves_composite_plan_and_reuses_child_cache(
+    python_daemon: Daemon,
+) -> None:
+    daemon = python_daemon
     markdown = "# First\n\nAlpha body.\n\n## Second\n\nBeta body."
     submitted = await rpc(
         daemon.socket_path,
@@ -907,7 +952,8 @@ async def test_requeue_preserves_composite_plan_and_reuses_child_cache(daemon: D
     }
 
 
-async def test_requeue_rejects_bad_priority_and_nonterminal_target(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_requeue_rejects_bad_priority_and_nonterminal_target(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     queued = await rpc(daemon.socket_path, {"op": "submit", "text": "still active"})
     bad_priority = await rpc(
@@ -925,7 +971,8 @@ async def test_requeue_rejects_bad_priority_and_nonterminal_target(daemon: Daemo
     assert nonterminal["error"]["type"] == "illegal_state"
 
 
-async def test_reorder_replaces_the_complete_pending_plan(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_reorder_replaces_the_complete_pending_plan(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     submitted = [
         await rpc(daemon.socket_path, {"op": "submit", "text": text})
@@ -951,7 +998,8 @@ async def test_reorder_replaces_the_complete_pending_plan(daemon: Daemon) -> Non
     assert "complete pending plan" in stale["error"]["message"]
 
 
-async def test_unified_clear_queue_cancels_upcoming_work(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_unified_clear_queue_cancels_upcoming_work(daemon: SocketDaemon) -> None:
     await rpc(daemon.socket_path, {"op": "pause"})
     submitted = [
         await rpc(daemon.socket_path, {"op": "submit", "text": text})
@@ -964,7 +1012,10 @@ async def test_unified_clear_queue_cancels_upcoming_work(daemon: Daemon) -> None
         assert got["item"]["state"] == "Cancelled"
 
 
-async def test_removing_ready_queue_item_keeps_cached_audio(daemon: Daemon, tmp_path: Path) -> None:
+async def test_removing_ready_queue_item_keeps_cached_audio(
+    python_daemon: Daemon, tmp_path: Path
+) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     cached = tmp_path / "ready.wav"
     cached.write_bytes(b"reusable audio")
@@ -980,8 +1031,9 @@ async def test_removing_ready_queue_item_keeps_cached_audio(daemon: Daemon, tmp_
 
 
 async def test_remove_and_clear_history_keep_cached_audio_and_active_work(
-    daemon: Daemon, tmp_path: Path
+    python_daemon: Daemon, tmp_path: Path
 ) -> None:
+    daemon = python_daemon
     cached = tmp_path / "cached.wav"
     cached.write_bytes(b"still cached")
     first = daemon.store.submit("first", voice="bm_daniel", speed=1.0)
@@ -1005,8 +1057,9 @@ async def test_remove_and_clear_history_keep_cached_audio_and_active_work(
 
 
 async def test_purge_cache_removes_reusable_audio_without_interrupting_active_work(
-    daemon: Daemon, tmp_path: Path
+    python_daemon: Daemon, tmp_path: Path
 ) -> None:
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     cache_dir = tmp_path / "cache"
     terminal_path = cache_dir / "terminal.wav"
@@ -1082,7 +1135,8 @@ async def test_purge_cache_removes_reusable_audio_without_interrupting_active_wo
     assert history_item["audio_cached"] is False
 
 
-async def test_a_line_just_past_the_boundary_is_refused(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_a_line_just_past_the_boundary_is_refused(daemon: SocketDaemon) -> None:
     # Sized to slip past the stream's own buffer limit and land on the
     # explicit length check, which is the only thing standing between a local
     # client and an unbounded request. Sending something merely enormous
@@ -1102,9 +1156,10 @@ async def test_a_line_just_past_the_boundary_is_refused(daemon: Daemon) -> None:
 
 
 async def test_clear_history_and_files_preserves_pending_artifacts(
-    daemon: Daemon, tmp_path: Path
+    python_daemon: Daemon, tmp_path: Path
 ) -> None:
     # Hold playback and seed Ready work so synthesis cannot rewrite our source oracle.
+    daemon = python_daemon
     await rpc(daemon.socket_path, {"op": "pause"})
     finished = daemon.store.submit("finished", voice="bm_daniel", speed=1.0)
     daemon.store.transition(finished.id, State.CANCELLED)
@@ -1126,7 +1181,8 @@ async def test_clear_history_and_files_preserves_pending_artifacts(
     assert (tmp_path / "cache" / active.id / "source.txt").read_text() == "retained source"
 
 
-async def test_storage_retention_is_explicit_and_validated(daemon: Daemon) -> None:
+@pytest.mark.socket_contract
+async def test_storage_retention_is_explicit_and_validated(daemon: SocketDaemon) -> None:
     initial = await rpc(daemon.socket_path, {"op": "storage"})
     changed = await rpc(daemon.socket_path, {"op": "storage", "retention_days": 7})
     invalid = await rpc(daemon.socket_path, {"op": "storage", "retention_days": True})
@@ -1140,8 +1196,10 @@ async def test_storage_retention_is_explicit_and_validated(daemon: Daemon) -> No
 
 
 async def test_model_reload_reports_readiness_and_recovers_from_failure(
-    daemon: Daemon, monkeypatch: pytest.MonkeyPatch
+    python_daemon: Daemon, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    daemon = python_daemon
+
     def fail_reload(_engine: FakeEngine) -> None:
         msg = "controlled model failure"
         raise RuntimeError(msg)
@@ -1173,8 +1231,9 @@ async def test_model_reload_reports_readiness_and_recovers_from_failure(
     "invalid Unicode submission is a typed refusal with no durable admission effects"
 )
 async def test_isolated_surrogate_submission_is_rejected_before_admission(
-    daemon: Daemon, field: str, surrogate: str
+    python_daemon: Daemon, field: str, surrogate: str
 ) -> None:
+    daemon = python_daemon
     payload = {"op": "submit", "text": "valid source", "source": "unicode-probe"}
     payload[field] = surrogate
     reply = await rpc(daemon.socket_path, payload)
