@@ -11,9 +11,11 @@ setup consumed. Updating the lock left those installation inputs stale.
 
 The new check uses uv 0.9.18, matching CI. It copies only `pyproject.toml` and
 `uv.lock` to a temporary project, exports all three engine extras offline to
-their canonical relative paths, and compares exact bytes with the checkout.
-Each export has a 30-second timeout. It downloads no model or package, modifies
-no checkout file, and fails closed if export fails.
+their canonical relative paths, adds the separately pinned English model to
+both Kokoro exports, and compares exact bytes with the checkout.
+Each export has a 30-second timeout. It downloads no model or package and fails
+closed if export fails. Default check mode modifies no checkout file; explicit
+`--write` regenerates the three installation manifests.
 
 Before regeneration, the check exited 1 and named all three stale manifests.
 After regeneration it exited 0. The frozen lock itself did not change.
@@ -38,6 +40,15 @@ evidence tests passed locally. Ruff and mypy passed for the checker. Normal
 hooks and current-head hosted CI remain required publication gates.
 
 ## Reproduction and boundary
+
+Review found that the initial bare exports dropped the pre-existing English
+language-model wheel from both Kokoro manifests. Two new tests enter through
+`RuntimeInstaller.install` and inspect the exact requirements file passed to
+pip. Both failed on the dropped dependency and pass with the original URL and
+SHA-256 restored. The canonical `kokoro-supplement.txt` now makes this separate
+pin explicit and part of both generation and comparison. It is not in the
+lock's vulnerability graph. Removing it from a generated file is rejected by
+the drift check.
 
 Use the commands in [Contributing](../../CONTRIBUTING.md#guided-model-runtime-requirements).
 The CI supply-chain job runs the same check before its existing dependency,

@@ -59,15 +59,20 @@ After changing the lock, regenerate these files with the uv version pinned in
 the supply-chain CI job (currently 0.9.18):
 
 ```sh
-uv export --frozen --no-default-groups --extra kokoro --no-emit-project --output-file src/aitts/runtime_requirements/kokoro.txt
-uv export --frozen --no-default-groups --extra mlx --no-emit-project --output-file src/aitts/runtime_requirements/kokoro-mlx.txt
-uv export --frozen --no-default-groups --extra chatterbox --no-emit-project --output-file src/aitts/runtime_requirements/chatterbox.txt
+python3 scripts/check_runtime_requirements.py --write
 python3 scripts/check_runtime_requirements.py
 ```
 
 The check exports offline in a temporary project and compares every byte,
-including hashes, markers, source pins, and generated headers. It leaves the
-checkout unchanged and exits nonzero on drift or export failure. Use `--uv`
+including hashes, markers, source pins, and generated headers. Both Kokoro
+exports also include `kokoro-supplement.txt`: the separately maintained,
+hash-pinned English language model required by warmup. That asset is outside
+`uv.lock`; a bare uv export omits it. Keep its pin explicit when updating the
+runtime. The comparison covers the complete lock export plus this supplement,
+not an audit of the supplement through the lock's vulnerability graph.
+
+Default check mode leaves the checkout unchanged and exits nonzero on drift
+or export failure; `--write` replaces only the three generated manifests. Use `--uv`
 with an executable path when the CI-pinned uv is not first on `PATH`.
 The supply-chain job runs this check before its existing audit. Regeneration
 does not upgrade already installed model runtimes or validate model inference.

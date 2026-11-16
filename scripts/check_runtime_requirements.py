@@ -17,12 +17,14 @@ _EXPORTS = (("kokoro", "kokoro"), ("kokoro-mlx", "mlx"), ("chatterbox", "chatter
 _MANIFESTS = Path("src/aitts/runtime_requirements")
 
 
-def check(root: Path, uv: str) -> list[str]:
-    """Return drifted paths without modifying the checkout or downloading packages.
+def check(root: Path, uv: str, *, write: bool = False) -> list[str]:
+    """Return drifted paths, optionally replacing only the generated manifests.
 
     Keep each relative output path identical to the documented export command,
     including uv's generated header. Only the project metadata and frozen lock
     enter the temporary project; no model environment or weights are installed.
+    The separately pinned English model supplements both Kokoro exports.
+    Default check mode does not modify the checkout.
     """
     changed = []
     with TemporaryDirectory(prefix="aitts-runtime-exports-") as name:
@@ -52,11 +54,13 @@ def check(root: Path, uv: str) -> list[str]:
                 timeout=30,
                 stdout=subprocess.DEVNULL,
             )
-            if (
-                not (root / relative).is_file()
-                or (root / relative).read_bytes() != (scratch / relative).read_bytes()
-            ):
+            expected = (scratch / relative).read_bytes()
+            if model in {"kokoro", "kokoro-mlx"}:
+                expected += b"\n" + (root / _MANIFESTS / "kokoro-supplement.txt").read_bytes()
+            if not (root / relative).is_file() or (root / relative).read_bytes() != expected:
                 changed.append(relative.as_posix())
+                if write:
+                    (root / relative).write_bytes(expected)
     return changed
 
 
@@ -64,16 +68,19 @@ def main() -> int:
     """Exit nonzero on export failure or drift in any guided-runtime manifest."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--uv", default="uv", help="uv executable; use the version pinned in CI")
+    parser.add_argument(
+        "--write", action="store_true", help="regenerate the three checked-in exports"
+    )
     args = parser.parse_args()
     executable = shutil.which(args.uv)
     if executable is None:
         parser.error("uv executable was not found")
-    changed = check(Path(__file__).resolve().parents[1], executable)
-    if changed:
+    changed = check(Path(__file__).resolve().parents[1], executable, write=args.write)
+    if changed and not args.write:
         sys.stderr.write("Runtime manifests differ from frozen lock exports:\n")
         sys.stderr.write("".join(f"  {path}\n" for path in changed))
         return 1
-    sys.stdout.write("All three guided-runtime manifests match the frozen lock.\n")
+    sys.stdout.write("All three runtime manifests match the frozen lock and pinned supplement.\n")
     return 0
 
 

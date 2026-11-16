@@ -1609,3 +1609,6 @@ wrapt==2.4.0 ; python_full_version < '3.13' and platform_machine == 'arm64' and 
     --hash=sha256:f43af38a642c3d6062e9740d8f5cc0feb5dbe0da516702df892147393b8cb14d \
     --hash=sha256:f7fed45dbadf5d98a52bfff9624d3cca00affeb9543d493c9632b7a53cdd35c9
     # via smart-open
+
+# English language assets required by Kokoro warmup; maintained outside uv.lock.
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl --hash=sha256:1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85
