@@ -146,6 +146,41 @@ random seed `911524576`. The captured-row Swift case passed ten independent
 executions, two at once, against the restored rebuilt bundle. These counts
 extend the earlier verification rather than asserting exhaustive interleavings.
 
+## Review repair: bind refresh consent at daemon admission
+
+Thread `PRRT_kwDOUHyfMM64GxAK` identified a different race: after a refresh
+dialog opens, a failed engine/setup or missing runtime could turn its generic
+setup request into full installation. Re-reading client state would still leave
+a race before IPC admission. The Swift dialog now preserves its shown consent
+through a distinct typed refresh command and `refresh_only: true`. The daemon
+strictly validates the boolean and refuses unavailable refresh before setup
+effects. Admitted code-only work never falls back to an install. Omitted/false
+requests retain the legacy behavior, including explicit full repair.
+
+Eighteen real IPC cases cover all JSON kinds at this field, the three changed
+catalog conditions, current/stale/unknown runtime identities with cold/ready
+engines, legacy omission/false, and runtime disappearance between admission
+and staging. On `0ce2f8a`, eleven failed and seven controls passed. An initial
+oracle used `code` instead of the existing wire envelope's `type`; the corrected
+oracle was rerun against that unfixed commit before claiming RED. The final
+family passed 54 cases. Swift's request assertion compiled and failed when the
+new command interface still sent the old payload; all 19 relevant Swift cases
+passed after policy and transport repair.
+
+[Consent calibration and repetition](artifacts/2026-11-16-worker-adapter-refresh/refresh-consent-verification.json)
+records six detected faults: rejecting legacy repair, refusing valid refresh,
+falling back to install after runtime loss, omitting the wire flag, and each
+incorrect Swift consent choice. Each restored the original bytes. The 18 Python
+cases passed ten shuffled runs with two processes (180 executions), seeds
+`16421` through `16429` and random seed `873671541`; the new Swift wire case
+passed ten executions, two at once, against a rebuilt restored bundle.
+
+[Public RPC captures](artifacts/2026-11-16-worker-adapter-refresh/refresh-consent-cases.json)
+record 12 actual requests/responses and exact producer source hashes, including
+omitted/false/true, strict type refusals and state refusals. All used synthetic
+owned runtimes without invoking download commands. These additions are assigned
+to Rust parity #125 / PR #178; older reference captures remain unchanged.
+
 ## Limits and retained resources
 
 Commands ran in an isolated clone with a 300-second process-group deadline,

@@ -243,6 +243,10 @@ public struct LocalSpeechModel: Equatable, Sendable, Identifiable {
         installed && incompatible == nil && !installing && state != "loading" && state != "failed"
             && (adapterStatus == .stale || adapterStatus == .unknown)
     }
+    /// Bind the operation to the consent shown for this catalog snapshot.
+    public var setupCommand: SpeechCommand {
+        adapterRefreshAvailable ? .refreshModel(name) : .installModel(name)
+    }
 
     public init(name: String, title: String, description: String, installed: Bool,
                 selected: Bool, state: String, message: String, incompatible: String? = nil,

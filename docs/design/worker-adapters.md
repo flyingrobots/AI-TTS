@@ -43,8 +43,22 @@ are excluded. This includes package data as well as Python source.
 
 ## Explicit setup and recovery
 
-The existing `model_setup` operation and `ai-tts model-setup MODEL` command
-remain the entry points; there is no automatic refresh or new request field.
+The `model_setup` operation and `ai-tts model-setup MODEL` command remain the
+entry points; there is no automatic refresh. `model_setup` accepts optional
+`refresh_only`, a JSON boolean. Omission and `false` preserve ordinary setup.
+`true` permits only code refresh using a usable private runtime. If full repair
+is required or the runtime is unavailable, the daemon returns `illegal_state`
+before creating a setup task or changing setup state. Null and non-boolean
+values return `bad_request`.
+
+The menu's **Refresh worker** sends `refresh_only: true`, binding the request to
+the consent shown in that dialog. A later catalog change cannot turn it into
+an installation. If existing files disappear after admission, refresh fails
+without falling back to downloads. **Download & install** retains ordinary
+setup consent. An already-current ready worker can return `ready` directly;
+a cold current worker accepted with `refresh_only: true` still uses the
+code-only staging path. Rust request parity is tracked by
+[#125](https://github.com/flyingrobots/AI-TTS/issues/125).
 
 | State when setup is requested | Action |
 | --- | --- |

@@ -1,0 +1,290 @@
+{
+  "calibration": [
+    {
+      "fault": "legacy-consent",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh_admission.py",
+        "--hypothesis-seed=16420",
+        "-k",
+        "legacy_setup"
+      ],
+      "witness": "AssertionError",
+      "restored_sha256": "2c5d051fcb48154d8048b207a0d0f9a077d8d69abab5dc4aa86a72c6abf3f045"
+    },
+    {
+      "fault": "valid-consent",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh_admission.py",
+        "--hypothesis-seed=16420",
+        "-k",
+        "cold_current_adapter"
+      ],
+      "witness": "AssertionError",
+      "restored_sha256": "2c5d051fcb48154d8048b207a0d0f9a077d8d69abab5dc4aa86a72c6abf3f045"
+    },
+    {
+      "fault": "refresh-fallback",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh_admission.py",
+        "--hypothesis-seed=16420",
+        "-k",
+        "runtime_disappearance"
+      ],
+      "witness": "AssertionError",
+      "restored_sha256": "7c9d426f8cb4200d24cb808e4aa064e0917c20afeaf7b8dd24ceb52955fb431e"
+    },
+    {
+      "fault": "swift-refresh-field",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "UnixSocketSpeechServiceTests.testShownRefreshConsentSurvivesCatalogReplacementOnTheWire"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "restored_sha256": "c08d8f7bd935a737d903f11a463090a939e22addebdb596cc5832579ffc75a46"
+    },
+    {
+      "fault": "swift-refresh-choice",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "UnixSocketSpeechServiceTests.testShownRefreshConsentSurvivesCatalogReplacementOnTheWire"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "restored_sha256": "7ca473758557e4a01f16a57e04212bd3278721f3e3770e6d328a1d6374af53f1"
+    },
+    {
+      "fault": "swift-install-choice",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "UnixSocketSpeechServiceTests.testShownRefreshConsentSurvivesCatalogReplacementOnTheWire"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "restored_sha256": "7ca473758557e4a01f16a57e04212bd3278721f3e3770e6d328a1d6374af53f1"
+    }
+  ],
+  "python_repetitions": [
+    {
+      "index": 0,
+      "seed": 16421,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-0.log"
+    },
+    {
+      "index": 1,
+      "seed": 16422,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-1.log"
+    },
+    {
+      "index": 2,
+      "seed": 16423,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-2.log"
+    },
+    {
+      "index": 3,
+      "seed": 16424,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-3.log"
+    },
+    {
+      "index": 4,
+      "seed": 16425,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-4.log"
+    },
+    {
+      "index": 5,
+      "seed": 16426,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-5.log"
+    },
+    {
+      "index": 6,
+      "seed": 16427,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-6.log"
+    },
+    {
+      "index": 7,
+      "seed": 16428,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-7.log"
+    },
+    {
+      "index": 8,
+      "seed": 16429,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-8.log"
+    },
+    {
+      "index": 9,
+      "seed": 873671541,
+      "exit": 0,
+      "node_count": 18,
+      "log": "admission-repeat-9.log"
+    }
+  ],
+  "swift_repetitions": [
+    {
+      "index": 0,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-0-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-1-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-2-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-3-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-4-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-5-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-6-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-7-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-8-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "results": [
+        {
+          "method": "testShownRefreshConsentSurvivesCatalogReplacementOnTheWire",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-admission-repeat-9-testShownRefreshConsentSurvivesCatalogReplacementOnTheWire.log"
+        }
+      ]
+    }
+  ]
+}

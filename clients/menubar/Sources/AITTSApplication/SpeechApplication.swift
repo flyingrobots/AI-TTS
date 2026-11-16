@@ -131,6 +131,7 @@ public enum SpeechCommand: Equatable, Sendable {
     case setVoiceLanguages([String])
     case setEngine(String)
     case installModel(String)
+    case refreshModel(String)
     case cancelModelSetup
     case setSynthesisSpeed(Double)
     case setPlaybackRate(Double)

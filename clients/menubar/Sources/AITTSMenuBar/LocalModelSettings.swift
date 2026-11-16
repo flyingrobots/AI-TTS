@@ -84,7 +84,7 @@ struct LocalModelSettings: View {
             get: { setupModel != nil }, set: { if !$0 { setupModel = nil } }
         ), titleVisibility: .visible, presenting: setupModel) { model in
             Button(model.adapterRefreshAvailable ? "Refresh worker" : "Download & install") {
-                state.installModel(model.name)
+                state.installModel(model)
                 setupModel = nil
             }
             Button("Cancel", role: .cancel) { setupModel = nil }

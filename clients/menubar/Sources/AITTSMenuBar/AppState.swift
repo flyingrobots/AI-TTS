@@ -469,7 +469,7 @@ final class AppState: ObservableObject {
     func previousChunk() { send(.previousSegment) }
     func resumeWhenInputIdle() { send(.resumeWhenInputIdle) }
     func setEngine(_ name: String) { send(.setEngine(name)) }
-    func installModel(_ name: String) { send(.installModel(name)) }
+    func installModel(_ model: LocalSpeechModel) { send(model.setupCommand) }
     func cancelModelSetup() { send(.cancelModelSetup) }
     func setVoiceLanguages(_ languages: [String]) {
         guard !languages.isEmpty else { return }

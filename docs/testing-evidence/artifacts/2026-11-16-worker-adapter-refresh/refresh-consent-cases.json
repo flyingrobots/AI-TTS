@@ -1,0 +1,178 @@
+{
+  "source_files": {
+    "src/aitts/daemon.py": "2c5d051fcb48154d8048b207a0d0f9a077d8d69abab5dc4aa86a72c6abf3f045",
+    "src/aitts/model_setup.py": "7c9d426f8cb4200d24cb808e4aa064e0917c20afeaf7b8dd24ceb52955fb431e",
+    "clients/menubar/Sources/AITTSMacAdapters/UnixSocketSpeechService.swift": "c08d8f7bd935a737d903f11a463090a939e22addebdb596cc5832579ffc75a46",
+    "tests/test_adapter_refresh_admission.py": "1f661672f7cf4d057715153a7f845e768ff4e30a903324ee9ec86fd7dc61bcba"
+  },
+  "boundary": "public Unix-socket RPC with owned synthetic runtime and offline worker fake",
+  "cases": [
+    {
+      "scenario": "ready-omitted",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox"
+      },
+      "response": {
+        "ok": true,
+        "state": "ready"
+      }
+    },
+    {
+      "scenario": "ready-false",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": false
+      },
+      "response": {
+        "ok": true,
+        "state": "ready"
+      }
+    },
+    {
+      "scenario": "ready-true",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": true
+      },
+      "response": {
+        "ok": true,
+        "state": "ready"
+      }
+    },
+    {
+      "scenario": "failed-true",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": true
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "illegal_state",
+          "message": "Code-only refresh is unavailable. Review full setup before retrying."
+        }
+      }
+    },
+    {
+      "scenario": "missing-true",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": true
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "illegal_state",
+          "message": "Code-only refresh is unavailable. Review full setup before retrying."
+        }
+      }
+    },
+    {
+      "scenario": "cold-true",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": true
+      },
+      "response": {
+        "ok": true,
+        "state": "installing"
+      }
+    },
+    {
+      "scenario": "invalid-0",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": null
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "bad_request",
+          "message": "refresh_only must be a boolean"
+        }
+      }
+    },
+    {
+      "scenario": "invalid-1",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": 0
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "bad_request",
+          "message": "refresh_only must be a boolean"
+        }
+      }
+    },
+    {
+      "scenario": "invalid-2",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": 1
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "bad_request",
+          "message": "refresh_only must be a boolean"
+        }
+      }
+    },
+    {
+      "scenario": "invalid-3",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": "true"
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "bad_request",
+          "message": "refresh_only must be a boolean"
+        }
+      }
+    },
+    {
+      "scenario": "invalid-4",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": []
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "bad_request",
+          "message": "refresh_only must be a boolean"
+        }
+      }
+    },
+    {
+      "scenario": "invalid-5",
+      "request": {
+        "op": "model_setup",
+        "name": "chatterbox",
+        "refresh_only": {}
+      },
+      "response": {
+        "ok": false,
+        "error": {
+          "type": "bad_request",
+          "message": "refresh_only must be a boolean"
+        }
+      }
+    }
+  ]
+}

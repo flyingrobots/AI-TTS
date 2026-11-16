@@ -78,6 +78,8 @@ public struct UnixSocketSpeechService: SpeechServicePort, EvidenceExporting, Gen
             payload = ["op": "settings", "set": ["engine": name]]
         case .installModel(let name):
             payload = ["op": "model_setup", "name": name]
+        case .refreshModel(let name):
+            payload = ["op": "model_setup", "name": name, "refresh_only": true]
         case .cancelModelSetup:
             payload = ["op": "cancel_model_setup"]
         case .setVoice(let voice):

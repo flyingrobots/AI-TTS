@@ -1360,6 +1360,7 @@ class Daemon:
         return rows
 
     async def _op_model_setup(self, payload: dict[str, Any]) -> dict[str, Any]:
+        refresh_only = self._parse_bool(payload, "refresh_only", default=False)
         name = payload.get("name")
         if not isinstance(name, str) or name not in MODELS:
             raise ApiError(BAD_REQUEST, "choose a supported local speech model")
@@ -1378,6 +1379,11 @@ class Daemon:
         repair = self._setup_states.get(name, {}).get("state") == "failed" or (
             name in self._engines and self._registry.state(name) == "failed"
         )
+        if refresh_only and (repair or adapter_status is None):
+            raise ApiError(
+                ILLEGAL_STATE,
+                "Code-only refresh is unavailable. Review full setup before retrying.",
+            )
         if (
             name in self._engines
             and self._registry.state(name) == "ready"
@@ -1391,7 +1397,7 @@ class Daemon:
             "install"
             if repair
             else "refresh"
-            if adapter_status in {"stale", "unknown"}
+            if refresh_only or adapter_status in {"stale", "unknown"}
             else "reuse"
         )
         self._setup_task = asyncio.create_task(
