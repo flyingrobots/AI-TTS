@@ -1,7 +1,7 @@
 # Rust wire contract and schema evidence
 
-Issue: [#125](https://github.com/flyingrobots/AI-TTS/issues/125).  
-Change kind: feature.  
+Issue: [#125](https://github.com/flyingrobots/AI-TTS/issues/125).
+Change kind: feature.
 Toolchain: Rust 1.99.1 (`58cf8f9c3`), `aarch64-apple-darwin`.
 
 The `aitts-protocol` crate defines the current daemon's requests, replies,
@@ -143,4 +143,3 @@ retain the #179 catalog contract, retarget main, and pass fresh CI and review
 before readiness and merge. Merge and issue closure remain separate gates.
 
 This evidence record is agent-written and has not received human editorial review.
-

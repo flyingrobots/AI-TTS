@@ -109,4 +109,3 @@ cargo clippy -p aitts-protocol --all-targets -- -D warnings
 ```
 
 This document is agent-written and has not received human editorial review.
-
