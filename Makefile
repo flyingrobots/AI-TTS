@@ -82,7 +82,11 @@ install-skill:
 	@$(INSTALLER) skill $(AGENTS)
 
 ## install-agents: both agent integrations at once
-install-agents: install-mcp install-skill
+install-agents:
+	@status=0; \
+	$(INSTALLER) mcp $(AGENTS) || status=1; \
+	$(INSTALLER) skill $(AGENTS) || status=1; \
+	exit $$status
 
 ## install-all: the application and every agent integration
 install-all: install install-agents

@@ -456,12 +456,18 @@ to listen to.
 
 It follows the open agent-skills layout — one `SKILL.md` with `name` and
 `description` frontmatter in a directory named after the skill — so the same
-file works for Claude Code, Codex and Gemini:
+file works for Claude Code, Codex, Gemini and Antigravity (`--agy`):
 
 ```sh
 make install-skill                      # every agent found
 make install-skill AGENTS="--codex"     # just one
 ```
+
+`make install-agents` attempts both MCP registration and skill installation,
+and reports failure if either step fails. Repeating Claude MCP registration
+succeeds when a successful host query confirms the same one-line command.
+An unverifiable or different registration is preserved and reported as a
+failure. Antigravity uses `agy mcp add` and shares Gemini's skill directory.
 
 The installer replaces the committed `<AI_TTS_BIN>` placeholder with the
 absolute path on this machine, so the copy an agent reads names a real
