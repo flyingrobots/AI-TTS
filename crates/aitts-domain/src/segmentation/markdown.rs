@@ -104,19 +104,32 @@ fn adapt(node: &mdast::Node) -> Node {
 }
 
 pub(super) fn without_front_matter(text: &str) -> &str {
-    let mut lines = text.split_inclusive('\n');
+    let mut lines = text.split_inclusive(python_line_end);
     let Some(first) = lines.next() else {
         return text;
     };
-    if first.trim_start_matches('\u{feff}').trim() != "---" {
+    if trim_python(first.trim_start_matches('\u{feff}')) != "---" {
         return text;
     }
     let mut remaining = text.get(first.len()..).unwrap_or_default();
     for line in lines {
         remaining = remaining.get(line.len()..).unwrap_or_default();
-        if matches!(line.trim(), "---" | "...") {
+        if matches!(trim_python(line), "---" | "...") {
             return remaining.trim_start_matches(['\r', '\n']);
         }
     }
     text
+}
+
+fn python_line_end(character: char) -> bool {
+    matches!(
+        character,
+        '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{1c}'..='\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+    )
+}
+
+fn trim_python(text: &str) -> &str {
+    text.trim_matches(|character: char| {
+        character.is_whitespace() || matches!(character, '\u{1c}'..='\u{1f}')
+    })
 }

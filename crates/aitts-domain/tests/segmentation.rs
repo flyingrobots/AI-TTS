@@ -90,6 +90,21 @@ fn embedded_star_runs_keep_original_preceding_character_context() {
 }
 
 #[test]
+fn front_matter_recognizes_python_line_separators() {
+    // Python splitlines accepts these separators in addition to LF and CRLF.
+    for separator in [
+        "\r", "\u{b}", "\u{c}", "\u{1c}", "\u{1d}", "\u{1e}", "\u{85}", "\u{2028}", "\u{2029}",
+    ] {
+        let input = ["---", "title: hidden", "---", "Hello"].join(separator);
+        assert_eq!(
+            prepare(&input, Some(ContentFormat::Markdown)).unwrap(),
+            vec!["Hello"],
+            "separator {separator:?}"
+        );
+    }
+}
+
+#[test]
 fn all_forty_existing_golden_cases_match_exact_strings_and_boundaries() {
     let corpus: Corpus = serde_json::from_str(include_str!(
         "../../../tests/corpus/segmentation/cases.json"

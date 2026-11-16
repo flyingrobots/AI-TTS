@@ -123,3 +123,8 @@ character before the next star. A public-API regression showed `1** hello **` in
 becoming `1*hello`. The cleanup now checks the preceding character in the original source.
 That input, `hello** world **`, and `a*** loose ***` remain literal. The targeted RED became
 GREEN, and the unchanged corpus and generated properties still passed.
+
+The reviewer also identified CR-only front matter. The RED case spoke the hidden title as
+`title: hidden.\n\nHello`. Python's public API returned only `Hello`. The front-matter scan
+now handles all nine additional Python line separators, including CR and Unicode separators.
+All nine cases and the original LF/CRLF corpus pass. The complete repaired suite has 23 tests.
