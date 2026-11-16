@@ -42,13 +42,17 @@ struct LocalModelSettings: View {
                         HStack {
                             Text(status(model)).font(.caption2).foregroundStyle(.secondary)
                             Spacer()
+                            if model.adapterRefreshAvailable {
+                                Button("Retry setup") { setupModel = model }
+                                    .disabled(state.models.contains(where: { $0.installing }))
+                            }
                             if model.installed && model.state != "failed" && model.state != "cancelled" {
                                 if !model.selected {
                                     Button("Use model") { state.setEngine(model.name) }
                                 }
                             } else if model.state == "loading" {
                                 ProgressView().controlSize(.small)
-                            } else {
+                            } else if !model.adapterRefreshAvailable {
                                 Button(model.state == "failed" || model.state == "cancelled" ? "Retry setup" : "Download & install…") {
                                     setupModel = model
                                 }
@@ -76,20 +80,27 @@ struct LocalModelSettings: View {
                 }
             }
         }
-        .confirmationDialog("Download \(setupModel?.title ?? "speech model")?", isPresented: Binding(
+        .confirmationDialog("\(setupModel?.adapterRefreshAvailable == true ? "Refresh" : "Download") \(setupModel?.title ?? "speech model")?", isPresented: Binding(
             get: { setupModel != nil }, set: { if !$0 { setupModel = nil } }
         ), titleVisibility: .visible, presenting: setupModel) { model in
-            Button("Download & install") {
+            Button(model.adapterRefreshAvailable ? "Refresh worker" : "Download & install") {
                 state.installModel(model.name)
                 setupModel = nil
             }
             Button("Cancel", role: .cancel) { setupModel = nil }
         } message: { model in
-            Text("AI-TTS will download \(model.title) and its required runtime. Setup may take several minutes and use substantial disk space. Your current model will keep working; choose Use model when setup finishes.")
+            if model.adapterRefreshAvailable {
+                Text("AI-TTS will refresh the worker code using this model's existing runtime and weights. No model download is needed. Your current model keeps working until the refresh is ready.")
+            } else {
+                Text("AI-TTS will download \(model.title) and its required runtime. Setup may take several minutes and use substantial disk space. Your current model will keep working; choose Use model when setup finishes.")
+            }
         }
     }
 
     private func status(_ model: LocalSpeechModel) -> String {
+        if model.adapterRefreshAvailable {
+            return model.adapterStatus == .stale ? "Installed · worker update available" : "Installed · worker version unknown"
+        }
         switch model.state {
         case "ready": return "Installed"
         case "loading": return "Preparing model…"

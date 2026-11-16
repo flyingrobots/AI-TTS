@@ -206,7 +206,8 @@ async def test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load
     from tests.test_model_setup import OwnedInstaller  # noqa: PLC0415
 
     daemon = daemon_fixture
-    old = complete_runtime(daemon._home, "chatterbox")
+    # A current adapter with a broken environment still needs the existing full repair.
+    old = OwnedInstaller(daemon._home).install("chatterbox", threading.Event(), lambda _: None)
 
     class BrokenModel(OwnedModel):
         def warmup(self) -> None:

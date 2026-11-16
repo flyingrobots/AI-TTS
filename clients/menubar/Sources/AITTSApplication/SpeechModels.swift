@@ -221,6 +221,11 @@ public struct SpeechEngine: Equatable, Sendable, Identifiable {
     }
 }
 
+/// Identity of a private worker adapter relative to the running daemon.
+public enum WorkerAdapterStatus: String, Equatable, Sendable {
+    case current, stale, unknown
+}
+
 /// A discoverable local model, including models whose runtime is not installed.
 public struct LocalSpeechModel: Equatable, Sendable, Identifiable {
     public var id: String { name }
@@ -232,10 +237,16 @@ public struct LocalSpeechModel: Equatable, Sendable, Identifiable {
     public let state: String
     public let message: String
     public let incompatible: String?
+    public let adapterStatus: WorkerAdapterStatus?
     public var installing: Bool { state == "installing" }
+    public var adapterRefreshAvailable: Bool {
+        installed && incompatible == nil && !installing && state != "loading"
+            && (adapterStatus == .stale || adapterStatus == .unknown)
+    }
 
     public init(name: String, title: String, description: String, installed: Bool,
-                selected: Bool, state: String, message: String, incompatible: String? = nil) {
+                selected: Bool, state: String, message: String, incompatible: String? = nil,
+                adapterStatus: WorkerAdapterStatus? = nil) {
         self.name = name
         self.title = title
         self.description = description
@@ -244,6 +255,7 @@ public struct LocalSpeechModel: Equatable, Sendable, Identifiable {
         self.state = state
         self.message = message
         self.incompatible = incompatible
+        self.adapterStatus = adapterStatus
     }
 }
 
