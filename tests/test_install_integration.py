@@ -33,7 +33,7 @@ pytestmark = [
 REPO = Path(__file__).parents[1]
 SCRIPT = REPO / "scripts" / "install-integration.sh"
 SKILL_SOURCE = REPO / "skills" / "speak" / "SKILL.md"
-AGENTS = ("claude", "codex", "gemini")
+AGENTS = ("claude", "codex", "gemini", "agy")
 
 
 @pytest.fixture
@@ -172,6 +172,7 @@ def test_mcp_registration_is_reported_per_agent(sandbox: dict[str, str]) -> None
     assert "claude mcp add" in result.stdout
     assert "codex mcp add" in result.stdout
     assert "gemini mcp add" in result.stdout
+    assert "agy mcp add" in result.stdout
 
 
 def test_a_missing_agent_is_skipped_not_fatal(sandbox: dict[str, str]) -> None:
@@ -373,7 +374,11 @@ def test_mcp_failure_still_attempts_other_selected_agents(
         "registrations": {path.name: path.read_text() for path in registrations.iterdir()},
     } == {
         "failed": True,
-        "registrations": {"codex": env["AITTS_MCP_BIN"], "gemini": env["AITTS_MCP_BIN"]},
+        "registrations": {
+            "codex": env["AITTS_MCP_BIN"],
+            "gemini": env["AITTS_MCP_BIN"],
+            "agy": env["AITTS_MCP_BIN"],
+        },
     }
 
 
@@ -463,3 +468,95 @@ def test_installed_speech_submission_does_not_wait_for_playback(
     follow_ups = [words[1:] for words in commands if words[:1] == [sandbox["AITTS_BIN"]]]
     assert ["get", "<utterance-id>"] in follow_ups
     assert ["wait", "<utterance-id>", "--timeout", "570"] in follow_ups
+
+
+def test_claude_mcp_already_registered_with_same_command_succeeds(
+    tmp_path: Path, sandbox: dict[str, str]
+) -> None:
+    """Bug fix: re-running mcp install when Claude already has the same server is idempotent."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    host = commands / "claude"
+    host.write_text(
+        "#!/bin/sh\n"
+        'case "$2" in\n'
+        "  add) exit 1 ;;\n"
+        "  get)\n"
+        '    printf "ai-tts:\\r\\n"\n'
+        '    printf "  Type: stdio\\r\\n"\n'
+        '    printf "  Command: %s\\r\\n" "$AITTS_MCP_BIN"\n'
+        "    exit 0 ;;\n"
+        "esac\n"
+        "exit 2\n"
+    )
+    host.chmod(0o755)
+    env = dict(sandbox, PATH=f"{commands}:/usr/bin:/bin")
+
+    result = run(env, "mcp", "--claude")
+
+    assert result.returncode == 0, result.stderr
+    assert "already registered" in result.stdout.lower()
+
+
+def test_make_install_agents_runs_skill_even_when_mcp_fails(tmp_path: Path) -> None:
+    """Bug fix: a partial MCP failure in install-agents must not skip skill installation."""
+    log = tmp_path / "calls.log"
+    stub = tmp_path / "stub-installer.sh"
+    stub.write_text(
+        f'#!/bin/sh\nprintf "%s\\n" "$1" >> "{log}"\nif [ "$1" = "mcp" ]; then exit 1; fi\nexit 0\n'
+    )
+    stub.chmod(0o755)
+
+    import shutil  # noqa: PLC0415 - only this check needs it
+
+    make = shutil.which("make") or "/usr/bin/make"
+    result = subprocess.run(  # noqa: S603 - fixed make invocation with test stub
+        [make, "install-agents", f"INSTALLER={stub}"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert log.read_text(encoding="utf-8").splitlines() == ["mcp", "skill"]
+
+
+@pytest.mark.parametrize(
+    ("requested", "registered", "query_status"),
+    [
+        ("line\nbreak/ai-tts-mcp", "line", 0),
+        ("ai-tts-mcp", "ai-tts-mcp", 9),
+        ("linebreak/ai-tts-mcp", "line\rbreak/ai-tts-mcp", 0),
+    ],
+)
+def test_claude_mcp_rejects_unverified_registration(
+    tmp_path: Path,
+    sandbox: dict[str, str],
+    requested: str,
+    registered: str,
+    query_status: int,
+) -> None:
+    """An unsuccessful query or a different complete command cannot confirm installation."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    host = commands / "claude"
+    host.write_text(
+        '#!/bin/sh\ncase "$2" in\n'
+        "  add) exit 1 ;;\n"
+        '  get) printf "  Command: %s\\r\\n" "$REGISTERED_COMMAND"; '
+        'exit "$QUERY_STATUS" ;;\nesac\nexit 2\n',
+        encoding="utf-8",
+    )
+    host.chmod(0o755)
+    env = dict(
+        sandbox,
+        PATH=f"{commands}:/usr/bin:/bin",
+        AITTS_MCP_BIN=str(tmp_path / requested),
+        REGISTERED_COMMAND=str(tmp_path / registered),
+        QUERY_STATUS=str(query_status),
+    )
+
+    result = run(env, "mcp", "--claude")
+
+    assert result.returncode != 0, "unverified registration was reported as successful"

@@ -25,6 +25,7 @@ SUBCOMMAND=""
 WANT_CLAUDE=0
 WANT_CODEX=0
 WANT_GEMINI=0
+WANT_AGY=0
 SELECTED=0
 STATUS=0
 
@@ -44,6 +45,7 @@ Agents:
   --claude    Claude Code      (~/.claude/skills,  claude mcp add)
   --codex     Codex            (~/.codex/skills,   codex mcp add)
   --gemini    Gemini CLI       (~/.gemini/skills,  gemini mcp add)
+  --agy       Antigravity      (~/.gemini/skills,  agy mcp add)
   --all       every agent above (the default when none is named)
 
 Options:
@@ -119,6 +121,7 @@ skills_dir_for() {
         claude) printf '%s' "${AITTS_CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}" ;;
         codex) printf '%s' "${AITTS_CODEX_SKILLS_DIR:-$HOME/.codex/skills}" ;;
         gemini) printf '%s' "${AITTS_GEMINI_SKILLS_DIR:-$HOME/.gemini/skills}" ;;
+        agy) printf '%s' "${AITTS_AGY_SKILLS_DIR:-$HOME/.gemini/skills}" ;;
     esac
 }
 
@@ -132,7 +135,7 @@ skills_dir_for() {
 mcp_add_command_for() {
     quoted=$(shell_quote "$2")
     case "$1" in
-        claude | codex) printf '%s mcp add %s -- %s' "$1" "$SERVER_NAME" "$quoted" ;;
+        claude | codex | agy) printf '%s mcp add %s -- %s' "$1" "$SERVER_NAME" "$quoted" ;;
         gemini) printf 'gemini mcp add %s %s' "$SERVER_NAME" "$quoted" ;;
     esac
 }
@@ -140,7 +143,7 @@ mcp_add_command_for() {
 # Registration, with the server path passed as exactly one argument.
 run_mcp_add() {
     case "$1" in
-        claude | codex) "$1" mcp add "$SERVER_NAME" -- "$2" ;;
+        claude | codex | agy) "$1" mcp add "$SERVER_NAME" -- "$2" ;;
         gemini) gemini mcp add "$SERVER_NAME" "$2" ;;
     esac
 }
@@ -181,6 +184,21 @@ install_skill_for() (
     printf '  %-7s skill  -> %s/SKILL.md\n' "$agent" "$destination"
 )
 
+claude_mcp_matches() (
+    # The host's line-oriented display cannot verify multiline command values.
+    cr=$(printf '\r')
+    case "$1" in *'
+'*|*"$cr"*) return 1 ;; esac
+    info=$(claude mcp get "$SERVER_NAME" 2>/dev/null) || return 1
+    while IFS= read -r line; do
+        line=${line%"$cr"}
+        if [ "$line" = "  Command: $1" ]; then return 0; fi
+    done <<EOF
+$info
+EOF
+    return 1
+)
+
 install_mcp_for() {
     agent=$1
     server=$(resolve_bin ai-tts-mcp; printf '.')
@@ -202,6 +220,10 @@ install_mcp_for() {
     # to delete a working registration: the next add may fail for the same reason.
     if run_mcp_add "$agent" "$server" >/dev/null 2>&1; then
         printf '  %-7s mcp    -> registered %s\n' "$agent" "$SERVER_NAME"
+        return 0
+    fi
+    if [ "$agent" = "claude" ] && claude_mcp_matches "$server"; then
+        printf '  %-7s mcp    -> already registered %s\n' "$agent" "$SERVER_NAME"
         return 0
     fi
     printf '  %-7s mcp    -> FAILED; existing registration was not removed; inspect with the host CLI: %s\n' "$agent" "$command_line" >&2
@@ -245,10 +267,15 @@ while [ "$#" -gt 0 ]; do
             WANT_GEMINI=1
             SELECTED=1
             ;;
+        --agy)
+            WANT_AGY=1
+            SELECTED=1
+            ;;
         --all)
             WANT_CLAUDE=1
             WANT_CODEX=1
             WANT_GEMINI=1
+            WANT_AGY=1
             SELECTED=1
             ;;
         --dry-run) DRY_RUN=1 ;;
@@ -261,6 +288,7 @@ if [ "$SELECTED" -eq 0 ]; then
     WANT_CLAUDE=1
     WANT_CODEX=1
     WANT_GEMINI=1
+    WANT_AGY=1
 fi
 
 # -- run ------------------------------------------------------------------
@@ -277,11 +305,12 @@ else
     printf 'AI-TTS %s installation\n' "$SUBCOMMAND"
 fi
 
-for agent in claude codex gemini; do
+for agent in claude codex gemini agy; do
     case "$agent" in
         claude) [ "$WANT_CLAUDE" -eq 1 ] || continue ;;
         codex) [ "$WANT_CODEX" -eq 1 ] || continue ;;
         gemini) [ "$WANT_GEMINI" -eq 1 ] || continue ;;
+        agy) [ "$WANT_AGY" -eq 1 ] || continue ;;
     esac
     if [ "$SUBCOMMAND" = "skill" ]; then
         install_skill_for "$agent"
