@@ -18,7 +18,12 @@ The constraints doing the work here come from the other documents:
 
 One Python daemon, one Swift menu-bar app. A deliberate polyglot cost, paid because each side has a hard constraint the other language fails.
 
-Kokoro's ecosystem is Python. The `kokoro` package (Apache 2.0, from the model's own author) with the `misaki` G2P is the reference path; the MLX and CoreML ports are community-maintained, and at least one has an open report of NaN/silent output, the exact failure class this project exists to eliminate ([engine-evaluation §5](engine-evaluation.md#5-what-would-change-this-answer)). Running the reference implementation in its native runtime is the conservative choice, and the engine adapter ([architecture §8](architecture.md#8-the-engine-interface)) means a faster port can be adopted later without touching anything above it.
+Kokoro's Python package and `misaki` G2P form the reference path. G2P converts
+written text to phonemes for the model. The original evaluation cited an MLX
+NaN/silent-output report; it does not establish the condition of current ports.
+The later [MLX receipt](../testing-evidence/2026-09-30-kokoro-mlx.md) records
+successful real output, but no comparative listening test. Keep the reference
+path until a replacement meets the [inference decision](#model-inference-scope).
 
 A native menu-bar app is the other hard constraint. The UI document commits to real popover proportions, system type at 11–13.5 pt, and an icon that reflects daemon state at a glance. That is an `NSStatusItem` and an `NSPopover`, and pretending otherwise costs either fidelity or a bundled browser.
 
@@ -131,6 +136,78 @@ preserving the bundle and recovery contracts. Revise the decision and #150
 together before changing the target. Avoid a second port made only for language
 uniformity. See the [delivery sequence](../../ROADMAP.md#build-and-install-tooling-after-the-rust-port).
 
+## Model inference scope
+
+Decision for [#117](https://github.com/flyingrobots/AI-TTS/issues/117): **the
+Rust rewrite stops at the model worker boundary.** The Rust daemon will own
+application behavior and worker supervision. Python model workers will retain
+inference and G2P. Keep the Python Kokoro reference worker for Rust cutover;
+a native inference engine is an optional later change. This decision selects
+no Rust inference library and requires no model replacement.
+
+The current daemon is Python. Its
+[`ManagedEngine`](../../src/aitts/engines/managed.py) starts a persistent
+[`aitts.model_worker`](../../src/aitts/model_worker.py) in a separate Python
+environment and exchanges JSON-lines messages. That worker keeps the model
+warm and returns WAV files or streamed PCM audio. The current daemon also
+supports in-process adapters. This decision does not describe an implemented
+Rust supervisor or remove those Python adapters.
+
+The [guided-setup evidence](../testing-evidence/2026-10-01-local-model-setup.md)
+records isolated runtimes and real output from Kokoro, Kokoro MLX, and
+Chatterbox. The [worker tests](../../tests/test_managed_engine.py) check audio
+transfer, offline restart, interrupted streams, and bounded failure with a
+controlled producer. These establish a reusable process contract. They do not
+establish quality parity for a native engine. The
+[engine evaluation](engine-evaluation.md) gives the original local-model
+rationale; its historical port reports are not current defect findings.
+
+| Option | Consequence |
+| --- | --- |
+| Keep Python model workers | Preserves the reference inference and G2P path during the daemon port. It retains Python runtime installation, dependency audits, worker supervision, and pipe overhead. |
+| Replace inference as part of the rewrite | Could remove Python from synthesis and simplify runtime delivery. It adds model, G2P, audio-quality, and distribution checks to the cutover requirements without completed comparison evidence. |
+
+The first option limits the mandatory rewrite to application contracts.
+Changing a language does not establish correct speech, lower latency, or
+compatible distribution terms. The existing worker boundary also permits a
+later engine replacement without another daemon rewrite.
+
+[#133](https://github.com/flyingrobots/AI-TTS/issues/133) must preserve worker
+audio and lifecycle behavior, and test supervision failures. After that prerequisite,
+[#141](https://github.com/flyingrobots/AI-TTS/issues/141) may evaluate one
+optional native Kokoro implementation within its five-day time box. Its
+result does not block the daemon cutover. Before adoption:
+
+- Pin the candidate, Python reference, model assets, voices, and text cases.
+  Set duration tolerances and silence/level checks before the comparison.
+- Compare complete output and pronunciation on the fixed English text set.
+  Reject silent or truncated clips and material pronunciation regressions.
+  Record a listening assessment; waveform measurements alone are insufficient.
+- Record the supported scope and unresolved cases. A small English sample
+  does not establish parity for other languages, voices, or Chatterbox.
+- Review the actual code, model, G2P, and distribution dependencies and licences.
+  Treat changed eSpeak linkage or bundling as a new distribution review.
+  A Rust adapter and a process boundary do not settle licence obligations.
+
+Keep the Python reference available for comparison and recovery. A successful
+spike permits a reviewed optional adapter; it does not automatically change
+the default engine. A later default change needs a recorded decision supported
+by that evidence. If the evidence fails, retain the worker implementation.
+
+This choice is compatible with [#150](https://github.com/flyingrobots/AI-TTS/issues/150):
+the Rust installer must install and start the daemon without preinstalled
+Python. Guided model setup must then obtain the private Python runtime and
+model dependencies before speech. It must report setup failure and permit
+retry. Installing the daemon does not mean a model is ready. Preserve the
+existing rule against bundling or redistributing the Python environment;
+guided setup obtains dependencies on the operator's machine. This is a port
+requirement, not a claim that the current installer meets #150.
+
+Reconsider the default only after a native candidate passes these checks, or
+measured worker costs justify another scoped evaluation. Keep the worker
+fallback until a replacement meets its acceptance criteria. See the
+[roadmap sequence](../../ROADMAP.md#model-inference-scope).
+
 ## Daemon: Python 3.12+
 
 | Concern | Choice | Why |
@@ -223,10 +300,10 @@ Merely compiling an `AppIntent` type is not distribution proof.
 |---|---|---|
 | **Electron / web tray app** | One language everywhere, familiar UI stack | ~200 MB and a Chromium process for a 360×480 popover. The mockups specify native metrics that a webview only imitates. Wrong tool by an order of magnitude |
 | **Tauri** | Native-ish footprint, web UI | Still a webview for the popover, plus a Rust toolchain — a third language whose only job would be hosting the other two |
-| **All-Swift** (daemon too, Kokoro via CoreML) | One language, best packaging story | Bets v1 on a community CoreML port with a reported silent-output failure mode. Silence at apparent success is the founding failure of this project; not the place to accept it back as a dependency |
+| **All-Swift** (daemon too, Kokoro via CoreML) | One language, simpler packaging | The original choice lacked reference and audio-quality comparison evidence for the replacement engine. The inference decision above keeps such evidence as a gate; it makes no current defect claim about CoreML. |
 | **All-Python** (tray via `rumps`/PyObjC) | One language, no Swift | `rumps` does menus, not the popover UI the mockups specify. Full PyObjC AppKit is writing AppKit with worse tooling and no Interface Builder escape hatch |
 | **Node/TypeScript daemon** (`kokoro-js` on ONNX Runtime) | One repo-wide JS toolchain | Community ONNX port rather than the reference implementation, and a second runtime to supervise. Nothing else in the design wants Node |
-| **Rust daemon, Python engine subprocess** | Robust daemon core | The daemon *is* the model host — that is what keeps generation warm. Splitting them reintroduces a process boundary inside the hot path and doubles the supervision problem for a robustness the asyncio daemon does not demonstrably lack |
+| **Rust daemon, Python engine subprocess** | Separate application and model runtimes | Originally rejected because of process and supervision costs. Superseded by [#117](#model-inference-scope): guided setup already keeps models warm in Python workers. Preserve and test that boundary during the Rust port. |
 | **gRPC / protobuf IPC** | Typed schema, codegen | [Architecture §5](architecture.md#5-ipc) chose NDJSON over UDS deliberately: inspectable with `nc`, no codegen step for agent authors, and the message set is small. A schema can be reintroduced as JSON Schema validation without changing the wire |
 | **Finder Sync extension for “Read File”** | Direct Finder integration and custom contextual UI | A file Service already receives an explicit Finder selection without an extension process or a second document pipeline |
 | **Synthetic Command-C selection capture** | Apparent compatibility with any copyable view | Mutates another app and the global clipboard, races focus and other clipboard clients, and violates the explicit-input boundary |

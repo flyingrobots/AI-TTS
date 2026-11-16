@@ -66,6 +66,38 @@ The costs, alternatives, evidence, and reconsideration conditions are in the
 The [daemon feature policy](#python-feature-policy-during-the-rust-port)
 continues to govern changes to daemon behavior during this work.
 
+## Model inference scope
+
+[Decision #117](https://github.com/flyingrobots/AI-TTS/issues/117) limits the
+Rust rewrite to the model worker boundary. Keep inference and G2P in Python
+workers, including the Kokoro reference path for cutover. The Rust daemon
+will supervise those workers. The current Python implementation already uses
+workers for guided model runtimes; this is not evidence of a completed Rust
+supervisor.
+
+This choice preserves the reference speech path while application behavior
+moves to Rust. It retains Python runtime setup, dependency audits, worker
+supervision, and pipe overhead. Mandatory native inference would add quality,
+G2P, and distribution checks to cutover without completed comparison evidence.
+See the [full decision and alternatives](docs/design/tech-stack.md#model-inference-scope).
+
+After the engine interface and supervisor in
+[#133](https://github.com/flyingrobots/AI-TTS/issues/133), the five-day spike
+in [#141](https://github.com/flyingrobots/AI-TTS/issues/141) may evaluate one
+optional native Kokoro engine. It does not block daemon cutover. Pin its
+reference and candidate, set comparison thresholds first, check complete
+audio and pronunciation, record listening results, and review distribution
+licences. A successful spike permits a reviewed optional adapter. Changing
+the default needs a separate recorded decision; keep Python for comparison
+and recovery until the replacement meets its acceptance criteria.
+
+[#150](https://github.com/flyingrobots/AI-TTS/issues/150) must still install
+and start the Rust daemon without preinstalled Python. Guided model setup
+must obtain the private Python runtime and dependencies before speech, with
+failure and retry behavior. This does not authorize a bundled Python
+environment. The [tooling choice](#build-and-install-tooling-after-the-rust-port)
+and [feature policy](#python-feature-policy-during-the-rust-port) still apply.
+
 ## The shape of it
 
 ```mermaid
