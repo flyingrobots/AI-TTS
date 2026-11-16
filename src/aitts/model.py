@@ -110,6 +110,7 @@ class Utterance:
     generation_artifact_id: str | None = None
     replay_of: str | None = None
     engine: str | None = None
+    playback: bool = True
 
     @property
     def is_terminal(self) -> bool:
