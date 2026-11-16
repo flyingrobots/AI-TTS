@@ -61,6 +61,7 @@ async def test_submit_playback_false_synthesizes_without_playing(tmp_path: Path)
             assert sink.started == []
             status = await daemon.dispatch({"op": "status"})
             assert status["current"] is None
+            assert status["version"] == "0.2.0"
 
             cancelled = await daemon.dispatch({"op": "cancel", "id": utt_id})
             assert cancelled["state"] == "Cancelled"

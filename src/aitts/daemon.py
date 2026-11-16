@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from blake3 import blake3
 
+from aitts import __version__
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
@@ -1169,6 +1170,7 @@ class Daemon:
                 }
         return {
             "ok": True,
+            "version": __version__,
             "state": "accepting",
             **self._speech_admission(),
             "playback_state": playback_state,
