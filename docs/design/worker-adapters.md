@@ -50,7 +50,7 @@ remain the entry points; there is no automatic refresh or new request field.
 | --- | --- |
 | Healthy usable runtime, stale or unknown adapter | Stage a code-only refresh. |
 | Failed setup or failed engine | Perform the existing complete runtime repair, which may download dependencies and weights. |
-| Cancelled refresh, usable stale or unknown adapter | Retry code-only refresh. |
+| Cancelled refresh, healthy incumbent and usable stale or unknown adapter | Retry code-only refresh. |
 | Current, ready engine | Return ready without reinstalling. |
 | No usable private runtime | Use ordinary setup; code-only refresh is unavailable. |
 
@@ -61,6 +61,11 @@ install**. This prevents repeatedly copying new code into a broken environment
 or reusing damaged assets forever. Existing **Use model** behavior and explicit
 selection remain unchanged. Incompatible, loading and installing entries do
 not offer code-only refresh.
+
+If a repair is cancelled while the incumbent engine is still failed, the
+catalog keeps `state: "failed"` and retains the cancellation message. The next
+confirmation therefore continues to describe a full repair. A healthy
+incumbent's cancelled refresh reports `cancelled` and remains code-only.
 
 ## Refresh publication and retained roots
 

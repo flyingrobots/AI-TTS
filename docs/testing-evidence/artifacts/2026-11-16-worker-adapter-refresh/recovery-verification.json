@@ -1,0 +1,220 @@
+{
+  "calibration": [
+    {
+      "fault": "healthy-cancel-state",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_repair_consent.py",
+        "--hypothesis-seed=16408"
+      ],
+      "witness": "AssertionError",
+      "restored_sha256": "4745013369628c0b521587fb7a8be90ed83a96c5ee1f600660e7b011a6acc32a"
+    },
+    {
+      "fault": "swift-cancel-consent",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests.testCapturedCancellationCatalogPreservesRepairConsent"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "restored_sha256": "40ef7329e755006ce4a275241ab5d82120d483f3ccf2584709c4798c0b94dcfd"
+    }
+  ],
+  "python_repetitions": [
+    {
+      "index": 0,
+      "seed": 16411,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-0.log"
+    },
+    {
+      "index": 1,
+      "seed": 16412,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-1.log"
+    },
+    {
+      "index": 2,
+      "seed": 16413,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-2.log"
+    },
+    {
+      "index": 3,
+      "seed": 16414,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-3.log"
+    },
+    {
+      "index": 4,
+      "seed": 16415,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-4.log"
+    },
+    {
+      "index": 5,
+      "seed": 16416,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-5.log"
+    },
+    {
+      "index": 6,
+      "seed": 16417,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-6.log"
+    },
+    {
+      "index": 7,
+      "seed": 16418,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-7.log"
+    },
+    {
+      "index": 8,
+      "seed": 16419,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-8.log"
+    },
+    {
+      "index": 9,
+      "seed": 911524576,
+      "exit": 0,
+      "node_count": 4,
+      "log": "repair-repeat-9.log"
+    }
+  ],
+  "swift_repetitions": [
+    {
+      "index": 0,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-0-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-1-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-2-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-3-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-4-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-5-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-6-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-7-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-8-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "results": [
+        {
+          "method": "testCapturedCancellationCatalogPreservesRepairConsent",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repair-repeat-9-testCapturedCancellationCatalogPreservesRepairConsent.log"
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,25 @@ import XCTest
 final class LocalModelAdapterTests: XCTestCase {
     override func setUp() { super.setUp(); executionTimeAllowance = 15 }
 
+    func testCapturedCancellationCatalogPreservesRepairConsent() throws {
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../docs/testing-evidence/artifacts/2026-11-16-worker-adapter-refresh/recovery-catalog-cases.json")
+        let capture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        let cases = try XCTUnwrap(capture["cases"] as? [[String: Any]])
+        XCTAssertEqual(cases.count, 4)
+        for row in cases {
+            let failed = try XCTUnwrap(row["incumbent_failed"] as? Bool)
+            let model = try XCTUnwrap(row["model"] as? [String: Any])
+            let snapshot = try XCTUnwrap(Snapshot(daemonJSON: [
+                "status": ["playback_state": "idle", "engine": "fake", "voice": "default"],
+                "models": [model]
+            ]))
+            let decoded = try XCTUnwrap(snapshot.models.first)
+            XCTAssertEqual(decoded.adapterRefreshAvailable, !failed)
+            XCTAssertEqual(decoded.message, "Setup cancelled. You can retry.")
+        }
+    }
+
     func testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence() throws {
         let base: [String: Any] = ["name": "kokoro", "title": "Kokoro", "description": "Local",
                                   "installed": true, "selected": false, "state": "ready", "message": ""]

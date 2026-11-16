@@ -1338,7 +1338,9 @@ class Daemon:
             )
             setup = self._setup_states.get(name, {})
             reported = setup.get("state", state)
-            if reported == "ready":
+            # Cancellation does not repair a failed incumbent: retain the failure
+            # state used by setup admission, and keep the cancellation message.
+            if reported == "ready" or (reported == "cancelled" and state == "failed"):
                 reported = state
             rows.append(
                 {

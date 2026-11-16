@@ -1,7 +1,7 @@
 # Explicit worker adapter refresh: verification record
 
 Change-kind: bug fix. On 2026-11-16, production commit
-`7b23b96c728317b726a82804b1891aabb48352bb` met the bounded contract in
+`7b23b96c728317b726a82804b1891aabb48352bb` was tested against the contract in
 [issue #164](https://github.com/flyingrobots/AI-TTS/issues/164): report the
 installed adapter identity, refresh stale or unknown code only on request,
 and preserve the incumbent until the replacement is ready. This record also
@@ -33,7 +33,7 @@ an unknown or stale manifest, causing the next Retry to refresh the same broken
 environment forever. A ready incumbent could also hide a failed full repair.
 Failed setup or engine state now takes precedence over refresh and the ready
 shortcut. Swift presents download/install consent for that complete repair;
-cancellation still permits code-only refresh.
+cancelling a healthy refresh still permits code-only refresh.
 
 ## Observed RED and GREEN
 
@@ -115,6 +115,36 @@ assigned to [#125](https://github.com/flyingrobots/AI-TTS/issues/125) /
 [PR #178](https://github.com/flyingrobots/AI-TTS/pull/178); its author verified
 those source hashes and added separate compatibility cases without changing
 the pinned older conversations.
+
+## Review repair: cancelled full repair retains download consent
+
+Review thread `PRRT_kwDOUHyfMM64GlBg` exposed a schedule absent from the
+initial checks: a failed incumbent starts full repair, cancellation preserves
+that failed incumbent, but the catalog reported only `cancelled`. The client
+then offered code-only refresh while daemon admission still required install.
+
+The catalog now preserves effective `failed` state for that schedule and keeps
+`Setup cancelled. You can retry.` as its message. A healthy incumbent's cancelled
+refresh still reports `cancelled`. This uses the existing state contract; no
+wire field was added. Four real IPC schedules cover healthy/failed incumbents
+and unknown/stale identities, unchanged runtime files and manifest, and the
+next recovery operation. The two failed-incumbent schedules failed before the
+repair; all four passed afterward. The surrounding family passed 36 cases.
+
+[Captured recovery rows](artifacts/2026-11-16-worker-adapter-refresh/recovery-catalog-cases.json)
+come from those actual `engines` and `snapshot` responses, which were equal.
+The Swift decoder/action test consumes the captured rows: before repair it
+failed two consent assertions; after repair all three adapter tests passed.
+The full Swift suite then passed 190 tests.
+
+[Recovery calibration and repetition](artifacts/2026-11-16-worker-adapter-refresh/recovery-verification.json)
+records two detected faults: incorrectly making healthy cancellation look
+failed, and deleting Swift's failed-state consent guard. Production bytes were
+restored after each fault. The four Python cases passed ten shuffled runs with
+two independent processes (40 executions), seeds `16411` through `16419` and
+random seed `911524576`. The captured-row Swift case passed ten independent
+executions, two at once, against the restored rebuilt bundle. These counts
+extend the earlier verification rather than asserting exhaustive interleavings.
 
 ## Limits and retained resources
 
