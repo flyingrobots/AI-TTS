@@ -236,3 +236,38 @@ so its closing multiplication star cannot become a later formatting opener.
 The Python public boundary independently preserved all 128 cases from numbers
 0–31 and star widths 1–4. The new Rust boundary sweep and all seven segmentation
 tests pass, including the unchanged 40-case corpus.
+
+## Rejected star-run work review
+
+The second post-ready finding reached spoken cleanup after bounded parsing. The input
+`# H\n\na`, followed by escaped literal stars and ` x *`, made a rejected embedded opener
+rescan the rest of its run for every star. Public debug probes with 16,000 and 32,000 stars
+each hit the unchanged two-second CPU guard (SIGXCPU). The permanent public timing
+regression also hit that guard before the source repair; this was a guard stop, not a crash.
+
+Cleanup now checks the original preceding character before tail lookahead, and consumes
+each rejected maximal star run as a unit. Content between adjacent runs is examined by
+at most the adjacent candidates; no failed candidate restarts inside its rejected run.
+This makes this cleanup pass linear in its input size. It does not turn the parser's work
+counter into a meter for every instruction in the full projection.
+
+The same guarded probes now preserve exact output at all four sizes. The 4,000-, 16,000-
+and 32,000-star cases took approximately 0.010, 0.030 and 0.058 seconds respectively;
+the first 1,000-star process took 0.163 seconds, including first-launch overhead. These
+are scoped observations, not a portable timing guarantee. A permanent 32,000-star
+control has a two-second regression threshold, and generated alphanumeric prefixes and
+1–2,047 escaped stars independently check that every literal marker survives.
+
+After both post-ready repairs, formatting, strict all-target Clippy, and all 46 tests
+passed in debug and release. Ten shuffled repetitions passed 460 test executions and
+6,400 generated cases across five properties. Repetitions took 1.96–2.11 seconds,
+excluding compilation and guard measurements. Each small case retained its two-second
+deadline; resource/projection medium cases used 15 seconds, with the projection test's
+own two-second regression threshold. The retained seeds are:
+
+```text
+18244122384945791117 17734360095097860495 14793771535540820552
+14693432401806587746 11095099359988454270 5080710901033132863
+10019909908056555331 3693687675778285796 15318778687730825858
+3370353491605928405
+```

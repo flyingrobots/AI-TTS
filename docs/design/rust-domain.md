@@ -72,6 +72,9 @@ Markdown uses the locally modified, pinned `markdown` 1.0.0 source with HTML int
 disabled. Tables and double-tilde strikethrough are enabled. Code remains spoken text, visible
 link text and image alternatives remain, and headings start sections. The crate adapts the
 parser's syntax tree; it does not implement a separate Markdown grammar.
+Loose star cleanup preserves and consumes numeric matches. Rejected maximal star runs
+are skipped together before inspecting later text, so cleanup does not repeatedly scan
+the same literal run after parsing. Parser work counters do not meter all projection work.
 The unchanged [40-case corpus](../../tests/corpus/segmentation/README.md), HTML regressions,
 and loose-emphasis cases define tested compatibility. They do not prove parity for every
 possible Markdown input or every Unicode normalization behavior.
