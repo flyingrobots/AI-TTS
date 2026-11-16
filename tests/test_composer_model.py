@@ -6,7 +6,7 @@
 import pytest
 
 from aitts.daemon import Daemon
-from tests.test_ipc import daemon as daemon_fixture
+from tests.test_ipc import python_daemon as daemon_fixture
 from tests.test_ipc import rpc
 
 daemon = daemon_fixture

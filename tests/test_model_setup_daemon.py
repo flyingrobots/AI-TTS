@@ -22,7 +22,7 @@ from tests.test_model_setup import complete_runtime
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-daemon_fixture = test_ipc.daemon
+daemon_fixture = test_ipc.python_daemon
 
 pytestmark = [
     pytest.mark.medium,
