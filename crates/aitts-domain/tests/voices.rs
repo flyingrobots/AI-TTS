@@ -159,9 +159,15 @@ fn client_classification_and_language_pool_preserve_python_rules() {
         assert_eq!(language(voice), expected, "{voice}");
     }
     assert_eq!(
-        automatic_pool(&["zf_a", "af_b", "ef_c", "af_d", "unknown"], &["en", "es"]),
+        automatic_pool(&["zf_a", "af_b", "ef_c", "af_d", "unknown"], &["en", "es"]).unwrap(),
         ["af_b", "ef_c", "af_d"]
     );
-    assert_eq!(automatic_pool(&["alice", "bob"], &["en"]), ["alice", "bob"]);
-    assert_eq!(automatic_pool(&["af_a"], &["zh"]), Vec::<&str>::new());
+    assert_eq!(
+        automatic_pool(&["alice", "bob"], &["en"]).unwrap(),
+        ["alice", "bob"]
+    );
+    assert_eq!(
+        automatic_pool(&["af_a"], &["zh"]).unwrap(),
+        Vec::<&str>::new()
+    );
 }

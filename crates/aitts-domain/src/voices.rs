@@ -3,6 +3,7 @@
 
 //! This module owns voice claim precedence and automatic language pools.
 
+use crate::CollectionLimit;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -139,13 +140,20 @@ pub fn language(voice: &str) -> &'static str {
 }
 
 /// Filter a metadata-aware catalog, preserving order. Unknown catalogs pass through.
-pub fn automatic_pool<'a>(catalog: &[&'a str], languages: &[&str]) -> Vec<&'a str> {
+///
+/// # Errors
+/// Refuses catalogs larger than [`crate::MAX_COLLECTION_ENTRIES`] before copying.
+pub fn automatic_pool<'a>(
+    catalog: &[&'a str],
+    languages: &[&str],
+) -> Result<Vec<&'a str>, CollectionLimit> {
+    crate::allocation::admit(catalog.len())?;
     if catalog.iter().all(|voice| language(voice) == "other") {
-        return catalog.to_vec();
+        return Ok(catalog.to_vec());
     }
-    catalog
+    Ok(catalog
         .iter()
         .copied()
         .filter(|voice| languages.contains(&language(voice)))
-        .collect()
+        .collect())
 }

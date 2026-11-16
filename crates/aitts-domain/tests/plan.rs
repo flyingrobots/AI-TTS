@@ -35,6 +35,7 @@ fn keys_order_stably_and_priority_only_changes_admission() {
     ];
     assert_eq!(
         ordered(&entries)
+            .unwrap()
             .iter()
             .map(|item| item.id.0)
             .collect::<Vec<_>>(),
@@ -60,7 +61,7 @@ fn keys_order_stably_and_priority_only_changes_admission() {
         entry("positive", 0.0, Priority::Normal, State::Ready),
         entry("negative", -0.0, Priority::Preempt, State::Ready),
     ];
-    assert_eq!(ordered(&zeros), zeros);
+    assert_eq!(ordered(&zeros).unwrap(), zeros);
     for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
         assert_eq!(OrderKey::new(invalid), Err(InvalidOrderKey));
     }
@@ -172,7 +173,7 @@ proptest! {
     fn generated_queue_order_is_a_stable_permutation(keys in prop::collection::vec(-8_i16..=8, 0..64)) {
         let ids: Vec<_> = (0..keys.len()).map(|index| index.to_string()).collect();
         let entries: Vec<_> = ids.iter().zip(&keys).map(|(id, key)| entry(id, f64::from(*key), Priority::Normal, State::Ready)).collect();
-        let sorted = ordered(&entries);
+        let sorted = ordered(&entries).unwrap();
         prop_assert_eq!(sorted.len(), entries.len());
         for original in &entries { prop_assert_eq!(sorted.iter().filter(|item| item.id == original.id).count(), 1); }
         for adjacent in sorted.windows(2) {
@@ -183,6 +184,6 @@ proptest! {
                 prop_assert!(left.id.0.parse::<usize>().unwrap() < right.id.0.parse::<usize>().unwrap());
             }
         }
-        prop_assert_eq!(ordered(&sorted), sorted);
+        prop_assert_eq!(ordered(&sorted).unwrap(), sorted);
     }
 }

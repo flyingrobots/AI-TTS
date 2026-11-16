@@ -18,3 +18,6 @@ pub mod sensitivity;
 pub mod settings;
 pub mod utterance;
 pub mod voices;
+
+mod allocation;
+pub use allocation::{CollectionLimit, MAX_COLLECTION_ENTRIES};
