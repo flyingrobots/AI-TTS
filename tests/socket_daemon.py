@@ -131,6 +131,14 @@ async def _check_state(
     failures: list[str],
 ) -> None:
     def refuse(error: OSError) -> None:
+        if (
+            isinstance(error, FileNotFoundError)
+            and isinstance(error.filename, str)
+            and Path(error.filename) != root
+            and Path(error.filename).is_relative_to(root)
+            and root.is_dir()
+        ):
+            return
         raise error
 
     while process.returncode is None:

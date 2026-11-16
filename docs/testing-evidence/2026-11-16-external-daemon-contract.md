@@ -105,3 +105,12 @@ has not run the suite. Resource monitoring is a fixture guard, not a sandbox
 for an untrusted executable. See the
 [contract instructions](../../tests/corpus/wire/README.md) for command inputs,
 limits, volatile-field rules, and transcript review requirements.
+
+## Review repairs
+
+`PRRT_kwDOUHyfMM64Diuj`: a controlled scan removed an actual child directory
+after enumeration but before traversal. The original monitor killed the daemon
+and failed the regression. The monitor now ignores a missing named descendant;
+missing-root, disappearing-root, permission-denied, and unidentified-path
+controls still fail closed. All five cases passed after the repair. This changes monitoring
+admission only; it does not suppress other filesystem failures.
