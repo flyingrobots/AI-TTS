@@ -66,6 +66,34 @@ The costs, alternatives, evidence, and reconsideration conditions are in the
 The [daemon feature policy](#python-feature-policy-during-the-rust-port)
 continues to govern changes to daemon behavior during this work.
 
+## Input audio retention
+
+[Decision #124](https://github.com/flyingrobots/AI-TTS/issues/124) selects
+text-only retention for planned listening sessions. Captured audio stays in
+bounded working buffers during recognition. Release it on finalization,
+cancellation, expiry, or failure. Do not create application-managed recordings,
+temporary input files, audio database blobs, or diagnostic audio copies.
+A crash does not authorize recovery or replay of captured audio.
+
+This limits the additional sensitive information kept from a microphone, at
+the cost of losing saved-audio replay when a transcript is wrong. Optional
+retention would require a new consent step and a reviewed deletion lifecycle;
+retention on by default would collect recordings before a user chose to keep
+them. The [full decision](docs/design/tech-stack.md#input-audio-retention)
+states the boundaries and alternatives.
+
+The transcript store in [#144](https://github.com/flyingrobots/AI-TTS/issues/144)
+must keep final text, session, and source without raw audio or a saved-input
+path. It still depends on [#135](https://github.com/flyingrobots/AI-TTS/issues/135)
+and [#137](https://github.com/flyingrobots/AI-TTS/issues/137). The listening and
+recognizer tasks must verify buffer release and absence of application-managed
+audio storage across normal and failed requests. A backend that requires an
+input file needs a revised decision before integration.
+
+This section defines future implementation constraints. It does not claim that
+listening is implemented or that runtime retention checks have passed. It does
+not change transcript-text retention or the existing synthesized-speech cache.
+
 ## The shape of it
 
 ```mermaid
