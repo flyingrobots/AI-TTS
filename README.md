@@ -8,7 +8,7 @@ reads highlighted text without saving.
 
 You send it text. It queues that text, synthesizes audio in the background with the model held warm in memory, and plays it back through a separate, strictly serialized queue that you control from the menu bar.
 
-> **Status: v0.1.0 release candidate.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. No `v0.1.0` tag or release has been published yet. See [Project status](#project-status) and [Using it](#using-it).
+> **Development version: 0.2.0.** The daemon, CLI, MCP server, and menu-bar app are implemented and under release validation. The daemon reports its version for clients using synthesis-only audio delivery. See [Project status](#project-status) and [Using it](#using-it).
 
 ## Optional Apple Silicon MLX backend
 
@@ -784,7 +784,7 @@ busy). Caption placement is selectable as **Top** or **Bottom** in Settings.
 
 ## Project status
 
-The v0.1.0 implementation is a release candidate, not a published release. The
+The development version is 0.2.0; a version bump does not publish a release. The
 Python daemon and CLI, 100% JSONL stdio MCP adapter, Kokoro-82M engine adapter,
 native Swift menu-bar app, native selected-text/selected-file Services,
 explicit Accessibility/clipboard fallbacks, and six installed-and-indexed App

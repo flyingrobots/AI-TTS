@@ -31,6 +31,7 @@ class SubmissionDisposition(enum.StrEnum):
 
     QUEUED_FOR_PLAYBACK = "queued_for_playback"
     SPOOLED_UNTIL_RESUME = "spooled_until_resume"
+    SYNTHESIS_ONLY = "synthesis_only"
 
 
 class PlaybackState(enum.StrEnum):
@@ -79,6 +80,7 @@ class EnqueueSpeechReceipt(SpeechAdmission):
     eligible_engines: tuple[str, ...]
     segment_count: SegmentCount = 1
     composite: bool = False
+    playback: bool = True
 
 
 class ActiveSegment(PublicSchema):
@@ -91,6 +93,17 @@ class ActiveSegment(PublicSchema):
     state: State
     duration_ms: NonNegativeInt | None
     position_ms: NonNegativeInt | None
+
+
+class SynthesizedSegment(PublicSchema):
+    """One synthesis-only artifact on the daemon's local filesystem."""
+
+    index: NonNegativeInt
+    state: State
+    duration_ms: NonNegativeInt | None
+    audio_ready: bool
+    audio_path: str | None
+    error: str | None
 
 
 class QueueItem(PublicSchema):
@@ -112,6 +125,8 @@ class QueueItem(PublicSchema):
     composite: bool = False
     segment_count: SegmentCount = 1
     completed_segments: NonNegativeInt = 0
+    playback: bool = True
+    segments: tuple[SynthesizedSegment, ...] = ()
 
 
 class CurrentSpeech(QueueItem):
@@ -158,6 +173,7 @@ class SpeechStatus(SpeechAdmission):
     counts: dict[str, NonNegativeInt]
     engine: NonEmptyText
     voice: str
+    version: NonEmptyText | None = None
     # Whether an audio input is capturing right now. Coarse and sticky by
     # nature; it says the device is open, not that anyone is talking. None
     # means the platform could not be asked, which is materially different

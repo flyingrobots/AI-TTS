@@ -155,7 +155,7 @@ stateDiagram-v2
 
 **Notes on the states that carry weight:**
 
-- **`Queued` vs `Ready`** is the whole reason for two queues. `Queued` is on the *input* queue; `Ready` is on the *playback* queue. An utterance is on exactly one at a time.
+- **`Queued` vs `Ready`** is the whole reason for two queues. `Queued` is on the *input* queue; ordinary `Ready` utterances enter the *playback* queue. Synthesis-only submissions (`playback: false`) remain queryable by ID at `Ready` and are excluded from host playback and its pending queue, including after restart.
 - **`Ready` means usable audio exists.** For file-only engines, an engine return
   is not enough: the artifact boundary must observe a regular, non-empty output file. Engines
   write to cache-invisible `.part` candidates; only a verified candidate is
@@ -375,9 +375,21 @@ limit does not poison the connection, so a corrected next request can proceed. D
    "sensitivity":"confidential", "eligible_engines":["kokoro"],
    "playback_held":true, "submission_disposition":"spooled_until_resume"}
 
+// Synthesis-only: defaults to playback:true when omitted; must be a JSON boolean.
+→ {"op":"submit", "text":"For a remote client.", "playback":false}
+← {"ok":true, "accepted":true, "id":"utt_...", "state":"Queued", "playback":false,
+   "submission_disposition":"synthesis_only"}
+// Poll get until each segment is ready. Paths belong to this daemon's machine.
+→ {"op":"get", "id":"utt_..."}
+← {"ok":true, "item":{"id":"utt_...", "playback":false, "state":"Ready",
+   "segments":[{"index":0,"state":"Ready","duration_ms":1200,
+                "audio_ready":true,"audio_path":"/daemon/cache/utt_....wav","error":null}]}}
+// The client owns playback and sends cancel when it is finished or abandons the request.
+// Host-speaker holds do not stop synthesis. No remote playback progress is inferred.
+
 // status — daemon admission and playback are deliberately separate
 → {"op":"status"}
-← {"ok":true, "state":"accepting", "accepting_speech":true,
+← {"ok":true, "version":"0.2.0", "state":"accepting", "accepting_speech":true,
    "playback_state":"paused", "playback_held":true,
    "submission_disposition":"spooled_until_resume",
    "submission_guidance":"Speak freely: playback is paused, but speech is accepted and spooled until Resume."}
