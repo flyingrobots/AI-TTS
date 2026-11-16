@@ -12,6 +12,30 @@ regenerates the ordering from the live graph.
 Sequencing below is derived from the `blockedBy` / `blocking` relationships set
 on the issues themselves, not from an opinion held in this file.
 
+## Python feature policy during the Rust port
+
+[Decision #122](https://github.com/flyingrobots/AI-TTS/issues/122) allows Python
+daemon features during the early port, then freezes new daemon behavior from
+the first implementation draft PR for
+[#148](https://github.com/flyingrobots/AI-TTS/issues/148) through the validated
+cutover in [#151](https://github.com/flyingrobots/AI-TTS/issues/151).
+
+Before that interval, each feature records its changed public behavior,
+updates the applicable reference cases, and names its Rust parity task.
+At the start of #148, record exact Python and contract/corpus commits in the
+test evidence. They define the fixed comparison target. Defect corrections
+remain allowed; observable corrections update that reference and require the
+affected comparisons to pass against both daemons. Swift work and refactors
+that preserve public behavior remain outside the freeze.
+
+This sequence preserves early feature delivery while giving final parity
+checks a stable target. Its costs are parity tracking before #148 and delayed
+features during final validation. A new reference delta must be reconciled
+before #148 completion or cutover, with new work represented in the issue
+graph. See the [full policy and alternatives](docs/design/tech-stack.md#python-feature-policy-during-the-rust-port).
+This section states the sequencing rule, not the current implementation status
+of any issue.
+
 ## The shape of it
 
 ```mermaid
