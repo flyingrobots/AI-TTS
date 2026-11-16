@@ -180,6 +180,7 @@ result does not block the daemon cutover. Before adoption:
 
 - Pin the candidate, Python reference, model assets, voices, and text cases.
   Set duration tolerances and silence/level checks before the comparison.
+  Require every clip to pass those checks.
 - Compare complete output and pronunciation on the fixed English text set.
   Reject silent or truncated clips and material pronunciation regressions.
   Record a listening assessment; waveform measurements alone are insufficient.
@@ -188,6 +189,8 @@ result does not block the daemon cutover. Before adoption:
 - Review the actual code, model, G2P, and distribution dependencies and licences.
   Treat changed eSpeak linkage or bundling as a new distribution review.
   A Rust adapter and a process boundary do not settle licence obligations.
+  Reject unresolved distribution permissions or a worse licence position
+  than the reference.
 
 Keep the Python reference available for comparison and recovery. A successful
 spike permits a reviewed optional adapter; it does not automatically change
