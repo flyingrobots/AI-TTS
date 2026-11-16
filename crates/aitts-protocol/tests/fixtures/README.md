@@ -25,4 +25,24 @@ Their oracle is the dispatcher and its helpers at the same reference commit.
 For example, a well-formed `get` request does not establish that its identifier
 exists or that the daemon can perform the requested operation.
 
+`replies.json` and `events.json` are source-derived structural examples at the
+same reference commit. They cover every operation reply and all 14 emitted
+event shapes, including both forms of `history_changed`. They include synthetic
+metadata and counter states; they are not captures of a running daemon. The
+Rust types were not used to generate these examples. Daemon policy can reject
+a structurally valid request or disallow a synthetic combination of states.
+
+`catalog-7b23b96.json` adds model-catalog projections captured from Python commit
+`7b23b96c728317b726a82804b1891aabb48352bb` for issue #164. It records the source
+file hashes and four adapter-status cases: explicit null without a private
+runtime, a current Kokoro adapter, an unknown legacy Kokoro MLX adapter, and a
+stale Chatterbox adapter. The producer used an owned temporary home, fake
+engine and sink, and the existing owned installer test helpers. It used no
+live model, download, device, or operator state. The capture compared the
+`engines.models` and `snapshot.models` projections for equality. The source
+file hashes were verified against that committed Git tree before copying.
+Rust tests embed these captured arrays in the source-derived reply envelopes;
+they do not claim those complete envelopes were captured. The original nine
+reference conversations remain unchanged.
+
 This fixture record is agent-written and has not received human review.

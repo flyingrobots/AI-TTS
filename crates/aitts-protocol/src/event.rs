@@ -9,8 +9,9 @@ use crate::settings::SettingsUpdate;
 use crate::status::{InputIdle, ListenerSpeaking};
 use crate::value::{Nullable, Number};
 use crate::vocabulary::State;
-use schemars::JsonSchema;
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// One event sent after subscribing.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -105,13 +106,32 @@ pub enum Event {
 }
 
 /// Exactly one kind of history edit.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HistoryChange {
     /// A whole history clear.
     Cleared(HistoryCleared),
     /// One removed item.
     Removed(HistoryRemoved),
+}
+
+impl JsonSchema for HistoryChange {
+    fn schema_name() -> Cow<'static, str> {
+        "HistoryChange".into()
+    }
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        // Keep exclusivity at the object level so the enclosing event tag can
+        // join its properties without violating a nested closed-record schema.
+        schemars::json_schema!({
+            "type": "object",
+            "properties": {
+                "cleared": generator.subschema_for::<u64>(),
+                "removed": {"type": "string"}
+            },
+            "oneOf": [{"required": ["cleared"]}, {"required": ["removed"]}],
+            "additionalProperties": false
+        })
+    }
 }
 
 /// Number of items cleared from history.

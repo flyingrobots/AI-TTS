@@ -21,6 +21,7 @@ pub mod provenance;
 pub mod query_reply;
 pub mod reply;
 pub mod request;
+pub mod schema;
 pub mod settings;
 pub mod snapshot;
 pub mod status;
@@ -32,3 +33,4 @@ pub use codec::{MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, WireError, decode_request
 pub use event::{decode_event, encode_event};
 pub use reply::{decode_reply, encode_reply};
 pub use request::Request;
+pub use schema::wire_schema;

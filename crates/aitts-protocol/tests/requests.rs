@@ -20,6 +20,10 @@ fn line(value: &Value) -> Vec<u8> {
 
 fn round_trip(value: &Value) {
     let request = decode_request(&line(value)).unwrap();
+    assert_eq!(
+        Some(request.operation().as_str()),
+        value.get("op").and_then(Value::as_str)
+    );
     let encoded = encode_request(&request).unwrap();
     assert_eq!(encoded.last(), Some(&b'\n'));
     assert_eq!(serde_json::from_slice::<Value>(&encoded).unwrap(), *value);
