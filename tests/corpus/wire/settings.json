@@ -1,0 +1,77 @@
+[
+  {
+    "reply": {
+      "ok": true,
+      "settings": {
+        "cache_max_bytes": 1073741824,
+        "captions_enabled": false,
+        "captions_enabled_configured": false,
+        "ducking_enabled": false,
+        "earcon_enabled": false,
+        "engine": "fake",
+        "input_interrupt_enabled": true,
+        "input_interrupt_resume": "when_idle",
+        "playback_rate": 1.0,
+        "speed": 1.0,
+        "voice": "bm_daniel",
+        "voice_languages": [
+          "en"
+        ]
+      }
+    },
+    "request": {
+      "op": "settings"
+    }
+  },
+  {
+    "reply": {
+      "ok": true,
+      "settings": {
+        "cache_max_bytes": 1073741824,
+        "captions_enabled": true,
+        "captions_enabled_configured": true,
+        "ducking_enabled": false,
+        "earcon_enabled": false,
+        "engine": "fake",
+        "input_interrupt_enabled": true,
+        "input_interrupt_resume": "when_idle",
+        "playback_rate": 1.0,
+        "speed": 1.0,
+        "voice": "bm_daniel",
+        "voice_languages": [
+          "en"
+        ]
+      }
+    },
+    "request": {
+      "op": "settings",
+      "set": {
+        "captions_enabled": true
+      }
+    }
+  },
+  {
+    "reply": {
+      "ok": true,
+      "settings": {
+        "cache_max_bytes": 1073741824,
+        "captions_enabled": true,
+        "captions_enabled_configured": true,
+        "ducking_enabled": false,
+        "earcon_enabled": false,
+        "engine": "fake",
+        "input_interrupt_enabled": true,
+        "input_interrupt_resume": "when_idle",
+        "playback_rate": 1.0,
+        "speed": 1.0,
+        "voice": "bm_daniel",
+        "voice_languages": [
+          "en"
+        ]
+      }
+    },
+    "request": {
+      "op": "settings"
+    }
+  }
+]

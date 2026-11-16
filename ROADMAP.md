@@ -12,6 +12,88 @@ regenerates the ordering from the live graph.
 Sequencing below is derived from the `blockedBy` / `blocking` relationships set
 on the issues themselves, not from an opinion held in this file.
 
+## Python feature policy during the Rust port
+
+[Decision #122](https://github.com/flyingrobots/AI-TTS/issues/122) allows Python
+daemon features during the early port, then freezes new daemon behavior from
+the first implementation draft PR for
+[#148](https://github.com/flyingrobots/AI-TTS/issues/148) through the validated
+cutover in [#151](https://github.com/flyingrobots/AI-TTS/issues/151).
+
+Before that interval, each feature records its changed public behavior,
+updates the applicable reference cases, and names its Rust parity task.
+At the start of #148, record exact Python and contract/corpus commits in the
+test evidence. They define the fixed comparison target. Defect corrections
+remain allowed; observable corrections update that reference and require the
+affected comparisons to pass against both daemons. Swift work and refactors
+that preserve public behavior remain outside the freeze.
+
+This sequence preserves early feature delivery while giving final parity
+checks a stable target. Its costs are parity tracking before #148 and delayed
+features during final validation. A new reference delta must be reconciled
+before #148 completion or cutover, with new work represented in the issue
+graph. See the [full policy and alternatives](docs/design/tech-stack.md#python-feature-policy-during-the-rust-port).
+This section states the sequencing rule, not the current implementation status
+of any issue.
+
+## Build and install tooling after the Rust port
+
+[Decision #123](https://github.com/flyingrobots/AI-TTS/issues/123) selects Rust
+for build, install, and audit logic: an `xtask` crate for developer operations
+and `ai-tts install` for operator installation and agent registration. The
+Makefile and integration shell script can remain thin dispatch wrappers; Git
+hooks remain plain shell. This is the target for the port, not a claim that
+the current Python scripts have been replaced.
+
+The reason is [#150](https://github.com/flyingrobots/AI-TTS/issues/150)'s
+requirement to install and start the daemon on a machine without Python.
+Keeping the Python installer would conflict with that requirement. A shell
+rewrite would move structured metadata, recovery state, and quoting rules into
+shell and external parsers. The Rust choice requires a port of the existing
+contracts and a period of dual maintenance to remove the interpreter bootstrap.
+
+#150 follows the Rust CLI in
+[#138](https://github.com/flyingrobots/AI-TTS/issues/138), operation-set
+completion in [#148](https://github.com/flyingrobots/AI-TTS/issues/148), and
+this language decision. Carry forward App Intents validation, staged bundle
+publication, launch-agent recovery, agent integration behavior, and bounded
+process ownership before replacing the relevant entry points. Keep Python
+reference/model audit coverage while those environments remain supported;
+move release/audit orchestration through separate reviewed changes.
+
+The costs, alternatives, evidence, and reconsideration conditions are in the
+[full tooling decision](docs/design/tech-stack.md#build-and-install-tooling-after-the-rust-port).
+The [daemon feature policy](#python-feature-policy-during-the-rust-port)
+continues to govern changes to daemon behavior during this work.
+
+## Input audio retention
+
+[Decision #124](https://github.com/flyingrobots/AI-TTS/issues/124) selects
+text-only retention for planned listening sessions. Captured audio stays in
+bounded working buffers during recognition. Release it on finalization,
+cancellation, expiry, or failure. Do not create application-managed recordings,
+temporary input files, audio database blobs, or diagnostic audio copies.
+A crash does not authorize recovery or replay of captured audio.
+
+This limits the additional sensitive information kept from a microphone, at
+the cost of losing saved-audio replay when a transcript is wrong. Optional
+retention would require a new consent step and a reviewed deletion lifecycle;
+retention on by default would collect recordings before a user chose to keep
+them. The [full decision](docs/design/tech-stack.md#input-audio-retention)
+states the boundaries and alternatives.
+
+The transcript store in [#144](https://github.com/flyingrobots/AI-TTS/issues/144)
+must keep final text, session, and source without raw audio or a saved-input
+path. It still depends on [#135](https://github.com/flyingrobots/AI-TTS/issues/135)
+and [#137](https://github.com/flyingrobots/AI-TTS/issues/137). The listening and
+recognizer tasks must verify buffer release and absence of application-managed
+audio storage across normal and failed requests. A backend that requires an
+input file needs a revised decision before integration.
+
+This section defines future implementation constraints. It does not claim that
+listening is implemented or that runtime retention checks have passed. It does
+not change transcript-text retention or the existing synthesized-speech cache.
+
 ## The shape of it
 
 ```mermaid

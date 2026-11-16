@@ -24,6 +24,163 @@ A native menu-bar app is the other hard constraint. The UI document commits to r
 
 The seam between them is already load-bearing in the architecture: **nothing the tray can do is unavailable to an agent**, because both speak the same protocol to the same socket. Two languages on opposite sides of a socket is a much smaller tax than two languages sharing a process.
 
+## Python feature policy during the Rust port
+
+Decision for [#122](https://github.com/flyingrobots/AI-TTS/issues/122): **allow
+Python daemon features during the early port; freeze new daemon behavior when
+operation-set completion starts, through validated cutover.** This is a
+development policy, not a claim that a Rust daemon has replaced Python.
+The stack tables below describe the existing Python implementation and its
+original tradeoffs; the linked issues describe the planned Rust port.
+
+Before [#148](https://github.com/flyingrobots/AI-TTS/issues/148) starts, a Python
+feature may merge with its normal tests and review. Its PR must identify the
+changed public behavior, update the applicable reference cases, and name the
+Rust task that will implement parity. The feature owner pays this extra
+specification and tracking cost. An early Rust component does not need to
+implement every new feature in the same PR.
+
+The first implementation draft PR for #148 starts the freeze. Record the exact
+Python reference commit and contract/corpus commit in its testing evidence.
+Those commits define the operation set and expected behavior; an old operation
+count or an unpinned copy of `main` does not. New Python daemon features wait
+until [#151](https://github.com/flyingrobots/AI-TTS/issues/151) has met its
+cutover and rollback acceptance criteria. During this interval:
+
+- Defect corrections remain allowed. If a correction changes observable
+  behavior, update the reference case and commit pin, and rerun the affected
+  comparison against both daemons before claiming parity.
+- Refactors and port preparation remain allowed when they preserve public
+  behavior. A new operation or setting is a feature even if its patch is small.
+- Swift application work is outside this freeze, but a new daemon requirement
+  follows the daemon rule. A UI change alone does not waive compatibility.
+- Do not declare #148 complete or cut over with an unaccounted reference delta.
+  Record any new parity work in the issue graph and recalculate the frontier.
+
+This limits the period in which new Python behavior must wait. A freeze from
+the beginning of the port would delay useful behavior while many lower-level
+tasks are still incomplete. No freeze at all would leave the final comparison
+chasing a moving target. The cost of this choice is explicit parity tracking
+before the freeze and delayed features during final validation. If the port is
+paused or this cost becomes unacceptable, record a revised decision and set a
+new reference before resuming validation; do not silently move the target.
+
+The policy is enforced through PR review and recorded evidence. It does not
+add a CI rule that can infer whether a change is a feature. The separate choice
+about replacing model inference remains outside this decision. See the
+[roadmap sequence](../../ROADMAP.md#python-feature-policy-during-the-rust-port).
+
+## Build and install tooling after the Rust port
+
+Decision for [#123](https://github.com/flyingrobots/AI-TTS/issues/123): **use
+Rust for the repository-owned build, install, and audit logic after the port.**
+Put developer build, release, and audit orchestration in an `xtask` crate.
+Put operator installation and agent registration in the Rust CLI, through
+`ai-tts install`. These are target interfaces for the implementation work;
+the current tooling still uses Python and shell.
+
+Keep the Makefile as a thin command entry point. The agent integration shell
+script may remain as a compatibility wrapper that dispatches to the Rust
+implementation. Keep parsing, publication, rollback, and failure handling in
+Rust rather than duplicating them in wrappers. Git hooks stay plain shell and
+are outside this decision. Nested benchmark tooling and model inference are
+also outside its scope.
+
+The decisive requirement is in
+[#150](https://github.com/flyingrobots/AI-TTS/issues/150): a machine without
+Python must be able to install and start the Rust daemon. A compiled CLI can
+own that installation path without an interpreter bootstrap. Keeping the
+Python installer would fail that requirement even if the daemon itself used
+no Python. Building the Swift application still needs Apple's build, metadata,
+and signing tools; changing the orchestration language does not replace them.
+
+The current scripts establish the behavior a port must preserve:
+
+| Responsibility | Source and contract to carry forward |
+| --- | --- |
+| Bundle construction | [`build_app_bundle.py`](../../scripts/build_app_bundle.py) builds Swift, generates and validates App Intents metadata, signs the bundle, and publishes a complete candidate. Keep the missing/invalid-metadata refusal and the actions, background execution, shortcuts, and playback-rate checks in [`test_distribution.py`](../../tests/test_distribution.py). |
+| Installation and launch agents | [`install_application.py`](../../scripts/install_application.py) stages candidates and restores the prior agent configuration on activation failure; [`render_launch_agent.py`](../../scripts/render_launch_agent.py) serializes installed paths into plists. Preserve interruption, teardown, rollback, and complete-bundle publication cases in [`test_launch_agent_activation.py`](../../tests/test_launch_agent_activation.py) and [`test_installation_upgrades.py`](../../tests/test_installation_upgrades.py). These cases do not establish an atomic transaction across the entire current installation. |
+| Agent integration | [`install-integration.sh`](../../scripts/install-integration.sh) selects agent hosts, resolves executables, renders skills, and registers MCP commands. Preserve dry-run behavior, path quoting, incumbent preservation, and per-agent error reporting from [`test_install_integration.py`](../../tests/test_install_integration.py). |
+| Release and audit evidence | [`check_release_tag.py`](../../scripts/check_release_tag.py), [`audit_source_dependencies.py`](../../scripts/audit_source_dependencies.py), and [`verify_supply_chain_evidence.py`](../../scripts/verify_supply_chain_evidence.py) enforce version agreement, exact source identities, advisory results, and consistent SBOM/license inventories. Preserve refusals and evidence provenance when inputs move to Rust packaging. |
+| Bounded command execution | [`run_with_deadline.py`](../../scripts/run_with_deadline.py) retains process-group ownership through termination. Carry its deadline, descendant cleanup, and identity-reuse contracts into the Rust runner. |
+
+Rust audit orchestration may call ecosystem-specific scanners. While a Python
+reference or model environment is supported, keep its PyPI and pinned-source
+audit coverage; Cargo evidence does not replace that coverage. Python needed
+by those developer or CI checks is separate from the operator installation
+path. The choice of an inference runtime remains a separate decision.
+
+| Alternative | Consequence |
+| --- | --- |
+| Keep Python tooling | Lowest immediate migration cost and direct reuse of the current code and tests. It retains Python as an installation prerequisite, which conflicts with #150. |
+| Rewrite the logic in shell | Can avoid a Python bootstrap, but puts structured metadata, rollback state, and process supervision into shell plus external parsers. That increases the quoting and recovery burden already visible in the integration tests. Thin dispatch wrappers retain shell's useful role. |
+| Use Rust | Meets the installation constraint and shares the CLI's target language. It costs a port of the existing contracts, Rust serialization dependencies, build time, and a transition period with two implementations. It does not prove correct rollback or App Intents output by itself. |
+
+Port one responsibility at a time, with failure cases observed against the
+replacement before changing an entry point. Keep the Python implementation as
+a reference until the corresponding checks pass. Prioritize installation and
+bundle work in #150; move release/audit orchestration in separately reviewed
+changes while preserving coverage for every supported dependency graph.
+Do not claim a responsibility has moved to Rust while its entry point still
+delegates to the Python implementation. The daemon feature policy above still
+governs any daemon behavior changes needed by installation.
+
+Revisit this choice if the requirement to install without Python is withdrawn
+or a measured platform constraint prevents the Rust implementation from
+preserving the bundle and recovery contracts. Revise the decision and #150
+together before changing the target. Avoid a second port made only for language
+uniformity. See the [delivery sequence](../../ROADMAP.md#build-and-install-tooling-after-the-rust-port).
+
+## Input audio retention
+
+Decision for [#124](https://github.com/flyingrobots/AI-TTS/issues/124): **keep
+transcript text, not recorded input audio.** This is a constraint for the
+planned listening feature, not a claim that a recognizer or transcript store
+is implemented. It applies to microphone input, not to synthesized speech or
+its existing audio cache. Transcript text retention remains governed by the
+speech-history policy and is outside this decision.
+
+The [README confidentiality contract](../../README.md#a-note-on-what-this-speaks)
+treats text as sensitive by default. It also explains that audio spoken during
+a call can enter another person's transcript. Captured audio adds information
+that text does not need: the speaker's voice and background speech or sounds.
+Keeping it for later diagnosis would create an additional sensitive record.
+
+For the implementation, apply these rules:
+
+- Start capture only through an explicit, expiring listen session. Permission
+  to use the microphone does not itself start a session.
+- Keep only bounded working buffers needed for active recognition. Release
+  their audio when the transcript is final, or when the request is cancelled,
+  the session expires, or recognition fails. A failed request does not grant
+  permission to save a diagnostic recording.
+- Do not write application-managed input-audio files, database blobs, caches,
+  or audio payloads in diagnostic logs. Do not add a retention setting or a
+  saved-audio reference to the transcript store. A backend that requires an
+  input file needs a revised decision before integration; it must not add a
+  temporary-file exception silently.
+- After a crash, do not recover or replay captured audio. A new capture needs
+  a new explicit request. Releasing working buffers is not a claim of secure
+  memory erasure or control over operating-system swap and crash dumps.
+
+| Option | Consequence |
+| --- | --- |
+| Text only, selected | Avoids an application-managed recording archive and its deletion lifecycle. A bad transcript cannot be diagnosed by replaying a saved input. Recognition must accept bounded working audio without an input file. |
+| Optional audio retention, off by default | Can help diagnose a bad transcript. It needs a separate consent step, clear recording state, expiry, deletion, and protection against saving nearby speech without agreement. Those controls are not part of the current listening plan. |
+| Audio retention on by default, with expiry | Makes replay available without another choice, but creates recordings before the user asks to keep them. Expiry limits duration; it does not prevent that collection or remove copies made while the recording exists. |
+
+[#144](https://github.com/flyingrobots/AI-TTS/issues/144) must store final text,
+session, and source without raw audio or a saved-input path. The listener and
+recognizer work must verify the buffer lifecycle on finalization, cancellation,
+expiry, failure, and process loss. Tests of the future implementation must
+observe the storage and worker boundaries; this documentation decision is not
+runtime proof that no audio reaches disk.
+
+Reconsider only for a concrete need that text-only diagnosis cannot meet.
+Keeping more requires a new consent step and a reviewed retention/deletion
+design before implementation. Reducing retention remains the safer direction.
+See the [listening sequence](../../ROADMAP.md#input-audio-retention).
+
 ## Daemon: Python 3.12+
 
 | Concern | Choice | Why |
