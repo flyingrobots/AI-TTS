@@ -37,3 +37,25 @@ inventory and prepare bounded tests in this isolated branch.
 Replace this temporary plan with a completed evidence record. Keep the PR
 draft until acceptance and local/hosted checks pass. Documentation is
 agent-written and has not received human editorial review.
+
+## First implementation checkpoint
+
+The request codec was observed RED with three failing public-API tests before
+implementation. All four request tests then passed: the 32 operation examples,
+absence/null/false preservation, closed fields and value kinds, and the complete
+1 MiB line boundary. A separate transcript test failed against the empty reply
+codec, then passed all 30 concrete records from the nine reference conversations.
+
+Provenance tests first failed because no provenance reply was supported. The
+three tests now pass with bounded historical objects. Known metadata fields
+retain typed validation; historical extensions retain their original values.
+Each archived object permits at most 32 value levels, 4096 values including
+containers, and 65536 UTF-8 bytes in keys and string values. The complete reply
+or event has a separate 16 MiB encoded-line admission ceiling. These are local
+Rust limits, not claims about Python's response-size policy.
+
+The current eight tests and strict Clippy pass on Rust 1.99.1. This is a draft
+checkpoint. JSON Schema export, the expanded source-derived reply/event corpus,
+generated-value checks, fault calibration, release validation, and final CI
+remain pending. PR #178 is temporarily based on PR #175's published branch;
+it must integrate current main and retarget main after #175 lands.

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/aitts-domain"]
+members = ["crates/aitts-domain", "crates/aitts-protocol"]
 resolver = "3"
 
 [workspace.package]

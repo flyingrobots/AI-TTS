@@ -1,0 +1,20 @@
+[package]
+name = "aitts-protocol"
+description = "Typed AI-TTS JSON-line messages and their shared JSON Schema"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+schemars = "=1.2.3"
+
+[dev-dependencies]
+proptest = { version = "1", default-features = false, features = ["std"] }
+jsonschema = { version = "=0.61.2", default-features = false }
