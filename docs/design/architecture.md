@@ -580,6 +580,8 @@ Local OpenAI-compatible servers use direct loopback connections with no redirect
 
 Native adapters prepare independently under per-engine locks; a failed backend does not poison other registered engines. While the startup backend warms up, the synthesis claim skips only work recorded for it, so clips for other backends are not held behind that load.
 
+Guided installations retain their own copied worker package. Their catalog reports whether that copy matches the daemon package; an explicit refresh stages new code beside the incumbent and reuses its environment and assets. The [worker adapter contract](worker-adapters.md) defines identity, publication, cancellation and full-repair recovery.
+
 
 **The engine is pluggable and this document does not choose one.** `bm_daniel` is a voice in the engine used today; whether that engine remains the right one is being researched separately and **must not be baked in here.**
 

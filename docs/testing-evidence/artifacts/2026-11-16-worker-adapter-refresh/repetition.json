@@ -1,0 +1,566 @@
+{
+  "python": [
+    {
+      "index": 0,
+      "seed": 16401,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-0.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]"
+      ]
+    },
+    {
+      "index": 1,
+      "seed": 16402,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-1.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]"
+      ]
+    },
+    {
+      "index": 2,
+      "seed": 16403,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-2.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]"
+      ]
+    },
+    {
+      "index": 3,
+      "seed": 16404,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-3.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]"
+      ]
+    },
+    {
+      "index": 4,
+      "seed": 16405,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-4.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate"
+      ]
+    },
+    {
+      "index": 5,
+      "seed": 16406,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-5.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]"
+      ]
+    },
+    {
+      "index": 6,
+      "seed": 16407,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-6.log",
+      "order": [
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]"
+      ]
+    },
+    {
+      "index": 7,
+      "seed": 16408,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-7.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode"
+      ]
+    },
+    {
+      "index": 8,
+      "seed": 16409,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-8.log",
+      "order": [
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode"
+      ]
+    },
+    {
+      "index": 9,
+      "seed": 2140841753,
+      "exit": 0,
+      "node_count": 30,
+      "log": "repeat-9.log",
+      "order": [
+        "tests/test_adapter_refresh.py::test_refresh_without_usable_runtime_is_refused_without_installing",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[7]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files2-c821349717e7331b3883d37fc5acc18bfcfe9050cf63bd9f11c4843cc8a07b97]",
+        "tests/test_adapter_refresh.py::test_new_runtime_manifest_identifies_the_copied_adapter",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[identity2]",
+        "tests/test_adapter_refresh.py::test_catalog_explicitly_reports_no_private_adapter",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_retries_without_downloading",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[None]",
+        "tests/test_adapter_staging_cancel.py::test_task_cancellation_joins_and_discards_the_returned_candidate",
+        "tests/test_adapter_staging_cancel.py::test_cancel_request_discards_the_returned_candidate",
+        "tests/test_adapter_refresh.py::test_cancelled_refresh_preserves_manifest_worker_and_weights",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-unknown]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-current]",
+        "tests/test_adapter_refresh.py::test_manifest_identifies_actual_copied_bytes",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files0-865b276b5bab6654b3c838abe467bdc7d9fc220621a79e995e4c78b8596500e7]",
+        "tests/test_adapter_refresh.py::test_refresh_refuses_external_runtime_directory",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-current]",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[engines-unknown]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[failure]",
+        "tests/test_adapter_refresh.py::test_repeated_refresh_reuses_direct_asset_and_environment_targets",
+        "tests/test_adapter_refresh.py::test_explicit_refresh_publishes_new_code_with_existing_assets",
+        "tests/test_adapter_refresh.py::test_catalog_reports_identity_without_refreshing[snapshot-stale]",
+        "tests/test_adapter_identity.py::test_adapter_identity_ignores_creation_order_and_bytecode",
+        "tests/test_adapter_identity.py::test_adapter_identity_matches_independent_framed_vectors[files1-0eed398fa2efe70c52aeee0d90db9e9f55021a0b825bd30ec059f3ae0f7b73b7]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[stale]",
+        "tests/test_adapter_refresh.py::test_failed_full_repair_does_not_hide_behind_a_ready_incumbent",
+        "tests/test_adapter_refresh.py::test_invalid_legacy_identity_remains_usable_but_unknown[invalid]",
+        "tests/test_model_setup_daemon.py::test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load[legacy]",
+        "tests/test_adapter_refresh.py::test_failed_refresh_preserves_manifest_worker_and_weights[publication]"
+      ]
+    }
+  ],
+  "swift": [
+    {
+      "index": 0,
+      "results": [
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-0-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        },
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-0-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "results": [
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-1-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        },
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-1-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "results": [
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-2-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        },
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-2-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "results": [
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-3-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        },
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-3-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "results": [
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-4-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        },
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-4-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "results": [
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-5-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        },
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-5-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "results": [
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-6-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        },
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-6-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "results": [
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-7-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        },
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-7-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "results": [
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-8-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        },
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-8-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "results": [
+        {
+          "method": "testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-9-testSnapshotPreservesAdapterStatusAndOlderDaemonAbsence.log"
+        },
+        {
+          "method": "testOnlyUsableIdleAdaptersOfferRefresh",
+          "exit": 0,
+          "passed": true,
+          "log": "swift-repeat-9-testOnlyUsableIdleAdaptersOfferRefresh.log"
+        }
+      ]
+    }
+  ]
+}

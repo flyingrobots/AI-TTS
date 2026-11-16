@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from hypothesis import given
+from hypothesis import event, given
 from hypothesis import strategies as st
 
 from aitts.adapter_identity import adapter_sha256
@@ -23,12 +23,15 @@ pytestmark = [
 ]
 
 
-def write_package(root: Path, files: dict[str, bytes]) -> None:
+def write_package(
+    root: Path, files: dict[str, bytes], *, timestamp: int = 1, mode: int = 0o600
+) -> None:
     for name, data in files.items():
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        os.utime(path, (1, 1))
+        os.utime(path, (timestamp, timestamp))
+        path.chmod(mode)
 
 
 @pytest.mark.parametrize(
@@ -58,11 +61,15 @@ def test_adapter_identity_matches_independent_framed_vectors(
     )
 )
 def test_adapter_identity_ignores_creation_order_and_bytecode(files: dict[str, bytes]) -> None:
+    event(f"file count: {len(files)}")
+    event(
+        "empty content present" if any(not data for data in files.values()) else "nonempty content"
+    )
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         first, second = root / "first", root / "second"
         write_package(first, files)
-        write_package(second, dict(reversed(tuple(files.items()))))
+        write_package(second, dict(reversed(tuple(files.items()))), timestamp=2, mode=0o644)
         write_package(second, {"__pycache__/a.pyc": b"cache", "nested/b.pyc": b"cache"})
         assert len(files) >= 1
         assert adapter_sha256(first) == adapter_sha256(second)

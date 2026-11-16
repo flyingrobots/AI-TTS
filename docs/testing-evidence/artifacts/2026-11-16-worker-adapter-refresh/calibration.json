@@ -1,0 +1,576 @@
+{
+  "results": [
+    {
+      "mutation": "identity-names",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_identity.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "matches_independent"
+      ],
+      "witness": "test_adapter_identity_matches",
+      "log": "ai164-output/cal-identity-names.log"
+    },
+    {
+      "mutation": "identity-bytes",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_identity.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "matches_independent"
+      ],
+      "witness": "test_adapter_identity_matches",
+      "log": "ai164-output/cal-identity-bytes.log"
+    },
+    {
+      "mutation": "identity-bytecode",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_identity.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "ignores_creation"
+      ],
+      "witness": "test_adapter_identity_ignores",
+      "log": "ai164-output/cal-identity-bytecode.log"
+    },
+    {
+      "mutation": "copied-identity",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "manifest_identifies_actual_copied_bytes"
+      ],
+      "witness": "test_manifest_identifies_actual_copied_bytes",
+      "log": "ai164-output/cal-copied-identity.log"
+    },
+    {
+      "mutation": "unknown-status",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "catalog_reports_identity and unknown"
+      ],
+      "witness": "test_catalog_reports_identity",
+      "log": "ai164-output/cal-unknown-status.log"
+    },
+    {
+      "mutation": "stale-status",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "catalog_reports_identity and stale"
+      ],
+      "witness": "test_catalog_reports_identity",
+      "log": "ai164-output/cal-stale-status.log"
+    },
+    {
+      "mutation": "current-status",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "catalog_reports_identity and current"
+      ],
+      "witness": "test_catalog_reports_identity",
+      "log": "ai164-output/cal-current-status.log"
+    },
+    {
+      "mutation": "legacy-usability",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "catalog_reports_identity and unknown"
+      ],
+      "witness": "test_catalog_reports_identity",
+      "log": "ai164-output/cal-legacy-usability.log"
+    },
+    {
+      "mutation": "catalog-write",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "catalog_reports_identity and unknown"
+      ],
+      "witness": "test_catalog_reports_identity",
+      "log": "ai164-output/cal-catalog-write.log"
+    },
+    {
+      "mutation": "catalog-task",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "catalog_explicitly_reports_no_private_adapter"
+      ],
+      "witness": "test_catalog_explicitly_reports_no_private_adapter",
+      "log": "ai164-output/cal-catalog-task.log"
+    },
+    {
+      "mutation": "ready-refresh",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "explicit_refresh_publishes_new_code"
+      ],
+      "witness": "test_explicit_refresh_publishes_new_code",
+      "log": "ai164-output/cal-ready-refresh.log"
+    },
+    {
+      "mutation": "fresh-copy",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "explicit_refresh_publishes_new_code"
+      ],
+      "witness": "test_explicit_refresh_publishes_new_code",
+      "log": "ai164-output/cal-fresh-copy.log"
+    },
+    {
+      "mutation": "early-publication",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "explicit_refresh_publishes_new_code"
+      ],
+      "witness": "test_explicit_refresh_publishes_new_code",
+      "log": "ai164-output/cal-early-publication.log"
+    },
+    {
+      "mutation": "weight-mutation",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "explicit_refresh_publishes_new_code"
+      ],
+      "witness": "test_explicit_refresh_publishes_new_code",
+      "log": "ai164-output/cal-weight-mutation.log"
+    },
+    {
+      "mutation": "link-chains",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "repeated_refresh_reuses_direct"
+      ],
+      "witness": "test_repeated_refresh_reuses_direct",
+      "log": "ai164-output/cal-link-chains.log"
+    },
+    {
+      "mutation": "early-retirement",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "explicit_refresh_publishes_new_code"
+      ],
+      "witness": "test_explicit_refresh_publishes_new_code",
+      "log": "ai164-output/cal-early-retirement.log"
+    },
+    {
+      "mutation": "failed-cleanup",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "failed_refresh_preserves_manifest"
+      ],
+      "witness": "test_failed_refresh_preserves_manifest",
+      "log": "ai164-output/cal-failed-cleanup.log"
+    },
+    {
+      "mutation": "staging-cleanup",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_staging_cancel.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "task_cancellation_joins"
+      ],
+      "witness": "test_task_cancellation_joins",
+      "log": "ai164-output/cal-staging-cleanup.log"
+    },
+    {
+      "mutation": "cancel-check",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "cancelled_refresh_preserves_manifest"
+      ],
+      "witness": "test_cancelled_refresh_preserves_manifest",
+      "log": "ai164-output/cal-cancel-check.log"
+    },
+    {
+      "mutation": "repair-precedence",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_model_setup_daemon.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "retry_rebuilds"
+      ],
+      "witness": "test_retry_rebuilds",
+      "log": "ai164-output/cal-repair-precedence.log"
+    },
+    {
+      "mutation": "repair-shortcut",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "failed_full_repair_does_not_hide"
+      ],
+      "witness": "test_failed_full_repair_does_not_hide",
+      "log": "ai164-output/cal-repair-shortcut.log"
+    },
+    {
+      "mutation": "unavailable-refresh",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "refresh_without_usable_runtime"
+      ],
+      "witness": "test_refresh_without_usable_runtime",
+      "log": "ai164-output/cal-unavailable-refresh.log"
+    },
+    {
+      "mutation": "external-runtime",
+      "command": [
+        "uv",
+        "run",
+        "--no-sync",
+        "pytest",
+        "-q",
+        "tests/test_adapter_refresh.py",
+        "--hypothesis-seed=16406",
+        "-k",
+        "refresh_refuses_external_runtime"
+      ],
+      "witness": "test_refresh_refuses_external_runtime",
+      "log": "ai164-output/cal-external-runtime.log"
+    },
+    {
+      "mutation": "swift-null",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "log": "ai164-output/cal-swift-null.log"
+    },
+    {
+      "mutation": "swift-installed",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertFalse failed",
+      "log": "ai164-output/cal-swift-installed.log"
+    },
+    {
+      "mutation": "swift-incompatible",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertFalse failed",
+      "log": "ai164-output/cal-swift-incompatible.log"
+    },
+    {
+      "mutation": "swift-installing",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertFalse failed",
+      "log": "ai164-output/cal-swift-installing.log"
+    },
+    {
+      "mutation": "swift-loading",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertFalse failed",
+      "log": "ai164-output/cal-swift-loading.log"
+    },
+    {
+      "mutation": "swift-failed",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertFalse failed",
+      "log": "ai164-output/cal-swift-failed.log"
+    },
+    {
+      "mutation": "swift-cancelled",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertTrue failed",
+      "log": "ai164-output/cal-swift-cancelled.log"
+    },
+    {
+      "mutation": "swift-current",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "log": "ai164-output/cal-swift-current.log"
+    },
+    {
+      "mutation": "swift-unknown",
+      "command": [
+        "swift",
+        "test",
+        "--package-path",
+        "clients/menubar",
+        "--jobs",
+        "2",
+        "--build-system",
+        "native",
+        "--disable-index-store",
+        "--filter",
+        "LocalModelAdapterTests"
+      ],
+      "witness": "XCTAssertEqual failed",
+      "log": "ai164-output/cal-swift-unknown.log"
+    }
+  ],
+  "restored_sha256": {
+    "identity": "2f25cb44a7e5cb747860216c4448b4b25d199f4912cc8f8cd0a396aacc75aca2",
+    "setup": "7c9d426f8cb4200d24cb808e4aa064e0917c20afeaf7b8dd24ceb52955fb431e",
+    "daemon": "65cb8b2fb18f6de2928ad0b801f328ea852fccd7fd0d91783f7ef5913083b14a",
+    "swift": "40ef7329e755006ce4a275241ab5d82120d483f3ccf2584709c4798c0b94dcfd",
+    "decode": "fe9eae0341457da434ae132475a83ebc4ad600bebddd184b3ebe899cb1dffd43"
+  },
+  "metadata_controls": {
+    "results": [
+      {
+        "mutation": "st_mtime_ns",
+        "exit": 1,
+        "command": [
+          "uv",
+          "run",
+          "--no-sync",
+          "pytest",
+          "-q",
+          "tests/test_adapter_identity.py",
+          "-k",
+          "ignores_creation",
+          "--hypothesis-seed=16406"
+        ]
+      },
+      {
+        "mutation": "st_mode",
+        "exit": 1,
+        "command": [
+          "uv",
+          "run",
+          "--no-sync",
+          "pytest",
+          "-q",
+          "tests/test_adapter_identity.py",
+          "-k",
+          "ignores_creation",
+          "--hypothesis-seed=16406"
+        ]
+      }
+    ],
+    "restored_sha256": "2f25cb44a7e5cb747860216c4448b4b25d199f4912cc8f8cd0a396aacc75aca2"
+  }
+}
