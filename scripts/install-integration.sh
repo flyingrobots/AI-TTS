@@ -184,10 +184,20 @@ install_skill_for() (
     printf '  %-7s skill  -> %s/SKILL.md\n' "$agent" "$destination"
 )
 
-claude_mcp_matches() {
-    info=$(claude mcp get "$SERVER_NAME" 2>/dev/null | tr -d '\r') || return 1
-    printf '%s\n' "$info" | grep -Fqx "  Command: $1"
-}
+claude_mcp_matches() (
+    # The host's line-oriented display cannot verify multiline command values.
+    cr=$(printf '\r')
+    case "$1" in *'
+'*|*"$cr"*) return 1 ;; esac
+    info=$(claude mcp get "$SERVER_NAME" 2>/dev/null) || return 1
+    while IFS= read -r line; do
+        line=${line%"$cr"}
+        if [ "$line" = "  Command: $1" ]; then return 0; fi
+    done <<EOF
+$info
+EOF
+    return 1
+)
 
 install_mcp_for() {
     agent=$1

@@ -520,3 +520,43 @@ def test_make_install_agents_runs_skill_even_when_mcp_fails(tmp_path: Path) -> N
 
     assert result.returncode != 0
     assert log.read_text(encoding="utf-8").splitlines() == ["mcp", "skill"]
+
+
+@pytest.mark.parametrize(
+    ("requested", "registered", "query_status"),
+    [
+        ("line\nbreak/ai-tts-mcp", "line", 0),
+        ("ai-tts-mcp", "ai-tts-mcp", 9),
+        ("linebreak/ai-tts-mcp", "line\rbreak/ai-tts-mcp", 0),
+    ],
+)
+def test_claude_mcp_rejects_unverified_registration(
+    tmp_path: Path,
+    sandbox: dict[str, str],
+    requested: str,
+    registered: str,
+    query_status: int,
+) -> None:
+    """An unsuccessful query or a different complete command cannot confirm installation."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    host = commands / "claude"
+    host.write_text(
+        '#!/bin/sh\ncase "$2" in\n'
+        "  add) exit 1 ;;\n"
+        '  get) printf "  Command: %s\\r\\n" "$REGISTERED_COMMAND"; '
+        'exit "$QUERY_STATUS" ;;\nesac\nexit 2\n',
+        encoding="utf-8",
+    )
+    host.chmod(0o755)
+    env = dict(
+        sandbox,
+        PATH=f"{commands}:/usr/bin:/bin",
+        AITTS_MCP_BIN=str(tmp_path / requested),
+        REGISTERED_COMMAND=str(tmp_path / registered),
+        QUERY_STATUS=str(query_status),
+    )
+
+    result = run(env, "mcp", "--claude")
+
+    assert result.returncode != 0, "unverified registration was reported as successful"
