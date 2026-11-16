@@ -1,0 +1,62 @@
+[
+  {
+    "reply": {
+      "current": null,
+      "held": true,
+      "ok": true,
+      "state": null
+    },
+    "request": {
+      "op": "pause"
+    }
+  },
+  {
+    "reply": {
+      "accepted": true,
+      "accepting_speech": true,
+      "composite": false,
+      "eligible_engines": [
+        "fake"
+      ],
+      "id": "utt_512b617a43a4429797cff2f23ab7f0b9",
+      "ok": true,
+      "playback": true,
+      "playback_held": true,
+      "segment_count": 1,
+      "sensitivity": "confidential",
+      "state": "Queued",
+      "submission_disposition": "spooled_until_resume",
+      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+      "voice": "bm_daniel"
+    },
+    "request": {
+      "op": "submit",
+      "text": "Contract text."
+    }
+  },
+  {
+    "reply": {
+      "accepted": true,
+      "accepting_speech": true,
+      "composite": false,
+      "eligible_engines": [
+        "fake"
+      ],
+      "id": "utt_ea662d89d4da42369c4f22cbc95dde06",
+      "ok": true,
+      "playback": false,
+      "playback_held": true,
+      "segment_count": 1,
+      "sensitivity": "confidential",
+      "state": "Queued",
+      "submission_disposition": "synthesis_only",
+      "submission_guidance": "Audio is being synthesized for the requesting client. Host speakers will not play it; host playback holds do not delay synthesis. Query get for segment readiness and cancel when the client is finished.",
+      "voice": "bm_daniel"
+    },
+    "request": {
+      "op": "submit",
+      "playback": false,
+      "text": "Client audio."
+    }
+  }
+]
