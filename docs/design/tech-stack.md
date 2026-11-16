@@ -70,6 +70,67 @@ add a CI rule that can infer whether a change is a feature. The separate choice
 about replacing model inference remains outside this decision. See the
 [roadmap sequence](../../ROADMAP.md#python-feature-policy-during-the-rust-port).
 
+## Build and install tooling after the Rust port
+
+Decision for [#123](https://github.com/flyingrobots/AI-TTS/issues/123): **use
+Rust for the repository-owned build, install, and audit logic after the port.**
+Put developer build, release, and audit orchestration in an `xtask` crate.
+Put operator installation and agent registration in the Rust CLI, through
+`ai-tts install`. These are target interfaces for the implementation work;
+the current tooling still uses Python and shell.
+
+Keep the Makefile as a thin command entry point. The agent integration shell
+script may remain as a compatibility wrapper that dispatches to the Rust
+implementation. Keep parsing, publication, rollback, and failure handling in
+Rust rather than duplicating them in wrappers. Git hooks stay plain shell and
+are outside this decision. Nested benchmark tooling and model inference are
+also outside its scope.
+
+The decisive requirement is in
+[#150](https://github.com/flyingrobots/AI-TTS/issues/150): a machine without
+Python must be able to install and start the Rust daemon. A compiled CLI can
+own that installation path without an interpreter bootstrap. Keeping the
+Python installer would fail that requirement even if the daemon itself used
+no Python. Building the Swift application still needs Apple's build, metadata,
+and signing tools; changing the orchestration language does not replace them.
+
+The current scripts establish the behavior a port must preserve:
+
+| Responsibility | Source and contract to carry forward |
+| --- | --- |
+| Bundle construction | [`build_app_bundle.py`](../../scripts/build_app_bundle.py) builds Swift, generates and validates App Intents metadata, signs the bundle, and publishes a complete candidate. Keep the missing/invalid-metadata refusal and the actions, background execution, shortcuts, and playback-rate checks in [`test_distribution.py`](../../tests/test_distribution.py). |
+| Installation and launch agents | [`install_application.py`](../../scripts/install_application.py) stages candidates and restores the prior agent configuration on activation failure; [`render_launch_agent.py`](../../scripts/render_launch_agent.py) serializes installed paths into plists. Preserve interruption, teardown, rollback, and complete-bundle publication cases in [`test_launch_agent_activation.py`](../../tests/test_launch_agent_activation.py) and [`test_installation_upgrades.py`](../../tests/test_installation_upgrades.py). These cases do not establish an atomic transaction across the entire current installation. |
+| Agent integration | [`install-integration.sh`](../../scripts/install-integration.sh) selects agent hosts, resolves executables, renders skills, and registers MCP commands. Preserve dry-run behavior, path quoting, incumbent preservation, and per-agent error reporting from [`test_install_integration.py`](../../tests/test_install_integration.py). |
+| Release and audit evidence | [`check_release_tag.py`](../../scripts/check_release_tag.py), [`audit_source_dependencies.py`](../../scripts/audit_source_dependencies.py), and [`verify_supply_chain_evidence.py`](../../scripts/verify_supply_chain_evidence.py) enforce version agreement, exact source identities, advisory results, and consistent SBOM/license inventories. Preserve refusals and evidence provenance when inputs move to Rust packaging. |
+| Bounded command execution | [`run_with_deadline.py`](../../scripts/run_with_deadline.py) retains process-group ownership through termination. Carry its deadline, descendant cleanup, and identity-reuse contracts into the Rust runner. |
+
+Rust audit orchestration may call ecosystem-specific scanners. While a Python
+reference or model environment is supported, keep its PyPI and pinned-source
+audit coverage; Cargo evidence does not replace that coverage. Python needed
+by those developer or CI checks is separate from the operator installation
+path. The choice of an inference runtime remains a separate decision.
+
+| Alternative | Consequence |
+| --- | --- |
+| Keep Python tooling | Lowest immediate migration cost and direct reuse of the current code and tests. It retains Python as an installation prerequisite, which conflicts with #150. |
+| Rewrite the logic in shell | Can avoid a Python bootstrap, but puts structured metadata, rollback state, and process supervision into shell plus external parsers. That increases the quoting and recovery burden already visible in the integration tests. Thin dispatch wrappers retain shell's useful role. |
+| Use Rust | Meets the installation constraint and shares the CLI's target language. It costs a port of the existing contracts, Rust serialization dependencies, build time, and a transition period with two implementations. It does not prove correct rollback or App Intents output by itself. |
+
+Port one responsibility at a time, with failure cases observed against the
+replacement before changing an entry point. Keep the Python implementation as
+a reference until the corresponding checks pass. Prioritize installation and
+bundle work in #150; move release/audit orchestration in separately reviewed
+changes while preserving coverage for every supported dependency graph.
+Do not claim a responsibility has moved to Rust while its entry point still
+delegates to the Python implementation. The daemon feature policy above still
+governs any daemon behavior changes needed by installation.
+
+Revisit this choice if the requirement to install without Python is withdrawn
+or a measured platform constraint prevents the Rust implementation from
+preserving the bundle and recovery contracts. Revise the decision and #150
+together before changing the target. Avoid a second port made only for language
+uniformity. See the [delivery sequence](../../ROADMAP.md#build-and-install-tooling-after-the-rust-port).
+
 ## Daemon: Python 3.12+
 
 | Concern | Choice | Why |

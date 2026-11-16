@@ -36,6 +36,36 @@ graph. See the [full policy and alternatives](docs/design/tech-stack.md#python-f
 This section states the sequencing rule, not the current implementation status
 of any issue.
 
+## Build and install tooling after the Rust port
+
+[Decision #123](https://github.com/flyingrobots/AI-TTS/issues/123) selects Rust
+for build, install, and audit logic: an `xtask` crate for developer operations
+and `ai-tts install` for operator installation and agent registration. The
+Makefile and integration shell script can remain thin dispatch wrappers; Git
+hooks remain plain shell. This is the target for the port, not a claim that
+the current Python scripts have been replaced.
+
+The reason is [#150](https://github.com/flyingrobots/AI-TTS/issues/150)'s
+requirement to install and start the daemon on a machine without Python.
+Keeping the Python installer would conflict with that requirement. A shell
+rewrite would move structured metadata, recovery state, and quoting rules into
+shell and external parsers. The Rust choice requires a port of the existing
+contracts and a period of dual maintenance to remove the interpreter bootstrap.
+
+#150 follows the Rust CLI in
+[#138](https://github.com/flyingrobots/AI-TTS/issues/138), operation-set
+completion in [#148](https://github.com/flyingrobots/AI-TTS/issues/148), and
+this language decision. Carry forward App Intents validation, staged bundle
+publication, launch-agent recovery, agent integration behavior, and bounded
+process ownership before replacing the relevant entry points. Keep Python
+reference/model audit coverage while those environments remain supported;
+move release/audit orchestration through separate reviewed changes.
+
+The costs, alternatives, evidence, and reconsideration conditions are in the
+[full tooling decision](docs/design/tech-stack.md#build-and-install-tooling-after-the-rust-port).
+The [daemon feature policy](#python-feature-policy-during-the-rust-port)
+continues to govern changes to daemon behavior during this work.
+
 ## The shape of it
 
 ```mermaid
