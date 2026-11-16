@@ -11,14 +11,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
-/// Maximum nested value depth, counting the root object as depth one.
+/// Maximum nested value depth, counting the root value as depth one.
 pub const MAX_ARCHIVE_DEPTH: usize = 32;
 /// Maximum values in one archive, including containers and scalar leaves.
 pub const MAX_ARCHIVE_ENTRIES: usize = 4096;
 /// Maximum combined UTF-8 bytes in all keys and string values in one archive.
 pub const MAX_ARCHIVE_TEXT_BYTES: usize = 65_536;
 
-/// A historical JSON value. Only an `ArchiveObject` admits a complete archive.
+/// Historical data admitted through `ArchiveObject` or `ArchivedValue` at a wire boundary.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ArchiveValue {

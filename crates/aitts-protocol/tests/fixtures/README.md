@@ -45,4 +45,16 @@ Rust tests embed these captured arrays in the source-derived reply envelopes;
 they do not claim those complete envelopes were captured. The original nine
 reference conversations remain unchanged.
 
+`legacy-arguments-aa8d7b3.json` records eight arguments/origin projections from
+the public Python `provenance` operation at commit
+`aa8d7b395935fde49c33be6990f817914aa3b574`. An owned fake daemon accepted a
+synthetic submission over its Unix socket. The fixture then installed each
+legacy arguments value in that submission's owned `request.json` and queried
+`provenance` over the same public socket path. Null, false, integer, float,
+string, array, and object values were preserved. The source-file SHA-256
+values were checked against the committed tree. Only the two returned
+fields are published here; complete reply envelopes in Rust are structural
+test data. A synthetic audio-evidence warning does not establish usable audio
+metadata, which this projection does not claim to test.
+
 This fixture record is agent-written and has not received human review.

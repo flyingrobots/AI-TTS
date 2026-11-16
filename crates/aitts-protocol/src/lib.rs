@@ -8,6 +8,7 @@
 
 pub mod archive;
 mod archive_decode;
+pub mod archived_value;
 pub mod catalog;
 mod codec;
 pub mod control_reply;

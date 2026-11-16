@@ -42,15 +42,25 @@ from null. The original nine conversations were not changed. See the
 | Replies and events | The concrete conversation test failed at the first reply | All 30 captured records round trip without normalization |
 | Historical evidence | Two provenance tests failed against the missing reply implementation | Saved extensions survive; known metadata kinds and archive limits are checked |
 | JSON Schema | The valid-corpus test failed against an empty false schema | Requests, replies, events, and known invalid cases agree with the documented schema boundary |
+| Legacy arguments | Two public-API tests failed when provenance arguments required an object and the new admission constructor was a refusing stub | Eight real Python arguments/origin projections round trip; caller-constructed values obey the same limits |
 
 Schema validation also found a real integration defect after the initial
 implementation. The derived closed `history_changed` alternatives rejected the
 enclosing event tag. An explicit object-level exclusive schema permits either
 `cleared` or `removed`, rejects both or neither, and keeps unknown fields closed.
 
+Self-review found a separate compatibility gap in `provenance.arguments`.
+Python preserves scalar and array values in legacy saved request metadata.
+Eight public socket calls at `aa8d7b3` confirmed null, false, integer, float,
+string, array, and object behavior. `ArchivedValue` now admits those values
+before copying or storing them. Its private field prevents unchecked mutation.
+The other metadata records remain object-only, and the arguments field remains
+required. A synthetic audio-evidence warning was outside the captured
+arguments/origin projection; this check does not prove usable audio metadata.
+
 ## Assertion calibration
 
-Seventeen deliberate source faults each produced the intended failing test
+Eighteen deliberate source faults each produced the intended failing test
 assertion. A compiler failure did not count as a calibration result. The
 fault runner restored the exact source bytes after each case and checked for
 unexpected concurrent edits before restoring.
@@ -74,6 +84,7 @@ unexpected concurrent edits before restoring.
 | Accept unknown nested runtime fields | Complete known records reject an added field |
 | Accept an unknown adapter-status token | Catalog status remains a closed vocabulary |
 | Return the wrong request operation context | Every request selects its matching reply operation |
+| Skip constructed historical-value admission | Oversized caller-constructed legacy arguments are refused |
 
 Faulted property runs used a fixed seed and disabled saving their deliberately
 invalid regression cases. Ordinary generated runs retained the normal
@@ -81,7 +92,7 @@ property-test behavior.
 
 ## Local checks
 
-The complete suite has 28 tests. It passes in debug and release profiles.
+The complete suite has 31 tests. It passes in debug and release profiles.
 Ten complete debug runs passed with property seeds 1250 through 1259. The
 generated tests vary strings, integer and floating-point values, booleans,
 closed vocabularies, and optional-field presence across the operation and
@@ -92,12 +103,13 @@ Strict Clippy, all-target compilation, and formatting pass:
 ```sh
 cargo test -p aitts-protocol --tests --locked
 cargo test -p aitts-protocol --release --locked
-cargo fmt --all -- --check
+cargo fmt --check
 cargo clippy -p aitts-protocol --all-targets --locked -- -D warnings
 cargo run -p aitts-protocol --example schema --quiet --locked
 ```
 
-The schema command produced one valid 98,135-byte JSON document. The schema
+The schema command produced one valid 98,431-byte JSON document. Its SHA-256
+is `8c1ad7d8604e5663f7858b3eb9b093ed5ff572595b7e63d894477cb2a38fc45e`. The schema
 tests check valid source-derived messages, unknown fields, required nullable
 fields, wrong known metadata kinds, error discriminators, and archival
 extensions. JSON Schema's mathematical-integer treatment of `1.0` differs
@@ -122,7 +134,7 @@ explicitly; false is refused. Application policy still owns speed ranges,
 available engines and voices, allowed retention days, and lifecycle legality.
 
 Requests have the existing 1 MiB line limit. Replies/events have a local
-16 MiB line ceiling. Each historical object has separate limits of 32 value
+16 MiB line ceiling. Each historical value has separate limits of 32 value
 levels, 4,096 values, and 65,536 UTF-8 bytes in keys and string values.
 The complete line is admitted before parsing; Serde can buffer within that
 ceiling. These response and archival limits are Rust admission policy, not

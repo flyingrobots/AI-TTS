@@ -51,7 +51,7 @@ impl Budget {
         }
         Ok(())
     }
-    fn check(&mut self, value: &ArchiveValue, depth: usize) -> Result<(), ()> {
+    pub(crate) fn check(&mut self, value: &ArchiveValue, depth: usize) -> Result<(), ()> {
         self.value(depth)?;
         let child = depth.checked_add(1).ok_or(())?;
         match value {

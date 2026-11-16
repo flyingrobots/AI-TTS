@@ -37,11 +37,13 @@ request is not a claim that an operation can succeed.
 
 ## Historical evidence
 
-The producer intentionally saves caller arguments and adapter metadata with
-their original keys. These are the only open object boundaries:
+The producer retains caller arguments and adapter metadata with their
+original values. These are the only open historical boundaries:
 `provenance.arguments`, and each clip's `generation`, `model`, and `audio`
-metadata. `ArchiveObject` preserves those objects under explicit limits.
-`Evidence<T>` also validates the known metadata fields and exposes a typed,
+metadata. Legacy saved arguments can be a scalar, array, object, or null.
+`ArchivedValue` keeps that admitted value private under explicit limits.
+The other metadata records remain objects or null; `ArchiveObject` admits
+their objects. `Evidence<T>` validates the known metadata fields and exposes a typed,
 immutable view. An unknown adapter extension survives; a known
 `repository` field containing a boolean is refused.
 
@@ -59,8 +61,8 @@ the complete encoded byte count before deserialization:
 | --- | --- |
 | Request, including a supplied final newline | 1,048,576 bytes |
 | Reply or event, including a supplied final newline | 16,777,216 bytes |
-| One historical object's nested value depth, root included | 32 |
-| Values in one historical object, including containers and leaves | 4,096 |
+| One historical value's nested depth, root included | 32 |
+| Values in one historical record, including containers and leaves | 4,096 |
 | Combined UTF-8 bytes in its keys and string values | 65,536 |
 
 The request ceiling matches Python IPC. The response and historical limits
@@ -104,7 +106,7 @@ replacement for the external daemon socket suite. Run the crate checks with:
 ```sh
 cargo test -p aitts-protocol
 cargo test -p aitts-protocol --release
-cargo fmt --all -- --check
+cargo fmt --check
 cargo clippy -p aitts-protocol --all-targets -- -D warnings
 ```
 

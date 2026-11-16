@@ -3,7 +3,7 @@
 
 //! Provenance separates closed daemon fields from bounded archived evidence.
 
-use crate::archive::ArchiveObject;
+use crate::archived_value::ArchivedValue;
 use crate::evidence::Evidence;
 use crate::evidence_fields::{AudioFields, GenerationFields, ModelFields};
 use crate::value::{Nullable, Number, Success};
@@ -29,7 +29,7 @@ pub struct Provenance {
     /// caller source.
     pub caller_source: Nullable<String>,
     /// arguments.
-    pub arguments: Nullable<ArchiveObject>,
+    pub arguments: ArchivedValue,
     /// source blake3.
     pub source_blake3: String,
     /// resolved voice.
