@@ -240,7 +240,7 @@ public struct LocalSpeechModel: Equatable, Sendable, Identifiable {
     public let adapterStatus: WorkerAdapterStatus?
     public var installing: Bool { state == "installing" }
     public var adapterRefreshAvailable: Bool {
-        installed && incompatible == nil && !installing && state != "loading"
+        installed && incompatible == nil && !installing && state != "loading" && state != "failed"
             && (adapterStatus == .stale || adapterStatus == .unknown)
     }
 

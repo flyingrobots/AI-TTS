@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -199,15 +200,22 @@ def clip(d: Daemon, identifier: str) -> Utterance:
     return item
 
 
+@pytest.mark.parametrize(
+    "adapter_fields", [{}, {"adapter_sha256": "0" * 64}], ids=["legacy", "stale"]
+)
 async def test_retry_rebuilds_a_runtime_that_has_complete_assets_but_cannot_load(
     daemon_fixture: Daemon,
     monkeypatch: pytest.MonkeyPatch,
+    adapter_fields: dict[str, str],
 ) -> None:
     from tests.test_model_setup import OwnedInstaller  # noqa: PLC0415
 
     daemon = daemon_fixture
-    # A current adapter with a broken environment still needs the existing full repair.
-    old = OwnedInstaller(daemon._home).install("chatterbox", threading.Event(), lambda _: None)
+    old = complete_runtime(daemon._home, "chatterbox")
+    manifest = old.parent / "chatterbox.json"
+    payload = json.loads(manifest.read_text())
+    payload.update(adapter_fields)
+    manifest.write_text(json.dumps(payload))
 
     class BrokenModel(OwnedModel):
         def warmup(self) -> None:

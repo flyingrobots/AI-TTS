@@ -59,6 +59,39 @@ async def test_catalog_explicitly_reports_no_private_adapter(daemon_fixture: Dae
     assert daemon_fixture._setup_task is None
 
 
+async def test_failed_full_repair_does_not_hide_behind_a_ready_incumbent(
+    daemon_fixture: Daemon, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    daemon = daemon_fixture
+    old = complete_runtime(daemon._home, "chatterbox")
+    incumbent = SilentModel(old)
+    daemon._registry.register(incumbent, prepared=True)
+    daemon._engines["chatterbox"] = incumbent
+
+    class BrokenModel(SilentModel):
+        def warmup(self) -> None:
+            raise ModelSetupError
+
+    monkeypatch.setattr("aitts.daemon.managed_engine", lambda _name, root: BrokenModel(root))
+    await rpc(daemon.socket_path, {"op": "model_setup", "name": "chatterbox"})
+    await settled(daemon)
+    assert daemon._setup_states["chatterbox"]["state"] == "failed"
+    installer = OwnedInstaller(daemon._home)
+    monkeypatch.setattr(daemon._model_installer, "install", installer.install)
+    await rpc(daemon.socket_path, {"op": "model_setup", "name": "chatterbox"})
+    await settled(daemon)
+    failed_root = installed_runtime(daemon._home, "chatterbox")
+    assert failed_root != old
+    assert daemon._setup_states["chatterbox"]["state"] == "failed"
+    monkeypatch.setattr("aitts.daemon.managed_engine", lambda _name, root: SilentModel(root))
+    assert (await rpc(daemon.socket_path, {"op": "model_setup", "name": "chatterbox"}))[
+        "state"
+    ] == "installing"
+    await settled(daemon)
+    assert installed_runtime(daemon._home, "chatterbox") != failed_root
+    assert daemon._setup_states["chatterbox"]["state"] == "ready"
+
+
 @pytest.mark.parametrize("identity", [None, "invalid", ["0" * 64], 7])
 async def test_invalid_legacy_identity_remains_usable_but_unknown(
     daemon_fixture: Daemon, identity: object
@@ -252,6 +285,29 @@ def test_repeated_refresh_reuses_direct_asset_and_environment_targets(tmp_path: 
     assert contents(old) == before
     assert (first / "adapter/aitts").is_dir()
     assert (second / "adapter/aitts").is_dir()
+
+
+async def test_cancelled_refresh_retries_without_downloading(
+    refreshing: Refreshing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = refreshing
+
+    def refuse_download(_name: str, _cancelled: threading.Event, _progress: object) -> Path:
+        message = "refresh must not invoke full installation"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(case.daemon._model_installer, "install", refuse_download)
+    await rpc(case.daemon.socket_path, {"op": "cancel_model_setup"})
+    case.release.set()
+    await settled(case.daemon)
+    assert case.daemon._setup_states["chatterbox"]["state"] == "cancelled"
+    assert (await rpc(case.daemon.socket_path, {"op": "model_setup", "name": "chatterbox"}))[
+        "state"
+    ] == "installing"
+    await settled(case.daemon)
+    assert case.daemon._setup_states["chatterbox"]["state"] == "ready"
+    assert case.incumbent.closed is True
+    assert contents(case.old) == case.old_bytes
 
 
 def test_refresh_without_usable_runtime_is_refused_without_installing(tmp_path: Path) -> None:

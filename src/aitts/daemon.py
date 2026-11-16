@@ -1373,22 +1373,23 @@ class Daemon:
         adapter_status = installed_adapter_status(
             self._home, name, current_sha256=adapter_sha256(Path(__file__).parent)
         )
-        if (
-            name in self._engines
-            and self._registry.state(name) == "ready"
-            and adapter_status not in {"stale", "unknown"}
-        ):
-            return {"ok": True, "state": "ready"}
         repair = self._setup_states.get(name, {}).get("state") == "failed" or (
             name in self._engines and self._registry.state(name) == "failed"
         )
+        if (
+            name in self._engines
+            and self._registry.state(name) == "ready"
+            and not repair
+            and adapter_status not in {"stale", "unknown"}
+        ):
+            return {"ok": True, "state": "ready"}
         self._setup_cancel = threading.Event()
         self._setup_states[name] = {"state": "installing", "message": "Starting setup"}
         mode: Literal["reuse", "install", "refresh"] = (
-            "refresh"
-            if adapter_status in {"stale", "unknown"}
-            else "install"
+            "install"
             if repair
+            else "refresh"
+            if adapter_status in {"stale", "unknown"}
             else "reuse"
         )
         self._setup_task = asyncio.create_task(

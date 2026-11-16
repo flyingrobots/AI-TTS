@@ -42,10 +42,16 @@ final class LocalModelAdapterTests: XCTestCase {
         let incompatible = LocalSpeechModel(name: "kokoro", title: "Kokoro", description: "Local", installed: true,
                                             selected: false, state: "ready", message: "", incompatible: "Unavailable",
                                             adapterStatus: .stale)
+        let failed = LocalSpeechModel(name: "kokoro", title: "Kokoro", description: "Local", installed: true,
+                                      selected: true, state: "failed", message: "Setup failed", adapterStatus: .unknown)
+        let cancelled = LocalSpeechModel(name: "kokoro", title: "Kokoro", description: "Local", installed: true,
+                                         selected: true, state: "cancelled", message: "Cancelled", adapterStatus: .unknown)
         XCTAssertTrue(ready.adapterRefreshAvailable)
         XCTAssertFalse(missing.adapterRefreshAvailable)
         XCTAssertFalse(loading.adapterRefreshAvailable)
         XCTAssertFalse(installing.adapterRefreshAvailable)
         XCTAssertFalse(incompatible.adapterRefreshAvailable)
+        XCTAssertFalse(failed.adapterRefreshAvailable)
+        XCTAssertTrue(cancelled.adapterRefreshAvailable)
     }
 }
