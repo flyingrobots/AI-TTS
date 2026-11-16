@@ -55,6 +55,9 @@ was relative (`--uv ./tools/uv` or a relative `PATH` entry). Each test runs the
 real checker with an owned executable exporter and temporary project. Resolving
 the executable before changing the child working directory makes all three
 exports run in both cases; both regressions now pass.
+All four new regressions passed ten shuffled node-order runs in pairs (seeds
+17201 through 17210): 40 passes. The 19-case combined setup/checker suite also
+passed. These runs used CPython 3.14.7; the checker's real export used uv 0.9.18.
 
 Use the commands in [Contributing](../../CONTRIBUTING.md#guided-model-runtime-requirements).
 The CI supply-chain job runs the same check before its existing dependency,
