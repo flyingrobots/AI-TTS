@@ -17,7 +17,9 @@ from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.playback import FakeSink
 from aitts.tui.client import AsyncClient
-from tests.test_ipc import daemon as daemon  # noqa: PLC0414 - expose the shared pytest fixture
+from tests import test_ipc
+
+daemon = test_ipc.python_daemon
 
 pytestmark = [
     pytest.mark.medium,

@@ -17,8 +17,10 @@ from aitts.model import State
 from aitts.playback import FakeSink
 from aitts.tui.app import SpeechTUI
 from aitts.tui.client import AsyncClient
+from tests import test_ipc
 from tests.support.playback import make_composite_ready
-from tests.test_ipc import daemon as daemon  # noqa: PLC0414 - shared pytest fixture
+
+daemon = test_ipc.python_daemon
 
 pytestmark = [
     pytest.mark.medium,

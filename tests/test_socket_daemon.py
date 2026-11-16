@@ -10,11 +10,16 @@ import json
 import os
 import shlex
 import signal
+import subprocess
 import sys
+import threading
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
+from tests import socket_daemon
 from tests.socket_daemon import DaemonProcessError, daemon_process, python_daemon_command
 
 pytestmark = [
@@ -86,7 +91,54 @@ async def test_exit_after_admission_is_a_fixture_failure(tmp_path: Path) -> None
     async def kill_during_scenario() -> None:
         async with daemon_process(tmp_path) as daemon:
             os.kill(daemon.process.pid, signal.SIGKILL)
-            await asyncio.wait_for(daemon.process.wait(), timeout=1)
+            await asyncio.wait_for(daemon.wait_for_exit(), timeout=1)
 
     with pytest.raises(DaemonProcessError, match="exited during the scenario"):
         await kill_during_scenario()
+
+
+def test_cleanup_never_signals_a_reaped_process_group(monkeypatch: pytest.MonkeyPatch) -> None:
+    signals: list[tuple[int, int]] = []
+    monkeypatch.setattr(os, "killpg", lambda pid, sig: signals.append((pid, sig)))
+    released = SimpleNamespace(pid=42, returncode=0)
+    socket_daemon._signal_group(cast("Any", released), signal.SIGKILL)
+    assert signals == [], "a reaped identity can belong to an unrelated replacement group"
+
+
+async def test_cancelled_start_retires_a_child_created_by_the_launcher_thread(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started, release = threading.Event(), threading.Event()
+    children: list[subprocess.Popen[bytes]] = []
+    original = subprocess.Popen
+    command = [sys.executable, "-c", "import time; time.sleep(60)"]
+
+    def launch(*args: Any, **kwargs: Any) -> subprocess.Popen[bytes]:
+        child = original(*args, **kwargs)
+        if args[0] == command:
+            children.append(child)
+            started.set()
+            if not release.wait(2):
+                raise TimeoutError
+        return child
+
+    async def enter() -> None:
+        async with daemon_process(tmp_path, command=command):
+            pytest.fail("the command has no socket")
+
+    monkeypatch.setattr(subprocess, "Popen", launch)
+    task = asyncio.create_task(enter())
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        task.cancel()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert children[0].returncode is not None, "cancelled launch left its child running"
+    finally:
+        release.set()
+        for child in children:
+            if child.returncode is None:
+                socket_daemon._signal_group(child, signal.SIGKILL)
+                await asyncio.to_thread(child.wait, timeout=1)

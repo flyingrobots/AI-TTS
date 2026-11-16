@@ -30,7 +30,12 @@ test harness limits, not an operating-system sandbox or a disk quota. Use a
 trusted test command that obeys the supplied paths. Each medium test has the
 repository's 15-second deadline. Teardown sends TERM to the owned process group,
 waits up to one second, then sends KILL and waits up to one more second. It also
-stops descendants and removes the owned directories.
+stops remaining members of that group and removes the owned directories. The
+leader stays unreaped until the final group signal, so cleanup cannot signal a
+new process group that reuses the leader's numeric identifier. On Python 3.12
+for macOS, the fixture uses a bounded `ps` query to observe exit without reaping;
+newer Python versions use `waitid` with `WNOWAIT`. Darwin signal refusals use
+the repository's existing check for a group containing only zombies.
 
 The `socket_contract` marker selects the portable wire assertions and the
 golden scenarios. Tests that inspect Python objects or inject Python failures

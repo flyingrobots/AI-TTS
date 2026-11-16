@@ -69,6 +69,28 @@ pointing to the reference command, passed all 40 `socket_contract` cases.
 Ruff and strict mypy checks passed for the seven affected Python files before
 publication. Normal commit and push hooks remain enabled.
 
+The first full pre-push run found six failures in Python tests that imported
+the old shared fixture name, plus a Darwin cleanup refusal after a child had
+already been killed. Those imported fixtures now explicitly select the Python
+fixture; their assertions are unchanged. A new RED regression showed cleanup
+could signal a reaped group identifier. The fixture now keeps the child
+unreaped through the final group signal and reuses the existing verified
+Darwin zombie-group handling. Another RED regression cancelled a launcher
+thread after it created the child; shielding that launch now retains custody
+until cleanup finishes. These are repaired integration failures, not retries
+accepted as evidence of success.
+
+The repaired process, existing Python clients, and Darwin signal checks passed
+38 cases. The process, IPC, and golden checks then passed 70 cases with the new
+ownership protocol. The minimum Python 3.12 path passed all 18 process and
+golden checks in a separate environment; it exercises the bounded `ps` fallback
+because Darwin exposes `waitid` only from Python 3.13.
+
+With those repairs in place, ten fresh runs passed all 800 affected cases
+(80 per run), with the same 114–123 file-order seeds. The final run used
+6.95 medium-tier CPU seconds and 7.67 wall seconds. The seven helper negative
+controls were run again against this process-ownership implementation.
+
 ## Scope and limits
 
 The corpus covers submit, status, list, history, pause, resume, skip, settings,

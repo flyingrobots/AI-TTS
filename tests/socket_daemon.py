@@ -10,11 +10,14 @@ import contextlib
 import os
 import shlex
 import signal
+import subprocess
 import sys
 import tempfile
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+
+from scripts.run_with_deadline import _signal_owned_group
 
 _ROOT = Path(__file__).resolve().parents[1]
 _LOG_LIMIT = 64 * 1024
@@ -32,7 +35,34 @@ class SocketDaemon:
 
     socket_path: Path
     home: Path
-    process: asyncio.subprocess.Process
+    process: subprocess.Popen[bytes]
+
+    def has_exited(self) -> bool:
+        """Observe child exit without releasing its process-group identity."""
+        if self.process.returncode is not None:
+            return True
+        if sys.platform != "darwin" or sys.version_info >= (3, 13):
+            return (
+                os.waitid(os.P_PID, self.process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                is not None
+            )
+        # Python 3.12 on Darwin does not expose waitid. An unreaped child must
+        # still exist, so only an observed zombie state confirms its exit.
+        result = subprocess.run(  # noqa: S603 - fixed executable and owned numeric child ID
+            ["/bin/ps", "-o", "stat=", "-p", str(self.process.pid)],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=1,
+        )
+        return result.stdout.strip().startswith("Z")
+
+    async def wait_for_exit(self) -> None:
+        """Wait for exit while retaining the unreaped identity anchor."""
+        while True:
+            if await asyncio.to_thread(self.has_exited):
+                return
+            await asyncio.sleep(0.01)
 
 
 def python_daemon_command() -> list[str]:
@@ -40,20 +70,41 @@ def python_daemon_command() -> list[str]:
     return [sys.executable, str(Path(__file__).with_name("fixture_daemon.py"))]
 
 
-def _signal_group(process: asyncio.subprocess.Process, signum: int) -> None:
-    with contextlib.suppress(ProcessLookupError):
-        os.killpg(process.pid, signum)
+def _signal_group(process: subprocess.Popen[bytes], signum: int) -> None:
+    if process.returncode is None:
+        _signal_owned_group(process.pid, signum)
+
+
+async def _retire(daemon: SocketDaemon) -> None:
+    if daemon.process.returncode is not None:
+        return
+    _signal_group(daemon.process, signal.SIGTERM)
+    try:
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(daemon.wait_for_exit(), timeout=1)
+    finally:
+        # Keep the unreaped leader until the final group signal. Asyncio's
+        # child watcher would otherwise release the ID before this point.
+        _signal_group(daemon.process, signal.SIGKILL)
+        await asyncio.to_thread(daemon.process.wait, timeout=1)
 
 
 async def _capture(
-    process: asyncio.subprocess.Process,
+    process: subprocess.Popen[bytes],
     output: bytearray,
     failures: list[str],
 ) -> None:
     if process.stdout is None:
         return
     stopped = False
-    while chunk := await process.stdout.read(4096):
+    while True:
+        try:
+            chunk = os.read(process.stdout.fileno(), 4096)
+        except BlockingIOError:
+            await asyncio.sleep(0.01)
+            continue
+        if not chunk:
+            return
         room = _LOG_LIMIT - len(output)
         output.extend(chunk[:room])
         if len(chunk) > room and not stopped:
@@ -63,7 +114,7 @@ async def _capture(
 
 
 async def _watch_state(
-    process: asyncio.subprocess.Process,
+    process: subprocess.Popen[bytes],
     root: Path,
     failures: list[str],
 ) -> None:
@@ -75,7 +126,7 @@ async def _watch_state(
 
 
 async def _check_state(
-    process: asyncio.subprocess.Process,
+    process: subprocess.Popen[bytes],
     root: Path,
     failures: list[str],
 ) -> None:
@@ -100,13 +151,19 @@ async def _check_state(
 
 
 async def _ready(
-    daemon: SocketDaemon, output: bytearray, failures: list[str], timeout: float
+    daemon: SocketDaemon,
+    output: bytearray,
+    failures: list[str],
+    timeout: float,
+    capture: asyncio.Task[None],
 ) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         if failures:
             raise DaemonProcessError(failures[0])
-        if daemon.process.returncode is not None:
+        if await asyncio.to_thread(daemon.has_exited):
+            await _retire(daemon)
+            await asyncio.wait_for(capture, timeout=1)
             detail = output.decode("utf-8", errors="replace").strip()
             message = f"daemon exited with status {daemon.process.returncode}: {detail}"
             raise DaemonProcessError(message)
@@ -164,36 +221,48 @@ async def daemon_process(
             "PYTHONPATH": str(_ROOT / "src"),
             "PYTHONUNBUFFERED": "1",
         }
-        process = await asyncio.create_subprocess_exec(
-            *argv,
-            cwd=root,
-            env=env,
-            start_new_session=True,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
+        launch = asyncio.create_task(
+            asyncio.to_thread(
+                subprocess.Popen,
+                argv,
+                cwd=root,
+                env=env,
+                start_new_session=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
         )
+        try:
+            process = await asyncio.shield(launch)
+        except asyncio.CancelledError:
+            process = await launch
+            await _retire(SocketDaemon(socket_path, home, process))
+            if process.stdout is not None:
+                process.stdout.close()
+            raise
+        if process.stdout is not None:
+            os.set_blocking(process.stdout.fileno(), False)
         output = bytearray()
         failures: list[str] = []
-        capture = asyncio.create_task(_capture(process, output, failures))
-        watcher = asyncio.create_task(_watch_state(process, root, failures))
+        capture, watcher = (
+            asyncio.create_task(_capture(process, output, failures)),
+            asyncio.create_task(_watch_state(process, root, failures)),
+        )
         daemon = SocketDaemon(socket_path, home, process)
         try:
-            await _ready(daemon, output, failures, startup_timeout)
+            await _ready(daemon, output, failures, startup_timeout, capture)
             yield daemon
             if failures:
                 raise DaemonProcessError(failures[0])
-            if process.returncode is not None:
-                message = f"daemon exited during the scenario with status {process.returncode}"
+            if await asyncio.to_thread(daemon.has_exited):
+                message = "daemon exited during the scenario"
                 raise DaemonProcessError(message)
         finally:
-            _signal_group(process, signal.SIGTERM)
             try:
-                await asyncio.wait_for(process.wait(), timeout=1)
-            except TimeoutError:
-                _signal_group(process, signal.SIGKILL)
-                await asyncio.wait_for(process.wait(), timeout=1)
+                await _retire(daemon)
             finally:
-                _signal_group(process, signal.SIGKILL)
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
                 await asyncio.wait_for(capture, timeout=1)
+                if process.stdout is not None:
+                    process.stdout.close()
