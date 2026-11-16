@@ -41,7 +41,11 @@ pub(super) fn clean_stars(text: &str) -> String {
         } else {
             suffix
         };
-        let valid_start = prefix.chars().next_back().is_none_or(char::is_whitespace);
+        // Test the original input, including any rejected stars already consumed.
+        let before = text
+            .get(..text.len().saturating_sub(tail.len()))
+            .unwrap_or_default();
+        let valid_start = before.chars().next_back().is_none_or(char::is_whitespace);
         let valid_end = suffix
             .chars()
             .next()

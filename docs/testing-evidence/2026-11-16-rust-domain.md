@@ -115,3 +115,11 @@ All 21 tests also passed in release mode. The branch then integrated main throug
 including the socket fixture and runtime-manifest repairs. The normal push hook passed
 1,239 Python tests with two skips, followed by the unchanged Swift build. Hosted CI and
 the final review disposition are reported in the PR against its published head.
+
+## Independent review repairs
+
+The reviewer found that rejecting one embedded star could lose the original preceding
+character before the next star. A public-API regression showed `1** hello **` incorrectly
+becoming `1*hello`. The cleanup now checks the preceding character in the original source.
+That input, `hello** world **`, and `a*** loose ***` remain literal. The targeted RED became
+GREEN, and the unchanged corpus and generated properties still passed.

@@ -79,6 +79,17 @@ fn loose_emphasis_cleanup_preserves_arithmetic_code_and_multiline_prose() {
 }
 
 #[test]
+fn embedded_star_runs_keep_original_preceding_character_context() {
+    // Python's cleanup requires whitespace before the entire opening star run.
+    for input in ["1** hello **", "hello** world **", "a*** loose ***"] {
+        assert_eq!(
+            prepare(input, Some(ContentFormat::Markdown)).unwrap(),
+            vec![input]
+        );
+    }
+}
+
+#[test]
 fn all_forty_existing_golden_cases_match_exact_strings_and_boundaries() {
     let corpus: Corpus = serde_json::from_str(include_str!(
         "../../../tests/corpus/segmentation/cases.json"
