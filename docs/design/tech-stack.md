@@ -131,6 +131,56 @@ preserving the bundle and recovery contracts. Revise the decision and #150
 together before changing the target. Avoid a second port made only for language
 uniformity. See the [delivery sequence](../../ROADMAP.md#build-and-install-tooling-after-the-rust-port).
 
+## Input audio retention
+
+Decision for [#124](https://github.com/flyingrobots/AI-TTS/issues/124): **keep
+transcript text, not recorded input audio.** This is a constraint for the
+planned listening feature, not a claim that a recognizer or transcript store
+is implemented. It applies to microphone input, not to synthesized speech or
+its existing audio cache. Transcript text retention remains governed by the
+speech-history policy and is outside this decision.
+
+The [README confidentiality contract](../../README.md#a-note-on-what-this-speaks)
+treats text as sensitive by default. It also explains that audio spoken during
+a call can enter another person's transcript. Captured audio adds information
+that text does not need: the speaker's voice and background speech or sounds.
+Keeping it for later diagnosis would create an additional sensitive record.
+
+For the implementation, apply these rules:
+
+- Start capture only through an explicit, expiring listen session. Permission
+  to use the microphone does not itself start a session.
+- Keep only bounded working buffers needed for active recognition. Release
+  their audio when the transcript is final, or when the request is cancelled,
+  the session expires, or recognition fails. A failed request does not grant
+  permission to save a diagnostic recording.
+- Do not write application-managed input-audio files, database blobs, caches,
+  or audio payloads in diagnostic logs. Do not add a retention setting or a
+  saved-audio reference to the transcript store. A backend that requires an
+  input file needs a revised decision before integration; it must not add a
+  temporary-file exception silently.
+- After a crash, do not recover or replay captured audio. A new capture needs
+  a new explicit request. Releasing working buffers is not a claim of secure
+  memory erasure or control over operating-system swap and crash dumps.
+
+| Option | Consequence |
+| --- | --- |
+| Text only, selected | Avoids an application-managed recording archive and its deletion lifecycle. A bad transcript cannot be diagnosed by replaying a saved input. Recognition must accept bounded working audio without an input file. |
+| Optional audio retention, off by default | Can help diagnose a bad transcript. It needs a separate consent step, clear recording state, expiry, deletion, and protection against saving nearby speech without agreement. Those controls are not part of the current listening plan. |
+| Audio retention on by default, with expiry | Makes replay available without another choice, but creates recordings before the user asks to keep them. Expiry limits duration; it does not prevent that collection or remove copies made while the recording exists. |
+
+[#144](https://github.com/flyingrobots/AI-TTS/issues/144) must store final text,
+session, and source without raw audio or a saved-input path. The listener and
+recognizer work must verify the buffer lifecycle on finalization, cancellation,
+expiry, failure, and process loss. Tests of the future implementation must
+observe the storage and worker boundaries; this documentation decision is not
+runtime proof that no audio reaches disk.
+
+Reconsider only for a concrete need that text-only diagnosis cannot meet.
+Keeping more requires a new consent step and a reviewed retention/deletion
+design before implementation. Reducing retention remains the safer direction.
+See the [listening sequence](../../ROADMAP.md#input-audio-retention).
+
 ## Daemon: Python 3.12+
 
 | Concern | Choice | Why |
