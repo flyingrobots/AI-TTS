@@ -114,3 +114,10 @@ and failed the regression. The monitor now ignores a missing named descendant;
 missing-root, disappearing-root, permission-denied, and unidentified-path
 controls still fail closed. All five cases passed after the repair. This changes monitoring
 admission only; it does not suppress other filesystem failures.
+
+`PRRT_kwDOUHyfMM64Diuu`: a child that created 4,100 empty directories escaped
+the original file-only budget and reached the startup deadline. That was RED
+for the expected state-limit refusal. Directory entries now count toward the
+same 4,096-entry budget, including entries excluded from traversal as symlinks.
+The directory-only regression passed with the expected refusal and complete
+owned-directory cleanup.

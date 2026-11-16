@@ -22,7 +22,7 @@ from scripts.run_with_deadline import _signal_owned_group
 _ROOT = Path(__file__).resolve().parents[1]
 _LOG_LIMIT = 64 * 1024
 _STATE_LIMIT = 64 * 1024**2
-_FILE_LIMIT = 4096
+_ENTRY_LIMIT = 4096
 
 
 class DaemonProcessError(RuntimeError):
@@ -144,14 +144,18 @@ async def _check_state(
     while process.returncode is None:
         size, count = 0, 0
         for folder, directories, files in os.walk(root, followlinks=False, onerror=refuse):
+            count += len(directories) + len(files)
+            if count > _ENTRY_LIMIT:
+                failures.append("daemon state directory limit exceeded")
+                _signal_group(process, signal.SIGKILL)
+                return
             directories[:] = [
                 name for name in directories if not (Path(folder) / name).is_symlink()
             ]
             for name in files:
                 with contextlib.suppress(FileNotFoundError):
                     size += (Path(folder) / name).lstat().st_size
-                count += 1
-                if size > _STATE_LIMIT or count > _FILE_LIMIT:
+                if size > _STATE_LIMIT:
                     failures.append("daemon state directory limit exceeded")
                     _signal_group(process, signal.SIGKILL)
                     return

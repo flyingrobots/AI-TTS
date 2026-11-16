@@ -25,7 +25,8 @@ Each test gets separate state and socket directories. The fixture supplies an
 isolated `HOME`, `TMPDIR`, and XDG paths. The child receives `PATH` and the test
 source path, but no inherited service or credential configuration. Startup has
 a three-second deadline. The fixture retains at most 64 KiB of combined output
-and monitors its state directory for a 64 MiB or 4,096-file limit. These are
+and monitors its state directory for a 64 MiB or 4,096-entry limit, including
+files and directories. These are
 test harness limits, not an operating-system sandbox or a disk quota. Use a
 trusted test command that obeys the supplied paths. Each medium test has the
 repository's 15-second deadline. Teardown sends TERM to the owned process group,

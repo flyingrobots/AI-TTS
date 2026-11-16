@@ -8,6 +8,7 @@ from __future__ import annotations
 import errno
 import os
 import signal
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,7 @@ from typing import Any, cast
 import pytest
 
 from tests import socket_daemon
+from tests.socket_daemon import DaemonProcessError, daemon_process
 
 pytestmark = [pytest.mark.medium, pytest.mark.oracle("issue #114 bounded state monitoring")]
 
@@ -83,3 +85,16 @@ async def test_unconfirmed_state_scan_remains_fail_closed(
     assert signals == [signal.SIGKILL]
     assert len(failures) == 1
     assert failures[0].startswith("daemon state monitor failed:")
+
+
+async def test_empty_directories_exhaust_the_state_entry_budget(tmp_path: Path) -> None:
+    script = (
+        "import os,pathlib,time\n"
+        "home=pathlib.Path(os.environ['AI_TTS_HOME'])\n"
+        "for i in range(4100): (home/str(i)).mkdir()\n"
+        "time.sleep(60)\n"
+    )
+    with pytest.raises(DaemonProcessError, match="state directory limit"):
+        async with daemon_process(tmp_path, command=[sys.executable, "-c", script]):
+            pytest.fail("directory-only growth escaped the state budget")
+    assert not list(tmp_path.iterdir())
