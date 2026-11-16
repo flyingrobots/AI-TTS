@@ -65,6 +65,9 @@ pub enum Request {
     ModelSetup {
         /// Model catalog name.
         name: String,
+        /// Require code-only refresh; daemon admission must refuse a full repair.
+        #[serde(default, skip_serializing_if = "Presence::is_absent")]
+        refresh_only: Presence<bool>,
     },
     /// The `cancel_model_setup` operation.
     CancelModelSetup {},

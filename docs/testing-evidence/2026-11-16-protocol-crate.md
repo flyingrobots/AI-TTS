@@ -43,6 +43,7 @@ from null. The original nine conversations were not changed. See the
 | Historical evidence | Two provenance tests failed against the missing reply implementation | Saved extensions survive; known metadata kinds and archive limits are checked |
 | JSON Schema | The valid-corpus test failed against an empty false schema | Requests, replies, events, and known invalid cases agree with the documented schema boundary |
 | Legacy arguments | Two public-API tests failed when provenance arguments required an object and the new admission constructor was a refusing stub | Eight real Python arguments/origin projections round trip; caller-constructed values obey the same limits |
+| Code-only setup consent | Supplied `refresh_only` booleans failed against the closed request type | Omission, false, and true survive codec/schema round trips; null and wrong kinds are refused |
 
 Schema validation also found a real integration defect after the initial
 implementation. The derived closed `history_changed` alternatives rejected the
@@ -60,7 +61,7 @@ arguments/origin projection; this check does not prove usable audio metadata.
 
 ## Assertion calibration
 
-Eighteen deliberate source faults each produced the intended failing test
+Twenty deliberate source faults each produced the intended failing test
 assertion. A compiler failure did not count as a calibration result. The
 fault runner restored the exact source bytes after each case and checked for
 unexpected concurrent edits before restoring.
@@ -85,6 +86,8 @@ unexpected concurrent edits before restoring.
 | Accept an unknown adapter-status token | Catalog status remains a closed vocabulary |
 | Return the wrong request operation context | Every request selects its matching reply operation |
 | Skip constructed historical-value admission | Oversized caller-constructed legacy arguments are refused |
+| Omit supplied setup consent during encoding | Explicit false and true remain present |
+| Permit null setup consent | Null is refused by the codec and schema |
 
 Faulted property runs used a fixed seed and disabled saving their deliberately
 invalid regression cases. Ordinary generated runs retained the normal
@@ -92,7 +95,7 @@ property-test behavior.
 
 ## Local checks
 
-The complete suite has 31 tests. It passes in debug and release profiles.
+The complete suite has 33 tests. It passes in debug and release profiles.
 Ten complete debug runs passed with property seeds 1250 through 1259. The
 generated tests vary strings, integer and floating-point values, booleans,
 closed vocabularies, and optional-field presence across the operation and
@@ -108,8 +111,8 @@ cargo clippy -p aitts-protocol --all-targets --locked -- -D warnings
 cargo run -p aitts-protocol --example schema --quiet --locked
 ```
 
-The schema command produced one valid 98,431-byte JSON document. Its SHA-256
-is `8c1ad7d8604e5663f7858b3eb9b093ed5ff572595b7e63d894477cb2a38fc45e`. The schema
+The schema command produced one valid 98,611-byte JSON document. Its SHA-256
+is `2dc74c8fded74fe5a1d4dfe1e2caf0363a3a81bccb1304a3e0a22980d3dc3baa`. The schema
 tests check valid source-derived messages, unknown fields, required nullable
 fields, wrong known metadata kinds, error discriminators, and archival
 extensions. JSON Schema's mathematical-integer treatment of `1.0` differs
@@ -152,6 +155,9 @@ no forced-stop test campaign relies on that claim.
 At this evidence checkpoint, PR #178 remains draft and temporarily targets
 PR #175's published branch. It must integrate current main after #175 lands,
 retain the #179 catalog contract, retarget main, and pass fresh CI and review
-before readiness and merge. Merge and issue closure remain separate gates.
+before readiness and merge. The `refresh_only` type matches the settled #179
+request design; its final producer source and runtime capture still need a
+compatibility check. Codec tests do not establish the daemon's no-download
+admission guarantee. Merge and issue closure remain separate gates.
 
 This evidence record is agent-written and has not received human editorial review.

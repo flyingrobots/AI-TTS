@@ -35,6 +35,11 @@ voice and engine availability, nonempty text, speed ranges, allowed retention
 days, lifecycle legality, and identifier existence. A structurally valid
 request is not a claim that an operation can succeed.
 
+`model_setup.refresh_only` is an optional boolean. The codec preserves omission,
+false, and true separately and refuses null or other value kinds. True carries
+code-only consent; the daemon must refuse a request that needs a full repair.
+The protocol crate does not perform that state-dependent admission itself.
+
 ## Historical evidence
 
 The producer retains caller arguments and adapter metadata with their
