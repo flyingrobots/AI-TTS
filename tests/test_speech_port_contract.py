@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from aitts.adapters.unix_socket import UnixSocketSpeechAdapter
-from aitts.application.schemas import EnqueueSpeech, SubmissionDisposition
+from aitts.application.schemas import EnqueueSpeech, HistoryQuery, SubmissionDisposition
 from aitts.daemon import Daemon
 from aitts.engine import FakeEngine
 from aitts.playback import FakeSink
@@ -59,3 +59,17 @@ async def test_global_hold_spools_new_speech_through_the_public_port(daemon: Dae
     assert status.accepting_speech is True
     assert status.playback_held is True
     assert [item.id for item in queue.items] == [receipt.id]
+
+
+async def test_public_history_decodes_cancelled_synthesis_only_items(daemon: Daemon) -> None:
+    """The typed port must keep working when raw clients create synthesis-only history."""
+    speech = UnixSocketSpeechAdapter.connect(daemon.socket_path)
+    remote = await daemon.dispatch({"op": "submit", "text": "Remote only", "playback": False})
+    await daemon.dispatch({"op": "cancel", "id": remote["id"]})
+
+    history = await asyncio.to_thread(speech.list_history, HistoryQuery())
+    item = next(item for item in history.items if item.id == remote["id"])
+    assert item.playback is False
+    assert item.segments[0].index == 0
+    status = await asyncio.to_thread(speech.speech_status)
+    assert status.version == "0.2.0"

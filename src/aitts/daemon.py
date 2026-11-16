@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from blake3 import blake3
 
+from aitts import __version__
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
@@ -423,12 +424,41 @@ class Daemon:
         history: bool = False,
     ) -> dict[str, Any]:
         item = _serialize(utt, history=history)
+        item["playback"] = utt.playback
         segments = self._store.segments(utt.id)
         item["composite"] = bool(segments)
         item["segment_count"] = len(segments) if segments else 1
         item["completed_segments"] = sum(
             segment.state in (State.PLAYED, State.SKIPPED) for segment in segments
         )
+        if not utt.playback:
+            if segments:
+                item["segments"] = [
+                    {
+                        "index": seg.index,
+                        "state": seg.state.value,
+                        "duration_ms": seg.duration_ms,
+                        "audio_ready": bool(
+                            seg.audio_path is not None and Path(seg.audio_path).exists()
+                        ),
+                        "audio_path": seg.audio_path,
+                        "error": seg.error,
+                    }
+                    for seg in segments
+                ]
+            else:
+                item["segments"] = [
+                    {
+                        "index": 0,
+                        "state": utt.state.value,
+                        "duration_ms": utt.duration_ms,
+                        "audio_ready": bool(
+                            utt.audio_path is not None and Path(utt.audio_path).exists()
+                        ),
+                        "audio_path": utt.audio_path,
+                        "error": utt.error,
+                    }
+                ]
         if history and segments:
             item["audio_cached"] = all(
                 segment.audio_path is not None and Path(segment.audio_path).exists()
@@ -438,9 +468,20 @@ class Daemon:
 
     # -- ops ------------------------------------------------------------
 
-    def _speech_admission(self) -> dict[str, object]:
+    def _speech_admission(self, *, playback: bool = True) -> dict[str, object]:
         """Tell machine callers that a playback hold is not backpressure."""
         held = self._require_controller().held
+        if not playback:
+            return {
+                "accepting_speech": True,
+                "playback_held": held,
+                "submission_disposition": "synthesis_only",
+                "submission_guidance": (
+                    "Audio is being synthesized for the requesting client. "
+                    "Host speakers will not play it; host playback holds do not delay synthesis. "
+                    "Query get for segment readiness and cancel when the client is finished."
+                ),
+            }
         return {
             "accepting_speech": True,
             "playback_held": held,
@@ -484,11 +525,10 @@ class Daemon:
             priority = Priority(payload.get("priority", "normal"))
         except ValueError as exc:
             raise ApiError(BAD_REQUEST, str(exc)) from exc
-        preempt = payload.get("preempt", False)
-        if type(preempt) is not bool:
-            raise ApiError(BAD_REQUEST, "preempt must be a boolean")
+        preempt = self._parse_bool(payload, "preempt", default=False)
         if preempt:
             priority = Priority.PREEMPT
+        playback = self._parse_bool(payload, "playback", default=True)
         engine = self._submission_engine(payload.get("engine"), sensitivity)
         speed = self._submission_speed(engine, payload.get("speed"))
         content_format: ContentFormat | None
@@ -523,6 +563,7 @@ class Daemon:
             source=source if isinstance(source, str) else None,
             at_head=priority in (Priority.URGENT, Priority.PREEMPT),
             spoken_segments=spoken_segments if composite else None,
+            playback=playback,
         )
         self._evidence.submitted(utt.id, text, payload)
         self._announce_admission(utt)
@@ -533,6 +574,7 @@ class Daemon:
             "accepted": True,
             "id": utt.id,
             "state": utt.state.value,
+            "playback": utt.playback,
             # The register can overrule the requested voice, so the receipt
             # says which voice will actually speak.
             "voice": utt.voice,
@@ -540,8 +582,16 @@ class Daemon:
             "segment_count": len(spoken_segments),
             "composite": composite,
             "eligible_engines": eligible_engine_names(self._engines, utt.sensitivity),
-            **self._speech_admission(),
+            **self._speech_admission(playback=playback),
         }
+
+    @staticmethod
+    def _parse_bool(payload: dict[str, Any], key: str, *, default: bool) -> bool:
+        value = payload.get(key, default)
+        if type(value) is not bool:
+            msg = f"{key} must be a boolean"
+            raise ApiError(BAD_REQUEST, msg)
+        return value
 
     @staticmethod
     def _parse_speed(raw: object) -> float | None:
@@ -1131,6 +1181,7 @@ class Daemon:
                 }
         return {
             "ok": True,
+            "version": __version__,
             "state": "accepting",
             **self._speech_admission(),
             "playback_state": playback_state,

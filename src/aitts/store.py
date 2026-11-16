@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS utterances (
     played_ms INTEGER,
     audio_path TEXT,
     replay_of TEXT,
-    engine TEXT
+    engine TEXT,
+    playback INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_utterances_state ON utterances(state);
 CREATE INDEX IF NOT EXISTS idx_utterances_order ON utterances(order_key);
@@ -107,7 +108,7 @@ CREATE TABLE IF NOT EXISTS voice_assignments (
 _COLUMNS = (
     "id, text, voice, speed, sensitivity, priority, state, order_key, "
     "submitted_at, state_changed_at, source, error, duration_ms, played_ms, "
-    "audio_path, replay_of, generation_artifact_id, engine"
+    "audio_path, replay_of, generation_artifact_id, engine, playback"
 )
 _SEGMENT_COLUMNS = (
     "utterance_id, segment_index, text, state, error, duration_ms, played_ms, audio_path, "
@@ -151,6 +152,7 @@ def _row_to_utterance(row: sqlite3.Row) -> Utterance:
         generation_artifact_id=row["generation_artifact_id"],
         replay_of=row["replay_of"],
         engine=row["engine"],
+        playback=bool(row["playback"]),
     )
 
 
@@ -199,6 +201,10 @@ class Store:
         columns = {row["name"] for row in self._db.execute("PRAGMA table_info(utterances)")}
         if "engine" not in columns:
             self._db.execute("ALTER TABLE utterances ADD COLUMN engine TEXT")
+        if "playback" not in columns:
+            self._db.execute(
+                "ALTER TABLE utterances ADD COLUMN playback INTEGER NOT NULL DEFAULT 1"
+            )
         self._commit_or_rollback()
         self._secure_database_sidecars(db_path)
         self.on_transition: list[Callable[[Utterance, State], None]] = []
@@ -250,6 +256,7 @@ class Store:
         engine: str | None = None,
         at_head: bool = False,
         spoken_segments: tuple[str, ...] | None = None,
+        playback: bool = True,
     ) -> Utterance:
         """Accept text onto the input queue and return the Queued utterance.
 
@@ -277,10 +284,11 @@ class Store:
             source=source,
             replay_of=replay_of,
             engine=engine,
+            playback=playback,
         )
         self._db.execute(
             f"INSERT INTO utterances ({_COLUMNS}) "  # noqa: S608 - constant column list
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 utt.id,
                 utt.text,
@@ -300,6 +308,7 @@ class Store:
                 utt.replay_of,
                 utt.generation_artifact_id,
                 utt.engine,
+                int(utt.playback),
             ),
         )
         if spoken_segments is not None:
@@ -392,10 +401,18 @@ class Store:
         ).fetchone()
         return int(row["duration"]) if row is not None else 0
 
-    def _by_states(self, states: tuple[State, ...]) -> list[Utterance]:
+    def _by_states(
+        self,
+        states: tuple[State, ...],
+        *,
+        playback_only: bool = False,
+    ) -> list[Utterance]:
         placeholders = ",".join("?" * len(states))
+        where = f"state IN ({placeholders})"
+        if playback_only:
+            where += " AND playback = 1"
         rows = self._db.execute(
-            f"SELECT {_COLUMNS} FROM utterances WHERE state IN ({placeholders}) "  # noqa: S608
+            f"SELECT {_COLUMNS} FROM utterances WHERE {where} "  # noqa: S608
             "ORDER BY order_key",
             tuple(s.value for s in states),
         ).fetchall()
@@ -407,15 +424,15 @@ class Store:
 
     def playback_queue(self) -> list[Utterance]:
         """Utterances on the playback side: Ready, Playing, Paused."""
-        return self._by_states(_PLAYBACK_STATES)
+        return self._by_states(_PLAYBACK_STATES, playback_only=True)
 
     def _pending_queue(self) -> list[Utterance]:
         """Everything that will play after the current utterance, in order."""
-        return self._by_states(_PENDING_STATES)
+        return self._by_states(_PENDING_STATES, playback_only=True)
 
     def next_pending(self, *, exclude: str | None = None) -> Utterance | None:
         """Return the earliest utterance still owed to the listener (not playing)."""
-        for utt in self._by_states(_PENDING_STATES):
+        for utt in self._by_states(_PENDING_STATES, playback_only=True):
             if utt.id != exclude:
                 return utt
         return None
