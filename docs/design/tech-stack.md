@@ -24,6 +24,52 @@ A native menu-bar app is the other hard constraint. The UI document commits to r
 
 The seam between them is already load-bearing in the architecture: **nothing the tray can do is unavailable to an agent**, because both speak the same protocol to the same socket. Two languages on opposite sides of a socket is a much smaller tax than two languages sharing a process.
 
+## Python feature policy during the Rust port
+
+Decision for [#122](https://github.com/flyingrobots/AI-TTS/issues/122): **allow
+Python daemon features during the early port; freeze new daemon behavior when
+operation-set completion starts, through validated cutover.** This is a
+development policy, not a claim that a Rust daemon has replaced Python.
+The stack tables below describe the existing Python implementation and its
+original tradeoffs; the linked issues describe the planned Rust port.
+
+Before [#148](https://github.com/flyingrobots/AI-TTS/issues/148) starts, a Python
+feature may merge with its normal tests and review. Its PR must identify the
+changed public behavior, update the applicable reference cases, and name the
+Rust task that will implement parity. The feature owner pays this extra
+specification and tracking cost. An early Rust component does not need to
+implement every new feature in the same PR.
+
+The first implementation draft PR for #148 starts the freeze. Record the exact
+Python reference commit and contract/corpus commit in its testing evidence.
+Those commits define the operation set and expected behavior; an old operation
+count or an unpinned copy of `main` does not. New Python daemon features wait
+until [#151](https://github.com/flyingrobots/AI-TTS/issues/151) has met its
+cutover and rollback acceptance criteria. During this interval:
+
+- Defect corrections remain allowed. If a correction changes observable
+  behavior, update the reference case and commit pin, and rerun the affected
+  comparison against both daemons before claiming parity.
+- Refactors and port preparation remain allowed when they preserve public
+  behavior. A new operation or setting is a feature even if its patch is small.
+- Swift application work is outside this freeze, but a new daemon requirement
+  follows the daemon rule. A UI change alone does not waive compatibility.
+- Do not declare #148 complete or cut over with an unaccounted reference delta.
+  Record any new parity work in the issue graph and recalculate the frontier.
+
+This limits the period in which new Python behavior must wait. A freeze from
+the beginning of the port would delay useful behavior while many lower-level
+tasks are still incomplete. No freeze at all would leave the final comparison
+chasing a moving target. The cost of this choice is explicit parity tracking
+before the freeze and delayed features during final validation. If the port is
+paused or this cost becomes unacceptable, record a revised decision and set a
+new reference before resuming validation; do not silently move the target.
+
+The policy is enforced through PR review and recorded evidence. It does not
+add a CI rule that can infer whether a change is a feature. The separate choice
+about replacing model inference remains outside this decision. See the
+[roadmap sequence](../../ROADMAP.md#python-feature-policy-during-the-rust-port).
+
 ## Daemon: Python 3.12+
 
 | Concern | Choice | Why |
