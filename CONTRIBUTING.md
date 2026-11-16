@@ -51,6 +51,27 @@ several of them are enforced at collection time rather than trusted.
 
 The validation hooks locate the project before clearing Git's repository/index overrides. Pytest also removes inherited `GIT_*` variables before each test's function-scoped fixtures run. A test that deliberately exercises Git environment handling may set its own variables after setup, pointing only to owned temporary repositories. This does not make Git operations during module import or session-scoped fixture setup safe; those callers must still pass an explicitly isolated environment.
 
+## Guided model runtime requirements
+
+Guided setup installs the hash-pinned files in
+`src/aitts/runtime_requirements/`; it does not install directly from `uv.lock`.
+After changing the lock, regenerate these files with the uv version pinned in
+the supply-chain CI job (currently 0.9.18):
+
+```sh
+uv export --frozen --no-default-groups --extra kokoro --no-emit-project --output-file src/aitts/runtime_requirements/kokoro.txt
+uv export --frozen --no-default-groups --extra mlx --no-emit-project --output-file src/aitts/runtime_requirements/kokoro-mlx.txt
+uv export --frozen --no-default-groups --extra chatterbox --no-emit-project --output-file src/aitts/runtime_requirements/chatterbox.txt
+python3 scripts/check_runtime_requirements.py
+```
+
+The check exports offline in a temporary project and compares every byte,
+including hashes, markers, source pins, and generated headers. It leaves the
+checkout unchanged and exits nonzero on drift or export failure. Use `--uv`
+with an executable path when the CI-pinned uv is not first on `PATH`.
+The supply-chain job runs this check before its existing audit. Regeneration
+does not upgrade already installed model runtimes or validate model inference.
+
 ## Commits
 
 Conventional commit messages, with a `Closes #N` footer for the issue a

@@ -54,6 +54,8 @@ jobs:
           enable-cache: true
       - name: Install the minimum supported Python
         run: uv python install 3.12
+      - name: Verify guided model runtime exports
+        run: uv run --no-project --python 3.12 python scripts/check_runtime_requirements.py
       - name: Sync optional runtime and audit dependencies
         run: uv sync --frozen --python 3.12 --all-extras --no-dev --group supply-chain
       - name: Prepare evidence directory
