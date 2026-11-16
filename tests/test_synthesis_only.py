@@ -27,8 +27,9 @@ pytestmark = [
     ("text", "count"),
     [("Hello remote browser.", 1), ("# First\n\nHello.\n\n# Second\n\nGoodbye.", 2)],
 )
+@pytest.mark.parametrize("held", [False, True])
 async def test_submit_playback_false_synthesizes_without_playing(
-    tmp_path: Path, text: str, count: int
+    tmp_path: Path, text: str, count: int, *, held: bool
 ) -> None:
     sink = FakeSink()
     with tempfile.TemporaryDirectory(prefix="aitts-synth-only-") as sockets:
@@ -41,11 +42,15 @@ async def test_submit_playback_false_synthesizes_without_playing(
         )
         await daemon.start()
         try:
+            if held:
+                await daemon.dispatch({"op": "pause"})
             reply = await daemon.dispatch(
                 {"op": "submit", "text": text, "content_format": "markdown", "playback": False}
             )
             assert reply["ok"] is True
             assert reply["playback"] is False
+            assert reply["submission_disposition"] == "synthesis_only"
+            assert reply["playback_held"] is held
             utt_id = reply["id"]
 
             item: dict[str, object] = {}

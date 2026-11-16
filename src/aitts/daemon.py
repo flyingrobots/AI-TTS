@@ -468,9 +468,20 @@ class Daemon:
 
     # -- ops ------------------------------------------------------------
 
-    def _speech_admission(self) -> dict[str, object]:
+    def _speech_admission(self, *, playback: bool = True) -> dict[str, object]:
         """Tell machine callers that a playback hold is not backpressure."""
         held = self._require_controller().held
+        if not playback:
+            return {
+                "accepting_speech": True,
+                "playback_held": held,
+                "submission_disposition": "synthesis_only",
+                "submission_guidance": (
+                    "Audio is being synthesized for the requesting client. "
+                    "Host speakers will not play it; host playback holds do not delay synthesis. "
+                    "Query get for segment readiness and cancel when the client is finished."
+                ),
+            }
         return {
             "accepting_speech": True,
             "playback_held": held,
@@ -571,7 +582,7 @@ class Daemon:
             "segment_count": len(spoken_segments),
             "composite": composite,
             "eligible_engines": eligible_engine_names(self._engines, utt.sensitivity),
-            **self._speech_admission(),
+            **self._speech_admission(playback=playback),
         }
 
     @staticmethod

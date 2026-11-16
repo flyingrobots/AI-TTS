@@ -31,6 +31,7 @@ class SubmissionDisposition(enum.StrEnum):
 
     QUEUED_FOR_PLAYBACK = "queued_for_playback"
     SPOOLED_UNTIL_RESUME = "spooled_until_resume"
+    SYNTHESIS_ONLY = "synthesis_only"
 
 
 class PlaybackState(enum.StrEnum):

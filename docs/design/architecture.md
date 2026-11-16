@@ -377,7 +377,8 @@ limit does not poison the connection, so a corrected next request can proceed. D
 
 // Synthesis-only: defaults to playback:true when omitted; must be a JSON boolean.
 → {"op":"submit", "text":"For a remote client.", "playback":false}
-← {"ok":true, "accepted":true, "id":"utt_...", "state":"Queued", "playback":false}
+← {"ok":true, "accepted":true, "id":"utt_...", "state":"Queued", "playback":false,
+   "submission_disposition":"synthesis_only"}
 // Poll get until each segment is ready. Paths belong to this daemon's machine.
 → {"op":"get", "id":"utt_..."}
 ← {"ok":true, "item":{"id":"utt_...", "playback":false, "state":"Ready",
