@@ -50,6 +50,12 @@ pin explicit and part of both generation and comparison. It is not in the
 lock's vulnerability graph. Removing it from a generated file is rejected by
 the drift check.
 
+Two CLI regressions also reproduced `FileNotFoundError` when the selected uv
+was relative (`--uv ./tools/uv` or a relative `PATH` entry). Each test runs the
+real checker with an owned executable exporter and temporary project. Resolving
+the executable before changing the child working directory makes all three
+exports run in both cases; both regressions now pass.
+
 Use the commands in [Contributing](../../CONTRIBUTING.md#guided-model-runtime-requirements).
 The CI supply-chain job runs the same check before its existing dependency,
 source-revision, and license checks. No audit exceptions or resource limits

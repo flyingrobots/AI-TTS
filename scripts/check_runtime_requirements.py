@@ -75,6 +75,7 @@ def main() -> int:
     executable = shutil.which(args.uv)
     if executable is None:
         parser.error("uv executable was not found")
+    executable = str(Path(executable).resolve())
     changed = check(Path(__file__).resolve().parents[1], executable, write=args.write)
     if changed and not args.write:
         sys.stderr.write("Runtime manifests differ from frozen lock exports:\n")
