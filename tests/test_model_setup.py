@@ -113,6 +113,23 @@ def test_success_publishes_private_complete_runtime_without_mutating_daemon(tmp_
     assert "3.12" in installer.arguments[0]
 
 
+@pytest.mark.parametrize("name", ["kokoro", "kokoro-mlx"])
+def test_guided_kokoro_installs_the_pinned_english_language_model(
+    tmp_path: Path, name: str
+) -> None:
+    """The consumed pip input must supply the language model required by warmup."""
+    installer = OwnedInstaller(tmp_path)
+    installer.install(name, threading.Event(), lambda _: None)
+    pip = installer.arguments[1]
+    manifest = Path(pip[pip.index("--requirements") + 1])
+    requirement = (
+        "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/"
+        "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl "
+        "--hash=sha256:1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85"
+    )
+    assert requirement in manifest.read_text().splitlines()
+
+
 @pytest.mark.parametrize(
     "corruption", ["revision", "protocol", "traversal", "asset", "worker", "symlink"]
 )
