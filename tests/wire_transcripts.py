@@ -24,6 +24,8 @@ SCENARIOS = (
 )
 _ID = re.compile(r"utt_[0-9a-f]{32}\Z")
 _TIMES = {"enqueued_at", "finished_at", "submitted_at", "state_changed_at", "at"}
+_MASK_FIELDS = _TIMES | {"id", "current", "ids", "pid", "audio_path"}
+_MASK_TOKEN = re.compile(r"<(?:time|pid|home|id:[0-9]+)>")
 
 
 class _Mask:
@@ -45,6 +47,9 @@ class _Mask:
         return "<home>/" + "/".join(components)
 
     def scalar(self, item: Any, key: str) -> Any:
+        if key in _MASK_FIELDS and isinstance(item, str) and _MASK_TOKEN.search(item):
+            message = f"wire field {key!r} collides with a mask token: {item!r}"
+            raise ValueError(message)
         if key in {"id", "current", "ids"} and isinstance(item, str) and _ID.fullmatch(item):
             return self.identifier(item)
         if key in _TIMES and type(item) in {float, int} and item >= 0:

@@ -67,8 +67,12 @@ explicit rules:
   with `<home>`. Identifier path components, including WAV stems, use the same
   numbered tokens. External paths stay unchanged.
 
-The mask preserves malformed identifiers and types, nulls, durations, versions,
-text, state, playback flags, and unknown fields. It does not normalize expected
+Raw strings containing reserved mask tokens in these masked fields are refused,
+so an invalid time string such as `<time>` cannot impersonate a normalized
+number. This check applies only to masked fields. Literal token text in speech,
+source labels, error messages, and other unmasked fields stays unchanged.
+The mask preserves other malformed identifiers and types, nulls, durations,
+versions, state, playback flags, and unknown fields. It does not normalize expected
 files during a test. The checked-in files are change-detection oracles from the
 Python 0.2.0 reference, not proof that another implementation is correct. Review
 each transcript diff against the protocol when behavior changes; do not update

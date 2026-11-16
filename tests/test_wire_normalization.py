@@ -55,3 +55,33 @@ def test_comparison_rejects_semantic_type_value_and_shape_changes(reply: dict[st
     expected = [{"reply": {"ok": True, "state": "Ready", "version": "0.2.0"}}]
     with pytest.raises(AssertionError):
         assert_transcript([{"reply": reply}], expected, Path("/fixture"))
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected"),
+    [
+        ({"at": "<time>"}, {"at": "<time>"}),
+        ({"pid": "<pid>"}, {"pid": "<pid>"}),
+        ({"id": "<id:1>"}, {"id": "<id:1>"}),
+        ({"current": "<id:1>"}, {"current": "<id:1>"}),
+        ({"ids": ["<id:1>"]}, {"ids": ["<id:1>"]}),
+        ({"audio_path": "<home>/cache/clip.wav"}, {"audio_path": "<home>/cache/clip.wav"}),
+        (
+            {"audio_path": "/fixture/cache/<id:1>.wav"},
+            {"audio_path": "<home>/cache/<id:1>.wav"},
+        ),
+    ],
+)
+def test_raw_wire_values_cannot_impersonate_volatile_tokens(
+    actual: dict[str, object],
+    expected: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError, match="mask token"):
+        assert_transcript(actual, expected, Path("/fixture"))
+
+
+def test_literal_token_text_in_speech_and_other_unmasked_fields_remains_valid() -> None:
+    literal = "Say <time>, <pid>, <id:1>, and <home> exactly."
+    value = {"text": literal, "source": literal, "error": literal, "unknown": literal}
+    assert normalize(value, Path("/fixture")) == value
+    assert_transcript(value, value, Path("/fixture"))

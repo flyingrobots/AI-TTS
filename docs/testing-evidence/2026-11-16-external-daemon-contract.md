@@ -121,3 +121,12 @@ for the expected state-limit refusal. Directory entries now count toward the
 same 4,096-entry budget, including entries excluded from traversal as symlinks.
 The directory-only regression passed with the expected refusal and complete
 owned-directory cleanup.
+
+`PRRT_kwDOUHyfMM64Diuy`: seven raw-value collisions passed the original golden
+comparison: time, PID, identifier, current identifier, identifier array, home
+path, and identifier-bearing audio path. The new refusal expectations were
+all RED. Reserved-token detection now applies only to fields the mask can
+rewrite. All seven controls pass, while literal token text in speech, source,
+error, and unknown fields remains valid. The nine golden files did not change.
+Negative controls that ignored every scan error and extended token rejection
+to speech fields failed the new fail-closed and literal-speech checks.
