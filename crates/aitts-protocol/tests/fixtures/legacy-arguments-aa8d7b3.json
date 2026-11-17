@@ -1,0 +1,56 @@
+{
+  "source_commit": "aa8d7b395935fde49c33be6990f817914aa3b574",
+  "source_files": {
+    "src/aitts/daemon.py": "4b5048ed43add5bffb6e0d95ebb706d718d3631b3e29a1f6584e3cd09c3bef72",
+    "src/aitts/adapters/clip_evidence.py": "e665769c455f0dc91e4fc891267e4d403f3ab7e81f1c7deef1e681d8abacffef",
+    "src/aitts/ipc.py": "b08cac7a6c74f303e8c4c0de9ce4e16af2e3a94cd9fe47a3823665383d07b7d1"
+  },
+  "operation": "provenance",
+  "cases": [
+    {
+      "arguments": null,
+      "origin": "Unknown (legacy clip)"
+    },
+    {
+      "arguments": false,
+      "origin": "Unknown (legacy clip)"
+    },
+    {
+      "arguments": 0,
+      "origin": "Unknown (legacy clip)"
+    },
+    {
+      "arguments": 1.25,
+      "origin": "Unknown (legacy clip)"
+    },
+    {
+      "arguments": "legacy string",
+      "origin": "Unknown (legacy clip)"
+    },
+    {
+      "arguments": [
+        "legacy",
+        false,
+        null,
+        {
+          "retained": 7
+        }
+      ],
+      "origin": "Unknown (legacy clip)"
+    },
+    {
+      "arguments": {},
+      "origin": "Unknown"
+    },
+    {
+      "arguments": {
+        "origin": "Legacy origin",
+        "extension": [
+          1,
+          2
+        ]
+      },
+      "origin": "Legacy origin"
+    }
+  ]
+}

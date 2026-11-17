@@ -360,6 +360,12 @@ graph TB
 
 ### Wire shape
 
+Rust consumers can use [`aitts-protocol`](../../crates/aitts-protocol/README.md)
+for typed requests, replies, events, and a generated JSON Schema. The crate
+adds no socket transport and does not replace the Python daemon's dispatch.
+Its contract documents strict field validation, preserved absence and null,
+bounded historical metadata, and the limits of Python-input compatibility.
+
 Newline-delimited JSON, request/response plus a subscription mode. Every line
 is UTF-8 and contains exactly one JSON object. Request lines are limited to 1
 MiB including their newline. Malformed JSON, invalid UTF-8, non-object JSON,

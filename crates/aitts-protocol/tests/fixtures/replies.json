@@ -1,0 +1,719 @@
+[
+  {
+    "op": "submit",
+    "reply": {
+      "accepted": true,
+      "accepting_speech": true,
+      "composite": false,
+      "eligible_engines": [
+        "fake"
+      ],
+      "id": "utt_be02bb377cd74657b4ace669dd3cfe42",
+      "ok": true,
+      "playback": true,
+      "playback_held": true,
+      "segment_count": 1,
+      "sensitivity": "confidential",
+      "state": "Queued",
+      "submission_disposition": "spooled_until_resume",
+      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+      "voice": "bm_daniel"
+    }
+  },
+  {
+    "op": "engines",
+    "reply": {
+      "ok": true,
+      "engines": [
+        {
+          "name": "fake",
+          "is_local": true,
+          "voices": [
+            "bm_daniel"
+          ],
+          "state": "ready",
+          "selected": true
+        }
+      ],
+      "models": [
+        {
+          "name": "kokoro",
+          "title": "Kokoro",
+          "description": "Synthetic model catalog entry.",
+          "installed": false,
+          "selected": false,
+          "state": "not installed",
+          "message": "",
+          "incompatible": null
+        }
+      ]
+    }
+  },
+  {
+    "op": "model_setup",
+    "reply": {
+      "ok": true,
+      "state": "installing"
+    }
+  },
+  {
+    "op": "cancel_model_setup",
+    "reply": {
+      "ok": true
+    }
+  },
+  {
+    "op": "get",
+    "reply": {
+      "ok": true,
+      "item": {
+        "audio_cached": true,
+        "completed_segments": 0,
+        "composite": false,
+        "duration_ms": 100,
+        "enqueued_at": 1794853516.673387,
+        "error": null,
+        "final_state": "Played",
+        "finished_at": 1794853516.701378,
+        "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+        "playback": true,
+        "played_ms": 100,
+        "priority": "normal",
+        "replay_of": null,
+        "segment_count": 1,
+        "sensitivity": "confidential",
+        "source": null,
+        "speed": 1,
+        "state": "Played",
+        "text": "Contract text.",
+        "voice": "bm_daniel"
+      }
+    }
+  },
+  {
+    "op": "list",
+    "reply": {
+      "ok": true,
+      "items": [
+        {
+          "audio_cached": true,
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": 1794853516.673387,
+          "error": null,
+          "final_state": "Played",
+          "finished_at": 1794853516.701378,
+          "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+          "playback": true,
+          "played_ms": 100,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1,
+          "state": "Played",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ]
+    }
+  },
+  {
+    "op": "history",
+    "reply": {
+      "ok": true,
+      "items": [
+        {
+          "audio_cached": true,
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": 1794853516.673387,
+          "error": null,
+          "final_state": "Played",
+          "finished_at": 1794853516.701378,
+          "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+          "playback": true,
+          "played_ms": 100,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1,
+          "state": "Played",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ]
+    }
+  },
+  {
+    "op": "export_evidence",
+    "reply": {
+      "ok": true,
+      "path": "/synthetic/report.zip",
+      "warnings": [
+        "Synthetic missing optional evidence."
+      ]
+    }
+  },
+  {
+    "op": "provenance",
+    "reply": {
+      "ok": true,
+      "provenance": {
+        "origin": "Synthetic caller",
+        "caller_source": null,
+        "arguments": {
+          "origin": "fixture",
+          "legacy_flag": {
+            "nested": [
+              true,
+              null,
+              1,
+              1.5,
+              "original"
+            ]
+          }
+        },
+        "source_blake3": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "resolved_voice": "bm_daniel",
+        "resolved_speed": 1.25,
+        "replay_of": null,
+        "submitted_at": 1700000000.25,
+        "clips": [
+          {
+            "artifact_id": "utt_00000000000000000000000000000001",
+            "generation": {
+              "artifact_id": "utt_00000000000000000000000000000001",
+              "utterance_id": "utt_00000000000000000000000000000001",
+              "segment_index": null,
+              "voice": "bm_daniel",
+              "speed": 1.25,
+              "engine": "fake",
+              "captured_at": 1700000000.5,
+              "runtime": {
+                "os": "Synthetic OS",
+                "os_release": "1",
+                "macos": "",
+                "architecture": "fixture",
+                "python": "3.13.0",
+                "cpu_count": 2,
+                "packages": {
+                  "ai-tts": "0.2.0",
+                  "optional": null
+                }
+              }
+            },
+            "model": {
+              "repository": "synthetic/reference",
+              "files": {
+                "weights.bin": {
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "bytes": 4096
+                }
+              },
+              "torch_threads": 2,
+              "torch_interop_threads": 1,
+              "model_training": false,
+              "device": "cpu",
+              "voice": "bm_daniel",
+              "watermark": "upstream output retained",
+              "backend": "synthetic",
+              "model": "reference",
+              "host": "example.invalid",
+              "port": 443,
+              "model_identity": "reference-digest",
+              "runtime": {
+                "os": "Synthetic OS",
+                "os_release": "1",
+                "macos": "",
+                "architecture": "fixture",
+                "python": "3.13.0",
+                "cpu_count": 2,
+                "packages": {
+                  "ai-tts": "0.2.0",
+                  "optional": null
+                }
+              },
+              "adapter_extension": {
+                "revision": 1
+              }
+            },
+            "audio": {
+              "blake3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "sample_rate": 24000,
+              "channels": 1,
+              "frames": 12000,
+              "subtype": "PCM_16",
+              "peak": 0.5,
+              "clipped_samples": 0,
+              "nonfinite_samples": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "op": "restart_model",
+    "reply": {
+      "ok": true
+    }
+  },
+  {
+    "op": "storage",
+    "reply": {
+      "ok": true,
+      "entries": [
+        {
+          "id": "utt_00000000000000000000000000000001",
+          "bytes": 4096,
+          "modified_at": 1700000000.25,
+          "protected": true,
+          "preview": "Synthetic preview."
+        }
+      ],
+      "total_bytes": 4096,
+      "retention_days": 7,
+      "receipt": {
+        "removed": 0,
+        "protected": 1,
+        "failed": 0
+      }
+    }
+  },
+  {
+    "op": "pause",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false
+    }
+  },
+  {
+    "op": "resume",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false
+    }
+  },
+  {
+    "op": "resume_when_input_idle",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false
+    }
+  },
+  {
+    "op": "skip",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false
+    }
+  },
+  {
+    "op": "rewind",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false,
+      "replay_id": "utt_00000000000000000000000000000001"
+    }
+  },
+  {
+    "op": "next_segment",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false,
+      "segment_index": 1,
+      "segment_number": 2
+    }
+  },
+  {
+    "op": "previous_segment",
+    "reply": {
+      "ok": true,
+      "state": "Playing",
+      "current": "utt_00000000000000000000000000000001",
+      "held": false,
+      "segment_index": 0,
+      "segment_number": 1
+    }
+  },
+  {
+    "op": "requeue",
+    "reply": {
+      "ok": true,
+      "id": "utt_00000000000000000000000000000001",
+      "state": "Queued",
+      "priority": "normal",
+      "composite": true,
+      "segment_count": 2
+    }
+  },
+  {
+    "op": "reorder",
+    "reply": {
+      "ok": true,
+      "ids": [
+        "utt_00000000000000000000000000000001"
+      ]
+    }
+  },
+  {
+    "op": "cancel",
+    "reply": {
+      "ok": true,
+      "id": "utt_00000000000000000000000000000001",
+      "state": "Cancelled"
+    }
+  },
+  {
+    "op": "remove_history",
+    "reply": {
+      "ok": true,
+      "removed": 1,
+      "id": "utt_00000000000000000000000000000001"
+    }
+  },
+  {
+    "op": "clear",
+    "reply": {
+      "ok": true,
+      "cleared": 1
+    }
+  },
+  {
+    "op": "purge_cache",
+    "reply": {
+      "ok": true,
+      "removed_files": 1,
+      "removed_bytes": 4096,
+      "protected_files": 1,
+      "protected_bytes": 2048,
+      "failed_files": 0,
+      "failed_bytes": 0
+    }
+  },
+  {
+    "op": "status",
+    "reply": {
+      "ok": true,
+      "accepting_speech": true,
+      "counts": {
+        "Played": 1
+      },
+      "current": {
+        "audio_cached": true,
+        "completed_segments": 0,
+        "composite": false,
+        "duration_ms": 100,
+        "enqueued_at": 1794853516.673387,
+        "error": null,
+        "final_state": "Played",
+        "finished_at": 1794853516.701378,
+        "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+        "playback": true,
+        "played_ms": 100,
+        "priority": "normal",
+        "replay_of": null,
+        "segment_count": 1,
+        "sensitivity": "confidential",
+        "source": null,
+        "speed": 1,
+        "state": "Played",
+        "text": "Contract text.",
+        "voice": "bm_daniel",
+        "position_ms": 250,
+        "active_segment": {
+          "index": 0,
+          "number": 1,
+          "count": 1,
+          "text": "Synthetic speech.",
+          "state": "Playing",
+          "duration_ms": 500,
+          "position_ms": 250
+        }
+      },
+      "engine": "fake",
+      "engine_preparing": {
+        "asset": "synthetic/model",
+        "since": 1700000000.25
+      },
+      "input_active": false,
+      "interruption": {
+        "reason": "listener_speaking",
+        "at": 1700000000.5,
+        "resume_armed": true
+      },
+      "playback_held": false,
+      "playback_state": "idle",
+      "state": "accepting",
+      "submission_disposition": "queued_for_playback",
+      "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+      "version": "0.2.0",
+      "voice": "bm_daniel"
+    }
+  },
+  {
+    "op": "metrics",
+    "reply": {
+      "ok": true,
+      "counts": {
+        "Played": 1
+      },
+      "queue_depth": {
+        "input": 0,
+        "playback": 1
+      },
+      "cache": {
+        "bytes": 4096,
+        "max_bytes": 1073741824
+      },
+      "synthesis_wait_ms": {
+        "count": 1,
+        "p50": 1.5,
+        "p95": 1.5,
+        "max": 1.5
+      },
+      "synthesis_duration_ms": null,
+      "playback_wait_ms": {
+        "count": 1,
+        "p50": -0.5,
+        "p95": -0.5,
+        "max": -0.5
+      },
+      "playback_failures": 0
+    }
+  },
+  {
+    "op": "snapshot",
+    "reply": {
+      "ok": true,
+      "status": {
+        "accepting_speech": true,
+        "counts": {},
+        "current": null,
+        "engine": "fake",
+        "engine_preparing": null,
+        "input_active": false,
+        "interruption": null,
+        "playback_held": false,
+        "playback_state": "idle",
+        "state": "accepting",
+        "submission_disposition": "queued_for_playback",
+        "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+        "version": "0.2.0",
+        "voice": "bm_daniel"
+      },
+      "runtime": {
+        "pid": 123,
+        "uptime_seconds": 1.5,
+        "model_state": "ready",
+        "active_synthesis": 0
+      },
+      "playback": [
+        {
+          "audio_cached": true,
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": 1794853516.673387,
+          "error": null,
+          "final_state": "Played",
+          "finished_at": 1794853516.701378,
+          "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+          "playback": true,
+          "played_ms": 100,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1,
+          "state": "Played",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ],
+      "input": [],
+      "plan": [
+        {
+          "audio_cached": true,
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": 1794853516.673387,
+          "error": null,
+          "final_state": "Played",
+          "finished_at": 1794853516.701378,
+          "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+          "playback": true,
+          "played_ms": 100,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1,
+          "state": "Played",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ],
+      "history": [
+        {
+          "audio_cached": true,
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": 1794853516.673387,
+          "error": null,
+          "final_state": "Played",
+          "finished_at": 1794853516.701378,
+          "id": "utt_ed083a0c4cea4f039a0c4010e049f072",
+          "playback": true,
+          "played_ms": 100,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1,
+          "state": "Played",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ],
+      "voices": [
+        "bm_daniel"
+      ],
+      "engines": [
+        {
+          "name": "fake",
+          "is_local": true,
+          "voices": [
+            "bm_daniel"
+          ],
+          "state": "ready",
+          "selected": true
+        }
+      ],
+      "models": [
+        {
+          "name": "kokoro",
+          "title": "Kokoro",
+          "description": "Synthetic model catalog entry.",
+          "installed": false,
+          "selected": false,
+          "state": "not installed",
+          "message": "",
+          "incompatible": null
+        }
+      ],
+      "voice_assignments": [
+        {
+          "source": "protocol-reference",
+          "voice": "bm_daniel",
+          "pinned": true,
+          "assigned_at": 1700000000.25
+        }
+      ],
+      "settings": {
+        "cache_max_bytes": 1073741824,
+        "captions_enabled": true,
+        "captions_enabled_configured": true,
+        "ducking_enabled": false,
+        "earcon_enabled": false,
+        "engine": "fake",
+        "input_interrupt_enabled": true,
+        "input_interrupt_resume": "when_idle",
+        "playback_rate": 1,
+        "speed": 1,
+        "voice": "bm_daniel",
+        "voice_languages": [
+          "en"
+        ]
+      }
+    }
+  },
+  {
+    "op": "voices",
+    "reply": {
+      "ok": true,
+      "voices": [
+        "bm_daniel"
+      ]
+    }
+  },
+  {
+    "op": "voice_assignments",
+    "reply": {
+      "ok": true,
+      "assignments": [
+        {
+          "source": "protocol-reference",
+          "voice": "bm_daniel",
+          "pinned": true,
+          "assigned_at": 1700000000.25
+        }
+      ]
+    }
+  },
+  {
+    "op": "assign_voice",
+    "reply": {
+      "ok": true,
+      "assignment": {
+        "source": "protocol-reference",
+        "voice": "bm_daniel",
+        "pinned": true,
+        "assigned_at": 1700000000.25
+      }
+    }
+  },
+  {
+    "op": "settings",
+    "reply": {
+      "ok": true,
+      "settings": {
+        "cache_max_bytes": 1073741824,
+        "captions_enabled": true,
+        "captions_enabled_configured": true,
+        "ducking_enabled": false,
+        "earcon_enabled": false,
+        "engine": "fake",
+        "input_interrupt_enabled": true,
+        "input_interrupt_resume": "when_idle",
+        "playback_rate": 1,
+        "speed": 1,
+        "voice": "bm_daniel",
+        "voice_languages": [
+          "en"
+        ]
+      }
+    }
+  },
+  {
+    "op": "subscribe",
+    "reply": {
+      "ok": true,
+      "subscribed": true
+    }
+  }
+]

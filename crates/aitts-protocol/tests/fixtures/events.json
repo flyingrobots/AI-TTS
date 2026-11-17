@@ -1,0 +1,92 @@
+[
+  {
+    "event": "state_changed",
+    "id": "utt_00000000000000000000000000000001",
+    "from": null,
+    "to": "Queued",
+    "at": 1700000000.25
+  },
+  {
+    "event": "segment_state_changed",
+    "id": "utt_00000000000000000000000000000001",
+    "segment_index": 0,
+    "from": "Queued",
+    "to": "Synthesizing"
+  },
+  {
+    "event": "playback_progress",
+    "playback_held": false,
+    "id": "utt_00000000000000000000000000000001",
+    "position_ms": 250,
+    "audio_peak": 0.5
+  },
+  {
+    "event": "model_readiness_changed"
+  },
+  {
+    "event": "model_setup_changed"
+  },
+  {
+    "event": "plan_reordered",
+    "ids": [
+      "utt_00000000000000000000000000000001"
+    ]
+  },
+  {
+    "event": "history_changed",
+    "cleared": 1
+  },
+  {
+    "event": "history_changed",
+    "removed": "utt_00000000000000000000000000000001"
+  },
+  {
+    "event": "cache_changed",
+    "removed_files": 1,
+    "removed_bytes": 4096,
+    "protected_files": 1,
+    "protected_bytes": 2048,
+    "failed_files": 0,
+    "failed_bytes": 0
+  },
+  {
+    "event": "settings_changed",
+    "settings": {
+      "cache_max_bytes": 1073741824,
+      "captions_enabled": true,
+      "ducking_enabled": false,
+      "earcon_enabled": false,
+      "engine": "fake",
+      "input_interrupt_enabled": true,
+      "input_interrupt_resume": "when_idle",
+      "playback_rate": 1,
+      "speed": 1,
+      "voice": "bm_daniel",
+      "voice_languages": [
+        "en"
+      ]
+    }
+  },
+  {
+    "event": "voice_assigned",
+    "assignment": {
+      "source": "protocol-reference",
+      "voice": "bm_daniel",
+      "pinned": true,
+      "assigned_at": 1700000000.25
+    }
+  },
+  {
+    "event": "voice_released",
+    "source": "protocol-reference"
+  },
+  {
+    "event": "playback_interrupted",
+    "reason": "listener_speaking",
+    "resume_armed": true
+  },
+  {
+    "event": "playback_resumed",
+    "reason": "input_idle"
+  }
+]

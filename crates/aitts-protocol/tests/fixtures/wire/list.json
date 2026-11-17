@@ -1,0 +1,113 @@
+[
+  {
+    "reply": {
+      "ok": true,
+      "subscribed": true
+    },
+    "request": {
+      "op": "subscribe"
+    }
+  },
+  {
+    "reply": {
+      "current": null,
+      "held": true,
+      "ok": true,
+      "state": null
+    },
+    "request": {
+      "op": "pause"
+    }
+  },
+  {
+    "reply": {
+      "accepted": true,
+      "accepting_speech": true,
+      "composite": false,
+      "eligible_engines": [
+        "fake"
+      ],
+      "id": "utt_be02bb377cd74657b4ace669dd3cfe42",
+      "ok": true,
+      "playback": true,
+      "playback_held": true,
+      "segment_count": 1,
+      "sensitivity": "confidential",
+      "state": "Queued",
+      "submission_disposition": "spooled_until_resume",
+      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+      "voice": "bm_daniel"
+    },
+    "request": {
+      "op": "submit",
+      "text": "Contract text."
+    }
+  },
+  {
+    "event": {
+      "at": 1794853516.5158021,
+      "event": "state_changed",
+      "from": null,
+      "id": "utt_be02bb377cd74657b4ace669dd3cfe42",
+      "to": "Queued"
+    }
+  },
+  {
+    "event": {
+      "at": 1794853516.516405,
+      "event": "state_changed",
+      "from": "Queued",
+      "id": "utt_be02bb377cd74657b4ace669dd3cfe42",
+      "to": "Synthesizing"
+    }
+  },
+  {
+    "event": {
+      "at": 1794853516.537736,
+      "event": "state_changed",
+      "from": "Synthesizing",
+      "id": "utt_be02bb377cd74657b4ace669dd3cfe42",
+      "to": "Ready"
+    }
+  },
+  {
+    "reply": {
+      "items": [],
+      "ok": true
+    },
+    "request": {
+      "op": "list",
+      "queue": "input"
+    }
+  },
+  {
+    "reply": {
+      "items": [
+        {
+          "completed_segments": 0,
+          "composite": false,
+          "duration_ms": 100,
+          "enqueued_at": 1794853516.5158021,
+          "error": null,
+          "id": "utt_be02bb377cd74657b4ace669dd3cfe42",
+          "playback": true,
+          "played_ms": null,
+          "priority": "normal",
+          "replay_of": null,
+          "segment_count": 1,
+          "sensitivity": "confidential",
+          "source": null,
+          "speed": 1.0,
+          "state": "Ready",
+          "text": "Contract text.",
+          "voice": "bm_daniel"
+        }
+      ],
+      "ok": true
+    },
+    "request": {
+      "op": "list",
+      "queue": "playback"
+    }
+  }
+]
