@@ -63,6 +63,9 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
+          # The shipped version (Makefile PYTHON_VERSION). Unpinned, the runner's
+          # newest CPython lacks wheels and rebuilds native packages every run.
+          python-version: "3.12"
       - name: Verify lockfile
         run: uv lock --check
       - name: Sync dependencies
@@ -181,6 +184,7 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
+          python-version: "3.12"
       - name: Verify lockfile
         run: uv lock --check
       - name: Sync dependencies
