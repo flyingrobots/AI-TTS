@@ -29,6 +29,9 @@ build/
 dist/
 *.whl
 
+# Rust
+/target/
+
 # Local configuration and secrets
 .env
 .env.*
