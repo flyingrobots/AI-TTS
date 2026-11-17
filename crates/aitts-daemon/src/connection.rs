@@ -24,6 +24,10 @@ use aitts_protocol::{MAX_REQUEST_BYTES, Request, WireError, decode_request};
 use crate::api::{Job, Refusal};
 use crate::subscribers::{Subscribers, Writer, lock};
 
+/// A test hook run with the shared state.
+#[cfg(test)]
+pub(crate) type AckHook = Box<dyn Fn(&Shared) + Send>;
+
 /// State every connection thread shares with the runtime.
 #[derive(Default)]
 pub(crate) struct Shared {
@@ -33,6 +37,9 @@ pub(crate) struct Shared {
     pub(crate) jobs: Mutex<Option<Sender<Job>>>,
     pub(crate) live_connections: AtomicUsize,
     next_connection: AtomicU64,
+    /// Test seam: runs right after a `subscribe` acknowledgement is written.
+    #[cfg(test)]
+    pub(crate) after_ack: Mutex<Option<AckHook>>,
 }
 
 impl Shared {
@@ -139,6 +146,15 @@ fn subscribe(id: u64, writer: &Writer, shared: &Shared) -> bool {
         shared.subscribers.remove(id);
         return false;
     }
+    #[cfg(test)]
+    if let Some(hook) = shared
+        .after_ack
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_ref()
+    {
+        hook(shared);
+    }
     true
 }
 
@@ -169,4 +185,53 @@ fn send(writer: &Writer, reply: &Reply) -> bool {
         )
     });
     line.is_ok_and(|line| lock(writer).write_all(&line).is_ok())
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "test code fails loudly"
+)]
+mod tests {
+    //! Size: small (one socket pair, one writer thread).
+    //! Promise: an event broadcast once the acknowledgement is written reaches
+    //! the subscriber, after the acknowledgement. Regression from #143 / PR #184.
+
+    use std::io::{BufRead, BufReader};
+    use std::time::Duration;
+
+    use super::*;
+
+    #[test]
+    fn an_event_broadcast_right_after_the_acknowledgement_is_delivered_after_it() {
+        let shared = Shared::default();
+        // The broadcast runs at the one interleaving point the bug needs: the
+        // acknowledgement is on the wire and `subscribe` has not returned.
+        *shared.after_ack.lock().unwrap() = Some(Box::new(|shared: &Shared| {
+            shared
+                .subscribers
+                .broadcast(&Arc::from(&b"{\"event\":\"probe\"}\n"[..]));
+        }));
+        let (daemon_end, client_end) = UnixStream::pair().unwrap();
+        let writer: Writer = Arc::new(Mutex::new(daemon_end));
+        assert!(subscribe(7, &writer, &shared));
+        // Failure detection only: with the fix the event is already queued.
+        client_end
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut client = BufReader::new(client_end);
+        let mut ack = String::new();
+        client.read_line(&mut ack).unwrap();
+        assert!(
+            ack.contains("\"subscribed\":true"),
+            "first line was {ack:?}"
+        );
+        let mut event = String::new();
+        let read = client.read_line(&mut event);
+        assert!(
+            matches!(read, Ok(n) if n > 0) && event.contains("probe"),
+            "the event broadcast after the acknowledgement was lost: {read:?} {event:?}"
+        );
+    }
 }

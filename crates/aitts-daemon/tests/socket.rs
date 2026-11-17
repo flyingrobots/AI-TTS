@@ -192,43 +192,6 @@ fn a_slow_subscriber_does_not_block_other_subscribers() {
     );
 }
 
-/// Regression from #143 / PR #184: the acknowledgement was written before the
-/// connection joined the subscribers, so an event broadcast right after a client
-/// read its acknowledgement could be lost. Linux CI hit this window reliably.
-#[test]
-fn an_event_broadcast_after_the_acknowledgement_reaches_the_subscriber() {
-    let dir = tempfile::tempdir().unwrap();
-    let config = golden_config(dir.path());
-    let socket = config.socket.clone();
-    let daemon = aitts_daemon::start(config).unwrap();
-    let event: Event = serde_json::from_str(
-        r#"{"event":"settings_changed","settings":{"captions_enabled":true}}"#,
-    )
-    .unwrap();
-    let mut missed = 0;
-    for _ in 0..200 {
-        let client = UnixStream::connect(&socket).unwrap();
-        (&client).write_all(b"{\"op\":\"subscribe\"}\n").unwrap();
-        client
-            .set_read_timeout(Some(Duration::from_millis(500)))
-            .unwrap();
-        let mut client = BufReader::new(client);
-        let mut ack = Vec::new();
-        client.read_until(b'\n', &mut ack).unwrap();
-        assert_eq!(json(&ack)["subscribed"], true);
-        daemon.broadcast(&event);
-        let mut line = Vec::new();
-        if client.read_until(b'\n', &mut line).is_err() || line.is_empty() {
-            missed += 1;
-        }
-    }
-    assert_eq!(daemon.stop(STOP), aitts_daemon::StopOutcome::Clean);
-    assert_eq!(
-        missed, 0,
-        "{missed} of 200 subscribers missed the first event"
-    );
-}
-
 proptest! {
     #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
     #[test]
