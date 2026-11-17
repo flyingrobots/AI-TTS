@@ -1,0 +1,20 @@
+[package]
+name = "aitts-store"
+description = "The AI-TTS SQLite state file behind queue, history, settings, and voice interfaces"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+aitts-domain = { path = "../aitts-domain" }
+rusqlite = { version = "0.43", features = ["bundled"] }
+
+[dev-dependencies]
+proptest = { version = "1", default-features = false, features = ["std"] }
+serde_json = "1"
+tempfile = "3"

@@ -1,0 +1,80 @@
+{
+ "history": [],
+ "input": [
+  "utt_0027"
+ ],
+ "playback": [
+  "utt_0026"
+ ],
+ "settings": {
+  "playback_held": "true"
+ },
+ "utterances": [
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": null,
+   "id": "utt_0026",
+   "order_key": 1.0,
+   "playback": true,
+   "played_ms": null,
+   "priority": "normal",
+   "replay_of": null,
+   "segments": [
+    {
+     "audio_path": null,
+     "duration_ms": null,
+     "error": null,
+     "generation_artifact_id": null,
+     "index": 0,
+     "played_ms": null,
+     "state": "Queued",
+     "text": "first"
+    },
+    {
+     "audio_path": null,
+     "duration_ms": null,
+     "error": null,
+     "generation_artifact_id": null,
+     "index": 1,
+     "played_ms": null,
+     "state": "Queued",
+     "text": "second"
+    }
+   ],
+   "sensitivity": "confidential",
+   "source": null,
+   "speed": 1.0,
+   "state": "Paused",
+   "state_changed_at": 2004.0,
+   "submitted_at": 2001.0,
+   "text": "doc",
+   "voice": "v"
+  },
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": null,
+   "id": "utt_0027",
+   "order_key": 2.0,
+   "playback": true,
+   "played_ms": null,
+   "priority": "normal",
+   "replay_of": null,
+   "segments": [],
+   "sensitivity": "confidential",
+   "source": null,
+   "speed": 1.0,
+   "state": "Queued",
+   "state_changed_at": 2006.0,
+   "submitted_at": 2005.0,
+   "text": "whole",
+   "voice": "v"
+  }
+ ],
+ "voices": []
+}
