@@ -245,6 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- `aitts-artifacts` now uses `zip` 9 (resolved 9.6.1) instead of 2.6.1, which fixes GHSA-m665-v7pm-7grj (critical, ZIP cloaking parser differential; fixed in 9.0.5), GHSA-q7v9-x93c-xqv3 (high, unbounded symlink targets; fixed in 9.0.0), and GHSA-8hxf-qr8p-62x4 (medium, AES HMAC bypass on premature EOF; fixed in 9.0.0). The evidence export writes the same archive entries; only the tests' ZIP reader call changed for the new API.
 - Guided model setup checks every downloaded model file against a SHA-256 digest pinned in the catalog before any file is loaded, so a substituted or corrupted download (including pickled torch weights) is rejected instead of deserialized.
 - Guided setup creates its diagnostic log and runtime manifest exclusively with owner-only permissions and never writes through a symlink planted at either path.
 
