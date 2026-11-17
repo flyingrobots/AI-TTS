@@ -26,6 +26,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "aitts-client"
+version = "0.1.0"
+dependencies = [
+ "aitts-daemon",
+ "aitts-protocol",
+ "proptest",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "aitts-daemon"
 version = "0.1.0"
 dependencies = [
