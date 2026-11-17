@@ -176,6 +176,10 @@ async def _ready(
         if await asyncio.to_thread(daemon.has_exited):
             await _retire(daemon)
             await asyncio.wait_for(capture, timeout=1)
+            if failures:
+                # A monitor records its cause before it kills the child, so a
+                # kill observed here may be one whose cause was not yet seen.
+                raise DaemonProcessError(failures[0])
             detail = output.decode("utf-8", errors="replace").strip()
             message = f"daemon exited with status {daemon.process.returncode}: {detail}"
             raise DaemonProcessError(message)
