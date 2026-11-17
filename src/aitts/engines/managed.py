@@ -83,6 +83,8 @@ class ManagedEngine:
         if name == "chatterbox":
             self.supported_speeds = (1.0,)
         self._lock = threading.Lock()
+        # Guards only detaching the process and audio descriptor; close() never takes _lock.
+        self._lifecycle = threading.Lock()
         self._process: subprocess.Popen[bytes] | None = None
         self._audio: int | None = None
         self._buffer = bytearray()
@@ -105,6 +107,10 @@ class ManagedEngine:
             self._audio = audio_read
             try:
                 self._spawn(self.root, audio_write)
+            except BaseException:
+                self._audio = None
+                os.close(audio_read)
+                raise
             finally:
                 # Only the worker holds the write end, so its exit is an EOF here.
                 os.close(audio_write)
@@ -255,13 +261,14 @@ class ManagedEngine:
         self._stop_worker()
 
     def _stop_worker(self) -> None:
-        process = self._process
-        self._process = None
-        self._buffer.clear()
-        self.protocol_version = None
-        if self._audio is not None:
-            os.close(self._audio)
-            self._audio = None
+        # Detach exactly once: a racing caller sees nothing left to stop.
+        with self._lifecycle:
+            process, self._process = self._process, None
+            audio, self._audio = self._audio, None
+            self._buffer.clear()
+            self.protocol_version = None
+        if audio is not None:
+            os.close(audio)
         if process is not None:
             if process.poll() is None:
                 process.kill()
@@ -270,7 +277,6 @@ class ManagedEngine:
                 process.stdin.close()
             if process.stdout is not None:
                 process.stdout.close()
-            self._process = None
 
 
 class ManagedStreamingEngine(ManagedEngine):

@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+import threading
 import wave
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -378,4 +379,63 @@ worker_contract.main()
         assert received == [b"failfail"]
         assert list(engine.stream_synthesize("ok", "voice", 1.0)) == [b"okok"]
     finally:
+        engine.close()
+
+
+def _open_descriptors() -> int:
+    return len(list(Path("/dev/fd").iterdir()))
+
+
+def test_failed_worker_starts_leak_no_audio_descriptor(
+    worker_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oracle: PR #183 review; a spawn failure closes both ends of the audio pipe."""
+
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        message = "spawn refused"
+        raise OSError(message)
+
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    monkeypatch.setattr("aitts.engines.managed.subprocess.Popen", refuse)
+    before = _open_descriptors()
+    for _ in range(5):
+        with pytest.raises(OSError, match="spawn refused"):
+            engine.warmup()
+    assert _open_descriptors() == before
+    engine.close()
+
+
+def test_close_during_stream_exit_detaches_the_worker_exactly_once(
+    worker_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oracle: PR #183 review; close() racing a stream's cleanup raises nothing and kills once."""
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    real_close = os.close
+    closes: list[int] = []
+    raced = False
+
+    def close_with_racer(fd: int) -> None:
+        nonlocal raced
+        closes.append(fd)
+        if not raced:
+            raced = True
+            # Deterministic interleaving: the whole close() runs inside the stream's cleanup.
+            racer = threading.Thread(target=engine.close)
+            racer.start()
+            racer.join()
+        real_close(fd)
+
+    try:
+        stream = engine.stream_synthesize("A", "voice", 1.0)
+        assert next(stream) == b"AA"
+        process = engine._process
+        assert process is not None
+        audio = engine._audio
+        assert audio is not None
+        monkeypatch.setattr("aitts.engines.managed.os.close", close_with_racer)
+        stream.close()  # type: ignore[attr-defined]
+        assert closes.count(audio) == 1
+        assert process.poll() is not None
+    finally:
+        monkeypatch.undo()
         engine.close()

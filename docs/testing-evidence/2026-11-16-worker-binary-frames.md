@@ -29,6 +29,15 @@ Each fault was applied alone, the named tests were run, and the fault was revert
 
 The first version of the limit test sent only a header. It survived the limit fault, because end of file also refused it. It now sends the full oversized body.
 
+## Review fixes (CodeRabbit on PR #183)
+
+| Finding | Red on 701298e | Fix |
+|---|---|---|
+| A spawn failure left the audio read descriptor open | `test_failed_worker_starts_leak_no_audio_descriptor`: five failed starts, `assert 17 == 12` open descriptors | `_start` closes and clears the read end when the spawn raises |
+| `close()` racing a stream's cleanup closed the audio descriptor twice | `test_close_during_stream_exit_detaches_the_worker_exactly_once`: the whole `close()` runs inside the stream's `os.close` (injected, no sleeps); `OSError: [Errno 9] Bad file descriptor` | `_stop_worker` detaches the process and descriptor once under a separate lifecycle lock and closes them through locals; `close()` never takes the synthesis lock |
+
+Both tests pass after the fix; the full suite gives 1313 passed, 2 skipped.
+
 ## Time to first audio
 
 Acceptance: not more than before. Measured with `ManagedStreamingEngine` against a fake worker that yields one block of silence at once, so the figure is only the transfer cost on the path to first audio (spawn and model time are the same in both). 200 warm requests each. Apple M5 Pro, macOS, Python 3.14, load average about 9, 2026-11-16.
