@@ -223,7 +223,10 @@ fn an_event_broadcast_after_the_acknowledgement_reaches_the_subscriber() {
         }
     }
     assert_eq!(daemon.stop(STOP), aitts_daemon::StopOutcome::Clean);
-    assert_eq!(missed, 0, "{missed} of 200 subscribers missed the first event");
+    assert_eq!(
+        missed, 0,
+        "{missed} of 200 subscribers missed the first event"
+    );
 }
 
 proptest! {

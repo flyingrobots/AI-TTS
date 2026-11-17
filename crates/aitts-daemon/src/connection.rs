@@ -111,18 +111,35 @@ fn answer(id: u64, line: &[u8], writer: &Writer, shared: &Shared) -> bool {
             )
             .into_reply(),
         ),
-        Ok(Request::Subscribe { .. }) => {
-            let acknowledged = send(
-                writer,
-                &Reply::Subscribe(Subscribed {
-                    ok: Success,
-                    subscribed: Success,
-                }),
-            );
-            acknowledged && shared.subscribers.add(id, writer).is_ok()
-        }
+        Ok(Request::Subscribe { .. }) => subscribe(id, writer, shared),
         Ok(request) => send(writer, &ask(request, shared)),
     }
+}
+
+/// Join the subscribers, then acknowledge, under one hold of the writer lock.
+///
+/// Joining first means no event broadcast after the client reads its
+/// acknowledgement is lost; holding the lock keeps every event behind it.
+fn subscribe(id: u64, writer: &Writer, shared: &Shared) -> bool {
+    let Ok(ack) = encode_reply(&Reply::Subscribe(Subscribed {
+        ok: Success,
+        subscribed: Success,
+    })) else {
+        return false;
+    };
+    let mut output = lock(writer);
+    let joined = output
+        .try_clone()
+        .and_then(|stream| shared.subscribers.add(id, writer, stream));
+    if joined.is_err() {
+        return false;
+    }
+    if output.write_all(&ack).is_err() {
+        drop(output);
+        shared.subscribers.remove(id);
+        return false;
+    }
+    true
 }
 
 fn ask(request: Request, shared: &Shared) -> Reply {
