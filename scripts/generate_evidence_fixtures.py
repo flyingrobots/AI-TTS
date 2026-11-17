@@ -15,8 +15,8 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
+from unittest import mock
 
-from aitts.adapters import clip_evidence
 from aitts.adapters.clip_evidence import ClipEvidence
 
 FIXTURES = Path("crates/aitts-artifacts/tests/fixtures/evidence")
@@ -59,13 +59,17 @@ def main() -> None:
         root = Path(scratch) / "root"
         shutil.copytree(FIXTURES / "root", root)
         clips = [
-            {**clip, "audio_path": str(root / clip["audio_path"])} if clip.get("audio_path") else clip
+            {**clip, "audio_path": str(root / clip["audio_path"])}
+            if clip.get("audio_path")
+            else clip
             for clip in request["clips"]
         ]
         destination = Path(scratch) / "export.zip"
-        clip_evidence.runtime_metadata = lambda: RUNTIME
-        clip_evidence.time.time = lambda: EXPORTED_AT
-        ClipEvidence(root).export(destination, request["item"], clips)
+        with (
+            mock.patch("aitts.adapters.clip_evidence.runtime_metadata", return_value=RUNTIME),
+            mock.patch("aitts.adapters.clip_evidence.time.time", return_value=EXPORTED_AT),
+        ):
+            ClipEvidence(root).export(destination, request["item"], clips)
         shutil.copyfile(destination, FIXTURES / "python-export.zip")
 
 
