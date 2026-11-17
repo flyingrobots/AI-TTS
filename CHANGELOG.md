@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The Rust `aitts-daemon` joins a connection to its subscribers before writing the `subscribe` acknowledgement, under the same writer lock, so an event broadcast after a client reads its acknowledgement is never lost (regression from #143 / PR #184). Linux CI hung in `a_slow_subscriber_does_not_block_other_subscribers` when the first events were dropped.
+
 ### Changed
 
 - Model workers send streamed audio as length-prefixed binary frames on a second pipe instead of base64 in JSON lines (issue #126). The worker protocol is now version 2: the worker names its version in its first message, and the daemon refuses another version with `WorkerProtocolError`. A worker copied by an older AI-TTS must be refreshed in model setup (**Retry setup**, then **Refresh worker**); the model weights and environment are kept.

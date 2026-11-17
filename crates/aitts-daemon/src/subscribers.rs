@@ -32,9 +32,17 @@ pub(crate) struct Subscribers {
 }
 
 impl Subscribers {
-    /// Subscribe `connection`, whose writer already sent the acknowledgement.
-    pub(crate) fn add(&self, connection: u64, writer: &Writer) -> std::io::Result<()> {
-        let stream = lock(writer).try_clone()?;
+    /// Subscribe `connection` before its acknowledgement is written.
+    ///
+    /// The caller holds `writer`'s lock and writes the acknowledgement before
+    /// releasing it, so every event after the acknowledgement reaches the client
+    /// and none precedes it. `stream` is a clone of the locked stream.
+    pub(crate) fn add(
+        &self,
+        connection: u64,
+        writer: &Writer,
+        stream: UnixStream,
+    ) -> std::io::Result<()> {
         let (backlog, events) = sync_channel(BACKLOG_EVENTS);
         let output = Arc::clone(writer);
         std::thread::Builder::new()
