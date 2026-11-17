@@ -1,0 +1,164 @@
+{
+ "history": [
+  "utt_0002",
+  "utt_0001"
+ ],
+ "input": [
+  "utt_0005",
+  "utt_0003"
+ ],
+ "playback": [
+  "utt_0004"
+ ],
+ "settings": {
+  "default_voice": "af_heart",
+  "speed": "1.5"
+ },
+ "utterances": [
+  {
+   "audio_path": "/cache/played.wav",
+   "duration_ms": 900,
+   "engine": "kokoro",
+   "error": null,
+   "generation_artifact_id": "played",
+   "id": "utt_0001",
+   "order_key": 1.0,
+   "playback": true,
+   "played_ms": 900,
+   "priority": "normal",
+   "replay_of": null,
+   "segments": [],
+   "sensitivity": "public",
+   "source": "agent-a",
+   "speed": 1.25,
+   "state": "Played",
+   "state_changed_at": 1005.0,
+   "submitted_at": 1001.0,
+   "text": "played text",
+   "voice": "af_heart"
+  },
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": "engine exploded",
+   "generation_artifact_id": null,
+   "id": "utt_0002",
+   "order_key": 2.0,
+   "playback": true,
+   "played_ms": null,
+   "priority": "urgent",
+   "replay_of": null,
+   "segments": [],
+   "sensitivity": "internal",
+   "source": null,
+   "speed": 1.0,
+   "state": "Failed",
+   "state_changed_at": 1008.0,
+   "submitted_at": 1006.0,
+   "text": "failed text",
+   "voice": "bm_daniel"
+  },
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": null,
+   "id": "utt_0003",
+   "order_key": 3.0,
+   "playback": false,
+   "played_ms": null,
+   "priority": "normal",
+   "replay_of": "utt_0001",
+   "segments": [],
+   "sensitivity": "confidential",
+   "source": null,
+   "speed": 1.0,
+   "state": "Queued",
+   "state_changed_at": 1009.0,
+   "submitted_at": 1009.0,
+   "text": "replay",
+   "voice": "af_heart"
+  },
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": null,
+   "id": "utt_0004",
+   "order_key": 4.0,
+   "playback": true,
+   "played_ms": null,
+   "priority": "normal",
+   "replay_of": null,
+   "segments": [
+    {
+     "audio_path": "/cache/seg0.wav",
+     "duration_ms": 300,
+     "error": null,
+     "generation_artifact_id": "seg0",
+     "index": 0,
+     "played_ms": null,
+     "state": "Ready",
+     "text": "one"
+    },
+    {
+     "audio_path": null,
+     "duration_ms": null,
+     "error": null,
+     "generation_artifact_id": null,
+     "index": 1,
+     "played_ms": null,
+     "state": "Queued",
+     "text": "two"
+    }
+   ],
+   "sensitivity": "confidential",
+   "source": null,
+   "speed": 1.0,
+   "state": "Ready",
+   "state_changed_at": 1012.0,
+   "submitted_at": 1010.0,
+   "text": "doc",
+   "voice": "bm_daniel"
+  },
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": null,
+   "id": "utt_0005",
+   "order_key": 2.0,
+   "playback": true,
+   "played_ms": null,
+   "priority": "preempt",
+   "replay_of": null,
+   "segments": [],
+   "sensitivity": "confidential",
+   "source": null,
+   "speed": 1.0,
+   "state": "Queued",
+   "state_changed_at": 1013.0,
+   "submitted_at": 1013.0,
+   "text": "head",
+   "voice": "v"
+  }
+ ],
+ "voices": [
+  {
+   "assigned_at": 1014.0,
+   "pinned": true,
+   "source": "listener-pick",
+   "voice": "bm_daniel"
+  },
+  {
+   "assigned_at": 1015.0,
+   "pinned": false,
+   "source": "agent-a",
+   "voice": "af_heart"
+  }
+ ]
+}

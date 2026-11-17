@@ -65,3 +65,6 @@ xcuserdata/
 *.mp3
 *.pcm
 .scratch/
+
+# Python- and Rust-written store fixtures are test inputs.
+!crates/aitts-store/tests/fixtures/*.db

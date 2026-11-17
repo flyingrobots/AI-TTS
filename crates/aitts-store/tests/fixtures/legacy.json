@@ -1,0 +1,59 @@
+{
+ "history": [
+  "utt_old1"
+ ],
+ "input": [
+  "utt_old2"
+ ],
+ "playback": [],
+ "settings": {
+  "speed": "1.0"
+ },
+ "utterances": [
+  {
+   "audio_path": "/cache/gen_old1.wav",
+   "duration_ms": 500,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": "gen_old1",
+   "id": "utt_old1",
+   "order_key": 1.0,
+   "playback": true,
+   "played_ms": 500,
+   "priority": "normal",
+   "replay_of": null,
+   "segments": [],
+   "sensitivity": "confidential",
+   "source": null,
+   "speed": 1.0,
+   "state": "Played",
+   "state_changed_at": 11.0,
+   "submitted_at": 10.0,
+   "text": "before engines",
+   "voice": "af_heart"
+  },
+  {
+   "audio_path": null,
+   "duration_ms": null,
+   "engine": null,
+   "error": null,
+   "generation_artifact_id": null,
+   "id": "utt_old2",
+   "order_key": 2.0,
+   "playback": true,
+   "played_ms": null,
+   "priority": "normal",
+   "replay_of": null,
+   "segments": [],
+   "sensitivity": "public",
+   "source": "agent",
+   "speed": 1.0,
+   "state": "Queued",
+   "state_changed_at": 12.0,
+   "submitted_at": 12.0,
+   "text": "still queued",
+   "voice": "af_heart"
+  }
+ ],
+ "voices": []
+}
