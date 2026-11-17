@@ -142,6 +142,7 @@ Read these in order. They are the current deliverable.
 | [`docs/design/architecture.md`](docs/design/architecture.md) | Components, the two queues, utterance lifecycle, IPC, persistence |
 | [`crates/aitts-protocol/README.md`](crates/aitts-protocol/README.md) | Typed Rust wire messages, JSON Schema export, and compatibility limits |
 | [`crates/aitts-store/README.md`](crates/aitts-store/README.md) | Rust access to the shared SQLite state file through queue, history, settings, and voice interfaces |
+| [`crates/aitts-daemon/README.md`](crates/aitts-daemon/README.md) | The Rust `ai-ttsd` skeleton: socket lease, Unix socket server, and the read operations |
 | [`docs/design/one-utterance.md`](docs/design/one-utterance.md) | The life of one utterance in order, module by module. Start here to change code |
 | [`docs/design/engine-evaluation.md`](docs/design/engine-evaluation.md) | Whether Kokoro-82M is still the right engine; local and cloud alternatives |
 | [`docs/design/tech-stack.md`](docs/design/tech-stack.md) | Language and framework choices, with the rejected options and why |

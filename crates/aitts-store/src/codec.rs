@@ -30,6 +30,14 @@ const STATES: [(State, &str); 10] = [
     (State::Failed, "Failed"),
 ];
 
+/// The position of `state` in lifecycle order.
+pub(crate) fn state_rank(state: State) -> usize {
+    STATES
+        .iter()
+        .position(|(known, _)| *known == state)
+        .unwrap_or(STATES.len())
+}
+
 pub(crate) fn state_name(state: State) -> &'static str {
     STATES
         .iter()
@@ -37,7 +45,7 @@ pub(crate) fn state_name(state: State) -> &'static str {
         .map_or("", |(_, name)| name)
 }
 
-fn state(value: &str) -> Result<State> {
+pub(crate) fn state(value: &str) -> Result<State> {
     STATES
         .iter()
         .find(|(_, name)| *name == value)
