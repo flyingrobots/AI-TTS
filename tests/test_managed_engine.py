@@ -6,14 +6,22 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+import threading
 import wave
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
+from aitts import model_worker
 from aitts.engine import SynthesisError
 from aitts.engines import managed
 from aitts.engines.managed import ManagedEngine, ManagedStreamingEngine
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 pytestmark = [
     pytest.mark.medium,
@@ -222,4 +230,212 @@ def test_one_worker_answers_a_thousand_short_requests_in_order(worker_root: Path
                 b"\x03\x00" * 100,
             ], index
     finally:
+        engine.close()
+
+
+# Issue #126: audio leaves the control pipe and moves as length-prefixed binary
+# frames on a second pipe; the first control message names the protocol version.
+
+
+def _chunked_reader(data: bytes, sizes: list[int]) -> Callable[[int], bytes]:
+    """Return a pipe double that answers each read with at most the next drawn size."""
+    view = memoryview(data)
+    position = 0
+    turn = 0
+
+    def read(limit: int) -> bytes:
+        nonlocal position, turn
+        size = min(limit, sizes[turn % len(sizes)])
+        turn += 1
+        block = bytes(view[position : position + size])
+        position += len(block)
+        return block
+
+    return read
+
+
+@settings(max_examples=200, deadline=None)
+@given(
+    blocks=st.lists(st.binary(min_size=1, max_size=4096), max_size=8),
+    sizes=st.lists(st.integers(min_value=1, max_value=5000), min_size=1, max_size=16),
+)
+def test_random_frames_and_random_read_sizes_give_the_same_bytes(
+    blocks: list[bytes], sizes: list[int]
+) -> None:
+    """Oracle: issue #126 fuzz; any read pattern recovers each frame byte for byte."""
+    wire = b"".join(model_worker.encode_frame(block) for block in blocks)
+    wire += model_worker.encode_frame(b"")
+    read = _chunked_reader(wire, sizes)
+    received = []
+    while frame := managed.read_frame(read):
+        received.append(frame)
+    assert received == blocks
+
+
+def test_zero_length_frame_and_frame_at_the_limit_are_read_exactly() -> None:
+    """Oracle: issue #126 edges; the empty frame is the end mark and the limit is inclusive."""
+    largest = bytes(range(256)) * (model_worker.FRAME_LIMIT // 256)
+    wire = model_worker.encode_frame(largest) + model_worker.encode_frame(b"")
+    read = _chunked_reader(wire, [65536])
+    assert managed.read_frame(read) == largest
+    assert managed.read_frame(read) == b""
+
+
+@pytest.mark.parametrize("cut", [0, 2, 4, 5, 4 + 99])
+def test_pipe_closed_inside_a_frame_is_never_read_as_a_full_frame(cut: int) -> None:
+    """Oracle: issue #126 known failure mode; a partial frame is a typed failure."""
+    wire = model_worker.encode_frame(b"\x01" * 100)[:cut]
+    with pytest.raises(SynthesisError, match="invalid response"):
+        managed.read_frame(_chunked_reader(wire, [7]))
+
+
+def test_frame_above_the_limit_is_refused_before_it_is_read() -> None:
+    """Oracle: issue #126 edge; a length above 512 KiB is refused even when the bytes follow."""
+    size = model_worker.FRAME_LIMIT + 1
+    wire = size.to_bytes(4, "big") + b"\x00" * size
+    with pytest.raises(SynthesisError, match="invalid response"):
+        managed.read_frame(_chunked_reader(wire, [65536]))
+
+
+def test_worker_audio_arrives_byte_for_byte_as_binary_frames(worker_root: Path) -> None:
+    """Oracle: issue #126 golden; a block larger than one JSON line could hold arrives intact."""
+    block = bytes(range(256)) * (3 * model_worker.FRAME_LIMIT // 256)
+    _worker(
+        worker_root,
+        f"""class Big(FakeEngine):
+    def stream_synthesize(self, text, voice, speed):
+        yield bytes(range(256)) * {len(block) // 256}
+        yield b"\\x05\\x00"
+worker_contract.local_engine = lambda name, root: Big(["voice"], duration_ms=100)
+worker_contract.main()
+""",
+    )
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        assert b"".join(engine.stream_synthesize("big", "voice", 1.0)) == block + b"\x05\x00"
+    finally:
+        engine.close()
+
+
+@pytest.mark.parametrize(
+    "hello",
+    ['{"protocol": 1}', '{"protocol": "2"}', '{"ok": true}'],
+)
+def test_daemon_refuses_a_worker_with_another_protocol_version(
+    worker_root: Path, hello: str
+) -> None:
+    """Oracle: issue #126; a version other than the daemon's is a typed refusal at start."""
+    (worker_root / "adapter/aitts/model_worker.py").write_text(
+        f"import sys, time\nsys.stdout.write({hello!r} + '\\n')\n"
+        "sys.stdout.flush()\ntime.sleep(10)\n"
+    )
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        with pytest.raises(managed.WorkerProtocolError, match="protocol"):
+            engine.warmup()
+    finally:
+        engine.close()
+
+
+def test_daemon_refuses_a_worker_that_exits_before_the_handshake(worker_root: Path) -> None:
+    """Oracle: issue #126; an older worker that cannot parse the new start fails typed."""
+    (worker_root / "adapter/aitts/model_worker.py").write_text("raise SystemExit(2)\n")
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        with pytest.raises(managed.WorkerProtocolError, match="protocol"):
+            engine.warmup()
+    finally:
+        engine.close()
+
+
+def test_worker_announces_the_daemon_protocol_version_first(worker_root: Path) -> None:
+    """Oracle: issue #126; the worker and the daemon agree on one version at start."""
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        engine.warmup()
+        assert engine.protocol_version == model_worker.PROTOCOL_VERSION == 2
+    finally:
+        engine.close()
+
+
+def test_model_failure_inside_a_stream_ends_the_frames_and_fails_typed(worker_root: Path) -> None:
+    """Oracle: issue #126; a model error closes the audio frames, so the reply is never lost."""
+    _worker(
+        worker_root,
+        """class Failing(FakeEngine):
+    def stream_synthesize(self, text, voice, speed):
+        yield text.encode() * 2
+        if text == "fail":
+            raise RuntimeError("model failed")
+worker_contract.local_engine = lambda name, root: Failing(["voice"], duration_ms=100)
+worker_contract.main()
+""",
+    )
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        received: list[bytes] = []
+        with pytest.raises(SynthesisError, match="could not render"):
+            received.extend(engine.stream_synthesize("fail", "voice", 1.0))
+        assert received == [b"failfail"]
+        assert list(engine.stream_synthesize("ok", "voice", 1.0)) == [b"okok"]
+    finally:
+        engine.close()
+
+
+def _open_descriptors() -> int:
+    return len(list(Path("/dev/fd").iterdir()))
+
+
+def test_failed_worker_starts_leak_no_audio_descriptor(
+    worker_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oracle: PR #183 review; a spawn failure closes both ends of the audio pipe."""
+
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        message = "spawn refused"
+        raise OSError(message)
+
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    monkeypatch.setattr("aitts.engines.managed.subprocess.Popen", refuse)
+    before = _open_descriptors()
+    for _ in range(5):
+        with pytest.raises(OSError, match="spawn refused"):
+            engine.warmup()
+    assert _open_descriptors() == before
+    engine.close()
+
+
+def test_close_during_stream_exit_detaches_the_worker_exactly_once(
+    worker_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oracle: PR #183 review; close() racing a stream's cleanup raises nothing and kills once."""
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    real_close = os.close
+    closes: list[int] = []
+    raced = False
+
+    def close_with_racer(fd: int) -> None:
+        nonlocal raced
+        closes.append(fd)
+        if not raced:
+            raced = True
+            # Deterministic interleaving: the whole close() runs inside the stream's cleanup.
+            racer = threading.Thread(target=engine.close)
+            racer.start()
+            racer.join()
+        real_close(fd)
+
+    try:
+        stream = engine.stream_synthesize("A", "voice", 1.0)
+        assert next(stream) == b"AA"
+        process = engine._process
+        assert process is not None
+        audio = engine._audio
+        assert audio is not None
+        monkeypatch.setattr("aitts.engines.managed.os.close", close_with_racer)
+        stream.close()  # type: ignore[attr-defined]
+        assert closes.count(audio) == 1
+        assert process.poll() is not None
+    finally:
+        monkeypatch.undo()
         engine.close()
