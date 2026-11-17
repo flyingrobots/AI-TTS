@@ -36,7 +36,9 @@ lines of at most `aitts_protocol::MAX_REQUEST_BYTES`. One API thread owns the
 store and answers requests in arrival order, as the single Python event loop
 does. A client that sends half a line blocks only its own thread.
 
-A `subscribe` request gets its acknowledgement, then events. Each subscriber
+A `subscribe` request gets its acknowledgement, then events. The connection
+joins the subscribers before the acknowledgement is written, so every event
+broadcast after the client reads it arrives, and none arrives before it. Each subscriber
 has a backlog of 256 event lines and its own writer thread. A broadcast never
 waits on a socket: when a backlog is full, the daemon closes that connection,
 so the client knows it missed events and other subscribers continue.

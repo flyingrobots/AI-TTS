@@ -98,3 +98,26 @@ test shuffling, so the runs were not shuffled.
 - Error messages are not compared with Python messages; only error types are.
 - There is no load test beyond 50 clients and no fuzzing campaign beyond the
   64 property cases.
+
+## Subscribe acknowledgement race (regression from #143 / PR #184)
+
+Linux CI hung in `a_slow_subscriber_does_not_block_other_subscribers`. The
+daemon wrote the `subscribe` acknowledgement before it added the connection to
+the subscribers, so a broadcast sent right after the client read the
+acknowledgement could be dropped. The test then waited forever for that event.
+
+- RED, Linux (`rust` container, source copied in, `origin/main`):
+  `a_slow_subscriber_does_not_block_other_subscribers has been running for over
+  60 seconds`, killed by the timeout.
+- RED, deterministic: the unit test
+  `connection::tests::an_event_broadcast_right_after_the_acknowledgement_is_delivered_after_it`
+  broadcasts through a test-only hook at the one interleaving point the bug
+  needs (acknowledgement written, `subscribe` not returned). With the original
+  ordering planted (acknowledge, hook, then join) it failed 3 of 3 runs:
+  `the event broadcast after the acknowledgement was lost: Err(... WouldBlock ...)`.
+- GREEN after the fix (join, then acknowledge, under one writer lock): the
+  CI-equivalent `cargo fmt --check`, `cargo clippy --workspace --all-targets
+  --locked -- -D warnings`, `timeout 120s cargo test --workspace --locked` and
+  the release-profile test pass on Linux in the container and on macOS. The
+  daemon suites then ran 10 times on each platform: 6 of 6 binaries passed each
+  time. The stable toolchain has no test shuffling, so the runs were not shuffled.
