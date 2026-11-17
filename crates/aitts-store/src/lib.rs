@@ -12,6 +12,7 @@
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
 mod codec;
+mod counts;
 pub mod history;
 pub mod queue;
 mod schema;
