@@ -162,6 +162,7 @@ fn a_slow_subscriber_does_not_block_other_subscribers() {
     let slow = UnixStream::connect(&socket).unwrap();
     (&slow).write_all(subscribe).unwrap();
     assert_eq!(json(&read_line(&slow))["subscribed"], true);
+    slow.set_read_timeout(Some(STOP)).unwrap();
     let fast = UnixStream::connect(&socket).unwrap();
     (&fast).write_all(subscribe).unwrap();
     let mut fast = BufReader::new(fast);
@@ -181,7 +182,10 @@ fn a_slow_subscriber_does_not_block_other_subscribers() {
         assert!(!line.is_empty(), "the reading subscriber was dropped");
     }
     let elapsed = started.elapsed();
+    // The lagging subscriber was closed: its stream reaches end of input.
+    let closed = std::io::copy(&mut &slow, &mut std::io::sink()).is_ok();
     assert_eq!(daemon.stop(STOP), aitts_daemon::StopOutcome::Clean);
+    assert!(closed, "the lagging subscriber was never closed");
     assert!(
         elapsed < Duration::from_secs(30),
         "broadcast took {elapsed:?}"

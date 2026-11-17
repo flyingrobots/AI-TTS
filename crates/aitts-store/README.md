@@ -17,6 +17,7 @@ identity from audio file names. Four small interfaces then read and write it:
 | `Store::history()` | `list` (newest first, paged by an utterance id), `remove`, `clear` |
 | `Store::settings()` | `get` with a default, `has`, `all`, `set` |
 | `Store::voices()` | `get`, `list`, `claimed`, `claim` (never replaces a pin), `pin`, `release` |
+| `Store::counts()` | rows per lifecycle state, in lifecycle order, without empty states |
 
 The caller supplies the clock and mints each `utt_…` identifier. Lifecycle
 legality comes from `aitts_domain::utterance::State`. Each write is one

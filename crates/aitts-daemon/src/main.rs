@@ -8,6 +8,8 @@
 
 #![forbid(unsafe_code)]
 
+use std::fs::DirBuilder;
+use std::os::unix::fs::DirBuilderExt;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -51,11 +53,16 @@ fn main() -> ExitCode {
         eprintln!("ai-ttsd: set AI_TTS_HOME or HOME");
         return ExitCode::FAILURE;
     };
-    if let Some(parent) = config.socket.parent()
-        && let Err(error) = std::fs::create_dir_all(parent)
-    {
-        eprintln!("ai-ttsd: cannot create {}: {error}", parent.display());
-        return ExitCode::FAILURE;
+    let parents = [config.database.parent(), config.socket.parent()];
+    for directory in parents.into_iter().flatten() {
+        if let Err(error) = DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(directory)
+        {
+            eprintln!("ai-ttsd: cannot create {}: {error}", directory.display());
+            return ExitCode::FAILURE;
+        }
     }
     let mut signals = match Signals::new([SIGTERM, SIGINT, SIGHUP]) {
         Ok(signals) => signals,

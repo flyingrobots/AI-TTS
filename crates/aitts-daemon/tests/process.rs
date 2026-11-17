@@ -87,8 +87,22 @@ fn a_second_process_refuses_to_start_while_the_first_runs() {
     let _ = first.kill();
     assert!(!second.status.success());
     assert!(
-        String::from_utf8_lossy(&second.stderr).contains("already"),
+        String::from_utf8_lossy(&second.stderr).contains("another daemon is already running"),
         "{}",
         String::from_utf8_lossy(&second.stderr)
     );
+}
+
+#[test]
+fn a_missing_home_is_created_private_to_its_owner() {
+    use std::os::unix::fs::PermissionsExt;
+    let parent = tempfile::tempdir().unwrap();
+    let home = parent.path().join("ai-tts");
+    let mut child = daemon(&home).spawn().unwrap();
+    wait_for_socket(&home, &mut child);
+    let mode = std::fs::metadata(&home).unwrap().permissions().mode() & 0o777;
+    signal(&child, "TERM");
+    let _ = wait_with_limit(&mut child, STOP_LIMIT);
+    let _ = child.kill();
+    assert_eq!(mode, 0o700, "home mode was {mode:o}");
 }
