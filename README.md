@@ -143,6 +143,7 @@ Read these in order. They are the current deliverable.
 | [`crates/aitts-engine/README.md`](crates/aitts-engine/README.md) | Rust engine interface, model worker supervisor, loopback HTTP engine, model catalog and setup digest check |
 | [`crates/aitts-protocol/README.md`](crates/aitts-protocol/README.md) | Typed Rust wire messages, JSON Schema export, and compatibility limits |
 | [`crates/aitts-store/README.md`](crates/aitts-store/README.md) | Rust access to the shared SQLite state file through queue, history, settings, and voice interfaces |
+| [`crates/aitts-cli/README.md`](crates/aitts-cli/README.md) | The Rust `ai-tts` command-line client: grammar, requests, JSON replies and exit statuses of the Python CLI |
 | [`crates/aitts-daemon/README.md`](crates/aitts-daemon/README.md) | The Rust `ai-ttsd` skeleton: socket lease, Unix socket server, and the read operations |
 | [`docs/design/one-utterance.md`](docs/design/one-utterance.md) | The life of one utterance in order, module by module. Start here to change code |
 | [`docs/design/engine-evaluation.md`](docs/design/engine-evaluation.md) | Whether Kokoro-82M is still the right engine; local and cloud alternatives |

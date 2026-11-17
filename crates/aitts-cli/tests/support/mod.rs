@@ -78,10 +78,10 @@ impl Outcome {
 
 /// Run `ai-tts --socket <socket> <argv...>` in process.
 pub(crate) fn run(socket: &Path, argv: &[&str]) -> Outcome {
-    let mut args: Vec<OsString> = vec!["--socket".into(), socket.into()];
-    args.extend(argv.iter().map(OsString::from));
+    let mut command: Vec<OsString> = vec!["--socket".into(), socket.into()];
+    command.extend(argv.iter().map(OsString::from));
     let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
-    let status = aitts_cli::run(args, &Environment::default(), &mut stdout, &mut stderr);
+    let status = aitts_cli::run(command, &Environment::default(), &mut stdout, &mut stderr);
     Outcome { status, stdout }
 }
 
