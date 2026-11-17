@@ -13,14 +13,16 @@ import asyncio
 import contextlib
 import logging
 import os
+import shutil
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from blake3 import blake3
 
 from aitts import __version__
+from aitts.adapter_identity import adapter_sha256
 from aitts.adapters.audio_artifacts import FileAudioArtifacts
 from aitts.adapters.clip_evidence import ClipEvidence
 from aitts.adapters.diagnostic_logging import utterance_trace
@@ -59,6 +61,7 @@ from aitts.model_setup import (
     RuntimeInstaller,
     SetupCancelledError,
     in_process_available,
+    installed_adapter_status,
     installed_runtime,
     supported_model,
 )
@@ -71,6 +74,8 @@ from aitts.synthesis import SynthesisPool
 from aitts.voice_registry import VoiceRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from aitts.application.input_activity import InputActivityPort
     from aitts.engine import Engine
     from aitts.playback import AudioSink
@@ -1317,6 +1322,7 @@ class Daemon:
 
     def _model_setup_catalog(self) -> list[dict[str, Any]]:
         rows = []
+        current_sha256 = adapter_sha256(Path(__file__).parent)
         for name, model in MODELS.items():
             state = self._registry.state(name) if name in self._engines else "not installed"
             engine = self._engines.get(name)
@@ -1332,7 +1338,9 @@ class Daemon:
             )
             setup = self._setup_states.get(name, {})
             reported = setup.get("state", state)
-            if reported == "ready":
+            # Cancellation does not repair a failed incumbent: retain the failure
+            # state used by setup admission, and keep the cancellation message.
+            if reported == "ready" or (reported == "cancelled" and state == "failed"):
                 reported = state
             rows.append(
                 {
@@ -1344,11 +1352,15 @@ class Daemon:
                     "state": reported,
                     "message": setup.get("message", ""),
                     "incompatible": supported_model(name),
+                    "adapter_status": installed_adapter_status(
+                        self._home, name, current_sha256=current_sha256
+                    ),
                 }
             )
         return rows
 
     async def _op_model_setup(self, payload: dict[str, Any]) -> dict[str, Any]:
+        refresh_only = self._parse_bool(payload, "refresh_only", default=False)
         name = payload.get("name")
         if not isinstance(name, str) or name not in MODELS:
             raise ApiError(BAD_REQUEST, "choose a supported local speech model")
@@ -1359,17 +1371,42 @@ class Daemon:
             raise ApiError(ILLEGAL_STATE, "wait for model restart to finish")
         if self._setup_task is not None and not self._setup_task.done():
             raise ApiError(ILLEGAL_STATE, "another model setup is in progress")
+        if self._setup_worker is not None:
+            raise ApiError(
+                ILLEGAL_STATE,
+                "A setup worker could not close. Restart AI-TTS before retrying.",
+            )
         if name in self._engines and self._registry.state(name) == "loading":
             raise ApiError(ILLEGAL_STATE, "this model is already preparing")
-        if name in self._engines and self._registry.state(name) == "ready":
-            return {"ok": True, "state": "ready"}
+        adapter_status = installed_adapter_status(
+            self._home, name, current_sha256=adapter_sha256(Path(__file__).parent)
+        )
         repair = self._setup_states.get(name, {}).get("state") == "failed" or (
             name in self._engines and self._registry.state(name) == "failed"
         )
+        if refresh_only and (repair or adapter_status is None):
+            raise ApiError(
+                ILLEGAL_STATE,
+                "Code-only refresh is unavailable. Review full setup before retrying.",
+            )
+        if (
+            name in self._engines
+            and self._registry.state(name) == "ready"
+            and not repair
+            and adapter_status not in {"stale", "unknown"}
+        ):
+            return {"ok": True, "state": "ready"}
         self._setup_cancel = threading.Event()
         self._setup_states[name] = {"state": "installing", "message": "Starting setup"}
+        mode: Literal["reuse", "install", "refresh"] = (
+            "install"
+            if repair
+            else "refresh"
+            if refresh_only or adapter_status in {"stale", "unknown"}
+            else "reuse"
+        )
         self._setup_task = asyncio.create_task(
-            self._install_model(name, repair=repair), name="aitts-model-setup"
+            self._install_model(name, mode=mode), name="aitts-model-setup"
         )
         self._server.broadcast({"event": "model_setup_changed"})
         return {"ok": True, "state": "installing"}
@@ -1381,7 +1418,9 @@ class Daemon:
             await asyncio.to_thread(self._setup_worker.close)
         return {"ok": True}
 
-    async def _install_model(self, name: str, *, repair: bool = False) -> None:
+    async def _install_model(
+        self, name: str, *, mode: Literal["reuse", "install", "refresh"] = "reuse"
+    ) -> None:
         loop = asyncio.get_running_loop()
         pool = self._pool
 
@@ -1390,17 +1429,13 @@ class Daemon:
             loop.call_soon_threadsafe(self._server.broadcast, {"event": "model_setup_changed"})
 
         worker = None
-        installation = None
+        candidate = None
         paused = False
+        failure: BaseException | None = None
         try:
-            root = None if repair else installed_runtime(self._home, name)
-            if root is None:
-                installation = asyncio.create_task(
-                    asyncio.to_thread(
-                        self._model_installer.install, name, self._setup_cancel, progress
-                    )
-                )
-                root = await asyncio.shield(installation)
+            root = await self._setup_root(name, mode, progress)
+            if mode == "refresh":
+                candidate = root
             self._check_setup_cancelled()
             progress("Loading model")
             worker = managed_engine(name, root)
@@ -1413,26 +1448,79 @@ class Daemon:
                 await self._await_setup_quiescence()
             self._check_setup_cancelled()
             previous = self._engines.get(name)
+            if candidate is not None:
+                self._model_installer.publish(name, candidate)
+                candidate = None
             self._publish_model(worker)
             self._setup_worker = None
             worker = None
             await self._retire_runtime(previous)
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as error:
+            failure = error
             self._setup_cancel.set()
-            if installation is not None:
-                with contextlib.suppress(Exception):
-                    await asyncio.shield(installation)
             raise
-        except Exception:  # noqa: BLE001 - recoverable and content-free setup failures
+        except Exception as error:  # noqa: BLE001 - recoverable and content-free setup failures
+            failure = error
             self._record_setup_failure(name)
         finally:
-            self._setup_worker = None
+            try:
+                await self._cleanup_model_setup(name, worker, candidate, failure)
+            finally:
+                if pool is not None and paused:
+                    pool.enabled.set()
+                    pool.notify()
+                self._server.broadcast({"event": "model_setup_changed"})
+
+    async def _cleanup_model_setup(
+        self,
+        name: str,
+        worker: ManagedEngine | None,
+        candidate: Path | None,
+        failure: BaseException | None,
+    ) -> None:
+        """Retain failed-close custody and report cleanup without losing the original failure."""
+        try:
             if worker is not None:
                 await asyncio.to_thread(worker.close)
-            if pool is not None and paused:
-                pool.enabled.set()
-                pool.notify()
-            self._server.broadcast({"event": "model_setup_changed"})
+            self._setup_worker = None
+            if candidate is not None:
+                await asyncio.to_thread(shutil.rmtree, candidate)
+        except Exception as error:
+            self._setup_states[name] = {
+                "state": "failed",
+                "message": "Setup cleanup failed. Restart AI-TTS before retrying.",
+            }
+            log.warning("event=model_setup_cleanup_failed")
+            if isinstance(failure, asyncio.CancelledError):
+                raise failure from error
+            raise error from failure
+
+    async def _setup_root(
+        self,
+        name: str,
+        mode: Literal["reuse", "install", "refresh"],
+        progress: Callable[[str], None],
+    ) -> Path:
+        """Own the staging thread through cancellation, then transfer the candidate to setup."""
+        if mode == "reuse":
+            root = installed_runtime(self._home, name)
+            if root is not None:
+                return root
+        operation = (
+            self._model_installer.refresh if mode == "refresh" else self._model_installer.install
+        )
+        installation = asyncio.create_task(
+            asyncio.to_thread(operation, name, self._setup_cancel, progress)
+        )
+        try:
+            return await asyncio.shield(installation)
+        except asyncio.CancelledError:
+            self._setup_cancel.set()
+            with contextlib.suppress(Exception):
+                staged = await asyncio.shield(installation)
+                if mode == "refresh":
+                    await asyncio.to_thread(shutil.rmtree, staged)
+            raise
 
     def _check_setup_cancelled(self) -> None:
         if self._setup_cancel.is_set():

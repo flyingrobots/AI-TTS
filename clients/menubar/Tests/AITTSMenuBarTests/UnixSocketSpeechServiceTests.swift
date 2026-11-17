@@ -15,6 +15,25 @@ final class UnixSocketSpeechServiceTests: XCTestCase {
         executionTimeAllowance = 15
     }
 
+    func testShownRefreshConsentSurvivesCatalogReplacementOnTheWire() throws {
+        let shown = LocalSpeechModel(name: "chatterbox", title: "Chatterbox", description: "Local",
+                                     installed: true, selected: false, state: "ready", message: "",
+                                     adapterStatus: .unknown)
+        let replacement = LocalSpeechModel(name: "chatterbox", title: "Chatterbox", description: "Local",
+                                           installed: true, selected: false, state: "failed", message: "Failed",
+                                           adapterStatus: .unknown)
+        let transport = RecordingDaemonTransport()
+        let service = UnixSocketSpeechService(transport: transport)
+        try service.perform(shown.setupCommand)
+        try service.perform(replacement.setupCommand)
+        let requests = try transport.canonicalRequests()
+        let expected = try canonicalize([
+            ["op": "model_setup", "name": "chatterbox", "refresh_only": true],
+            ["op": "model_setup", "name": "chatterbox"]
+        ])
+        XCTAssertEqual(requests, expected)
+    }
+
     func testVoiceLanguagesDecodeWithEnglishFallbackForOlderDaemons() throws {
         var configured = snapshotResponse
         configured["settings"] = ["voice_languages": ["en", "es"]]

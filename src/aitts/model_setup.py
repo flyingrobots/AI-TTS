@@ -9,14 +9,16 @@ import importlib.util
 import json
 import os
 import platform
+import re
 import select
 import shutil
 import signal
 import subprocess
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, BinaryIO
+from typing import TYPE_CHECKING, BinaryIO, Literal
 
+from aitts.adapter_identity import adapter_sha256
 from aitts.adapters.private_files import PRIVATE_FILE_MODE, ensure_private_directory
 from aitts.engines.managed import runtime_environment
 from aitts.model_catalog import MODELS, WORKER_PROTOCOL_VERSION
@@ -88,6 +90,22 @@ def installed_runtime(home: Path, name: str) -> Path | None:
         return None
     else:
         return root
+
+
+def installed_adapter_status(
+    home: Path, name: str, *, current_sha256: str
+) -> Literal["current", "stale", "unknown"] | None:
+    """Report identity without changing usability or starting any runtime work."""
+    if installed_runtime(home, name) is None:
+        return None
+    try:
+        manifest = json.loads((home / "model-runtimes" / f"{name}.json").read_text())
+        identity = manifest.get("adapter_sha256")
+    except (OSError, ValueError, AttributeError):
+        return "unknown"
+    if not isinstance(identity, str) or re.fullmatch("[0-9a-f]{64}", identity) is None:
+        return "unknown"
+    return "current" if identity == current_sha256 else "stale"
 
 
 class RuntimeInstaller:
@@ -172,25 +190,65 @@ class RuntimeInstaller:
             if any(not (root / "assets" / file).is_file() for file in MODELS[name].files):
                 message = "The model download is incomplete. Retry setup."
                 raise ModelSetupError(message)
-            manifest = runtimes / f".{name}-{uuid.uuid4().hex}.json"
-            try:
-                with _create_private(manifest) as stream:
-                    payload = {
-                        "directory": root.name,
-                        "revision": MODELS[name].revision,
-                        "worker_protocol": WORKER_PROTOCOL_VERSION,
-                    }
-                    stream.write(json.dumps(payload).encode())
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                manifest.replace(runtimes / f"{name}.json")
-                published = True
-            finally:
-                manifest.unlink(missing_ok=True)
+            self.publish(name, root)
+            published = True
             return root
         finally:
             if not published:
                 shutil.rmtree(root, ignore_errors=True)
+
+    def refresh(
+        self, name: str, cancelled: threading.Event, progress: Callable[[str], None]
+    ) -> Path:
+        """Stage new code using existing assets; the caller owns warmup, publication and cleanup."""
+        previous = installed_runtime(self.home, name)
+        if previous is None:
+            message = "No usable installed runtime is available for an adapter refresh."
+            raise ModelSetupError(message)
+        root = previous.parent / f"{name}-{uuid.uuid4().hex}"
+        ensure_private_directory(root)
+        staged = False
+        try:
+            progress("Refreshing worker adapter")
+            for folder in ("venv", "assets"):
+                target = (previous / folder).resolve(strict=True)
+                if not target.is_relative_to(previous.parent.resolve()) or not target.is_dir():
+                    message = "The installed runtime has an unsafe environment or asset directory."
+                    raise ModelSetupError(message)
+                (root / folder).symlink_to(target, target_is_directory=True)
+            if cancelled.is_set():
+                raise SetupCancelledError
+            shutil.copytree(
+                Path(__file__).parent,
+                root / "adapter/aitts",
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
+            if cancelled.is_set():
+                raise SetupCancelledError
+            staged = True
+            return root
+        finally:
+            if not staged:
+                shutil.rmtree(root, ignore_errors=True)
+
+    def publish(self, name: str, root: Path) -> None:
+        """Atomically replace the manifest with the identity of the candidate's copied bytes."""
+        runtimes = self.home / "model-runtimes"
+        manifest = runtimes / f".{name}-{uuid.uuid4().hex}.json"
+        try:
+            with _create_private(manifest) as stream:
+                payload = {
+                    "directory": root.name,
+                    "revision": MODELS[name].revision,
+                    "worker_protocol": WORKER_PROTOCOL_VERSION,
+                    "adapter_sha256": adapter_sha256(root / "adapter/aitts"),
+                }
+                stream.write(json.dumps(payload).encode())
+                stream.flush()
+                os.fsync(stream.fileno())
+            manifest.replace(runtimes / f"{name}.json")
+        finally:
+            manifest.unlink(missing_ok=True)
 
     def run(
         self, arguments: list[str], environment: dict[str, str], cancelled: threading.Event

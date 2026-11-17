@@ -1095,3 +1095,14 @@ per-ID CLI lookup exposes existing daemon state. Owned installer and socket
 checks, seeded-failure calibration and installation boundaries are recorded in
 [the queue admission receipt](../testing-evidence/2026-10-09-queue-admission.md).
 Explicit playback waits remain opt-in.
+
+## Explicit worker adapter refresh
+
+Change-kind: bug fix. Issue #164 adds copied-package identity and an explicit
+refresh that preserves the incumbent runtime and weight bytes until successful
+publication. Small digest vectors/property tests and medium daemon/Swift cases
+cover legacy/current/stale catalogs, controlled cancellation and failure,
+effective refresh, direct asset links, and the separate full-repair recovery
+path. The [verification record](../testing-evidence/2026-11-16-worker-adapter-refresh.md)
+records observed RED, 34 calibrated faults, ten repeated runs, complete-suite
+results, resource boundaries and the untested live-model/native UI scope.

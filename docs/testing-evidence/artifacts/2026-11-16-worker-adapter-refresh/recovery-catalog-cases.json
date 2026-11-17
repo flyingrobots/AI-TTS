@@ -1,0 +1,73 @@
+{
+  "source_files": {
+    "src/aitts/daemon.py": "4745013369628c0b521587fb7a8be90ed83a96c5ee1f600660e7b011a6acc32a",
+    "tests/test_adapter_repair_consent.py": "edd0d7f6a9b4406c6b7d9cdc0871b1aa038960f90c05ba29eac91a89139cf938"
+  },
+  "operations": [
+    "engines",
+    "snapshot"
+  ],
+  "schedule": "setup -> cancel before publication -> catalog",
+  "cases": [
+    {
+      "incumbent_failed": false,
+      "identity": "unknown",
+      "model": {
+        "name": "chatterbox",
+        "title": "Chatterbox Turbo",
+        "description": "An alternative local speech model with one built-in voice.",
+        "installed": true,
+        "selected": false,
+        "state": "cancelled",
+        "message": "Setup cancelled. You can retry.",
+        "incompatible": null,
+        "adapter_status": "unknown"
+      }
+    },
+    {
+      "incumbent_failed": false,
+      "identity": "stale",
+      "model": {
+        "name": "chatterbox",
+        "title": "Chatterbox Turbo",
+        "description": "An alternative local speech model with one built-in voice.",
+        "installed": true,
+        "selected": false,
+        "state": "cancelled",
+        "message": "Setup cancelled. You can retry.",
+        "incompatible": null,
+        "adapter_status": "stale"
+      }
+    },
+    {
+      "incumbent_failed": true,
+      "identity": "unknown",
+      "model": {
+        "name": "chatterbox",
+        "title": "Chatterbox Turbo",
+        "description": "An alternative local speech model with one built-in voice.",
+        "installed": true,
+        "selected": false,
+        "state": "failed",
+        "message": "Setup cancelled. You can retry.",
+        "incompatible": null,
+        "adapter_status": "unknown"
+      }
+    },
+    {
+      "incumbent_failed": true,
+      "identity": "stale",
+      "model": {
+        "name": "chatterbox",
+        "title": "Chatterbox Turbo",
+        "description": "An alternative local speech model with one built-in voice.",
+        "installed": true,
+        "selected": false,
+        "state": "failed",
+        "message": "Setup cancelled. You can retry.",
+        "incompatible": null,
+        "adapter_status": "stale"
+      }
+    }
+  ]
+}

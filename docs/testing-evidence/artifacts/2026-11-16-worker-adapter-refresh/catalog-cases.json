@@ -1,0 +1,82 @@
+{
+  "source_commit": "7b23b96c728317b726a82804b1891aabb48352bb",
+  "source_files": {
+    "src/aitts/model_setup.py": "7c9d426f8cb4200d24cb808e4aa064e0917c20afeaf7b8dd24ceb52955fb431e",
+    "src/aitts/daemon.py": "65cb8b2fb18f6de2928ad0b801f328ea852fccd7fd0d91783f7ef5913083b14a",
+    "src/aitts/adapter_identity.py": "2f25cb44a7e5cb747860216c4448b4b25d199f4912cc8f8cd0a396aacc75aca2"
+  },
+  "operations": [
+    "engines",
+    "snapshot"
+  ],
+  "absent_models": [
+    {
+      "name": "kokoro",
+      "title": "Kokoro",
+      "description": "Compact speech model with multiple voices and languages.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+    },
+    {
+      "name": "kokoro-mlx",
+      "title": "Kokoro \u00b7 Apple Silicon",
+      "description": "The same Kokoro voices, accelerated with Apple's MLX framework.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+    },
+    {
+      "name": "chatterbox",
+      "title": "Chatterbox Turbo",
+      "description": "An alternative local speech model with one built-in voice.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+    }
+  ],
+  "installed_models": [
+    {
+      "name": "kokoro",
+      "title": "Kokoro",
+      "description": "Compact speech model with multiple voices and languages.",
+      "installed": true,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": "current"
+    },
+    {
+      "name": "kokoro-mlx",
+      "title": "Kokoro \u00b7 Apple Silicon",
+      "description": "The same Kokoro voices, accelerated with Apple's MLX framework.",
+      "installed": true,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": "unknown"
+    },
+    {
+      "name": "chatterbox",
+      "title": "Chatterbox Turbo",
+      "description": "An alternative local speech model with one built-in voice.",
+      "installed": true,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": "stale"
+    }
+  ]
+}
