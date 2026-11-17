@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from aitts import store as store_module
-from aitts.model import Priority, Sensitivity, State
-from aitts.store import Store
+from aitts.model import Priority, Sensitivity, State, can_transition
+from aitts.store import Store, TransitionError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -255,10 +255,122 @@ def streaming(scratch: Path) -> None:
     write("streaming", database, recover=True)
 
 
+def _successor(state: State, choice: int) -> State | None:
+    legal = [to for to in State if can_transition(state, to)]
+    return legal[choice % len(legal)] if legal else None
+
+
+def _outcome(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def replay_sequence(  # noqa: C901, PLR0912, PLR0915 - one match mirrors sequences.rs
+    ops: list[dict[str, Any]], database: Path
+) -> dict[str, Any]:
+    """Replay one operation sequence through the Python store; see ``sequences.rs``."""
+    global IDS  # noqa: PLW0603 - the id counter restarts for each sequence
+    IDS = itertools.count(1)
+    now = [1_000.0]
+    time.time = lambda: now[0]
+    store = Store(database)
+    submitted = 0
+    outcomes = []
+    for step, op in enumerate(ops):
+        now[0] = 1_000.0 + step
+        utt = f"utt_{op.get('utt', 0) + 1:04d}"
+        try:
+            match op["op"]:
+                case "submit":
+                    store.submit(
+                        f"text {submitted}",
+                        voice="af_heart",
+                        speed=1.0,
+                        priority=Priority(op["priority"]),
+                        sensitivity=Sensitivity(op["sensitivity"]),
+                        at_head=op["at_head"],
+                        playback=op["playback"],
+                        spoken_segments=("one", "two") if op["segmented"] else None,
+                    )
+                    submitted += 1
+                    result: object = "ok"
+                case "transition":
+                    store.transition(
+                        utt,
+                        State(op["state"]),
+                        audio_path=f"/cache/{step}.wav" if op["audio"] else None,
+                        duration_ms=100 if op["audio"] else None,
+                    )
+                    result = "ok"
+                case "advance":
+                    current = store.get(utt)
+                    if current is None:
+                        raise KeyError(utt)  # noqa: TRY301 - same outcome as an unknown id
+                    to = _successor(current.state, op["choice"])
+                    if to is None:
+                        result = "terminal"
+                    else:
+                        store.transition(
+                            utt,
+                            to,
+                            audio_path=f"/cache/{step}.wav" if op["audio"] else None,
+                            duration_ms=100 if op["audio"] else None,
+                        )
+                        result = "ok"
+                case "advance_segment":
+                    segment = store.get_segment(utt, op["index"])
+                    if segment is None:
+                        raise KeyError(utt)  # noqa: TRY301 - same outcome as an unknown id
+                    to = _successor(segment.state, op["choice"])
+                    if to is None:
+                        result = "terminal"
+                    else:
+                        store.transition_segment(utt, op["index"], to)
+                        result = "ok"
+                case "transition_segment":
+                    store.transition_segment(utt, op["index"], State(op["state"]))
+                    result = "ok"
+                case "set":
+                    store.set_setting(op["key"], op["value"])
+                    result = "ok"
+                case "claim":
+                    store.claim_voice(op["source"], op["voice"])
+                    result = "ok"
+                case "pin":
+                    store.pin_voice(op["source"], op["voice"])
+                    result = "ok"
+                case "release":
+                    result = store.release_voice(op["source"])
+                case "remove_history":
+                    result = store.remove_history(utt)
+                case "clear_history":
+                    result = store.clear_history()
+                case "recover":
+                    store.recover()
+                    result = "ok"
+                case unknown:
+                    raise ValueError(unknown)
+        except (KeyError, TransitionError):
+            result = "error"
+        outcomes.append(_outcome(result))
+    expected = dump(store)
+    store.close()
+    time.time = CLOCK
+    return {"ops": ops, "outcomes": outcomes, "expected": expected}
+
+
+def sequences(scratch: Path) -> None:
+    """Replay the Rust proptest corpus, ``sequences.ops.json``, through Python."""
+    corpus = json.loads((HERE / "sequences.ops.json").read_text())
+    cases = [replay_sequence(ops, scratch / f"sequence-{n}.db") for n, ops in enumerate(corpus)]
+    (HERE / "sequences.json").write_text(json.dumps(cases, indent=1, sort_keys=True) + "\n")
+
+
 def main() -> int:
     """Write every fixture."""
     with tempfile.TemporaryDirectory() as scratch:
-        for build in (golden, legacy, crash_matrix, streaming):
+        for build in (golden, legacy, crash_matrix, streaming, sequences):
             build(Path(scratch))
     return 0
 

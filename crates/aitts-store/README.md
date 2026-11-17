@@ -35,6 +35,10 @@ uv run python scripts/generate_store_fixtures.py
 cargo run -p aitts-store --example write_golden
 ```
 
+Before them, `cargo run -p aitts-store --example write_sequences` writes the
+random operation sequences that the generator replays through Python into
+`sequences.json`; the Rust test replays them and compares every row.
+
 The second command writes `rust-written.db` with the same operations as
 `golden.db`. `tests/test_store_rust_interop.py` checks that Python reads both
 files identically.

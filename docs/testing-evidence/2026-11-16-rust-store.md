@@ -25,6 +25,7 @@ evidence, not human acceptance. Change kind: feature. The Python store is unchan
 | Restart recovery equals Python for the crash matrix | `restart_recovery_matches_python_after_each_crash_point` (Python stopped after commit 0, 1, 2, 3) |
 | Edge: old database without `engine` | `old_database_without_engine_column_migrates_as_python_does` |
 | Edge: database in the middle of streaming | `restart_recovery_matches_python_in_the_middle_of_streaming_jobs` |
+| Property: random sequences give the same final state | `random_operation_sequences_end_in_the_python_state` |
 | Failure mode: half-written transition | `a_fault_inside_a_terminal_transition_leaves_no_half_written_state` |
 
 ## RED to GREEN
@@ -56,17 +57,46 @@ For the Python reader test, the urgent-as-normal fault was compiled into
 priority of `utt_0002`. The fixture was then regenerated from the restored source
 and the test passed.
 
+## Random operation sequences
+
+`tests/support/sequences.rs` generates 128 sequences of 1 to 40 operations with
+proptest at fixed seed 135: submissions (every priority and sensitivity, head
+placement, segments, playback flag), explicit and legal-successor transitions of
+parents and segments, settings, voice claim/pin/release, history removal and
+clearing, and recovery. `write_sequences` stores them as `sequences.ops.json`.
+The Python generator replays each sequence through the Python `Store` on its own
+file and records each step's outcome and the final rows in `sequences.json`. The
+Rust test regenerates the sequences, requires them to equal the corpus, replays
+them through the Rust store on its own file, and compares outcomes and every row.
+The driver sets the clock to `1000 + step` before each step in both stores.
+
+The test passed when first run against the finished crate, so it was calibrated
+with planted divergences in the Rust store, each reverted afterwards:
+
+| Planted divergence | Result |
+|---|---|
+| `submit` stores every priority as `normal` | failed: case 0 rows |
+| A terminal transition does not cancel unfinished children | failed: case 0 outcomes |
+| An automatic claim replaces a pinned voice | failed: case 4 rows |
+| Head placement ignores the terminal-state filter | failed: case 6 rows |
+| Recovery moves a Playing parent to Queued | not detected |
+
+The corpus rarely reaches a Playing parent before a recovery step, so the last
+fault is caught only by the crash-matrix fixtures above. The corpus records the
+Python result at generation time; Python store changes require regeneration.
+
 ## Reproduce
 
 ```console
 cargo test -p aitts-store --locked
+cargo run -p aitts-store --example write_sequences
+uv run python scripts/generate_store_fixtures.py
 uv run pytest tests/test_store_rust_interop.py
 ```
 
 ## Not verified
 
-- The property test from the issue's test plan (random operation sequences give
-  the same final state in Python and Rust) is not written.
+- The random-sequence corpus is fixed (128 cases); it is not re-randomized per run.
 - The crate ports the operations listed in its README, not all 41 Python methods.
 - Recovery is one Rust transaction; Python commits in steps. Equivalence is shown
   for the four crash points and the streaming fixture, not for every database.

@@ -5,6 +5,7 @@
 #![allow(dead_code, reason = "each test binary uses a different subset")]
 
 pub(crate) mod golden_ops;
+pub(crate) mod sequences;
 
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
