@@ -244,23 +244,18 @@ class InProcessKokoro(FakeEngine):
         super().__init__(["af_heart"])
 
 
-@pytest.mark.parametrize("importable", [True, False])
-async def test_cold_in_process_default_is_installed_only_when_its_package_imports(
+async def test_importable_model_package_never_marks_an_uninstalled_runtime_installed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    importable: bool,  # noqa: FBT001 - pytest parameter
 ) -> None:
+    """Oracle: issue #116; only a published worker runtime makes a local model installed."""
+    import importlib.util  # noqa: PLC0415
+
     from aitts.application.input_activity import NullInputActivity  # noqa: PLC0415
     from aitts.playback import FakeSink  # noqa: PLC0415
 
-    probed: list[str] = []
-
-    def probe(name: str) -> bool:
-        probed.append(name)
-        return importable and name == "kokoro"
-
-    # Owned import probe for the daemon's own environment, never the real site-packages.
-    monkeypatch.setattr("aitts.daemon.in_process_available", probe, raising=False)
+    # Owned import probe: every model package appears importable in the daemon's environment.
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name, *_args: object())
     daemon = Daemon(
         home=tmp_path,
         engine=InProcessKokoro(),
@@ -270,6 +265,5 @@ async def test_cold_in_process_default_is_installed_only_when_its_package_import
     rows = {row["name"]: row for row in daemon._model_setup_catalog()}
     assert daemon._registry.state("kokoro") == "cold"
     assert rows["kokoro"]["selected"] is True
-    assert rows["kokoro"]["installed"] is importable
+    assert rows["kokoro"]["installed"] is False
     assert rows["chatterbox"]["installed"] is False
-    assert "kokoro" in probed

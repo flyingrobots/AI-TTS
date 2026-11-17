@@ -158,6 +158,7 @@ async def test_cleanup_failure_preserves_custody_and_resumes_speech(
         assert str(raised.value.__cause__) == "owned publication failure"
     assert len(case.candidates) == 1
     worker = case.candidates[0]
+    assert worker.root is not None
     assert worker.root.exists()
     assert daemon._setup_worker is (worker if case.fault == "close" else None)
     assert daemon._engines["chatterbox"] is case.incumbent

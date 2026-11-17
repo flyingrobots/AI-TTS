@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import wave
@@ -111,5 +112,114 @@ def test_truncated_worker_response_fails_within_owned_deadline(
     try:
         with pytest.raises(SynthesisError, match="timed out"):
             engine.warmup()
+    finally:
+        engine.close()
+
+
+# Issue #116: every local model runs only behind this boundary, so its known
+# failure modes and its golden workload are pinned here for each catalog engine.
+
+
+def _worker(root: Path, body: str) -> None:
+    (root / "adapter/aitts/model_worker.py").write_text(
+        "from aitts import worker_contract\nfrom aitts.engine import FakeEngine\n" + body
+    )
+
+
+@pytest.mark.parametrize("name", ["kokoro", "kokoro-mlx", "chatterbox"])
+def test_each_catalog_engine_synthesizes_and_streams_through_a_worker(
+    worker_root: Path, tmp_path: Path, name: str
+) -> None:
+    """Oracle: issue #116 golden; every local engine delivers audio only through the worker."""
+    engine = managed.managed_engine(name, worker_root)
+    try:
+        engine.warmup()
+        out = tmp_path / f"{name}.wav"
+        assert engine.synthesize("clip", "voice", 1.0, out) == 100
+        with wave.open(str(out)) as audio:
+            assert audio.readframes(audio.getnframes()) == b"\x00\x00" * 24
+        if name != "chatterbox":
+            stream = engine.stream_synthesize("A", "voice", 1.0)  # type: ignore[attr-defined]
+            assert list(stream) == [b"AA", b"\x03\x00" * 100]
+        assert engine._process is not None
+        assert engine._process.pid != os.getpid()
+    finally:
+        engine.close()
+
+
+def test_native_writes_to_the_output_descriptor_cannot_corrupt_frames(worker_root: Path) -> None:
+    """Oracle: known failure mode; a model library writing to fd 1 must not reach the pipe."""
+    _worker(
+        worker_root,
+        """import os
+class Noisy(FakeEngine):
+    def stream_synthesize(self, text, voice, speed):
+        os.write(1, b"native library noise\\n")
+        yield text.encode() * 2
+worker_contract.local_engine = lambda name, root: Noisy(["voice"], duration_ms=100)
+worker_contract.main()
+""",
+    )
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        assert list(engine.stream_synthesize("N", "voice", 1.0)) == [b"NN"]
+        assert list(engine.stream_synthesize("M", "voice", 1.0)) == [b"MM"]
+    finally:
+        engine.close()
+
+
+def test_worker_exit_during_synthesis_fails_the_clip_and_restart_recovers(
+    worker_root: Path,
+) -> None:
+    """Oracle: edge case; a worker that dies mid-stream yields a typed failure, never stale PCM."""
+    _worker(
+        worker_root,
+        """import os
+class Dying(FakeEngine):
+    def stream_synthesize(self, text, voice, speed):
+        yield text.encode() * 2
+        if text == "die":
+            os._exit(3)
+        yield b"\\x03\\x00"
+worker_contract.local_engine = lambda name, root: Dying(["voice"], duration_ms=100)
+worker_contract.main()
+""",
+    )
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        received: list[bytes] = []
+        with pytest.raises(SynthesisError, match="invalid response"):
+            received.extend(engine.stream_synthesize("die", "voice", 1.0))
+        assert received == [b"diedie"]
+        engine.restart()
+        assert list(engine.stream_synthesize("ok", "voice", 1.0)) == [b"okok", b"\x03\x00"]
+    finally:
+        engine.close()
+
+
+def test_silent_worker_fails_within_the_owned_deadline(
+    worker_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oracle: edge case; a worker that gives no reply in the time limit is stopped."""
+    _worker(worker_root, "import time\ntime.sleep(30)\n")
+    monkeypatch.setattr(managed, "_RESPONSE_TIMEOUT", 0.2)
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        with pytest.raises(SynthesisError, match="timed out"):
+            list(engine.stream_synthesize("late", "voice", 1.0))
+    finally:
+        engine.close()
+
+
+def test_one_worker_answers_a_thousand_short_requests_in_order(worker_root: Path) -> None:
+    """Oracle: stress; each reply equals the deterministic echo of its own request."""
+    engine = ManagedStreamingEngine("kokoro", worker_root)
+    try:
+        for index in range(1000):
+            text = f"r{index:04d}"
+            assert list(engine.stream_synthesize(text, "voice", 1.0)) == [
+                text.encode() * 2,
+                b"\x03\x00" * 100,
+            ], index
     finally:
         engine.close()

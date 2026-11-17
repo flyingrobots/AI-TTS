@@ -289,20 +289,24 @@ def test_install_reports_registration_without_claiming_daemon_health(
     assert "menu-bar app is registered too" in result.stdout
 
 
-def test_install_includes_the_english_model_in_the_daemon_environment(
+def test_install_keeps_every_model_package_out_of_the_daemon_environment(
     default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
-    """Oracle: installed English speech needs no runtime package installer."""
+    """Oracle: issue #116; models run only in guided worker runtimes, never the daemon's."""
     tmp_path, result = default_installation
     assert result.returncode == 0, result.stderr
     arguments = json.loads((tmp_path / "install-arguments.json").read_text())
     extras = [
         arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
     ]
-    assert (
-        "https://github.com/explosion/spacy-models/releases/download/"
-        "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
-    ) in extras
+    pins = {
+        line.split("==", 1)[0].strip()
+        for line in (tmp_path / "constraints.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    }
+    model_packages = {"kokoro", "kokoro-mlx", "mlx", "torch", "misaki", "spacy", "en-core-web-sm"}
+    assert (extras, sorted(pins & model_packages)) == ([], [])
+    assert "ai-tts model-setup kokoro" in result.stdout
 
 
 # Retire only when installation no longer owns the menu-bar login/crash policy.
@@ -479,35 +483,6 @@ def test_uninstall_preserves_files_when_launchd_keeps_an_agent_loaded(
     }, result.stderr
 
 
-def test_install_uses_a_modern_kokoro_tokenizer_with_binary_wheels(
-    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
-) -> None:
-    """Oracle: the locked constraints deliver a modern tokenizer, avoiding the obsolete Rust build.
-
-    Unconstrained, uv resolved transformers 4.12.2 / tokenizers 0.10.3, whose
-    source build failed. A separate `--with` range can contradict uv.lock.
-    """
-    tmp_path, result = default_installation
-    assert result.returncode == 0, result.stderr
-    arguments = json.loads((tmp_path / "install-arguments.json").read_text())
-    extras = [
-        arguments[index + 1] for index, argument in enumerate(arguments) if argument == "--with"
-    ]
-    assert not [extra for extra in extras if extra.startswith(("transformers", "tokenizers"))]
-    pins = dict(
-        line.split(";")[0].strip().split("==", 1)
-        for line in (tmp_path / "constraints.txt").read_text().splitlines()
-        if "==" in line and not line.lstrip().startswith("#")
-    )
-
-    def release(name: str) -> tuple[int, int]:
-        major, minor = pins[name].split(".")[:2]
-        return int(major), int(minor)
-
-    assert release("transformers") >= (4, 46)
-    assert release("tokenizers") > (0, 10)
-
-
 def test_install_resolves_the_daemon_environment_to_the_locked_versions(
     default_installation: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
@@ -515,7 +490,8 @@ def test_install_resolves_the_daemon_environment_to_the_locked_versions(
 
     `uv tool install` ignores uv.lock. Without constraints, huggingface-hub 2.0
     made the resolver backtrack transformers to 4.12.2, whose tokenizers 0.10.3
-    cannot be built, and every fresh `make install` failed.
+    cannot be built, and every fresh `make install` failed. Since issue #116 the
+    model packages live in worker runtimes, so the daemon's own graph is checked.
     """
     import tomllib  # noqa: PLC0415
 
@@ -533,7 +509,7 @@ def test_install_resolves_the_daemon_environment_to_the_locked_versions(
     locked: dict[str, set[str]] = {}
     for package in lock["package"]:
         locked.setdefault(package["name"], set()).add(package["version"])
-    for name in ("kokoro", "transformers", "tokenizers", "huggingface-hub"):
+    for name in ("mcp", "pydantic", "numpy", "textual"):
         assert name in pins, f"{name} is not constrained"
         assert pins[name] in locked[name], f"{name}=={pins[name]} is not the locked version"
 

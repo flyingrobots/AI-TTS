@@ -159,7 +159,7 @@ def test_managed_model_selection_survives_restart_without_optional_daemon_packag
     tmp_path: Path,
 ) -> None:
     root = complete_runtime(tmp_path, "kokoro-mlx")
-    selected, engines = configured_engines(tmp_path, override="kokoro-mlx", probe_mlx=lambda: False)
+    selected, engines = configured_engines(tmp_path, override="kokoro-mlx")
     assert selected.name == "kokoro-mlx"
     assert selected.root == root  # type: ignore[attr-defined]
     assert set(engines) == {"kokoro", "kokoro-mlx"}
@@ -233,6 +233,6 @@ def test_missing_saved_model_keeps_daemon_reachable_for_setup(
         store.set_setting("engine", name)
     finally:
         store.close()
-    selected, engines = configured_engines(tmp_path, probe_mlx=lambda: False)
+    selected, engines = configured_engines(tmp_path)
     assert selected.name == "kokoro"
     assert name not in engines

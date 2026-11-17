@@ -64,8 +64,12 @@ def prepare(name: str, root: Path) -> None:
 
 def serve(name: str, root: Path) -> None:
     """Keep one model warm; only framed data is written to the private pipe."""
-    wire = sys.stdout
-    # Upstream prints must never corrupt the framing or expose speech in logs.
+    # Upstream prints, including native writes to descriptor 1, must never corrupt
+    # the framing or expose speech in logs: the frames get a private duplicate.
+    sys.stdout.flush()
+    wire = os.fdopen(os.dup(1), "w", closefd=True)
+    with Path(os.devnull).open("wb") as sink:
+        os.dup2(sink.fileno(), 1)
     with (
         Path(os.devnull).open("w") as quiet,
         contextlib.redirect_stdout(quiet),

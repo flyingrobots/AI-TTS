@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Every local model, including the default Kokoro, now runs only in its own worker process (issue #116). The daemon process imports no model package, and `make install` no longer installs Kokoro or its English model into the daemon's tool environment; it prints `ai-tts model-setup kokoro` as the next step. Until Kokoro is installed, it stays listed and a request for it refuses with that command. Models installed into the daemon's own environment and `AI_TTS_CHATTERBOX_MODEL_DIR` are no longer used, and an importable package no longer marks a model installed. The worker sends frames on a private duplicate of its output descriptor, so a model library that writes to descriptor 1 cannot corrupt them.
+
 ### Added
 
 - Raw `submit` accepts `playback: false` for synthesis-only clients. Per-segment WAV readiness and local paths are available through `get`; these utterances never enter host playback. Daemon `status` reports version 0.2.0 so clients can check support before submitting.

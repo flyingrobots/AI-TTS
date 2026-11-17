@@ -12,35 +12,16 @@ You send it text. It queues that text, synthesizes audio in the background with 
 
 ## Optional Apple Silicon MLX backend
 
-The default backend remains `kokoro`. To install the optional native backend
-alongside its fallback from this checkout:
+The default backend remains `kokoro`. Every local model, including the default, runs in its own worker process with a private Python 3.12 runtime; the daemon process imports no model package. Install the native backend through guided setup, then select it for future clips:
 
 ```sh
-mkdir -p dist
-uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
-  --extra kokoro --extra mlx --extra tui --output-file dist/install-constraints.txt
-uv tool install --force --reinstall-package ai-tts --python 3.12 \
-  --constraints dist/install-constraints.txt \
-  --with 'kokoro-mlx==0.1.2' \
-  --with 'kokoro>=0.9.4' \
-  --with 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl' '.[tui]'
-```
-
-Use **Restart daemon** once after installing the extra so its startup catalog can discover MLX. Then select it for future clips:
-
-```sh
+ai-tts model-setup kokoro-mlx
 ai-tts settings --set engine=kokoro-mlx
 ```
 
-Selection now takes effect without another restart. An explicitly managed foreground daemon also accepts `ai-tts daemon --engine kokoro-mlx`. If that startup selection is unavailable because MLX or English language assets are missing, the runtime is unsupported, or Metal is unavailable, it falls back to reference Kokoro with an operational log event. Live settings only accept registered backends; see [Multiple local engines](#multiple-local-engines). Upstream `kokoro-mlx` 0.1.2 supports Python below 3.13, so use Python 3.12 on Apple Silicon.
+Selection takes effect without a restart. An explicitly managed foreground daemon also accepts `ai-tts daemon --engine kokoro-mlx`. A saved MLX selection whose runtime is absent at startup falls back to `kokoro` with an operational log event. MLX requires Apple Silicon.
 
-Warmup resolves model and curated voice assets from the local Hugging Face
-cache, fetching missing files once, and primes inference without playback.
-Speech stays queued until preparation ends. Synthesis uses only those local
-assets and produces 24 kHz WAVs. Evidence reports include MLX package versions
-and hashes of the actual config, weights, and selected voice. The one-machine
-[acceptance receipt](docs/testing-evidence/2026-09-30-kokoro-mlx.md) records
-measured latency and memory; neither is a universal performance guarantee.
+Setup downloads the pinned model and voice assets once and checks offline inference before publication. The worker primes inference without playback; speech stays queued until preparation ends. Synthesis uses only those local assets and produces 24 kHz WAVs. Evidence reports include MLX package versions and hashes of the actual config, weights, and selected voice. The one-machine [acceptance receipt](docs/testing-evidence/2026-09-30-kokoro-mlx.md) records measured latency and memory, and the [worker boundary receipt](docs/testing-evidence/2026-11-16-models-behind-workers.md) records the cost of the process boundary; neither is a universal performance guarantee.
 
 ## Streaming playback
 
@@ -225,20 +206,19 @@ Skill replacement is also staged: a failed render preserves the installed
 
 The commands below expose the individual installation operations. Use
 `make install` for staged preparation and launch-agent recovery; running these
-steps manually does not provide that orchestration. Kokoro stays an optional,
-locally resolved dependency, so this repository never vendors or redistributes
-its Python environment:
+steps manually does not provide that orchestration. Speech models are not part
+of the daemon's environment: each one is installed by `ai-tts model-setup NAME`
+into its own private worker runtime, so this repository never vendors or
+redistributes a model's Python environment:
 
 ```sh
 # requirements: macOS 14+, Python 3.12+, uv, Swift 5.10+, codesign
 # uv tool install ignores uv.lock, so constrain it to the locked versions
 mkdir -p dist
 uv export --frozen --quiet --no-dev --no-hashes --no-emit-project \
-  --extra kokoro --extra tui --output-file dist/install-constraints.txt
+  --extra tui --output-file dist/install-constraints.txt
 uv tool install --force --reinstall-package ai-tts --python 3.12 \
-  --constraints dist/install-constraints.txt \
-  --with "kokoro>=0.9.4" \
-  --with "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" ".[tui]"
+  --constraints dist/install-constraints.txt ".[tui]"
 
 # build an ad-hoc-signed, checkout-independent menu-bar app
 python3 scripts/build_app_bundle.py \
@@ -826,13 +806,13 @@ If the saved voice is absent from the newly selected engine, that engine's catal
 
 Models prepare on first use and remain resident until explicitly reloaded or the daemon exits. Loading one does not unload another, so memory use can increase. An engine whose preparation failed stays failed until it is reloaded; the `restart_model` IPC op reloads the default engine, or the engine named in its optional `engine` field, so a failed non-default engine can be retried without switching the default. While the startup engine prepares, only clips recorded for it wait; clips for other registered engines prepare and synthesize independently.
 
-The reference Kokoro adapter is registered at startup; MLX is also registered when its supported runtime and optional dependency are available. On startup, an unavailable configured MLX backend still falls back to reference Kokoro. So does a saved default for an adapter whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an adapter refuses to start instead.
+Every local model runs in a worker process; the daemon process loads no model package. Each model with an installed runtime is registered at startup. Kokoro is always listed: until its runtime is installed, a request for it fails with the instruction `run \`ai-tts model-setup kokoro\``, and `make install` prints that step. On startup, a saved default whose runtime is missing falls back to Kokoro. So does a saved `openai-audio` default whose environment variables below are absent from the daemon's launch environment, as they are under launchd unless you set them there; an explicit `ai-tts daemon --engine NAME` for such an engine refuses to start instead.
 
 Open **Settings → Speech models** to discover **Kokoro**, **Kokoro · Apple Silicon** (the MLX runtime), and **Chatterbox Turbo**. Choose **Download & install…** for a missing model and confirm the download. Setup installs its Python 3.12 runtime, required language resources, and a pinned model snapshot in a private directory. Every downloaded model file must match a SHA-256 digest pinned in the catalog before anything loads it. Setup checks offline loading before offering **Use model**. The current model keeps working during downloads. Setup shows its current phase, supports **Cancel**, and provides **Retry setup** after failures. MLX requires Apple Silicon.
 
 After an AI-TTS upgrade, an installed model may show **worker update available** or **worker version unknown**. Choose **Retry setup**, then **Refresh worker**, to copy the current worker code while reusing the installed runtime and weights. Nothing refreshes automatically. Older installations remain usable even when their worker identity is unknown. A failed refresh keeps the old installation; the next **Retry setup** instead offers **Download & install** to repair the complete runtime. Cancelling a healthy worker refresh leaves code-only refresh available. If the model needs full repair after the refresh dialog opens, the daemon refuses that refresh; reopen setup to review the download confirmation. See [worker adapter identity and recovery](docs/design/worker-adapters.md) for the catalog contract and retained-runtime limits.
 
-**Use model** changes the default for new clips and saves it across daemon restarts. The voice falls back to a supported voice. Chatterbox generates every clip at 1× and keeps the saved speed for other models (adjust playback rate independently). Setup never selects a model implicitly. Each downloaded model has separate dependencies, so installing Chatterbox or MLX does not replace the daemon's Kokoro environment. Model downloads and runtimes are stored under the daemon home in `model-runtimes`; they are separate from the audio cache, so clearing cached speech does not uninstall models. Downloads require an internet connection and can use substantial disk space. Failed candidates are removed; previous valid installations remain available.
+**Use model** changes the default for new clips and saves it across daemon restarts. The voice falls back to a supported voice. Chatterbox generates every clip at 1× and keeps the saved speed for other models (adjust playback rate independently). Setup never selects a model implicitly. Each downloaded model has separate dependencies, so installing one model never changes another model's runtime or the daemon's environment. Model downloads and runtimes are stored under the daemon home in `model-runtimes`; they are separate from the audio cache, so clearing cached speech does not uninstall models. Downloads require an internet connection and can use substantial disk space. Failed candidates are removed; previous valid installations remain available.
 
 The same flow is available from the CLI:
 
@@ -843,7 +823,7 @@ ai-tts cancel-model-setup              # cancel the active setup
 ai-tts settings --set engine=chatterbox # select it after setup finishes
 ```
 
-Existing optional MLX and `AI_TTS_CHATTERBOX_MODEL_DIR` configurations continue to work. A guided MLX installation is discovered even when the daemon's own Python cannot import MLX. A saved guided model whose runtime has disappeared falls back to reference Kokoro, so Settings stays reachable for setup.
+Models installed into the daemon's own environment, and `AI_TTS_CHATTERBOX_MODEL_DIR`, are no longer used: install each model with guided setup instead. A saved guided model whose runtime has disappeared falls back to Kokoro, so Settings stays reachable for setup.
 
 To register a separately managed local speech server, set these variables in the environment used to launch the daemon:
 
@@ -858,27 +838,7 @@ Then select `openai-audio` in the composer or through settings. URL/model/voice 
 
 The server owns its model: the UI reports **server managed**, without claiming the model is hot. Restart it using that server's controls. Evidence records the requested model and route; server-side model weights cannot be fingerprinted by this adapter.
 
-Native Chatterbox Turbo (350M) is available through the `chatterbox` extra. It uses the bundled `default` voice and preserves native samples, including watermarking. Turbo accepts generation speed 1; playback rate is independently adjustable. A clip that names no speed is generated at 1 even if the saved default speed differs, and that saved speed is kept for the other models; a clip that explicitly asks for another speed is refused. CPU is the tested default; `AI_TTS_CHATTERBOX_DEVICE` selects another upstream-supported device.
-
-From this checkout, install the frozen dependencies and explicitly fetch the tested model revision once:
-
-```sh
-uv sync --frozen --all-extras
-export AI_TTS_CHATTERBOX_MODEL_DIR="$(uv run --frozen --all-extras python - <<'PYTHON'
-from huggingface_hub import snapshot_download
-print(snapshot_download(
-    "ResembleAI/chatterbox-turbo",
-    revision="749d1c1a46eb10492095d68fbcf55691ccf137cd",
-    allow_patterns=["ve.safetensors", "t3_turbo_v1.safetensors",
-                    "s3gen_meanflow.safetensors", "conds.pt", "*.json", "*.txt"],
-))
-PYTHON
-)"
-# Stop any existing daemon before starting this foreground instance.
-uv run --frozen --all-extras ai-tts daemon --engine chatterbox
-```
-
-The directory must contain the complete local snapshot. Synthesis never downloads assets. A daemon launched with `AI_TTS_CHATTERBOX_MODEL_DIR` registers Chatterbox alongside the other engines; select it in the composer, use `say --engine chatterbox`, or change the default with `settings set engine chatterbox`.
+Native Chatterbox Turbo (350M) is installed with `ai-tts model-setup chatterbox`. It uses the bundled `default` voice and preserves native samples, including watermarking. Turbo accepts generation speed 1; playback rate is independently adjustable. A clip that names no speed is generated at 1 even if the saved default speed differs, and that saved speed is kept for the other models; a clip that explicitly asks for another speed is refused. Synthesis never downloads assets.
 
 The extra pins immutable upstream source archives: Chatterbox's dependency-only [PR 486](https://github.com/resemble-ai/chatterbox/pull/486) and Perth's upstream fix for removed `pkg_resources` (not yet published to PyPI). Their revisions and archive hashes are checked in the lock and source-audit policy. CI uses strict hashed PyPI auditing for the remaining graph and separately records OSV commit and package queries for both source dependencies, then checks the combined SBOM and license inventory. No known advisory findings is not a source-security guarantee; source-query coverage is disclosed in the retained evidence. The [native acceptance receipt](docs/testing-evidence/2026-09-30-multi-engine.md) records real offline inference with the frozen Python 3.12 graph.
 
@@ -907,7 +867,7 @@ ai-tts tui
 ai-tts --socket /path/to/ai-tts.sock tui
 ```
 
-To try it from a checkout without installing, run `uv run --extra tui ai-tts tui`. Do not run a bare `uv tool install --force '.[tui]'`: it replaces the whole tool environment without Kokoro, its English model or the lock constraints, and the daemon can no longer speak.
+To try it from a checkout without installing, run `uv run --extra tui ai-tts tui`. Do not run a bare `uv tool install --force '.[tui]'`: it replaces the whole tool environment without the lock constraints.
 
 The dashboard shows current text, voice, playback speed, elapsed/total time and chunk position, with separate queue and history tables. Its dBFS bar measures samples sent to the audio device; sinks that cannot measure output show “Audio level unavailable.” Playback telemetry is opt-in on the subscription connection and does not change the event stream for existing clients.
 
