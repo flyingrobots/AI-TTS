@@ -42,8 +42,12 @@ class ManagedEngine:
 
     is_local = True
 
-    def __init__(self, name: str, root: Path) -> None:
-        """Retain a published runtime without starting model inference."""
+    def __init__(self, name: str, root: Path | None) -> None:
+        """Retain a published runtime without starting model inference.
+
+        ``root`` is ``None`` when the model is not installed: the daemon still lists
+        and selects it, but every request refuses with the setup command.
+        """
         self.name = name
         self.root = root
         if name == "chatterbox":
@@ -60,6 +64,9 @@ class ManagedEngine:
     def _start(self) -> None:
         if self._closed:
             message = "model worker has been closed"
+            raise SynthesisError(message)
+        if self.root is None:
+            message = f"{self.name} is not installed; run `ai-tts model-setup {self.name}`"
             raise SynthesisError(message)
         if self._process is None:
             self._process = subprocess.Popen(  # noqa: S603 - published runtime and fixed worker arguments
@@ -215,7 +222,7 @@ class ManagedStreamingEngine(ManagedEngine):
                     self._stop_worker()
 
 
-def managed_engine(name: str, root: Path) -> ManagedEngine:
+def managed_engine(name: str, root: Path | None) -> ManagedEngine:
     """Chatterbox remains file-only; Kokoro retains incremental synthesis."""
     adapter = ManagedEngine if name == "chatterbox" else ManagedStreamingEngine
     return adapter(name, root)

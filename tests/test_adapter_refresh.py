@@ -228,6 +228,7 @@ async def test_explicit_refresh_publishes_new_code_with_existing_assets(
     await settled(case.daemon)
     candidate = case.daemon._engines["chatterbox"]
     assert isinstance(candidate, SilentModel)
+    assert candidate.root is not None
     assert candidate.root != case.old
     assert installed_runtime(case.daemon._home, "chatterbox") == candidate.root
     assert (candidate.root / "adapter/aitts/model_worker.py").read_bytes() != (

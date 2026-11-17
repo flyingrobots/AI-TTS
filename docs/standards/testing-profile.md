@@ -1106,3 +1106,7 @@ effective refresh, direct asset links, and the separate full-repair recovery
 path. The [verification record](../testing-evidence/2026-11-16-worker-adapter-refresh.md)
 records observed RED, 34 calibrated faults, ten repeated runs, complete-suite
 results, resource boundaries and the untested live-model/native UI scope.
+
+### Every model behind the worker protocol, issue #116
+
+Change-kind: behavior change. The daemon runs local models only in worker processes. Medium tests check that every configured local engine is worker-backed, that daemon startup imports no model package (a subprocess `sys.modules` check), that only a published runtime marks a model installed, and that `make install` keeps model packages out of the daemon environment. Worker tests cover each catalog engine, native writes to descriptor 1, worker exit mid-stream, a silent worker and 1,000 requests to one worker. Oracle: the issue's acceptance criteria and test plan. The [receipt](../testing-evidence/2026-11-16-models-behind-workers.md) records observed red, seeded faults, and before/after first-audio and RSS measurements with real models on one machine; those measurements do not gate CI.

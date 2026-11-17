@@ -263,15 +263,13 @@ def test_startup_catalog_uses_owned_configuration_without_loading_models(
     monkeypatch.setenv("AI_TTS_OPENAI_URL", "http://localhost:9876")
     monkeypatch.setenv("AI_TTS_OPENAI_MODEL", "owned-model")
     monkeypatch.setenv("AI_TTS_OPENAI_VOICE", "owned-voice")
-    selected, engines = configured_engines(
-        tmp_path, override="openai-audio", probe_mlx=lambda: True
-    )
-    assert set(engines) == {"kokoro", "kokoro-mlx", "openai-audio"}
+    selected, engines = configured_engines(tmp_path, override="openai-audio")
+    assert set(engines) == {"kokoro", "openai-audio"}
     assert selected is engines["openai-audio"]
     assert selected.list_voices() == ["owned-voice"]
     monkeypatch.setenv("AI_TTS_OPENAI_URL", "https://example.com")
     with pytest.raises(ValueError, match="loopback"):
-        configured_engines(tmp_path, probe_mlx=lambda: False)
+        configured_engines(tmp_path)
 
 
 @pytest.mark.parametrize("saved", ["chatterbox", "openai-audio"])
@@ -286,11 +284,11 @@ def test_saved_default_missing_from_startup_environment_falls_back_to_kokoro(
     store.set_setting("engine", saved)
     store.close()
     # A launch environment without the adapter's variables must still start a daemon.
-    selected, engines = configured_engines(tmp_path, probe_mlx=lambda: False)
+    selected, engines = configured_engines(tmp_path)
     assert set(engines) == {"kokoro"}
     assert selected is engines["kokoro"]
     with pytest.raises(ValueError, match="not configured"):
-        configured_engines(tmp_path, override=saved, probe_mlx=lambda: False)
+        configured_engines(tmp_path, override=saved)
 
 
 def test_legacy_engine_binding_is_durable_and_never_overwrites_an_existing_choice(

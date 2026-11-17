@@ -30,9 +30,11 @@ pytestmark = [
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 SOURCE = REPOSITORY / "src"
+# mypy checks the scripts too (tool.mypy.files), so their lazy imports need overrides.
+CHECKED = (SOURCE, REPOSITORY / "scripts")
 
 # Modules in the standard library or this project, which need no override.
-_LOCAL_PREFIXES = ("aitts", "tests")
+_LOCAL_PREFIXES = ("aitts", "tests", "scripts")
 
 
 def project() -> dict[str, object]:
@@ -64,7 +66,7 @@ def declared_overrides() -> set[str]:
 def lazily_imported_packages() -> dict[str, str]:
     """Top-level packages imported inside a function body, to where."""
     found: dict[str, str] = {}
-    for path in sorted(SOURCE.rglob("*.py")):
+    for path in sorted(p for root in CHECKED for p in root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -116,7 +118,7 @@ def test_the_override_list_names_nothing_the_source_stopped_importing() -> None:
 def _eagerly_imported_packages() -> set[str]:
     """Top-level packages imported at module scope across the source."""
     found: set[str] = set()
-    for path in sorted(SOURCE.rglob("*.py")):
+    for path in sorted(p for root in CHECKED for p in root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in tree.body:
             if isinstance(node, ast.Import):

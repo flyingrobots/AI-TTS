@@ -1,21 +1,14 @@
 # Copyright 2026 James Ross
 # SPDX-License-Identifier: Apache-2.0
 
-"""Startup engine selection with an explicit optional-MLX fallback."""
+"""Startup engine selection: every local model runs only in a worker process."""
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 import os
-import platform
-import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from aitts.engines.chatterbox import ChatterboxEngine
-from aitts.engines.kokoro import KokoroEngine
-from aitts.engines.kokoro_mlx import KokoroMlxEngine
 from aitts.engines.managed import managed_engine
 from aitts.engines.openai_compatible import OpenAIAudioEngine
 from aitts.model_catalog import MODELS
@@ -23,79 +16,38 @@ from aitts.model_setup import installed_runtime
 from aitts.store import Store
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from pathlib import Path
 
     from aitts.engine import Engine
 
 log = logging.getLogger(__name__)
-ENGINE_NAMES = ("kokoro", "kokoro-mlx", "fake")
-
-
-def mlx_available() -> bool:
-    """Probe the runtime, required packages/language assets, and Metal backend."""
-    if sys.platform != "darwin" or platform.machine() != "arm64" or sys.version_info >= (3, 13):
-        return False
-    if any(importlib.util.find_spec(name) is None for name in ("kokoro_mlx", "en_core_web_sm")):
-        return False
-    try:
-        import mlx.core as mx  # noqa: PLC0415 - optional hardware backend
-
-        return bool(mx.metal.is_available())
-    except (ImportError, OSError, RuntimeError):
-        return False
-
-
-def select_engine(name: str, *, probe_mlx: Callable[[], bool] = mlx_available) -> Engine:
-    """Select a configured adapter; unavailable MLX falls back to reference Kokoro."""
-    if name == "fake":
-        from aitts.engine import FakeEngine  # noqa: PLC0415
-
-        return FakeEngine(voices=["bm_daniel", "af_bella"])
-    if name == "kokoro-mlx":
-        if probe_mlx():
-            return KokoroMlxEngine()
-        log.warning("event=mlx_backend_unavailable fallback=kokoro")
-        return KokoroEngine()
-    if name == "kokoro":
-        return KokoroEngine()
-    msg = f"unknown engine {name!r}"
-    raise ValueError(msg)
-
-
-def configured_engine(
-    home: Path,
-    *,
-    override: str | None = None,
-    probe_mlx: Callable[[], bool] = mlx_available,
-) -> Engine:
-    """Load the persisted backend preference, with an explicit CLI override."""
-    store = Store(home / "state.db")
-    try:
-        name = override or store.get_setting("engine", "kokoro")
-    finally:
-        store.close()
-    return select_engine(name, probe_mlx=probe_mlx)
+DEFAULT_ENGINE = "kokoro"
 
 
 def configured_engines(
     home: Path,
     *,
     override: str | None = None,
-    probe_mlx: Callable[[], bool] = mlx_available,
 ) -> tuple[Engine, dict[str, Engine]]:
     """Build the startup catalog without loading weights or contacting speech servers.
 
-    Optional server/model configuration is deployment-scoped: changing it needs
-    a daemon restart. The selected name is a live, persisted user preference.
+    The daemon process never imports a model package (issue #116). Each installed
+    guided runtime becomes a worker-backed engine; the default model stays listed
+    while uninstalled, and refuses requests with its setup command. Optional server
+    configuration is deployment-scoped: changing it needs a daemon restart. The
+    selected name is a live, persisted user preference.
     """
     store = Store(home / "state.db")
     try:
-        name = override or store.get_setting("engine", "kokoro")
+        name = override or store.get_setting("engine", DEFAULT_ENGINE)
     finally:
         store.close()
-    engines: dict[str, Engine] = {"kokoro": KokoroEngine()}
-    if probe_mlx():
-        engines["kokoro-mlx"] = KokoroMlxEngine()
+    engines: dict[str, Engine] = {
+        model: managed_engine(model, root)
+        for model in MODELS
+        if (root := installed_runtime(home, model)) is not None
+    }
+    engines.setdefault(DEFAULT_ENGINE, managed_engine(DEFAULT_ENGINE, None))
     url = os.environ.get("AI_TTS_OPENAI_URL")
     if url:
         engines["openai-audio"] = OpenAIAudioEngine(
@@ -103,32 +55,15 @@ def configured_engines(
             os.environ.get("AI_TTS_OPENAI_MODEL", "kokoro"),
             os.environ.get("AI_TTS_OPENAI_VOICE", "af_heart"),
         )
-    directory = os.environ.get("AI_TTS_CHATTERBOX_MODEL_DIR")
-    if directory:
-        engines["chatterbox"] = ChatterboxEngine(
-            Path(directory),
-            device=os.environ.get("AI_TTS_CHATTERBOX_DEVICE", "cpu"),
-        )
-    engines.update(_managed_engines(home))
-    if name == "kokoro-mlx" and name not in engines:
-        # Neither the daemon's MLX nor a guided MLX runtime is available on this host.
-        log.warning("event=mlx_backend_unavailable fallback=kokoro")
-        name = "kokoro"
     if name == "fake":
-        engines[name] = select_engine(name)
+        from aitts.engine import FakeEngine  # noqa: PLC0415 - test and development engine
+
+        engines[name] = FakeEngine(voices=["bm_daniel", "af_bella"])
     if name not in engines:
         if override is not None:
             msg = f"engine {name!r} is not configured in this daemon"
             raise ValueError(msg)
-        # A live selection persists, but its adapter's environment may be absent at launch.
+        # A live selection persists, but its runtime may be absent at launch.
         log.warning("event=configured_engine_unavailable fallback=kokoro")
-        name = "kokoro"
+        name = DEFAULT_ENGINE
     return engines[name], engines
-
-
-def _managed_engines(home: Path) -> dict[str, Engine]:
-    return {
-        name: managed_engine(name, root)
-        for name in MODELS
-        if (root := installed_runtime(home, name)) is not None
-    }

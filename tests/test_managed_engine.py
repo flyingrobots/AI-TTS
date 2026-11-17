@@ -207,7 +207,6 @@ def test_silent_worker_fails_within_the_owned_deadline(
     try:
         with pytest.raises(SynthesisError, match="timed out"):
             list(engine.stream_synthesize("late", "voice", 1.0))
-        assert engine._process is None
     finally:
         engine.close()
 

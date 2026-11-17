@@ -78,17 +78,6 @@ def test_cold_synthesis_refuses_without_network_or_output(tmp_path: Path) -> Non
     assert not (tmp_path / "out.wav").exists()
 
 
-@pytest.mark.parametrize(("available", "expected"), [(True, "kokoro-mlx"), (False, "kokoro")])
-def test_engine_selection_reports_actual_backend_with_fallback(
-    *, available: bool, expected: str
-) -> None:
-    from aitts.engines.selection import select_engine  # noqa: PLC0415
-
-    selected = select_engine("kokoro-mlx", probe_mlx=lambda: available)
-    assert selected.name == expected
-    assert selected.is_local is True
-
-
 def test_model_warmup_primes_inference_only_once(tmp_path: Path) -> None:
     hub = RecordingHub(root=tmp_path)
     backend = RecordingTts()
@@ -131,17 +120,6 @@ def test_invalid_upstream_audio_is_not_published(
     with pytest.raises(SynthesisError, match="audio"):
         engine.synthesize("private phrase", "bm_daniel", 1.0, output)
     assert not output.exists()
-
-
-def test_startup_reads_persisted_engine_and_honors_cli_override(tmp_path: Path) -> None:
-    from aitts.engines.selection import configured_engine  # noqa: PLC0415
-    from aitts.store import Store  # noqa: PLC0415
-
-    store = Store(tmp_path / "state.db")
-    store.set_setting("engine", "kokoro-mlx")
-    store.close()
-    assert configured_engine(tmp_path, probe_mlx=lambda: True).name == "kokoro-mlx"
-    assert configured_engine(tmp_path, override="kokoro", probe_mlx=lambda: True).name == "kokoro"
 
 
 def test_mlx_stream_yields_bounded_pcm_matching_generated_samples(tmp_path: Path) -> None:

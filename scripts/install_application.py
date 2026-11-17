@@ -18,12 +18,6 @@ from pathlib import Path
 from scripts.build_app_bundle import publish_app_bundle
 from scripts.render_launch_agent import MENU_BAR_LABEL, render_launch_agent, render_menu_bar_agent
 
-SPACY_MODEL = (
-    "https://github.com/explosion/spacy-models/releases/download/"
-    "en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
-)
-
-
 # launchd removes a booted-out service asynchronously, and bootstrapping the
 # same label before it has gone fails with error 5. Poll this many times, this
 # far apart, for it to leave.
@@ -266,8 +260,6 @@ def install_application(
                 "--no-hashes",
                 "--no-emit-project",
                 "--extra",
-                "kokoro",
-                "--extra",
                 "tui",
                 "--output-file",
                 str(constraints),
@@ -291,10 +283,6 @@ def install_application(
                 python_version,
                 "--constraints",
                 str(constraints),
-                "--with",
-                "kokoro>=0.9.4",
-                "--with",
-                SPACY_MODEL,
                 # The terminal dashboard ships with the CLI; `ai-tts tui` needs Textual.
                 f"{repository}[tui]",
             ],
@@ -315,6 +303,7 @@ def install_application(
         "Both start at login and recover abnormal exits. Normal menu-bar Quit stays closed.\n"
         "Check the daemon: make doctor\n"
         "Wire up your agents: make install-agents\n"
+        "Install the default voice in its own worker runtime: ai-tts model-setup kokoro\n"
     )
 
 
