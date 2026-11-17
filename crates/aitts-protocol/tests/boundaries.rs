@@ -128,6 +128,44 @@ fn utf8_escaping_and_encoded_output_count_toward_byte_admission() {
     assert_eq!(decode_event(&oversized), Err(WireError::TooLarge));
 }
 
+fn submit_with_text(text: String) -> Request {
+    let mut request = decode_request(br#"{"op":"submit","text":""}"#).unwrap();
+    if let Request::Submit { text: slot, .. } = &mut request {
+        *slot = text;
+    }
+    request
+}
+
+#[test]
+fn request_admission_counts_bytes_not_characters() {
+    let available = MAX_REQUEST_BYTES - br#"{"op":"submit","text":""}"#.len();
+    // Two-byte characters: fewer characters than the limit, more bytes than it.
+    let over = "\u{e9}".repeat(available / 2 + 1);
+    assert!(over.chars().count() < MAX_REQUEST_BYTES);
+    let encoded = serde_json::to_vec(&json!({"op":"submit","text":over})).unwrap();
+    assert!(encoded.len() > MAX_REQUEST_BYTES);
+    assert_eq!(decode_request(&encoded), Err(WireError::TooLarge));
+    // Control: a multibyte line of exactly the byte limit is admitted.
+    let exact = "a".repeat(available % 2) + &"\u{e9}".repeat(available / 2);
+    let encoded = serde_json::to_vec(&json!({"op":"submit","text":exact})).unwrap();
+    assert_eq!(encoded.len(), MAX_REQUEST_BYTES);
+    assert!(decode_request(&encoded).is_ok());
+
+    // Encoding spends one byte of the same budget on the final newline.
+    let encode_available = available - 1;
+    let over = "\u{e9}".repeat(encode_available / 2 + 1);
+    assert!(over.chars().count() < MAX_REQUEST_BYTES);
+    assert_eq!(
+        encode_request(&submit_with_text(over)),
+        Err(WireError::TooLarge)
+    );
+    let exact = "a".repeat(encode_available % 2) + &"\u{e9}".repeat(encode_available / 2);
+    let request = submit_with_text(exact);
+    let line = encode_request(&request).unwrap();
+    assert_eq!(line.len(), MAX_REQUEST_BYTES);
+    assert_eq!(decode_request(&line), Ok(request));
+}
+
 #[test]
 fn counters_reject_boolean_fractional_negative_and_overflow_numbers() {
     let valid = br#"{"ok":true,"cleared":18446744073709551615}"#;
