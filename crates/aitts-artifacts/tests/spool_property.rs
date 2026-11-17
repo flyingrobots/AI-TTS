@@ -45,10 +45,10 @@ fn seed() -> u64 {
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or_else(|| {
-            std::time::SystemTime::now()
+            let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64
+                .unwrap();
+            now.as_secs() ^ u64::from(now.subsec_nanos())
         })
 }
 

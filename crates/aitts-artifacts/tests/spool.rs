@@ -84,7 +84,7 @@ fn an_underflow_returns_no_samples_and_no_end() {
     spool.append(&[1, 0]).unwrap();
     spool.read(1);
     let read = spool.read(4);
-    assert!(read.pcm.is_empty());
+    assert_eq!(read.pcm, Vec::<u8>::new());
     assert!(!read.ended && !read.complete, "{read:?}");
 }
 
@@ -125,7 +125,11 @@ fn a_backward_seek_rereads_the_spooled_bytes() {
     spool.append(&[1, 0, 2, 0, 3, 0]).unwrap();
     spool.read(3);
     spool.seek(1);
-    assert!(spool.read(3).pcm.is_empty(), "a seek clears the ring");
+    assert_eq!(
+        spool.read(3).pcm,
+        Vec::<u8>::new(),
+        "a seek clears the ring"
+    );
     spool.fill();
     let read = spool.read(3);
     assert_eq!(read.pcm, [2, 0, 3, 0]);
@@ -152,15 +156,15 @@ fn a_python_written_wav_streams_its_frames_and_is_unchanged() {
     let before = fs::read(FIXTURE).unwrap();
     let mut spool = Spool::open_cached(Path::new(FIXTURE), 4).unwrap();
     let mut pcm = Vec::new();
-    loop {
+    let mut ended = false;
+    for _ in 0..8 {
         spool.fill();
         let read = spool.read(3);
         pcm.extend(read.pcm);
-        if read.ended {
-            break;
-        }
+        ended = read.ended;
     }
     assert_eq!(pcm, fixture_pcm());
+    assert!(ended, "a cached WAV ends after its last frame");
     assert_eq!(fs::read(FIXTURE).unwrap(), before);
 }
 
