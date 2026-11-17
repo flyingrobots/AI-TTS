@@ -87,6 +87,32 @@ async def test_state_size_limit_stops_a_child_before_socket_admission(tmp_path: 
     assert not list(tmp_path.iterdir())
 
 
+async def test_state_limit_wins_when_the_kill_lands_during_the_exit_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Barrier: the startup loop's exit probe returns only after the state
+    # watcher has recorded its refusal and killed the child, which is the
+    # interleaving a loaded CI runner produced (status -9, no cause).
+    original = socket_daemon.SocketDaemon.has_exited
+    pause = threading.Event()
+
+    def probe(self: socket_daemon.SocketDaemon) -> bool:
+        while not original(self):
+            pause.wait(0.01)
+        return True
+
+    monkeypatch.setattr(socket_daemon.SocketDaemon, "has_exited", probe)
+    script = (
+        "import os,pathlib,time; "
+        "p=pathlib.Path(os.environ['AI_TTS_HOME'])/'oversize'; "
+        "p.open('wb').truncate(65*1024**2); time.sleep(60)"
+    )
+    with pytest.raises(DaemonProcessError, match="state directory limit"):
+        async with daemon_process(tmp_path, command=[sys.executable, "-c", script]):
+            pytest.fail("a daemon exceeding its state budget was admitted")
+
+
 async def test_exit_after_admission_is_a_fixture_failure(tmp_path: Path) -> None:
     async def kill_during_scenario() -> None:
         async with daemon_process(tmp_path) as daemon:
