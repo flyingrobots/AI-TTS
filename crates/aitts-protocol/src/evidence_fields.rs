@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 /// Known generation evidence. Legacy records may omit fields.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct GenerationFields {
     /// artifact id.
     #[serde(default, skip_serializing_if = "Presence::is_absent")]
@@ -54,7 +54,7 @@ impl Metadata for GenerationFields {
 
 /// Known audio evidence. Legacy records may omit fields.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct AudioFields {
     /// blake3.
     #[serde(default, skip_serializing_if = "Presence::is_absent")]
@@ -101,7 +101,7 @@ impl Metadata for AudioFields {
 
 /// Known adapter evidence; runtime-specific extensions remain archival.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct ModelFields {
     /// repository.
     #[serde(default, skip_serializing_if = "Presence::is_absent")]
@@ -168,7 +168,7 @@ impl Metadata for ModelFields {
 
 /// A model file's content identity and size.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct ModelFile {
     /// sha256.
     pub sha256: String,
@@ -178,7 +178,7 @@ pub struct ModelFile {
 
 /// Known runtime evidence from the daemon or worker.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct RuntimeMetadata {
     /// os.
     pub os: String,
@@ -195,3 +195,11 @@ pub struct RuntimeMetadata {
     /// packages.
     pub packages: BTreeMap<String, Nullable<String>>,
 }
+
+crate::strict::object_only!(
+    GenerationFields,
+    AudioFields,
+    ModelFields,
+    ModelFile,
+    RuntimeMetadata
+);

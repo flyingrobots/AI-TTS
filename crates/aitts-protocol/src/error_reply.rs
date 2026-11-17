@@ -35,7 +35,7 @@ impl JsonSchema for Failure {
 
 /// The four daemon error categories.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum ErrorCode {
     /// Malformed or unsupported request.
     BadRequest,
@@ -48,7 +48,7 @@ pub enum ErrorCode {
 }
 /// An application error supplied by the daemon.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct DaemonError {
     /// Error category.
     pub r#type: ErrorCode,
@@ -58,10 +58,14 @@ pub struct DaemonError {
 
 /// An operation failed.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct ErrorReply {
     /// ok.
     pub ok: Failure,
     /// error.
     pub error: DaemonError,
 }
+
+crate::strict::object_only!(DaemonError, ErrorReply);
+
+crate::strict::string_only!(ErrorCode);

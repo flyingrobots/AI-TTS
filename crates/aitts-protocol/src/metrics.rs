@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 /// The daemon's in-memory timing and capacity metrics.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct MetricsReply {
     /// ok.
     pub ok: Success,
@@ -33,7 +33,7 @@ pub struct MetricsReply {
 
 /// Current queue lengths.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct QueueDepth {
     /// input.
     pub input: u64,
@@ -43,7 +43,7 @@ pub struct QueueDepth {
 
 /// Current cache usage and configured ceiling.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Cache {
     /// bytes.
     pub bytes: u64,
@@ -53,7 +53,7 @@ pub struct Cache {
 
 /// Timing samples in milliseconds; clock adjustments can yield negative values.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Statistics {
     /// count.
     pub count: u64,
@@ -67,7 +67,7 @@ pub struct Statistics {
 
 /// One cache-storage inventory entry.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct StorageEntry {
     /// id.
     pub id: String,
@@ -83,7 +83,7 @@ pub struct StorageEntry {
 
 /// Counts from an explicit storage deletion.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct StorageReceipt {
     /// removed.
     pub removed: u64,
@@ -92,3 +92,12 @@ pub struct StorageReceipt {
     /// failed.
     pub failed: u64,
 }
+
+crate::strict::object_only!(
+    MetricsReply,
+    QueueDepth,
+    Cache,
+    Statistics,
+    StorageEntry,
+    StorageReceipt
+);

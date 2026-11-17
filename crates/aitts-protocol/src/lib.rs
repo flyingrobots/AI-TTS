@@ -26,6 +26,7 @@ pub mod schema;
 pub mod settings;
 pub mod snapshot;
 pub mod status;
+mod strict;
 pub mod utterance;
 pub mod value;
 pub mod vocabulary;

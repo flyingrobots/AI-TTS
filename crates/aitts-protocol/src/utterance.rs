@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// An utterance projection; optional fields identify richer history/current views.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Utterance {
     /// id.
     pub id: String,
@@ -68,7 +68,7 @@ pub struct Utterance {
 
 /// A generated segment exposed to a synthesis-only client.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct SynthesizedSegment {
     /// index.
     pub index: u64,
@@ -86,7 +86,7 @@ pub struct SynthesizedSegment {
 
 /// The currently playing segment and its position.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct ActiveSegment {
     /// index.
     pub index: u64,
@@ -103,3 +103,5 @@ pub struct ActiveSegment {
     /// position ms.
     pub position_ms: Nullable<u64>,
 }
+
+crate::strict::object_only!(Utterance, SynthesizedSegment, ActiveSegment);

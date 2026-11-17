@@ -22,7 +22,12 @@ pub enum HistoryLimit {
 
 /// One typed daemon operation, including transport-level subscription.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    remote = "Self",
+    tag = "op",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum Request {
     /// The `submit` operation.
     Submit {
@@ -254,3 +259,5 @@ impl Request {
         }
     }
 }
+
+crate::strict::object_only!(Request);

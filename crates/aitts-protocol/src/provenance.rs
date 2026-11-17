@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// The provenance operation reply.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct ProvenanceReply {
     /// ok.
     pub ok: Success,
@@ -22,7 +22,7 @@ pub struct ProvenanceReply {
 
 /// Resolved utterance identity and saved synthesis evidence.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Provenance {
     /// origin.
     pub origin: String,
@@ -46,7 +46,7 @@ pub struct Provenance {
 
 /// Historical records for one generated artifact.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Clip {
     /// artifact id.
     pub artifact_id: String,
@@ -57,3 +57,5 @@ pub struct Clip {
     /// audio.
     pub audio: Nullable<Evidence<AudioFields>>,
 }
+
+crate::strict::object_only!(ProvenanceReply, Provenance, Clip);

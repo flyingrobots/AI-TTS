@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 
 /// Status embedded in an atomic snapshot.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Status {
     /// version.
     pub version: String,
@@ -46,7 +46,7 @@ pub struct Status {
 
 /// The status operation reply.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct StatusReply {
     /// ok.
     pub ok: Success,
@@ -82,7 +82,7 @@ pub struct StatusReply {
 
 /// A listener-input hold.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Interruption {
     /// reason.
     pub reason: ListenerSpeaking,
@@ -94,7 +94,7 @@ pub struct Interruption {
 
 /// The model asset being prepared and its start timestamp.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct EnginePreparation {
     /// asset.
     pub asset: String,
@@ -104,6 +104,7 @@ pub struct EnginePreparation {
 
 /// The literal `accepting` discriminator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(remote = "Self")]
 pub enum Accepting {
     /// The supported discriminator value.
     #[serde(rename = "accepting")]
@@ -112,6 +113,7 @@ pub enum Accepting {
 
 /// The literal `listener_speaking` discriminator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(remote = "Self")]
 pub enum ListenerSpeaking {
     /// The supported discriminator value.
     #[serde(rename = "listener_speaking")]
@@ -120,8 +122,13 @@ pub enum ListenerSpeaking {
 
 /// The literal `input_idle` discriminator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(remote = "Self")]
 pub enum InputIdle {
     /// The supported discriminator value.
     #[serde(rename = "input_idle")]
     Value,
 }
+
+crate::strict::object_only!(Status, StatusReply, Interruption, EnginePreparation);
+
+crate::strict::string_only!(Accepting, ListenerSpeaking, InputIdle);

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// An engine known to the daemon.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Engine {
     /// name.
     pub name: String,
@@ -26,7 +26,7 @@ pub struct Engine {
 
 /// A model available for explicit setup.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Model {
     /// name.
     pub name: String,
@@ -51,7 +51,7 @@ pub struct Model {
 
 /// A caller's allocated or pinned voice.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Assignment {
     /// source.
     pub source: String,
@@ -62,3 +62,5 @@ pub struct Assignment {
     /// assigned at.
     pub assigned_at: Number,
 }
+
+crate::strict::object_only!(Engine, Model, Assignment);

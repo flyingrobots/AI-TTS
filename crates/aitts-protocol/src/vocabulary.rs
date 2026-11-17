@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
 )]
+#[serde(remote = "Self")]
 pub enum State {
     /// Accepted before queue placement.
     Submitted,
@@ -35,7 +36,7 @@ pub enum State {
 
 /// Requested queue placement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum Priority {
     /// Append to pending work.
     Normal,
@@ -47,7 +48,7 @@ pub enum Priority {
 
 /// Immutable disclosure policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum Sensitivity {
     /// May use a remote engine.
     Public,
@@ -59,7 +60,7 @@ pub enum Sensitivity {
 
 /// Source-text interpretation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum ContentFormat {
     /// Keep markup literal.
     PlainText,
@@ -69,7 +70,7 @@ pub enum ContentFormat {
 
 /// Queue selected for listing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum Queue {
     /// Input queue.
     Input,
@@ -79,7 +80,7 @@ pub enum Queue {
 
 /// Queue selected for an explicit clear.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum ClearQueue {
     /// Pending work except the current speaker.
     Queue,
@@ -93,7 +94,7 @@ pub enum ClearQueue {
 
 /// Listener-input hold release policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum ResumePolicy {
     /// Require explicit resumption.
     Manual,
@@ -103,7 +104,7 @@ pub enum ResumePolicy {
 
 /// Observable playback-worker activity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum PlaybackState {
     /// No active speech.
     Idle,
@@ -117,7 +118,7 @@ pub enum PlaybackState {
 
 /// What accepted speech will do next.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum SubmissionDisposition {
     /// Queued for playback.
     QueuedForPlayback,
@@ -129,6 +130,7 @@ pub enum SubmissionDisposition {
 
 /// Reported model readiness and setup state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(remote = "Self")]
 pub enum ModelState {
     /// Not loaded.
     #[serde(rename = "cold")]
@@ -161,7 +163,7 @@ pub enum ModelState {
 
 /// Identity of an installed managed adapter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum AdapterStatus {
     /// Installed digest matches the daemon package.
     Current,
@@ -170,3 +172,17 @@ pub enum AdapterStatus {
     /// A legacy runtime has no valid digest.
     Unknown,
 }
+
+crate::strict::string_only!(
+    State,
+    Priority,
+    Sensitivity,
+    ContentFormat,
+    Queue,
+    ClearQueue,
+    ResumePolicy,
+    PlaybackState,
+    SubmissionDisposition,
+    ModelState,
+    AdapterStatus
+);

@@ -20,7 +20,7 @@ pub enum CacheLimit {
 
 /// Partial settings fields. An omitted field implies no update.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct SettingsUpdate {
     /// Engine selected for future admissions.
     #[serde(default, skip_serializing_if = "Presence::is_absent")]
@@ -63,7 +63,7 @@ pub struct SettingsUpdate {
     reason = "independent booleans are fixed by the existing wire contract"
 )]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct SettingsSnapshot {
     /// Engine selected for future admissions.
     pub engine: String,
@@ -90,3 +90,5 @@ pub struct SettingsSnapshot {
     /// Whether a caption preference was configured.
     pub captions_enabled_configured: bool,
 }
+
+crate::strict::object_only!(SettingsUpdate, SettingsSnapshot);

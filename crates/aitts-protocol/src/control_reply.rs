@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// Result of a playback control operation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Transport {
     /// ok.
     pub ok: Success,
@@ -26,7 +26,7 @@ pub struct Transport {
 
 /// Result of rewind, optionally creating a replay.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Rewound {
     /// ok.
     pub ok: Success,
@@ -43,7 +43,7 @@ pub struct Rewound {
 
 /// Result of moving between utterance segments.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct SegmentStep {
     /// ok.
     pub ok: Success,
@@ -63,7 +63,7 @@ pub struct SegmentStep {
 
 /// A new utterance queued from history.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Requeued {
     /// ok.
     pub ok: Success,
@@ -81,7 +81,7 @@ pub struct Requeued {
 
 /// The resulting pending order.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Reordered {
     /// ok.
     pub ok: Success,
@@ -91,7 +91,7 @@ pub struct Reordered {
 
 /// The utterance state after cancellation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Cancelled {
     /// ok.
     pub ok: Success,
@@ -103,7 +103,7 @@ pub struct Cancelled {
 
 /// One explicit history removal.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct HistoryRemoved {
     /// ok.
     pub ok: Success,
@@ -115,7 +115,7 @@ pub struct HistoryRemoved {
 
 /// Number of items cleared.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Cleared {
     /// ok.
     pub ok: Success,
@@ -125,7 +125,7 @@ pub struct Cleared {
 
 /// Completed cache reclamation counts.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct CachePurged {
     /// ok.
     pub ok: Success,
@@ -145,7 +145,7 @@ pub struct CachePurged {
 
 /// The current engine's voices.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Voices {
     /// ok.
     pub ok: Success,
@@ -155,7 +155,7 @@ pub struct Voices {
 
 /// Caller voice assignments.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct VoiceAssignments {
     /// ok.
     pub ok: Success,
@@ -165,7 +165,7 @@ pub struct VoiceAssignments {
 
 /// The allocated assignment, or null after release.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct VoiceAssigned {
     /// ok.
     pub ok: Success,
@@ -175,7 +175,7 @@ pub struct VoiceAssigned {
 
 /// The full settings state after an optional update.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Settings {
     /// ok.
     pub ok: Success,
@@ -185,10 +185,27 @@ pub struct Settings {
 
 /// Transport acknowledgement before subscription events.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Subscribed {
     /// ok.
     pub ok: Success,
     /// subscribed.
     pub subscribed: Success,
 }
+
+crate::strict::object_only!(
+    Transport,
+    Rewound,
+    SegmentStep,
+    Requeued,
+    Reordered,
+    Cancelled,
+    HistoryRemoved,
+    Cleared,
+    CachePurged,
+    Voices,
+    VoiceAssignments,
+    VoiceAssigned,
+    Settings,
+    Subscribed
+);

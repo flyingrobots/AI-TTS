@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// All UI state captured by one operation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Snapshot {
     /// ok.
     pub ok: Success,
@@ -44,7 +44,7 @@ pub struct Snapshot {
 
 /// Process and model state in a snapshot.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Runtime {
     /// pid.
     pub pid: u64,
@@ -55,3 +55,5 @@ pub struct Runtime {
     /// active synthesis.
     pub active_synthesis: u64,
 }
+
+crate::strict::object_only!(Snapshot, Runtime);

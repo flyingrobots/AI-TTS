@@ -15,7 +15,12 @@ use std::borrow::Cow;
 
 /// One event sent after subscribing.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "event", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    remote = "Self",
+    tag = "event",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum Event {
     /// The `state_changed` event.
     StateChanged {
@@ -136,7 +141,7 @@ impl JsonSchema for HistoryChange {
 
 /// Number of items cleared from history.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct HistoryCleared {
     /// cleared.
     pub cleared: u64,
@@ -144,7 +149,7 @@ pub struct HistoryCleared {
 
 /// The removed history identifier.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct HistoryRemoved {
     /// removed.
     pub removed: String,
@@ -165,3 +170,5 @@ pub fn decode_event(line: &[u8]) -> Result<Event, WireError> {
 pub fn encode_event(event: &Event) -> Result<Vec<u8>, WireError> {
     encode(event, MAX_RESPONSE_BYTES)
 }
+
+crate::strict::object_only!(Event, HistoryCleared, HistoryRemoved);

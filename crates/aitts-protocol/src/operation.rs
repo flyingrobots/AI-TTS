@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Operation identity; subscription belongs to the socket transport.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(remote = "Self", rename_all = "snake_case")]
 pub enum Operation {
     /// The `submit` operation.
     Submit,
@@ -151,3 +151,5 @@ impl Operation {
         }
     }
 }
+
+crate::strict::string_only!(Operation);

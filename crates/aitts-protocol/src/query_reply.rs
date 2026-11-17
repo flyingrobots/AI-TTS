@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// An operation completed without additional result fields.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Acknowledged {
     /// ok.
     pub ok: Success,
@@ -21,7 +21,7 @@ pub struct Acknowledged {
 
 /// The daemon accepted speech with this queue disposition.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Submitted {
     /// ok.
     pub ok: Success,
@@ -55,7 +55,7 @@ pub struct Submitted {
 
 /// The active engine and model setup catalogs.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Engines {
     /// ok.
     pub ok: Success,
@@ -67,7 +67,7 @@ pub struct Engines {
 
 /// An explicit setup request's initial state.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct ModelSetup {
     /// ok.
     pub ok: Success,
@@ -77,7 +77,7 @@ pub struct ModelSetup {
 
 /// One utterance.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Item {
     /// ok.
     pub ok: Success,
@@ -87,7 +87,7 @@ pub struct Item {
 
 /// A queue or history projection.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Items {
     /// ok.
     pub ok: Success,
@@ -97,7 +97,7 @@ pub struct Items {
 
 /// The evidence export destination and warnings.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Exported {
     /// ok.
     pub ok: Success,
@@ -109,7 +109,7 @@ pub struct Exported {
 
 /// Cache inventory and the optional deletion receipt.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Storage {
     /// ok.
     pub ok: Success,
@@ -122,3 +122,14 @@ pub struct Storage {
     /// receipt.
     pub receipt: Nullable<StorageReceipt>,
 }
+
+crate::strict::object_only!(
+    Acknowledged,
+    Submitted,
+    Engines,
+    ModelSetup,
+    Item,
+    Items,
+    Exported,
+    Storage
+);
