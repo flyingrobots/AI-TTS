@@ -11,7 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-markdown = { version = "=1.0.0", default-features = false }
+markdown = { version = "=1.0.0", path = "../../vendor/markdown", default-features = false }
 
 [dev-dependencies]
 proptest = { version = "1", default-features = false, features = ["std"] }

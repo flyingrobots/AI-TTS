@@ -3,8 +3,8 @@
 
 //! The Markdown AST is adapted to spoken blocks with HTML and linkification disabled.
 
-use super::InvalidMarkdown;
-use ::markdown::{Constructs, ParseOptions, mdast, to_mdast};
+use super::{InvalidMarkdown, LimitExceeded, Limits, Resource};
+use ::markdown::{Constructs, ParseOptions, mdast, to_mdast_bounded};
 use alloc::{string::String, string::ToString, vec, vec::Vec};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -31,7 +31,7 @@ pub(super) enum Node {
     Rule,
 }
 
-pub(super) fn parse(body: &str) -> Result<(Node, bool), InvalidMarkdown> {
+pub(super) fn parse(body: &str, limits: Limits) -> Result<(Node, bool), InvalidMarkdown> {
     let options = ParseOptions {
         constructs: Constructs {
             html_flow: false,
@@ -43,9 +43,39 @@ pub(super) fn parse(body: &str) -> Result<(Node, bool), InvalidMarkdown> {
         gfm_strikethrough_single_tilde: false,
         ..ParseOptions::default()
     };
-    let tree = to_mdast(body, &options).map_err(|message| InvalidMarkdown(message.to_string()))?;
+    let parser_limits = ::markdown::limits::Limits {
+        bytes: limits.input_bytes,
+        depth: limits.depth,
+        nodes: limits.nodes,
+        events: limits.events,
+        work: limits.work,
+    };
+    let tree = to_mdast_bounded(body, &options, parser_limits).map_err(parser_error)?;
     let plain = is_plain(&tree);
     Ok((adapt(&tree), plain))
+}
+
+fn parser_error(error: ::markdown::limits::Error) -> InvalidMarkdown {
+    match error {
+        ::markdown::limits::Error::UnsupportedOptions => {
+            InvalidMarkdown::Parser("unsupported bounded parser options".into())
+        }
+        ::markdown::limits::Error::Parse(message) => InvalidMarkdown::Parser(message.to_string()),
+        ::markdown::limits::Error::Limit(limit) => {
+            let resource = match limit.resource {
+                ::markdown::limits::Resource::Bytes => Resource::InputBytes,
+                ::markdown::limits::Resource::Depth => Resource::Depth,
+                ::markdown::limits::Resource::Nodes => Resource::Nodes,
+                markdown::limits::Resource::Events => Resource::Events,
+                ::markdown::limits::Resource::Work => Resource::Work,
+            };
+            InvalidMarkdown::Limit(LimitExceeded {
+                resource,
+                observed: limit.observed,
+                maximum: limit.maximum,
+            })
+        }
+    }
 }
 
 fn is_plain(node: &mdast::Node) -> bool {
@@ -104,19 +134,32 @@ fn adapt(node: &mdast::Node) -> Node {
 }
 
 pub(super) fn without_front_matter(text: &str) -> &str {
-    let mut lines = text.split_inclusive('\n');
+    let mut lines = text.split_inclusive(python_line_end);
     let Some(first) = lines.next() else {
         return text;
     };
-    if first.trim_start_matches('\u{feff}').trim() != "---" {
+    if trim_python(first.trim_start_matches('\u{feff}')) != "---" {
         return text;
     }
     let mut remaining = text.get(first.len()..).unwrap_or_default();
     for line in lines {
         remaining = remaining.get(line.len()..).unwrap_or_default();
-        if matches!(line.trim(), "---" | "...") {
+        if matches!(trim_python(line), "---" | "...") {
             return remaining.trim_start_matches(['\r', '\n']);
         }
     }
     text
+}
+
+fn python_line_end(character: char) -> bool {
+    matches!(
+        character,
+        '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{1c}'..='\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+    )
+}
+
+fn trim_python(text: &str) -> &str {
+    text.trim_matches(|character: char| {
+        character.is_whitespace() || matches!(character, '\u{1c}'..='\u{1f}')
+    })
 }

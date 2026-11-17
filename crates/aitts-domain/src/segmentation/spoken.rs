@@ -26,7 +26,20 @@ pub(super) fn clean_stars(text: &str) -> String {
     while let Some(start) = remaining.find('*') {
         let prefix = remaining.get(..start).unwrap_or_default();
         let tail = remaining.get(start..).unwrap_or_default();
-        let inside = tail.trim_start_matches('*').trim_start();
+        let after_opening = tail.trim_start_matches('*');
+        let opening_end = remaining.len().saturating_sub(after_opening.len());
+        // Reject embedded openers before searching their tail. Every rejected
+        // maximal star run is consumed once; its interior cannot open a match.
+        let before = text
+            .get(..text.len().saturating_sub(tail.len()))
+            .unwrap_or_default();
+        let valid_start = before.chars().next_back().is_none_or(char::is_whitespace);
+        if !valid_start {
+            result.push_str(remaining.get(..opening_end).unwrap_or_default());
+            remaining = after_opening;
+            continue;
+        }
+        let inside = after_opening.trim_start();
         let Some(close) = inside.find('*') else {
             break;
         };
@@ -41,19 +54,24 @@ pub(super) fn clean_stars(text: &str) -> String {
         } else {
             suffix
         };
-        let valid_start = prefix.chars().next_back().is_none_or(char::is_whitespace);
         let valid_end = suffix
             .chars()
             .next()
             .is_none_or(|character| character.is_whitespace() || ".,!?;:)]".contains(character));
-        if valid_start && valid_end && content.chars().any(char::is_alphabetic) {
+        if valid_end {
             result.push_str(prefix);
-            result.push_str(content);
+            if content.chars().any(char::is_alphabetic) {
+                result.push_str(content);
+            } else {
+                // A syntactic numeric match stays literal, but its closing star
+                // is consumed just as Python's regex substitution consumes it.
+                let matched = tail.len().saturating_sub(suffix.len());
+                result.push_str(tail.get(..matched).unwrap_or_default());
+            }
             remaining = suffix;
         } else {
-            let end = start.saturating_add(1);
-            result.push_str(remaining.get(..end).unwrap_or_default());
-            remaining = remaining.get(end..).unwrap_or_default();
+            result.push_str(remaining.get(..opening_end).unwrap_or_default());
+            remaining = after_opening;
         }
     }
     result.push_str(remaining);

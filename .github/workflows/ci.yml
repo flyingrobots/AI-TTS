@@ -31,8 +31,10 @@ jobs:
           cargo --version
           cargo clippy --version
           cargo fmt --version
+      - name: Verify pinned Markdown parser patch
+        run: python3 scripts/check_markdown_vendor.py
       - name: Format
-        run: cargo fmt --all --check
+        run: cargo fmt --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test debug arithmetic

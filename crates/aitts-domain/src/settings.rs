@@ -28,6 +28,8 @@ pub enum Value<'a> {
 /// The setting cannot accept this value or caller-supplied catalog.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InvalidSetting {
+    /// The supplied catalog exceeds the bounded allocation allowance.
+    Collection(crate::CollectionLimit),
     /// Speed must be a finite number in the inclusive range 0.5 to 2.0.
     Speed,
     /// Rate must be one of the six supported playback rates.
@@ -189,7 +191,10 @@ pub fn languages(selected: &[&str], catalog: &[&str]) -> Result<Vec<&'static str
         .into_iter()
         .filter(|code| selected.contains(code))
         .collect();
-    if automatic_pool(catalog, &canonical).is_empty() {
+    if automatic_pool(catalog, &canonical)
+        .map_err(InvalidSetting::Collection)?
+        .is_empty()
+    {
         Err(InvalidSetting::Languages)
     } else {
         Ok(canonical)

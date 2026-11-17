@@ -6,7 +6,7 @@
 
 #![deny(clippy::arithmetic_side_effects)]
 
-use crate::settings::Bytes;
+use crate::{CollectionLimit, settings::Bytes};
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -39,6 +39,8 @@ pub struct Artifact<'a> {
 /// An inventory cannot be accounted for safely.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InvalidInventory {
+    /// The input snapshot exceeds the bounded inventory allowance.
+    Collection(CollectionLimit),
     /// The total size does not fit a `u64` byte count.
     SizeOverflow,
     /// Two observations use the same identity.
@@ -73,6 +75,7 @@ pub fn eviction<'a>(
     inventory: &[Artifact<'a>],
     limit: Bytes,
 ) -> Result<Eviction<'a>, InvalidInventory> {
+    crate::allocation::admit(inventory.len()).map_err(InvalidInventory::Collection)?;
     let mut ids: Vec<_> = inventory.iter().map(|entry| entry.id).collect();
     ids.sort_unstable();
     if ids.windows(2).any(|pair| pair.first() == pair.last()) {

@@ -6,7 +6,7 @@
 
 #![deny(clippy::arithmetic_side_effects)]
 
-use crate::utterance::State;
+use crate::{CollectionLimit, utterance::State};
 use alloc::vec::Vec;
 use core::{cmp::Ordering, fmt};
 
@@ -90,14 +90,18 @@ pub enum Hold {
 }
 
 /// Order by key, retaining original order for equal keys regardless of priority.
-pub fn ordered<'a>(entries: &[Entry<'a>]) -> Vec<Entry<'a>> {
+///
+/// # Errors
+/// Refuses snapshots larger than [`crate::MAX_COLLECTION_ENTRIES`] before copying.
+pub fn ordered<'a>(entries: &[Entry<'a>]) -> Result<Vec<Entry<'a>>, CollectionLimit> {
+    crate::allocation::admit(entries.len())?;
     let mut result = entries.to_vec();
     result.sort_by(|left, right| {
         left.order
             .partial_cmp(&right.order)
             .unwrap_or(Ordering::Equal)
     });
-    result
+    Ok(result)
 }
 
 /// Allocate the same head or tail position as Python for representable keys.
@@ -143,13 +147,21 @@ pub fn preemption<'a>(
     if hold == Hold::Held {
         return None;
     }
-    ordered(entries).into_iter().find(|entry| {
-        entry.priority == Priority::Preempt
-            && entry.state == State::Ready
-            && entry.playback == Playback::Play
-            && current
-                .is_none_or(|current| current.state.is_terminal() || entry.order < current.order)
-    })
+    entries
+        .iter()
+        .copied()
+        .filter(|entry| {
+            entry.priority == Priority::Preempt
+                && entry.state == State::Ready
+                && entry.playback == Playback::Play
+                && current.is_none_or(|current| {
+                    current.state.is_terminal() || entry.order < current.order
+                })
+        })
+        .fold(None, |best, entry| match best {
+            Some(previous) if previous.order <= entry.order => Some(previous),
+            _ => Some(entry),
+        })
 }
 
 /// Index of a segment saved at interruption.

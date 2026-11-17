@@ -1,5 +1,6 @@
 [workspace]
 members = ["crates/aitts-domain", "crates/aitts-protocol"]
+exclude = ["vendor/markdown"]
 resolver = "3"
 
 [workspace.package]

@@ -79,6 +79,48 @@ fn loose_emphasis_cleanup_preserves_arithmetic_code_and_multiline_prose() {
 }
 
 #[test]
+fn embedded_star_runs_keep_original_preceding_character_context() {
+    // Python's cleanup requires whitespace before the entire opening star run.
+    for input in ["1** hello **", "hello** world **", "a*** loose ***"] {
+        assert_eq!(
+            prepare(input, Some(ContentFormat::Markdown)).unwrap(),
+            vec![input]
+        );
+    }
+}
+
+#[test]
+fn numeric_star_matches_are_preserved_and_consumed_before_following_words() {
+    // Python's public prepare boundary preserves the complete numeric match;
+    // its closing multiplication operator cannot reopen a later formatting match.
+    for number in 0..32 {
+        for width in 1..=4 {
+            let stars = "*".repeat(width);
+            let input = format!("2 {stars} {number} {stars} words {stars}");
+            assert_eq!(
+                prepare(&input, Some(ContentFormat::Markdown)).unwrap(),
+                vec![input]
+            );
+        }
+    }
+}
+
+#[test]
+fn front_matter_recognizes_python_line_separators() {
+    // Python splitlines accepts these separators in addition to LF and CRLF.
+    for separator in [
+        "\r", "\u{b}", "\u{c}", "\u{1c}", "\u{1d}", "\u{1e}", "\u{85}", "\u{2028}", "\u{2029}",
+    ] {
+        let input = ["---", "title: hidden", "---", "Hello"].join(separator);
+        assert_eq!(
+            prepare(&input, Some(ContentFormat::Markdown)).unwrap(),
+            vec!["Hello"],
+            "separator {separator:?}"
+        );
+    }
+}
+
+#[test]
 fn all_forty_existing_golden_cases_match_exact_strings_and_boundaries() {
     let corpus: Corpus = serde_json::from_str(include_str!(
         "../../../tests/corpus/segmentation/cases.json"
