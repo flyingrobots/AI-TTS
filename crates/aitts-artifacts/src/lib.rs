@@ -13,5 +13,6 @@
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
 pub mod audio;
+pub mod evidence;
 pub mod private_fs;
 pub mod spool;
