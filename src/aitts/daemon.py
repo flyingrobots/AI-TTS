@@ -1371,6 +1371,11 @@ class Daemon:
             raise ApiError(ILLEGAL_STATE, "wait for model restart to finish")
         if self._setup_task is not None and not self._setup_task.done():
             raise ApiError(ILLEGAL_STATE, "another model setup is in progress")
+        if self._setup_worker is not None:
+            raise ApiError(
+                ILLEGAL_STATE,
+                "A setup worker could not close. Restart AI-TTS before retrying.",
+            )
         if name in self._engines and self._registry.state(name) == "loading":
             raise ApiError(ILLEGAL_STATE, "this model is already preparing")
         adapter_status = installed_adapter_status(
@@ -1426,6 +1431,7 @@ class Daemon:
         worker = None
         candidate = None
         paused = False
+        failure: BaseException | None = None
         try:
             root = await self._setup_root(name, mode, progress)
             if mode == "refresh":
@@ -1449,21 +1455,45 @@ class Daemon:
             self._setup_worker = None
             worker = None
             await self._retire_runtime(previous)
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as error:
+            failure = error
             self._setup_cancel.set()
             raise
-        except Exception:  # noqa: BLE001 - recoverable and content-free setup failures
+        except Exception as error:  # noqa: BLE001 - recoverable and content-free setup failures
+            failure = error
             self._record_setup_failure(name)
         finally:
-            self._setup_worker = None
+            try:
+                await self._cleanup_model_setup(name, worker, candidate, failure)
+            finally:
+                if pool is not None and paused:
+                    pool.enabled.set()
+                    pool.notify()
+                self._server.broadcast({"event": "model_setup_changed"})
+
+    async def _cleanup_model_setup(
+        self,
+        name: str,
+        worker: ManagedEngine | None,
+        candidate: Path | None,
+        failure: BaseException | None,
+    ) -> None:
+        """Retain failed-close custody and report cleanup without losing the original failure."""
+        try:
             if worker is not None:
                 await asyncio.to_thread(worker.close)
+            self._setup_worker = None
             if candidate is not None:
                 await asyncio.to_thread(shutil.rmtree, candidate)
-            if pool is not None and paused:
-                pool.enabled.set()
-                pool.notify()
-            self._server.broadcast({"event": "model_setup_changed"})
+        except Exception as error:
+            self._setup_states[name] = {
+                "state": "failed",
+                "message": "Setup cleanup failed. Restart AI-TTS before retrying.",
+            }
+            log.warning("event=model_setup_cleanup_failed")
+            if isinstance(failure, asyncio.CancelledError):
+                raise failure from error
+            raise error from failure
 
     async def _setup_root(
         self,
