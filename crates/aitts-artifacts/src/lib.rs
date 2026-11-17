@@ -14,3 +14,4 @@
 
 pub mod audio;
 pub mod private_fs;
+pub mod spool;
