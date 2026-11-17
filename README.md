@@ -140,6 +140,7 @@ Read these in order. They are the current deliverable.
 | [`docs/design/README.md`](docs/design/README.md) | Index, scope, and the questions still open |
 | [`docs/design/features.md`](docs/design/features.md) | Feature breakdown, separated into stated, inferred, and proposed |
 | [`docs/design/architecture.md`](docs/design/architecture.md) | Components, the two queues, utterance lifecycle, IPC, persistence |
+| [`crates/aitts-engine/README.md`](crates/aitts-engine/README.md) | Rust engine interface, model worker supervisor, loopback HTTP engine, model catalog and setup digest check |
 | [`crates/aitts-protocol/README.md`](crates/aitts-protocol/README.md) | Typed Rust wire messages, JSON Schema export, and compatibility limits |
 | [`crates/aitts-store/README.md`](crates/aitts-store/README.md) | Rust access to the shared SQLite state file through queue, history, settings, and voice interfaces |
 | [`crates/aitts-daemon/README.md`](crates/aitts-daemon/README.md) | The Rust `ai-ttsd` skeleton: socket lease, Unix socket server, and the read operations |

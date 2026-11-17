@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/aitts-daemon", "crates/aitts-domain", "crates/aitts-protocol", "crates/aitts-store"]
+members = ["crates/aitts-daemon", "crates/aitts-domain", "crates/aitts-engine", "crates/aitts-protocol", "crates/aitts-store"]
 exclude = ["vendor/markdown"]
 resolver = "3"
 
