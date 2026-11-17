@@ -1,0 +1,17 @@
+[package]
+name = "aitts-artifacts"
+description = "AI-TTS generated audio files and their owner-only directories, in the Python daemon's layout"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
