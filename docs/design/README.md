@@ -30,6 +30,7 @@ Out of scope for v1: multiple users, multiple machines, any network transport, a
 | [`os-integration.md`](os-integration.md) | Accepted design for selected-text and selected-file Services, the explicit Accessibility fallback, privacy boundaries, and later App Intents | features, architecture |
 | [`engine-evaluation.md`](engine-evaluation.md) | Whether Kokoro-82M is still the right engine. Answer: yes, and why the cloud field is disqualified | — |
 | [`tech-stack.md`](tech-stack.md) | Language and framework choices, with the rejected options and why | architecture, engine-evaluation, OS integration |
+| [`rust-domain.md`](rust-domain.md) | Pure Rust lifecycle, queue, segmentation, voice, settings, retention, and sensitivity contracts; caller and dependency boundaries | architecture |
 | [`ui-design.md`](ui-design.md) | Interaction design for the menu-bar app and native entry points, with mockups in [`mockups/`](mockups/) | features, architecture, OS integration |
 
 [`one-utterance.md`](one-utterance.md) is the one to read if you intend to
