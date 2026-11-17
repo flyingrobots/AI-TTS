@@ -7,7 +7,9 @@
     clippy::expect_used,
     reason = "test code fails loudly"
 )]
-use aitts_protocol::{decode_event, decode_reply, decode_request, encode_event, encode_reply};
+use aitts_protocol::{
+    decode_event, decode_reply, decode_request, encode_event, encode_reply, encode_request,
+};
 use serde_json::Value;
 
 #[test]
@@ -28,7 +30,13 @@ fn all_concrete_golden_conversations_round_trip_without_normalizing_values() {
         let records: Vec<Value> = serde_json::from_str(fixture).unwrap();
         for record in records {
             let encoded = if let Some(request) = record.get("request") {
-                let request = decode_request(&serde_json::to_vec(request).unwrap()).unwrap();
+                let captured = request;
+                let request = decode_request(&serde_json::to_vec(captured).unwrap()).unwrap();
+                // Omitted optional fields must stay omitted, not become null or defaults.
+                assert_eq!(
+                    serde_json::from_slice::<Value>(&encode_request(&request).unwrap()).unwrap(),
+                    *captured
+                );
                 let expected = record.get("reply").unwrap();
                 let reply =
                     decode_reply(request.operation(), &serde_json::to_vec(expected).unwrap())
