@@ -26,6 +26,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "aitts-artifacts"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "tempfile",
+]
+
+[[package]]
 name = "aitts-cli"
 version = "0.1.0"
 dependencies = [
