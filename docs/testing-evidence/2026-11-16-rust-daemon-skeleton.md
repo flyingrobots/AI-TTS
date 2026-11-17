@@ -85,7 +85,7 @@ constant. The test documents that limit and will fail when playback is ported.
 ## Repetition
 
 `cargo test -p aitts-daemon -p aitts-store --test counts --test socket --test
-process --test read_operations --locked` ran 10 times: 29 passed and 0 failed
+process --test read_operations --locked` ran 10 times: 30 passed and 0 failed
 each time, with the default parallel test threads. The stable toolchain has no
 test shuffling, so the runs were not shuffled.
 
