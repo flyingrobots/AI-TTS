@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import select
@@ -16,12 +15,14 @@ from typing import TYPE_CHECKING, Any
 
 from aitts.engine import SynthesisError
 from aitts.model_catalog import MODELS
+from aitts.model_worker import FRAME_LIMIT, PROTOCOL_VERSION
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
     from pathlib import Path
 
-_FRAME_LIMIT = 512 * 1024
+# Bounds one JSON control line; audio travels on its own pipe.
+_LINE_LIMIT = 512 * 1024
 _RESPONSE_TIMEOUT = 300
 
 
@@ -35,6 +36,35 @@ def runtime_environment(root: Path) -> dict[str, str]:
         "HF_HUB_DISABLE_TELEMETRY": "1",
         "TOKENIZERS_PARALLELISM": "false",
     }
+
+
+class WorkerProtocolError(SynthesisError):
+    """The worker does not speak this daemon's protocol version."""
+
+
+class _WorkerTimeoutError(SynthesisError):
+    """The worker gave no complete reply within the response deadline."""
+
+
+def read_frame(read: Callable[[int], bytes]) -> bytes:
+    """Read one length-prefixed audio frame; ``read(n)`` returns at most ``n`` bytes."""
+    length = int.from_bytes(_read_exact(read, 4), "big")
+    if length > FRAME_LIMIT:
+        message = "model worker returned an invalid response"
+        raise SynthesisError(message)
+    return _read_exact(read, length)
+
+
+def _read_exact(read: Callable[[int], bytes], size: int) -> bytes:
+    data = bytearray()
+    while len(data) < size:
+        block = read(size - len(data))
+        if not block:
+            # A partial frame is never a full frame.
+            message = "model worker returned an invalid response"
+            raise SynthesisError(message)
+        data.extend(block)
+    return bytes(data)
 
 
 class ManagedEngine:
@@ -54,8 +84,10 @@ class ManagedEngine:
             self.supported_speeds = (1.0,)
         self._lock = threading.Lock()
         self._process: subprocess.Popen[bytes] | None = None
+        self._audio: int | None = None
         self._buffer = bytearray()
         self._closed = False
+        self.protocol_version: int | None = None
 
     def list_voices(self) -> list[str]:
         """Return the validated setup catalog without spawning a process."""
@@ -69,20 +101,64 @@ class ManagedEngine:
             message = f"{self.name} is not installed; run `ai-tts model-setup {self.name}`"
             raise SynthesisError(message)
         if self._process is None:
-            self._process = subprocess.Popen(  # noqa: S603 - published runtime and fixed worker arguments
-                [
-                    str(self.root / "venv/bin/python"),
-                    "-m",
-                    "aitts.model_worker",
-                    "serve",
-                    self.name,
-                    str(self.root),
-                ],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                env=runtime_environment(self.root),
+            audio_read, audio_write = os.pipe()
+            self._audio = audio_read
+            try:
+                self._spawn(self.root, audio_write)
+            finally:
+                # Only the worker holds the write end, so its exit is an EOF here.
+                os.close(audio_write)
+            self._handshake()
+
+    def _spawn(self, root: Path, audio_write: int) -> None:
+        self._process = subprocess.Popen(  # noqa: S603 - published runtime and fixed worker arguments
+            [
+                str(root / "venv/bin/python"),
+                "-m",
+                "aitts.model_worker",
+                "serve",
+                self.name,
+                str(root),
+                str(audio_write),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            pass_fds=(audio_write,),
+            env=runtime_environment(root),
+        )
+
+    def _handshake(self) -> None:
+        """Refuse, typed, any worker whose first message is not this daemon's version."""
+        version: object = None
+        try:
+            version = self._receive().get("protocol")
+        except _WorkerTimeoutError:
+            raise
+        except SynthesisError:
+            # An older worker exits on the new start arguments before any reply.
+            version = None
+        if type(version) is not int or version != PROTOCOL_VERSION:
+            self._stop_worker()
+            message = (
+                f"model worker speaks protocol {version!r}, not {PROTOCOL_VERSION}; "
+                "refresh the model worker in model setup"
             )
+            raise WorkerProtocolError(message)
+        self.protocol_version = version
+
+    def _read_audio(self, size: int) -> bytes:
+        """Return at most ``size`` bytes from the audio pipe within the response deadline."""
+        audio = self._audio
+        if audio is None:
+            message = "model worker is unavailable"
+            raise SynthesisError(message)
+        ready, _, _ = select.select([audio], [], [], _RESPONSE_TIMEOUT)
+        if not ready:
+            self._stop_worker()
+            message = "model worker timed out; retry model setup"
+            raise _WorkerTimeoutError(message)
+        return os.read(audio, min(size, 65536))
 
     def _send(self, payload: dict[str, Any]) -> None:
         self._start()
@@ -110,9 +186,9 @@ class ManagedEngine:
             if not ready:
                 self.close()
                 message = "model worker timed out; retry model setup"
-                raise SynthesisError(message)
+                raise _WorkerTimeoutError(message)
             block = os.read(process.stdout.fileno(), 65536)
-            if not block or len(self._buffer) + len(block) > _FRAME_LIMIT:
+            if not block or len(self._buffer) + len(block) > _LINE_LIMIT:
                 self.close()
                 message = "model worker returned an invalid response"
                 raise SynthesisError(message)
@@ -182,6 +258,10 @@ class ManagedEngine:
         process = self._process
         self._process = None
         self._buffer.clear()
+        self.protocol_version = None
+        if self._audio is not None:
+            os.close(self._audio)
+            self._audio = None
         if process is not None:
             if process.poll() is None:
                 process.kill()
@@ -202,20 +282,15 @@ class ManagedStreamingEngine(ManagedEngine):
             self._send({"op": "stream", "text": text, "voice": voice, "speed": speed})
             complete = False
             try:
-                while True:
-                    reply = self._receive()
-                    if reply.get("ok") is True:
-                        complete = True
-                        return
-                    try:
-                        pcm = base64.b64decode(reply["pcm"], validate=True)
-                    except (KeyError, ValueError, TypeError) as exc:
-                        message = "model returned invalid PCM"
-                        raise SynthesisError(message) from exc
-                    if not pcm or len(pcm) % 2:
+                while pcm := read_frame(self._read_audio):
+                    if len(pcm) % 2:
                         message = "model returned invalid PCM"
                         raise SynthesisError(message)
                     yield pcm
+                if self._receive().get("ok") is not True:
+                    message = "model could not render audio; restart the model"
+                    raise SynthesisError(message)
+                complete = True
             finally:
                 if not complete:
                     # Retire unread responses so the next clip cannot consume stale PCM.

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Model workers send streamed audio as length-prefixed binary frames on a second pipe instead of base64 in JSON lines (issue #126). The worker protocol is now version 2: the worker names its version in its first message, and the daemon refuses another version with `WorkerProtocolError`. A worker copied by an older AI-TTS must be refreshed in model setup (**Retry setup**, then **Refresh worker**); the model weights and environment are kept.
 - Every local model, including the default Kokoro, now runs only in its own worker process (issue #116). The daemon process imports no model package, and `make install` no longer installs Kokoro or its English model into the daemon's tool environment; it prints `ai-tts model-setup kokoro` as the next step. Until Kokoro is installed, it stays listed and a request for it refuses with that command. Models installed into the daemon's own environment and `AI_TTS_CHATTERBOX_MODEL_DIR` are no longer used, and an importable package no longer marks a model installed. The worker sends frames on a private duplicate of its output descriptor, so a model library that writes to descriptor 1 cannot corrupt them.
 
 ### Added
