@@ -1,0 +1,13 @@
+{
+  "artifact_id": "clip-a",
+  "utterance_id": "utt_0001",
+  "segment_index": 0,
+  "voice": "af_heart",
+  "speed": 1.25,
+  "engine": "kokoro",
+  "captured_at": 1800000000.0,
+  "runtime": {
+    "os": "fixture",
+    "architecture": "fixture"
+  }
+}

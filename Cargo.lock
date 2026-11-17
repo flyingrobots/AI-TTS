@@ -38,6 +38,7 @@ dependencies = [
  "blake3",
  "libc",
  "proptest",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",

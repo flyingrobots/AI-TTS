@@ -199,17 +199,21 @@ impl ClipEvidence {
         Ok(warnings)
     }
 
-    /// Resolve a flat identity beneath the root, refusing symbolic links.
     fn directory_path(&self, id: &str) -> io::Result<PathBuf> {
-        if Path::new(id).file_name().is_none_or(|name| name != id) {
-            return Err(invalid("invalid artifact identity"));
-        }
-        let directory = self.root.join(id);
-        if is_symlink(&self.root) || is_symlink(&directory) {
-            return Err(invalid("evidence directories must not be symlinks"));
-        }
-        Ok(directory)
+        clip_directory(&self.root, id)
     }
+}
+
+/// Resolve a flat clip identity beneath `root`, refusing symbolic links.
+pub(crate) fn clip_directory(root: &Path, id: &str) -> io::Result<PathBuf> {
+    if Path::new(id).file_name().is_none_or(|name| name != id) {
+        return Err(invalid("invalid artifact identity"));
+    }
+    let directory = root.join(id);
+    if is_symlink(root) || is_symlink(&directory) {
+        return Err(invalid("evidence directories must not be symlinks"));
+    }
+    Ok(directory)
 }
 
 /// Python's `str(value)` for the string and missing cases the daemon passes.
