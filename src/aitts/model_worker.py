@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import base64
 import contextlib
 import importlib.util
 import json
@@ -16,6 +15,18 @@ from typing import Any
 
 from aitts.engine import Engine, StreamingEngine
 from aitts.model_catalog import MODELS
+
+# Version 2: audio moves as length-prefixed binary frames on a second pipe.
+PROTOCOL_VERSION = 2
+# One frame carries at most this many audio bytes; larger blocks are split.
+FRAME_LIMIT = 512 * 1024
+
+
+def encode_frame(payload: bytes) -> bytes:
+    """Prefix one audio frame with its big-endian length; the empty frame ends a stream."""
+    if len(payload) > FRAME_LIMIT:
+        raise ValueError(len(payload))
+    return len(payload).to_bytes(4, "big") + payload
 
 
 def local_engine(name: str, root: Path) -> Engine:
@@ -62,15 +73,18 @@ def prepare(name: str, root: Path) -> None:
     local_engine(name, root).warmup()
 
 
-def serve(name: str, root: Path) -> None:
-    """Keep one model warm; only framed data is written to the private pipe."""
+def serve(name: str, root: Path, audio_fd: int) -> None:
+    """Keep one model warm; only framed data is written to the private pipes."""
     # Upstream prints, including native writes to descriptor 1, must never corrupt
     # the framing or expose speech in logs: the frames get a private duplicate.
     sys.stdout.flush()
     wire = os.fdopen(os.dup(1), "w", closefd=True)
     with Path(os.devnull).open("wb") as sink:
         os.dup2(sink.fileno(), 1)
+    audio = os.fdopen(audio_fd, "wb", closefd=True)
+    _write(wire, {"protocol": PROTOCOL_VERSION})
     with (
+        audio,
         Path(os.devnull).open("w") as quiet,
         contextlib.redirect_stdout(quiet),
         contextlib.redirect_stderr(quiet),
@@ -85,10 +99,15 @@ def serve(name: str, root: Path) -> None:
                     engine.warmup()
                     _write(wire, {"ok": True})
                 elif op == "stream" and isinstance(engine, StreamingEngine):
-                    for block in engine.stream_synthesize(
-                        request["text"], request["voice"], request["speed"]
-                    ):
-                        _write(wire, {"pcm": base64.b64encode(block).decode("ascii")})
+                    try:
+                        for block in engine.stream_synthesize(
+                            request["text"], request["voice"], request["speed"]
+                        ):
+                            _write_audio(audio, block)
+                    finally:
+                        # The empty frame ends every stream, so the control reply follows.
+                        audio.write(encode_frame(b""))
+                        audio.flush()
                     _write(wire, {"ok": True})
                 elif op == "evidence":
                     from aitts.adapters.clip_evidence import runtime_metadata  # noqa: PLC0415
@@ -118,10 +137,17 @@ def _write(wire: Any, payload: dict[str, Any]) -> None:  # noqa: ANN401 - redire
     wire.flush()
 
 
+def _write_audio(audio: Any, block: bytes) -> None:  # noqa: ANN401 - binary pipe
+    view = memoryview(block)
+    for start in range(0, len(view), FRAME_LIMIT):
+        audio.write(encode_frame(bytes(view[start : start + FRAME_LIMIT])))
+    audio.flush()
+
+
 def main() -> None:
     """Run only a catalog model in its owned runtime."""
-    operation, name, directory = sys.argv[1:]
-    if name not in MODELS or operation not in {"prepare", "serve"}:
+    operation, name, directory, *rest = sys.argv[1:]
+    if name not in MODELS or (operation, len(rest)) not in {("prepare", 0), ("serve", 1)}:
         raise SystemExit(2)
     root = Path(directory).resolve()
     # eSpeak has a fixed native path buffer; long macOS application-support paths overflow it.
@@ -129,7 +155,7 @@ def main() -> None:
     if operation == "prepare":
         prepare(name, root)
     else:
-        serve(name, root)
+        serve(name, root, int(rest[0]))
 
 
 if __name__ == "__main__":

@@ -148,8 +148,9 @@ no Rust inference library and requires no model replacement.
 The current daemon is Python. Its
 [`ManagedEngine`](../../src/aitts/engines/managed.py) starts a persistent
 [`aitts.model_worker`](../../src/aitts/model_worker.py) in a separate Python
-environment and exchanges JSON-lines messages. That worker keeps the model
-warm and returns WAV files or streamed PCM audio. The current daemon also
+environment and exchanges JSON-lines control messages. That worker keeps the model
+warm and returns WAV files, or streamed PCM audio as length-prefixed binary frames
+on a second pipe ([protocol version 2](../testing-evidence/2026-11-16-worker-binary-frames.md)). The current daemon also
 supports in-process adapters. This decision does not describe an implemented
 Rust supervisor or remove those Python adapters.
 
@@ -288,7 +289,7 @@ redistribution is legally compatible.
 
 What keeps this survivable: this project distributes source that depends on `kokoro`, never a bundled environment containing the dylib. The hard rule that follows — **AI-TTS must never vendor, bundle, or redistribute its Python environment** — is recorded here so the packaging row above reads as the project boundary, not merely a convenience. The local app bundle therefore contains only the native menu executable and metadata. Worth confirming during review whether the espeak fallback can be disabled outright, because the identifiers this tool speaks are heading for the pronunciation lexicon anyway ([architecture §8](architecture.md#8-the-engine-interface)).
 
-Guided model setup (accepted as disclosed, 2026-10-01): the Kokoro and Kokoro MLX runtimes that setup installs contain `phonemizer-fork` (GPLv3+) and the `libespeak-ng` library (GPL-3.0) bundled by `espeakng-loader`, both pulled in through `misaki`. Setup downloads them from PyPI onto the user's own machine with hash-pinned requirements; AI-TTS still never redistributes them. For a guided runtime, they load only inside that model's separate worker process (`aitts.model_worker`, in its own private virtual environment under `model-runtimes`), not inside the daemon process, which talks to the worker over a JSON-lines pipe. The daemon's existing in-process Kokoro adapter, installed with the `kokoro` extra, still loads them in the daemon as described above. The redistribution rule above still applies to these runtimes.
+Guided model setup (accepted as disclosed, 2026-10-01): the Kokoro and Kokoro MLX runtimes that setup installs contain `phonemizer-fork` (GPLv3+) and the `libespeak-ng` library (GPL-3.0) bundled by `espeakng-loader`, both pulled in through `misaki`. Setup downloads them from PyPI onto the user's own machine with hash-pinned requirements; AI-TTS still never redistributes them. For a guided runtime, they load only inside that model's separate worker process (`aitts.model_worker`, in its own private virtual environment under `model-runtimes`), not inside the daemon process, which talks to the worker over a JSON-lines control pipe and a binary audio pipe. The daemon's existing in-process Kokoro adapter, installed with the `kokoro` extra, still loads them in the daemon as described above. The redistribution rule above still applies to these runtimes.
 
 ## Menu-bar app: Swift 5.10+, SwiftUI in an AppKit shell
 
