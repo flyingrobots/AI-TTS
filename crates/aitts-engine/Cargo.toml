@@ -1,0 +1,21 @@
+[package]
+name = "aitts-engine"
+description = "AI-TTS engines: worker supervision, loopback HTTP speech, catalog and pinned setup"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+command-fds = "0.3"
+nix = { version = "0.31", features = ["signal", "process"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+nix = { version = "0.31", features = ["signal"] }
+tempfile = "3"
