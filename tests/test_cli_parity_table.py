@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 
 from aitts import cli
+from aitts.client import Client
 
 pytestmark = [
     pytest.mark.small,
@@ -34,11 +35,11 @@ _ROWS: list[dict[str, Any]] = json.loads(_TABLE.read_text(encoding="utf-8"))["ro
 def _python_row(argv: list[str], monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     sent: list[dict[str, Any]] = []
 
-    def accept(_client: cli.Client, payload: dict[str, Any]) -> dict[str, Any]:
+    def accept(_client: Client, payload: dict[str, Any]) -> dict[str, Any]:
         sent.append(payload)
         return {"ok": True}
 
-    monkeypatch.setattr(cli.Client, "request", accept)
+    monkeypatch.setattr(Client, "request", accept)
     sink = io.StringIO()
     with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
         try:
