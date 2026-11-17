@@ -296,3 +296,42 @@ fn an_identity_that_escapes_the_root_is_refused() {
     assert!(recorder(&root).generated("../x", &json!({})).is_err());
     assert!(!dir.path().join("x").exists());
 }
+
+/// The byte length of the first Python-written `clip-b` event line, newline included.
+fn python_line_length() -> usize {
+    let log = fs::read(Path::new(FIXTURE).join("clip-b/synthesis.previous.jsonl")).unwrap();
+    log.iter().position(|byte| *byte == b'\n').unwrap() + 1
+}
+
+/// Log two `clip-b`-shaped events under `limit`; return the lines left in the current log.
+fn lines_after_two_events(limit: usize) -> usize {
+    let dir = tempfile::tempdir().unwrap();
+    let clock = SteppingClock {
+        wall: Cell::new(1_800_000_005.0),
+        monotonic: Cell::new(104.0),
+    };
+    let evidence = EvidenceRecorder::new(dir.path(), "fixture-session", json!({}), clock)
+        .with_log_limit(limit);
+    for index in 0..2 {
+        evidence
+            .record(
+                "c",
+                Phase::Synthesis,
+                "chunk",
+                &details(&json!({"index": index})),
+            )
+            .unwrap();
+    }
+    lines(&fs::read(dir.path().join("c/synthesis.jsonl")).unwrap()).len()
+}
+
+// Oracle: Python rotates when `size + len(line) > limit`, with its own line length.
+#[test]
+fn two_python_length_lines_fit_a_limit_of_exactly_their_size() {
+    assert_eq!(lines_after_two_events(2 * python_line_length()), 2);
+}
+
+#[test]
+fn two_python_length_lines_rotate_under_a_limit_one_byte_smaller() {
+    assert_eq!(lines_after_two_events(2 * python_line_length() - 1), 1);
+}

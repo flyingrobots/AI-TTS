@@ -15,11 +15,17 @@
 //! The caller supplies the clock and the process session, so records have no
 //! hidden time or identity reads. Unlike Python, write failures are returned.
 
-use std::io;
-use std::path::PathBuf;
-use std::sync::Mutex;
+use std::fs::{self, OpenOptions};
+use std::io::{self, Write as _};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 
-use serde_json::{Map, Value};
+use serde_json::ser::Formatter;
+use serde_json::{Map, Value, json};
+
+use crate::evidence::clip_directory;
+use crate::private_fs::{ensure_private_directory, ensure_private_file};
 
 /// The Python log limit: 1 MiB per log file.
 pub const LOG_LIMIT_BYTES: usize = 1024 * 1024;
@@ -99,17 +105,24 @@ impl<C: EvidenceClock> EvidenceRecorder<C> {
     /// # Errors
     /// Fails on an invalid identity, a symbolic link, or an I/O error.
     pub fn prepare(&self, input: &GenerationInput<'_>, engine: &str) -> io::Result<()> {
-        let _ = (
-            input,
-            engine,
-            &self.root,
-            &self.session,
-            &self.runtime,
-            &self.clock,
-            self.log_limit,
-            &self.lock,
-        );
-        Err(io::Error::other("not implemented"))
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        let directory = self.directory(input.artifact_id)?;
+        write_private(&directory.join("source.txt"), input.text.as_bytes())?;
+        let generation = json!({
+            "artifact_id": input.artifact_id,
+            "utterance_id": input.utterance_id,
+            "segment_index": input.segment_index,
+            "voice": input.voice,
+            "speed": input.speed,
+            "engine": engine,
+            "captured_at": self.clock.wall(),
+            "runtime": self.runtime,
+        });
+        write_private(
+            &directory.join("generation.json"),
+            serde_json::to_string_pretty(&generation)?.as_bytes(),
+        )?;
+        self.append(input.artifact_id, Phase::Synthesis, "started", &Map::new())
     }
 
     /// Append one event with `details` to the `phase` log of `artifact_id`.
@@ -123,8 +136,8 @@ impl<C: EvidenceClock> EvidenceRecorder<C> {
         event: &str,
         details: &Map<String, Value>,
     ) -> io::Result<()> {
-        let _ = (artifact_id, phase, event, details);
-        Err(io::Error::other("not implemented"))
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        self.append(artifact_id, phase, event, details)
     }
 
     /// Save the model and voice identities that the engine loaded.
@@ -132,7 +145,118 @@ impl<C: EvidenceClock> EvidenceRecorder<C> {
     /// # Errors
     /// Fails on an invalid identity, a symbolic link, or an I/O error.
     pub fn generated(&self, artifact_id: &str, metadata: &Value) -> io::Result<()> {
-        let _ = (artifact_id, metadata);
-        Err(io::Error::other("not implemented"))
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        let directory = self.directory(artifact_id)?;
+        write_private(
+            &directory.join("model.json"),
+            serde_json::to_string_pretty(metadata)?.as_bytes(),
+        )
+    }
+
+    fn append(
+        &self,
+        artifact_id: &str,
+        phase: Phase,
+        event: &str,
+        details: &Map<String, Value>,
+    ) -> io::Result<()> {
+        let at = self.clock.wall();
+        let mut row = Map::new();
+        row.insert("at".to_owned(), json!(at));
+        row.insert("monotonic".to_owned(), json!(self.clock.monotonic()));
+        row.insert("process_session".to_owned(), json!(self.session));
+        row.insert("event".to_owned(), json!(event));
+        row.extend(
+            details
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone())),
+        );
+        let mut encoded = python_line(&Value::Object(row))?;
+        if encoded.len() > self.log_limit {
+            encoded = python_line(&json!({
+                "at": at,
+                "event": "oversized_event_omitted",
+                "process_session": self.session,
+            }))?;
+        }
+        let directory = self.directory(artifact_id)?;
+        let name = match phase {
+            Phase::Synthesis => "synthesis",
+            Phase::Playback => "playback",
+        };
+        let path = directory.join(format!("{name}.jsonl"));
+        ensure_private_file(&path)?;
+        let size = usize::try_from(fs::symlink_metadata(&path)?.len()).unwrap_or(usize::MAX);
+        if size.saturating_add(encoded.len()) > self.log_limit {
+            fs::rename(&path, directory.join(format!("{name}.previous.jsonl")))?;
+            ensure_private_file(&path)?;
+            write_private(
+                &directory.join("logs-truncated.txt"),
+                b"Earlier events were rotated out.\n",
+            )?;
+        }
+        OpenOptions::new()
+            .append(true)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+            .open(&path)?
+            .write_all(&encoded)
+    }
+
+    fn directory(&self, artifact_id: &str) -> io::Result<PathBuf> {
+        let directory = clip_directory(&self.root, artifact_id)?;
+        ensure_private_directory(&self.root, true)?;
+        ensure_private_directory(&directory, true)?;
+        Ok(directory)
+    }
+}
+
+/// Replace a private file's contents without following a link.
+fn write_private(path: &Path, content: &[u8]) -> io::Result<()> {
+    ensure_private_file(path)?;
+    OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)?
+        .write_all(content)
+}
+
+/// One log line as Python's `json.dumps(row, ensure_ascii=False) + "\n"` spaces it.
+fn python_line(value: &Value) -> io::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut serializer = serde_json::Serializer::with_formatter(&mut out, PythonFormatter);
+    serde::Serialize::serialize(value, &mut serializer).map_err(io::Error::other)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+/// Python's default `json.dumps` separators: `", "` and `": "`.
+struct PythonFormatter;
+
+impl Formatter for PythonFormatter {
+    fn begin_array_value<W: ?Sized + io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if first {
+            Ok(())
+        } else {
+            writer.write_all(b", ")
+        }
+    }
+    fn begin_object_key<W: ?Sized + io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if first {
+            Ok(())
+        } else {
+            writer.write_all(b", ")
+        }
+    }
+    fn begin_object_value<W: ?Sized + io::Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        writer.write_all(b": ")
     }
 }
