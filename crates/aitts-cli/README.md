@@ -44,8 +44,9 @@ string for a number, a whole float for an integer, `0`/`1` or a yes/no word
 for a boolean), and `NonEmptyText` fields stripped. A refused call sends no
 daemon request. A daemon error, an unreachable daemon, or a reply outside the
 schema gives an `isError` result with the Python text
-`Error executing tool NAME: CODE: MESSAGE`. Hosts still start the Python
-`ai-tts-mcp` until tool calls are ported.
+`Error executing tool NAME: CODE: MESSAGE`. `make install` installs this
+binary as `ai-tts-mcp`; `make install AITTS_MCP=python` rolls back to the
+Python server (see the README).
 
 ## Commands it does not run itself
 
