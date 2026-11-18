@@ -85,6 +85,10 @@ elif args[:1] == ["export"]:
     os.execv(os.environ["AITTS_TEST_REAL_UV"], ["uv", *args])
 elif args[:2] == ["tool", "install"]:
     (root / "cli-version").write_text("new cli")
+    # The package's console scripts, as uv writes them into its tool bin.
+    (root / "bin").mkdir(exist_ok=True)
+    for script in ("ai-tts", "ai-tts-py", "ai-tts-mcp"):
+        (root / "bin" / script).write_text(f"python {script}")
     (root / "install-arguments.json").write_text(json.dumps(args))
     if "--constraints" in args:
         constraints = Path(args[args.index("--constraints") + 1])
@@ -139,6 +143,24 @@ incumbent.write_text(json.dumps(process))
         shim.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
         shim.chmod(0o755)
         shim.with_suffix(".py").write_text(source)
+    # The owned cargo writes a stand-in Rust binary into the requested target directory.
+    cargo = commands / "cargo"
+    cargo.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
+    cargo.chmod(0o755)
+    cargo.with_suffix(".py").write_text(
+        """import json, os, sys
+from pathlib import Path
+root = Path(os.environ["AITTS_TEST_ROOT"])
+args = sys.argv[1:]
+with (root / "cargo-calls").open("a") as journal:
+    journal.write(json.dumps(args) + "\\n")
+if os.environ.get("AITTS_TEST_CARGO_FAILURE") == "1":
+    sys.exit(9)
+binary = Path(args[args.index("--target-dir") + 1]) / "release" / "ai-tts"
+binary.parent.mkdir(parents=True, exist_ok=True)
+binary.write_text("rust ai-tts")
+"""
+    )
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -195,10 +217,13 @@ else:
     real_uv = shutil.which("uv")
     assert real_uv is not None, "uv is required to export the lockfile"
     env["AITTS_TEST_REAL_UV"] = real_uv
+    env["CARGO_TARGET_DIR"] = str(tmp_path / "cargo-target")
     return env
 
 
-def run_installation(tmp_path: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def run_installation(
+    tmp_path: Path, env: dict[str, str], *variables: str
+) -> subprocess.CompletedProcess[str]:
     """Run the real Make entrypoint with owned tools and installation paths."""
     return subprocess.run(  # noqa: S603 - only owned tools and artifact destinations
         [
@@ -208,6 +233,7 @@ def run_installation(tmp_path: Path, env: dict[str, str]) -> subprocess.Complete
             f"APP_BUNDLE={tmp_path / 'AI-TTS.app'}",
             f"LAUNCH_AGENT={tmp_path / 'agent.plist'}",
             f"LOG_PATH={tmp_path / 'logs' / 'daemon.log'}",
+            *variables,
         ],
         cwd=REPOSITORY,
         env=env,
@@ -253,7 +279,7 @@ def test_install_publishes_prepared_artifacts_to_explicit_destinations(
     } == {
         "cli": "new cli",
         "app": "new app",
-        "daemon": [str(tmp_path / "bin" / "ai-tts"), "daemon", "--log-file", str(log_path)],
+        "daemon": [str(tmp_path / "bin" / "ai-tts-py"), "daemon", "--log-file", str(log_path)],
     }
 
 
@@ -579,5 +605,114 @@ def test_install_waits_for_launchd_to_release_the_previous_service(
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "service-loaded").exists()
     assert plistlib.loads(agent.read_bytes())["ProgramArguments"][0] == str(
-        tmp_path / "bin" / "ai-tts"
+        tmp_path / "bin" / "ai-tts-py"
     )
+
+
+# -- the Rust ai-tts client (issue #138) -------------------------------------
+
+
+def _layout(root: Path) -> dict[str, object]:
+    """The installed-entry-point contract: what each command name is, and what launchd runs."""
+    agent = root / "agent.plist"
+    bin_dir = root / "bin"
+    return {
+        "ai-tts": (bin_dir / "ai-tts").read_text() if (bin_dir / "ai-tts").exists() else None,
+        "ai-tts-py": (
+            (bin_dir / "ai-tts-py").read_text() if (bin_dir / "ai-tts-py").exists() else None
+        ),
+        "daemon": (
+            plistlib.loads(agent.read_bytes())["ProgramArguments"][:2] if agent.exists() else None
+        ),
+    }
+
+
+def _python_layout(root: Path) -> None:
+    """The layout before issue #138: launchd runs the Python ai-tts directly."""
+    (root / "bin").mkdir(exist_ok=True)
+    (root / "bin" / "ai-tts").write_text("python ai-tts")
+    (root / "agent.plist").write_bytes(
+        plistlib.dumps(
+            {
+                "Label": "com.flyingrobots.ai-tts",
+                "ProgramArguments": [str(root / "bin" / "ai-tts"), "daemon"],
+            }
+        )
+    )
+    (root / "service-loaded").write_text("running")
+
+
+def test_install_publishes_the_rust_cli_and_runs_the_daemon_through_ai_tts_py(
+    default_installation: tuple[Path, subprocess.CompletedProcess[str]],
+) -> None:
+    """Oracle: issue #138; `ai-tts` is the Rust binary, and launchd needs the Python daemon."""
+    root, result = default_installation
+    assert result.returncode == 0, result.stderr
+    assert _layout(root) == {
+        "ai-tts": "rust ai-tts",
+        "ai-tts-py": "python ai-tts-py",
+        "daemon": [str(root / "bin" / "ai-tts-py"), "daemon"],
+    }
+    calls = [json.loads(line) for line in (root / "cargo-calls").read_text().splitlines()]
+    assert calls == [
+        [
+            "build",
+            "--release",
+            "--locked",
+            "-p",
+            "aitts-cli",
+            "--target-dir",
+            str(root / "cargo-target"),
+        ]
+    ]
+
+
+def test_install_upgrades_the_python_cli_layout(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    _python_layout(tmp_path)
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    assert _layout(tmp_path) == {
+        "ai-tts": "rust ai-tts",
+        "ai-tts-py": "python ai-tts-py",
+        "daemon": [str(tmp_path / "bin" / "ai-tts-py"), "daemon"],
+    }
+    assert (tmp_path / "service-loaded").read_text() == "running"
+
+
+def test_aitts_cli_python_rolls_back_to_the_python_cli(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    first = run_installation(tmp_path, install_environment)
+    assert first.returncode == 0, first.stderr
+    rollback = run_installation(tmp_path, install_environment, "AITTS_CLI=python")
+    assert rollback.returncode == 0, rollback.stderr
+    assert _layout(tmp_path) == {
+        "ai-tts": "python ai-tts",
+        "ai-tts-py": "python ai-tts-py",
+        "daemon": [str(tmp_path / "bin" / "ai-tts-py"), "daemon"],
+    }
+    assert len((tmp_path / "cargo-calls").read_text().splitlines()) == 1, "rollback built Rust"
+
+
+@pytest.mark.parametrize("fault", ["cargo", "unknown-cli"])
+def test_a_failed_rust_build_or_unknown_choice_replaces_nothing(
+    tmp_path: Path, install_environment: dict[str, str], fault: str
+) -> None:
+    _python_layout(tmp_path)
+    before = _layout(tmp_path)
+    env = dict(install_environment, AITTS_TEST_CARGO_FAILURE="1" if fault == "cargo" else "0")
+    variables = ("AITTS_CLI=ruby",) if fault == "unknown-cli" else ()
+    result = run_installation(tmp_path, env, *variables)
+    assert result.returncode != 0
+    assert _layout(tmp_path) == before
+    assert (tmp_path / "cli-version").read_text() == "old cli"
+
+
+def test_the_python_package_installs_its_cli_as_ai_tts_py() -> None:
+    """Oracle: pyproject console scripts; the launch agent and the Rust client call ai-tts-py."""
+    import tomllib  # noqa: PLC0415 - only this test reads the project metadata
+
+    scripts = tomllib.loads((REPOSITORY / "pyproject.toml").read_text())["project"]["scripts"]
+    assert scripts["ai-tts-py"] == scripts["ai-tts"] == "aitts.cli:main"

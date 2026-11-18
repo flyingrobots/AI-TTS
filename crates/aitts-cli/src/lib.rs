@@ -9,14 +9,17 @@
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
 mod grammar;
+pub mod mcp;
 mod payload;
+mod wait;
 
 use aitts_client::{Client, ClientError};
 use aitts_protocol::decode_request;
+use clap::ArgMatches;
 use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// The daemon accepted the operation.
@@ -25,6 +28,8 @@ pub const EXIT_OK: u8 = 0;
 pub const EXIT_DAEMON_ERROR: u8 = 1;
 /// The daemon could not be reached, or argument parsing failed.
 pub const EXIT_UNREACHABLE: u8 = 2;
+/// `wait` or `say --wait` ended in a terminal state other than `Played`.
+pub const EXIT_NOT_PLAYED: u8 = 3;
 
 /// Each socket read and write waits this long, as the Python client does.
 const LIMIT: Duration = Duration::from_secs(10);
@@ -42,7 +47,7 @@ pub struct Environment {
 
 impl Environment {
     /// `aitts.paths.default_socket`: `AI_TTS_SOCKET`, else `<home>/ai-tts.sock`.
-    fn socket(&self) -> PathBuf {
+    pub fn socket(&self) -> PathBuf {
         let set = |value: &Option<OsString>| value.clone().filter(|value| !value.is_empty());
         if let Some(socket) = set(&self.socket) {
             return self.expand(socket);
@@ -73,40 +78,99 @@ fn failure(kind: &str, message: &str) -> Value {
     json!({"ok": false, "error": {"type": kind, "message": message}})
 }
 
-fn send(socket: PathBuf, request: &Value, out: &mut dyn Write) -> u8 {
-    let typed = match decode_request(request.to_string().as_bytes()) {
-        Ok(typed) => typed,
-        Err(error) => {
-            // The daemon decodes with the same types and would refuse it identically.
-            emit(
-                out,
-                &failure("bad_request", &format!("invalid request: {error}")),
-            );
-            return EXIT_DAEMON_ERROR;
-        }
+/// A failed exchange: the exit status and the JSON to print.
+pub(crate) struct Failed(pub(crate) u8, pub(crate) Value);
+
+fn client_failure(error: ClientError) -> Failed {
+    let kind = match error {
+        ClientError::Wire(_) | ClientError::Refused(_) => "internal",
+        _ => "unreachable",
     };
-    let reply = match Client::new(socket, LIMIT).request(&typed) {
-        Ok(reply) => reply,
-        Err(error) => {
-            let kind = match error {
-                ClientError::Wire(_) | ClientError::Refused(_) => "internal",
-                _ => "unreachable",
-            };
-            emit(out, &failure(kind, &error.to_string()));
-            return error.exit_status();
-        }
-    };
-    match serde_json::to_value(&reply) {
-        Ok(value) => {
-            let accepted = value.get("ok") == Some(&json!(true));
-            emit(out, &value);
-            if accepted { EXIT_OK } else { EXIT_DAEMON_ERROR }
-        }
-        Err(error) => {
-            emit(out, &failure("internal", &error.to_string()));
-            EXIT_DAEMON_ERROR
-        }
+    Failed(error.exit_status(), failure(kind, &error.to_string()))
+}
+
+/// Send `request` and return the daemon's `ok: true` reply as JSON.
+pub(crate) fn exchange(socket: &Path, request: &Value) -> Result<Value, Failed> {
+    let typed = decode_request(request.to_string().as_bytes()).map_err(|error| {
+        // The daemon decodes with the same types and would refuse it identically.
+        Failed(
+            EXIT_DAEMON_ERROR,
+            failure("bad_request", &format!("invalid request: {error}")),
+        )
+    })?;
+    let reply = Client::new(socket, LIMIT)
+        .request(&typed)
+        .map_err(client_failure)?;
+    let value = serde_json::to_value(&reply)
+        .map_err(|error| Failed(EXIT_DAEMON_ERROR, failure("internal", &error.to_string())))?;
+    if value.get("ok") == Some(&json!(true)) {
+        Ok(value)
+    } else {
+        Err(Failed(EXIT_DAEMON_ERROR, value))
     }
+}
+
+fn finish(out: &mut dyn Write, result: Result<(Value, u8), Failed>) -> u8 {
+    let (value, status) = result.unwrap_or_else(|Failed(status, value)| (value, status));
+    emit(out, &value);
+    status
+}
+
+fn command(name: &str, sub: &ArgMatches, socket: &Path) -> Result<(Value, u8), Failed> {
+    let timeout = sub.try_get_one::<f64>("timeout").ok().flatten().copied();
+    if name == "wait" {
+        let id = sub.get_one::<String>("id").cloned().unwrap_or_default();
+        let state = wait::final_state(socket, &id, timeout)?;
+        return Ok((
+            json!({"ok": true, "id": id, "final_state": state}),
+            wait::status(state),
+        ));
+    }
+    let request = payload::payload(name, sub)
+        .map_err(|payload::Refused(message)| Failed(EXIT_DAEMON_ERROR, json!(message)))?;
+    let mut reply = exchange(socket, &request)?;
+    if name == "say" && sub.get_flag("wait") {
+        let id = reply
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        let state = wait::final_state(socket, &id, timeout)?;
+        if let Value::Object(map) = &mut reply {
+            map.insert("final_state".into(), json!(state));
+        }
+        return Ok((reply, wait::status(state)));
+    }
+    Ok((reply, EXIT_OK))
+}
+
+/// The `--socket` value and the command name, skipping only the global
+/// `--socket` option (or an unambiguous prefix of it) before the command.
+pub fn leading(args: &[OsString]) -> (Option<PathBuf>, Option<String>) {
+    let mut socket = None;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        let Some(text) = arg.to_str() else {
+            return (socket, None);
+        };
+        let (option, value) = text
+            .split_once('=')
+            .map_or((text, None), |(o, v)| (o, Some(v)));
+        if option.len() >= 3 && "--socket".starts_with(option) {
+            socket = match value {
+                Some(value) => Some(PathBuf::from(value)),
+                None => rest.next().map(PathBuf::from),
+            };
+            continue;
+        }
+        return (socket, Some(text.to_owned()));
+    }
+    (socket, None)
+}
+
+/// Whether the command is `daemon` or `tui`, which the Python `ai-tts-py` runs.
+pub fn hands_off(args: &[OsString]) -> bool {
+    matches!(leading(args).1.as_deref(), Some("daemon" | "tui"))
 }
 
 /// Run one command. `args` excludes the program name. Returns the exit status.
@@ -133,21 +197,15 @@ pub fn run(
     let Some((name, sub)) = matches.subcommand() else {
         return EXIT_UNREACHABLE;
     };
-    if name == "wait" || (name == "say" && sub.get_flag("wait")) {
-        let _ = writeln!(
-            err,
-            "ai-tts: waiting for playback is not in the Rust client yet"
-        );
-        return EXIT_DAEMON_ERROR;
-    }
     let socket = matches
         .get_one::<PathBuf>("socket")
         .map_or_else(|| env.socket(), |path| env.expand(path.clone().into()));
-    match payload::payload(name, sub) {
-        Ok(request) => send(socket, &request, out),
-        Err(payload::Refused(message)) => {
+    match command(name, sub, &socket) {
+        // A refused command line goes to standard error, as Python's SystemExit(msg).
+        Err(Failed(status, Value::String(message))) => {
             let _ = writeln!(err, "{message}");
-            EXIT_DAEMON_ERROR
+            status
         }
+        result => finish(out, result),
     }
 }

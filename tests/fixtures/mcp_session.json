@@ -1,0 +1,5860 @@
+[
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "method": "notifications/initialized"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "ping"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/list"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "prompts/list"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "method": "resources/list"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 6,
+    "method": "resources/templates/list"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "method": "bogus/method"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": "s-8",
+    "method": "ping"
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-11-25",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {}
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "result": {
+     "tools": [
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Queue speech even when playback is globally paused; held speech is safely spooled.",
+       "inputSchema": {
+        "properties": {
+         "text": {
+          "description": "Text to synthesize and speak.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+         },
+         "content_format": {
+          "$ref": "#/$defs/ContentFormat",
+          "default": "plain_text",
+          "description": "Interpret text literally or project Markdown syntax for speech."
+         },
+         "voice": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Voice id; omit for the user's default.",
+          "title": "Voice"
+         },
+         "speed": {
+          "anyOf": [
+           {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "type": "number"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Playback speed; omit for the user's default.",
+          "title": "Speed"
+         },
+         "sensitivity": {
+          "$ref": "#/$defs/Sensitivity",
+          "default": "confidential"
+         },
+         "priority": {
+          "$ref": "#/$defs/Priority",
+          "default": "normal"
+         },
+         "preempt": {
+          "default": false,
+          "title": "Preempt",
+          "type": "boolean"
+         },
+         "source": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": "mcp",
+          "description": "Calling agent identity recorded with the clip.",
+          "title": "Source"
+         }
+        },
+        "required": [
+         "text"
+        ],
+        "type": "object",
+        "$defs": {
+         "ContentFormat": {
+          "description": "How submitted source text should be projected before synthesis.",
+          "enum": [
+           "plain_text",
+           "markdown"
+          ],
+          "title": "ContentFormat",
+          "type": "string"
+         },
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         }
+        },
+        "title": "enqueue_speechArguments"
+       },
+       "name": "enqueue_speech",
+       "outputSchema": {
+        "properties": {
+         "accepting_speech": {
+          "const": true,
+          "title": "Accepting Speech",
+          "type": "boolean"
+         },
+         "playback_held": {
+          "title": "Playback Held",
+          "type": "boolean"
+         },
+         "submission_disposition": {
+          "$ref": "#/$defs/SubmissionDisposition"
+         },
+         "submission_guidance": {
+          "minLength": 1,
+          "title": "Submission Guidance",
+          "type": "string"
+         },
+         "accepted": {
+          "const": true,
+          "title": "Accepted",
+          "type": "boolean"
+         },
+         "id": {
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+         },
+         "state": {
+          "$ref": "#/$defs/State"
+         },
+         "voice": {
+          "minLength": 1,
+          "title": "Voice",
+          "type": "string"
+         },
+         "sensitivity": {
+          "$ref": "#/$defs/Sensitivity"
+         },
+         "eligible_engines": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Eligible Engines",
+          "type": "array"
+         },
+         "segment_count": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Segment Count",
+          "type": "integer"
+         },
+         "composite": {
+          "default": false,
+          "title": "Composite",
+          "type": "boolean"
+         },
+         "playback": {
+          "default": true,
+          "title": "Playback",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "accepting_speech",
+         "playback_held",
+         "submission_disposition",
+         "submission_guidance",
+         "accepted",
+         "id",
+         "state",
+         "voice",
+         "sensitivity",
+         "eligible_engines"
+        ],
+        "type": "object",
+        "$defs": {
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SubmissionDisposition": {
+          "description": "What accepted speech will do next.",
+          "enum": [
+           "queued_for_playback",
+           "spooled_until_resume",
+           "synthesis_only"
+          ],
+          "title": "SubmissionDisposition",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Receipt proving the daemon accepted a speech request.",
+        "title": "EnqueueSpeechReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Create a new hearing of a history clip, optionally urgent at the head of the queue.",
+       "inputSchema": {
+        "properties": {
+         "utterance_id": {
+          "description": "Terminal history utterance id.",
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Utterance Id",
+          "type": "string"
+         },
+         "priority": {
+          "$ref": "#/$defs/Priority",
+          "default": "normal"
+         }
+        },
+        "required": [
+         "utterance_id"
+        ],
+        "type": "object",
+        "$defs": {
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         }
+        },
+        "title": "requeue_speechArguments"
+       },
+       "name": "requeue_speech",
+       "outputSchema": {
+        "properties": {
+         "id": {
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+         },
+         "state": {
+          "$ref": "#/$defs/State"
+         },
+         "priority": {
+          "$ref": "#/$defs/Priority"
+         }
+        },
+        "required": [
+         "id",
+         "state",
+         "priority"
+        ],
+        "type": "object",
+        "$defs": {
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Receipt for the newly created replay clip.",
+        "title": "RequeueSpeechReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report admission and playback hold separately; held never means refusing speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "speech_statusArguments"
+       },
+       "name": "speech_status",
+       "outputSchema": {
+        "properties": {
+         "accepting_speech": {
+          "const": true,
+          "title": "Accepting Speech",
+          "type": "boolean"
+         },
+         "playback_held": {
+          "title": "Playback Held",
+          "type": "boolean"
+         },
+         "submission_disposition": {
+          "$ref": "#/$defs/SubmissionDisposition"
+         },
+         "submission_guidance": {
+          "minLength": 1,
+          "title": "Submission Guidance",
+          "type": "string"
+         },
+         "state": {
+          "const": "accepting",
+          "title": "State",
+          "type": "string"
+         },
+         "playback_state": {
+          "$ref": "#/$defs/PlaybackState"
+         },
+         "current": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/CurrentSpeech"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "counts": {
+          "additionalProperties": {
+           "minimum": 0,
+           "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+         },
+         "engine": {
+          "minLength": 1,
+          "title": "Engine",
+          "type": "string"
+         },
+         "voice": {
+          "title": "Voice",
+          "type": "string"
+         },
+         "version": {
+          "anyOf": [
+           {
+            "minLength": 1,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Version"
+         },
+         "input_active": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Input Active"
+         },
+         "engine_preparing": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/EnginePreparation"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "interruption": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/SpeechInterruption"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         }
+        },
+        "required": [
+         "accepting_speech",
+         "playback_held",
+         "submission_disposition",
+         "submission_guidance",
+         "state",
+         "playback_state",
+         "current",
+         "counts",
+         "engine",
+         "voice"
+        ],
+        "type": "object",
+        "$defs": {
+         "ActiveSegment": {
+          "additionalProperties": false,
+          "description": "The exact synthesized child currently owning playback.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "number": {
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+           },
+           "count": {
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "position_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Position Ms"
+           }
+          },
+          "required": [
+           "index",
+           "number",
+           "count",
+           "text",
+           "state",
+           "duration_ms",
+           "position_ms"
+          ],
+          "title": "ActiveSegment",
+          "type": "object"
+         },
+         "CurrentSpeech": {
+          "additionalProperties": false,
+          "description": "The active clip plus its live playback position.",
+          "properties": {
+           "id": {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "title": "Id",
+            "type": "string"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "voice": {
+            "title": "Voice",
+            "type": "string"
+           },
+           "speed": {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+           },
+           "sensitivity": {
+            "$ref": "#/$defs/Sensitivity"
+           },
+           "priority": {
+            "$ref": "#/$defs/Priority"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+           },
+           "source": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Source"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "played_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Played Ms"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           },
+           "replay_of": {
+            "anyOf": [
+             {
+              "pattern": "^utt_[0-9a-f]{32}$",
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Replay Of"
+           },
+           "composite": {
+            "default": false,
+            "title": "Composite",
+            "type": "boolean"
+           },
+           "segment_count": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Segment Count",
+            "type": "integer"
+           },
+           "completed_segments": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Completed Segments",
+            "type": "integer"
+           },
+           "playback": {
+            "default": true,
+            "title": "Playback",
+            "type": "boolean"
+           },
+           "segments": {
+            "default": [],
+            "items": {
+             "$ref": "#/$defs/SynthesizedSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+           },
+           "position_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Position Ms"
+           },
+           "active_segment": {
+            "anyOf": [
+             {
+              "$ref": "#/$defs/ActiveSegment"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "default": null
+           }
+          },
+          "required": [
+           "id",
+           "text",
+           "voice",
+           "speed",
+           "sensitivity",
+           "priority",
+           "state",
+           "enqueued_at",
+           "source",
+           "duration_ms",
+           "played_ms",
+           "error",
+           "replay_of",
+           "position_ms"
+          ],
+          "title": "CurrentSpeech",
+          "type": "object"
+         },
+         "EnginePreparation": {
+          "additionalProperties": false,
+          "description": "What the engine is still fetching before it can speak at all.\n\nNamed rather than measured: the model host reports no progress this\nadapter can trust, and a fabricated percentage would be worse than an\nhonest \"still fetching this, since then\".",
+          "properties": {
+           "asset": {
+            "minLength": 1,
+            "title": "Asset",
+            "type": "string"
+           },
+           "since": {
+            "title": "Since",
+            "type": "number"
+           }
+          },
+          "required": [
+           "asset",
+           "since"
+          ],
+          "title": "EnginePreparation",
+          "type": "object"
+         },
+         "PlaybackState": {
+          "description": "User-visible state of the serialized playback worker.",
+          "enum": [
+           "idle",
+           "synthesizing",
+           "playing",
+           "paused"
+          ],
+          "title": "PlaybackState",
+          "type": "string"
+         },
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "SpeechInterruption": {
+          "additionalProperties": false,
+          "description": "A playback hold the listener's own voice caused.",
+          "properties": {
+           "reason": {
+            "const": "listener_speaking",
+            "title": "Reason",
+            "type": "string"
+           },
+           "at": {
+            "title": "At",
+            "type": "number"
+           },
+           "resume_armed": {
+            "title": "Resume Armed",
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "reason",
+           "at",
+           "resume_armed"
+          ],
+          "title": "SpeechInterruption",
+          "type": "object"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SubmissionDisposition": {
+          "description": "What accepted speech will do next.",
+          "enum": [
+           "queued_for_playback",
+           "spooled_until_resume",
+           "synthesis_only"
+          ],
+          "title": "SubmissionDisposition",
+          "type": "string"
+         },
+         "SynthesizedSegment": {
+          "additionalProperties": false,
+          "description": "One synthesis-only artifact on the daemon's local filesystem.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "audio_ready": {
+            "title": "Audio Ready",
+            "type": "boolean"
+           },
+           "audio_path": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Audio Path"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           }
+          },
+          "required": [
+           "index",
+           "state",
+           "duration_ms",
+           "audio_ready",
+           "audio_path",
+           "error"
+          ],
+          "title": "SynthesizedSegment",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Machine-readable service, playback, and queue state.",
+        "title": "SpeechStatus"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "List every pending clip in exact playback order.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_speech_queueArguments"
+       },
+       "name": "list_speech_queue",
+       "outputSchema": {
+        "properties": {
+         "items": {
+          "items": {
+           "$ref": "#/$defs/QueueItem"
+          },
+          "title": "Items",
+          "type": "array"
+         }
+        },
+        "required": [
+         "items"
+        ],
+        "type": "object",
+        "$defs": {
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "QueueItem": {
+          "additionalProperties": false,
+          "description": "One clip in the unified pending playback plan.",
+          "properties": {
+           "id": {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "title": "Id",
+            "type": "string"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "voice": {
+            "title": "Voice",
+            "type": "string"
+           },
+           "speed": {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+           },
+           "sensitivity": {
+            "$ref": "#/$defs/Sensitivity"
+           },
+           "priority": {
+            "$ref": "#/$defs/Priority"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+           },
+           "source": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Source"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "played_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Played Ms"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           },
+           "replay_of": {
+            "anyOf": [
+             {
+              "pattern": "^utt_[0-9a-f]{32}$",
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Replay Of"
+           },
+           "composite": {
+            "default": false,
+            "title": "Composite",
+            "type": "boolean"
+           },
+           "segment_count": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Segment Count",
+            "type": "integer"
+           },
+           "completed_segments": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Completed Segments",
+            "type": "integer"
+           },
+           "playback": {
+            "default": true,
+            "title": "Playback",
+            "type": "boolean"
+           },
+           "segments": {
+            "default": [],
+            "items": {
+             "$ref": "#/$defs/SynthesizedSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+           }
+          },
+          "required": [
+           "id",
+           "text",
+           "voice",
+           "speed",
+           "sensitivity",
+           "priority",
+           "state",
+           "enqueued_at",
+           "source",
+           "duration_ms",
+           "played_ms",
+           "error",
+           "replay_of"
+          ],
+          "title": "QueueItem",
+          "type": "object"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SynthesizedSegment": {
+          "additionalProperties": false,
+          "description": "One synthesis-only artifact on the daemon's local filesystem.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "audio_ready": {
+            "title": "Audio Ready",
+            "type": "boolean"
+           },
+           "audio_path": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Audio Path"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           }
+          },
+          "required": [
+           "index",
+           "state",
+           "duration_ms",
+           "audio_ready",
+           "audio_path",
+           "error"
+          ],
+          "title": "SynthesizedSegment",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "All pending clips in exact playback order.",
+        "title": "QueueView"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "List terminal clips from most recent to least recent.",
+       "inputSchema": {
+        "properties": {
+         "limit": {
+          "default": 20,
+          "description": "Maximum terminal clips to return.",
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+         },
+         "before": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Return clips older than this utterance id.",
+          "title": "Before"
+         }
+        },
+        "type": "object",
+        "title": "list_speech_historyArguments"
+       },
+       "name": "list_speech_history",
+       "outputSchema": {
+        "properties": {
+         "items": {
+          "items": {
+           "$ref": "#/$defs/HistoryItem"
+          },
+          "title": "Items",
+          "type": "array"
+         }
+        },
+        "required": [
+         "items"
+        ],
+        "type": "object",
+        "$defs": {
+         "HistoryItem": {
+          "additionalProperties": false,
+          "description": "One terminal clip retained in history.",
+          "properties": {
+           "id": {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "title": "Id",
+            "type": "string"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "voice": {
+            "title": "Voice",
+            "type": "string"
+           },
+           "speed": {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+           },
+           "sensitivity": {
+            "$ref": "#/$defs/Sensitivity"
+           },
+           "priority": {
+            "$ref": "#/$defs/Priority"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+           },
+           "source": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Source"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "played_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Played Ms"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           },
+           "replay_of": {
+            "anyOf": [
+             {
+              "pattern": "^utt_[0-9a-f]{32}$",
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Replay Of"
+           },
+           "composite": {
+            "default": false,
+            "title": "Composite",
+            "type": "boolean"
+           },
+           "segment_count": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Segment Count",
+            "type": "integer"
+           },
+           "completed_segments": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Completed Segments",
+            "type": "integer"
+           },
+           "playback": {
+            "default": true,
+            "title": "Playback",
+            "type": "boolean"
+           },
+           "segments": {
+            "default": [],
+            "items": {
+             "$ref": "#/$defs/SynthesizedSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+           },
+           "final_state": {
+            "$ref": "#/$defs/State"
+           },
+           "finished_at": {
+            "title": "Finished At",
+            "type": "number"
+           },
+           "audio_cached": {
+            "title": "Audio Cached",
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "id",
+           "text",
+           "voice",
+           "speed",
+           "sensitivity",
+           "priority",
+           "state",
+           "enqueued_at",
+           "source",
+           "duration_ms",
+           "played_ms",
+           "error",
+           "replay_of",
+           "final_state",
+           "finished_at",
+           "audio_cached"
+          ],
+          "title": "HistoryItem",
+          "type": "object"
+         },
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SynthesizedSegment": {
+          "additionalProperties": false,
+          "description": "One synthesis-only artifact on the daemon's local filesystem.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "audio_ready": {
+            "title": "Audio Ready",
+            "type": "boolean"
+           },
+           "audio_path": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Audio Path"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           }
+          },
+          "required": [
+           "index",
+           "state",
+           "duration_ms",
+           "audio_ready",
+           "audio_path",
+           "error"
+          ],
+          "title": "SynthesizedSegment",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "A page of terminal clips, most recent first.",
+        "title": "HistoryView"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report how long synthesis and the playback queue are actually taking.\n\n        The two waits are separate on purpose: synthesis is parallel work,\n        while the playback queue is a serial resource. A null summary means\n        nothing has been measured yet rather than zero.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "speech_metricsArguments"
+       },
+       "name": "speech_metrics",
+       "outputSchema": {
+        "properties": {
+         "counts": {
+          "additionalProperties": {
+           "minimum": 0,
+           "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+         },
+         "queue_depth": {
+          "$ref": "#/$defs/QueueDepth"
+         },
+         "cache": {
+          "$ref": "#/$defs/CacheUsage"
+         },
+         "synthesis_wait_ms": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/DurationSummary"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "synthesis_duration_ms": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/DurationSummary"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "playback_wait_ms": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/DurationSummary"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "playback_failures": {
+          "minimum": 0,
+          "title": "Playback Failures",
+          "type": "integer"
+         }
+        },
+        "required": [
+         "counts",
+         "queue_depth",
+         "cache",
+         "synthesis_wait_ms",
+         "synthesis_duration_ms",
+         "playback_wait_ms",
+         "playback_failures"
+        ],
+        "type": "object",
+        "$defs": {
+         "CacheUsage": {
+          "additionalProperties": false,
+          "description": "Cached audio measured against its configured cap.",
+          "properties": {
+           "bytes": {
+            "minimum": 0,
+            "title": "Bytes",
+            "type": "integer"
+           },
+           "max_bytes": {
+            "minimum": 0,
+            "title": "Max Bytes",
+            "type": "integer"
+           }
+          },
+          "required": [
+           "bytes",
+           "max_bytes"
+          ],
+          "title": "CacheUsage",
+          "type": "object"
+         },
+         "DurationSummary": {
+          "additionalProperties": false,
+          "description": "A bounded sample of durations, in milliseconds.",
+          "properties": {
+           "count": {
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+           },
+           "p50": {
+            "title": "P50",
+            "type": "number"
+           },
+           "p95": {
+            "title": "P95",
+            "type": "number"
+           },
+           "max": {
+            "title": "Max",
+            "type": "number"
+           }
+          },
+          "required": [
+           "count",
+           "p50",
+           "p95",
+           "max"
+          ],
+          "title": "DurationSummary",
+          "type": "object"
+         },
+         "QueueDepth": {
+          "additionalProperties": false,
+          "description": "How much work is waiting in each queue.",
+          "properties": {
+           "input": {
+            "minimum": 0,
+            "title": "Input",
+            "type": "integer"
+           },
+           "playback": {
+            "minimum": 0,
+            "title": "Playback",
+            "type": "integer"
+           }
+          },
+          "required": [
+           "input",
+           "playback"
+          ],
+          "title": "QueueDepth",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "What the daemon can say about its own responsiveness.\n\nThe two waits are reported separately because they mean different things:\nsynthesis is parallel work, and the queue is a serial resource that no\namount of parallelism helps. ``None`` means nothing has been measured yet,\nwhich a caller must be able to tell from \"it was instant\".",
+        "title": "SpeechMetrics"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "List voice ids accepted by enqueue_speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_speech_voicesArguments"
+       },
+       "name": "list_speech_voices",
+       "outputSchema": {
+        "properties": {
+         "voices": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Voices",
+          "type": "array"
+         }
+        },
+        "required": [
+         "voices"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Voices currently accepted by the configured speech engine.",
+        "title": "VoiceCatalog"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report whether the user's on-screen captions are enabled.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "get_caption_settingsArguments"
+       },
+       "name": "get_caption_settings",
+       "outputSchema": {
+        "properties": {
+         "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The shared on-screen caption preference.",
+        "title": "CaptionSettings"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Enable or disable the user's on-screen captions without changing playback.",
+       "inputSchema": {
+        "properties": {
+         "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ],
+        "type": "object",
+        "title": "set_captions_enabledArguments"
+       },
+       "name": "set_captions_enabled",
+       "outputSchema": {
+        "properties": {
+         "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The shared on-screen caption preference.",
+        "title": "CaptionSettings"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Hold all playback globally while continuing to accept and synthesize incoming speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "pause_speech_playbackArguments"
+       },
+       "name": "pause_speech_playback",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Release the global hold and continue through the queued playback plan.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "resume_speech_playbackArguments"
+       },
+       "name": "resume_speech_playback",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Mark the current clip skipped and advance without releasing a global hold.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "skip_current_speechArguments"
+       },
+       "name": "skip_current_speech",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Restart the current clip from the beginning without releasing a global hold.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "restart_current_speechArguments"
+       },
+       "name": "restart_current_speech",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Give up the current chunk of a chunked document and play the next one.\n\n        Fails when the clip has no chunks, when it is already on its last\n        chunk, or while playback is held. Abandoning the whole clip is\n        skip_current_speech.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "next_speech_chunkArguments"
+       },
+       "name": "next_speech_chunk",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         },
+         "segment_index": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Index"
+         },
+         "segment_number": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Number"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state after stepping one chunk within a document.",
+        "title": "SegmentStepReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Replay the chunk before the current one, from its start.\n\n        Fails on the first chunk, when the clip has no chunks, and while\n        playback is held.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "previous_speech_chunkArguments"
+       },
+       "name": "previous_speech_chunk",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         },
+         "segment_index": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Index"
+         },
+         "segment_number": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Number"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state after stepping one chunk within a document.",
+        "title": "SegmentStepReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Release a playback hold once nothing is capturing audio input.\n\n        The hold stays in force until then. Use this rather than resuming\n        outright when the listener may still be speaking.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "resume_speech_when_input_idleArguments"
+       },
+       "name": "resume_speech_when_input_idle",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report which voice each speaking client holds.\n\n        A pinned assignment was set by the listener and outranks whatever a\n        client asks for at submission.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_speech_voice_assignmentsArguments"
+       },
+       "name": "list_speech_voice_assignments",
+       "outputSchema": {
+        "properties": {
+         "assignments": {
+          "items": {
+           "$ref": "#/$defs/VoiceAssignmentRecord"
+          },
+          "title": "Assignments",
+          "type": "array"
+         }
+        },
+        "required": [
+         "assignments"
+        ],
+        "type": "object",
+        "$defs": {
+         "VoiceAssignmentRecord": {
+          "additionalProperties": false,
+          "description": "Which voice one speaking client holds, and who decided it.",
+          "properties": {
+           "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+           },
+           "voice": {
+            "minLength": 1,
+            "title": "Voice",
+            "type": "string"
+           },
+           "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+           },
+           "assigned_at": {
+            "title": "Assigned At",
+            "type": "number"
+           }
+          },
+          "required": [
+           "source",
+           "voice",
+           "pinned",
+           "assigned_at"
+          ],
+          "title": "VoiceAssignmentRecord",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Every voice currently spoken for.",
+        "title": "VoiceAssignmentView"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Assign a voice to one speaking client, or release that assignment.\n\n        An assignment made here outranks the voice a client requests. This\n        speaks for another client's audible identity, so prefer leaving it to\n        the listener unless they asked.\n        ",
+       "inputSchema": {
+        "properties": {
+         "source": {
+          "description": "The client identity to assign, as passed in 'source'.",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+         },
+         "voice": {
+          "anyOf": [
+           {
+            "minLength": 1,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Voice id to assign. Pass null to release the assignment so the client claims a voice again.",
+          "title": "Voice"
+         }
+        },
+        "required": [
+         "source"
+        ],
+        "type": "object",
+        "title": "assign_speech_voiceArguments"
+       },
+       "name": "assign_speech_voice",
+       "outputSchema": {
+        "properties": {
+         "assignment": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/VoiceAssignmentRecord"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "assignment"
+        ],
+        "type": "object",
+        "$defs": {
+         "VoiceAssignmentRecord": {
+          "additionalProperties": false,
+          "description": "Which voice one speaking client holds, and who decided it.",
+          "properties": {
+           "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+           },
+           "voice": {
+            "minLength": 1,
+            "title": "Voice",
+            "type": "string"
+           },
+           "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+           },
+           "assigned_at": {
+            "title": "Assigned At",
+            "type": "number"
+           }
+          },
+          "required": [
+           "source",
+           "voice",
+           "pinned",
+           "assigned_at"
+          ],
+          "title": "VoiceAssignmentRecord",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "The assignment now in force, or nothing when it was released.",
+        "title": "AssignVoiceReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Cancel one queued, synthesizing, or ready clip that has not started playing.",
+       "inputSchema": {
+        "properties": {
+         "utterance_id": {
+          "description": "Pending utterance id to cancel.",
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Utterance Id",
+          "type": "string"
+         }
+        },
+        "required": [
+         "utterance_id"
+        ],
+        "type": "object",
+        "title": "cancel_queued_speechArguments"
+       },
+       "name": "cancel_queued_speech",
+       "outputSchema": {
+        "properties": {
+         "id": {
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+         },
+         "state": {
+          "const": "Cancelled",
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "required": [
+         "id",
+         "state"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Receipt for a successful pending-clip cancellation.",
+        "title": "CancelSpeechReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Cancel every pending clip without interrupting the clip currently playing.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "clear_speech_queueArguments"
+       },
+       "name": "clear_speech_queue",
+       "outputSchema": {
+        "properties": {
+         "cleared": {
+          "minimum": 0,
+          "title": "Cleared",
+          "type": "integer"
+         }
+        },
+        "required": [
+         "cleared"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Count of pending clips cancelled by a queue clear.",
+        "title": "ClearQueueReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Delete reusable audio while retaining files needed by current or queued speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "purge_cached_audioArguments"
+       },
+       "name": "purge_cached_audio",
+       "outputSchema": {
+        "properties": {
+         "removed_files": {
+          "minimum": 0,
+          "title": "Removed Files",
+          "type": "integer"
+         },
+         "removed_bytes": {
+          "minimum": 0,
+          "title": "Removed Bytes",
+          "type": "integer"
+         },
+         "protected_files": {
+          "minimum": 0,
+          "title": "Protected Files",
+          "type": "integer"
+         },
+         "protected_bytes": {
+          "minimum": 0,
+          "title": "Protected Bytes",
+          "type": "integer"
+         },
+         "failed_files": {
+          "minimum": 0,
+          "title": "Failed Files",
+          "type": "integer"
+         },
+         "failed_bytes": {
+          "minimum": 0,
+          "title": "Failed Bytes",
+          "type": "integer"
+         }
+        },
+        "required": [
+         "removed_files",
+         "removed_bytes",
+         "protected_files",
+         "protected_bytes",
+         "failed_files",
+         "failed_bytes"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Outcome of removing audio that no current or pending speech still owns.",
+        "title": "PurgeCachedAudioReceipt"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "result": {
+     "prompts": []
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "result": {
+     "resources": []
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 6,
+    "result": {
+     "resourceTemplates": []
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "error": {
+     "code": -32601,
+     "message": "Method not found",
+     "data": "bogus/method"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": "s-8",
+    "result": {}
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2024-11-05",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2024-11-05",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-03-26",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-03-26",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-06-18",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-06-18",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2026-07-28",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-11-25",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "1999-01-01",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-11-25",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list"
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "ping"
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {}
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   "not json",
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   null,
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-11-25",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize"
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list"
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-11-25",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+     "tools": [
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Queue speech even when playback is globally paused; held speech is safely spooled.",
+       "inputSchema": {
+        "properties": {
+         "text": {
+          "description": "Text to synthesize and speak.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+         },
+         "content_format": {
+          "$ref": "#/$defs/ContentFormat",
+          "default": "plain_text",
+          "description": "Interpret text literally or project Markdown syntax for speech."
+         },
+         "voice": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Voice id; omit for the user's default.",
+          "title": "Voice"
+         },
+         "speed": {
+          "anyOf": [
+           {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "type": "number"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Playback speed; omit for the user's default.",
+          "title": "Speed"
+         },
+         "sensitivity": {
+          "$ref": "#/$defs/Sensitivity",
+          "default": "confidential"
+         },
+         "priority": {
+          "$ref": "#/$defs/Priority",
+          "default": "normal"
+         },
+         "preempt": {
+          "default": false,
+          "title": "Preempt",
+          "type": "boolean"
+         },
+         "source": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": "mcp",
+          "description": "Calling agent identity recorded with the clip.",
+          "title": "Source"
+         }
+        },
+        "required": [
+         "text"
+        ],
+        "type": "object",
+        "$defs": {
+         "ContentFormat": {
+          "description": "How submitted source text should be projected before synthesis.",
+          "enum": [
+           "plain_text",
+           "markdown"
+          ],
+          "title": "ContentFormat",
+          "type": "string"
+         },
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         }
+        },
+        "title": "enqueue_speechArguments"
+       },
+       "name": "enqueue_speech",
+       "outputSchema": {
+        "properties": {
+         "accepting_speech": {
+          "const": true,
+          "title": "Accepting Speech",
+          "type": "boolean"
+         },
+         "playback_held": {
+          "title": "Playback Held",
+          "type": "boolean"
+         },
+         "submission_disposition": {
+          "$ref": "#/$defs/SubmissionDisposition"
+         },
+         "submission_guidance": {
+          "minLength": 1,
+          "title": "Submission Guidance",
+          "type": "string"
+         },
+         "accepted": {
+          "const": true,
+          "title": "Accepted",
+          "type": "boolean"
+         },
+         "id": {
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+         },
+         "state": {
+          "$ref": "#/$defs/State"
+         },
+         "voice": {
+          "minLength": 1,
+          "title": "Voice",
+          "type": "string"
+         },
+         "sensitivity": {
+          "$ref": "#/$defs/Sensitivity"
+         },
+         "eligible_engines": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Eligible Engines",
+          "type": "array"
+         },
+         "segment_count": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Segment Count",
+          "type": "integer"
+         },
+         "composite": {
+          "default": false,
+          "title": "Composite",
+          "type": "boolean"
+         },
+         "playback": {
+          "default": true,
+          "title": "Playback",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "accepting_speech",
+         "playback_held",
+         "submission_disposition",
+         "submission_guidance",
+         "accepted",
+         "id",
+         "state",
+         "voice",
+         "sensitivity",
+         "eligible_engines"
+        ],
+        "type": "object",
+        "$defs": {
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SubmissionDisposition": {
+          "description": "What accepted speech will do next.",
+          "enum": [
+           "queued_for_playback",
+           "spooled_until_resume",
+           "synthesis_only"
+          ],
+          "title": "SubmissionDisposition",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Receipt proving the daemon accepted a speech request.",
+        "title": "EnqueueSpeechReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Create a new hearing of a history clip, optionally urgent at the head of the queue.",
+       "inputSchema": {
+        "properties": {
+         "utterance_id": {
+          "description": "Terminal history utterance id.",
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Utterance Id",
+          "type": "string"
+         },
+         "priority": {
+          "$ref": "#/$defs/Priority",
+          "default": "normal"
+         }
+        },
+        "required": [
+         "utterance_id"
+        ],
+        "type": "object",
+        "$defs": {
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         }
+        },
+        "title": "requeue_speechArguments"
+       },
+       "name": "requeue_speech",
+       "outputSchema": {
+        "properties": {
+         "id": {
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+         },
+         "state": {
+          "$ref": "#/$defs/State"
+         },
+         "priority": {
+          "$ref": "#/$defs/Priority"
+         }
+        },
+        "required": [
+         "id",
+         "state",
+         "priority"
+        ],
+        "type": "object",
+        "$defs": {
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Receipt for the newly created replay clip.",
+        "title": "RequeueSpeechReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report admission and playback hold separately; held never means refusing speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "speech_statusArguments"
+       },
+       "name": "speech_status",
+       "outputSchema": {
+        "properties": {
+         "accepting_speech": {
+          "const": true,
+          "title": "Accepting Speech",
+          "type": "boolean"
+         },
+         "playback_held": {
+          "title": "Playback Held",
+          "type": "boolean"
+         },
+         "submission_disposition": {
+          "$ref": "#/$defs/SubmissionDisposition"
+         },
+         "submission_guidance": {
+          "minLength": 1,
+          "title": "Submission Guidance",
+          "type": "string"
+         },
+         "state": {
+          "const": "accepting",
+          "title": "State",
+          "type": "string"
+         },
+         "playback_state": {
+          "$ref": "#/$defs/PlaybackState"
+         },
+         "current": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/CurrentSpeech"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "counts": {
+          "additionalProperties": {
+           "minimum": 0,
+           "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+         },
+         "engine": {
+          "minLength": 1,
+          "title": "Engine",
+          "type": "string"
+         },
+         "voice": {
+          "title": "Voice",
+          "type": "string"
+         },
+         "version": {
+          "anyOf": [
+           {
+            "minLength": 1,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Version"
+         },
+         "input_active": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Input Active"
+         },
+         "engine_preparing": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/EnginePreparation"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         },
+         "interruption": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/SpeechInterruption"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         }
+        },
+        "required": [
+         "accepting_speech",
+         "playback_held",
+         "submission_disposition",
+         "submission_guidance",
+         "state",
+         "playback_state",
+         "current",
+         "counts",
+         "engine",
+         "voice"
+        ],
+        "type": "object",
+        "$defs": {
+         "ActiveSegment": {
+          "additionalProperties": false,
+          "description": "The exact synthesized child currently owning playback.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "number": {
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+           },
+           "count": {
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "position_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Position Ms"
+           }
+          },
+          "required": [
+           "index",
+           "number",
+           "count",
+           "text",
+           "state",
+           "duration_ms",
+           "position_ms"
+          ],
+          "title": "ActiveSegment",
+          "type": "object"
+         },
+         "CurrentSpeech": {
+          "additionalProperties": false,
+          "description": "The active clip plus its live playback position.",
+          "properties": {
+           "id": {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "title": "Id",
+            "type": "string"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "voice": {
+            "title": "Voice",
+            "type": "string"
+           },
+           "speed": {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+           },
+           "sensitivity": {
+            "$ref": "#/$defs/Sensitivity"
+           },
+           "priority": {
+            "$ref": "#/$defs/Priority"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+           },
+           "source": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Source"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "played_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Played Ms"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           },
+           "replay_of": {
+            "anyOf": [
+             {
+              "pattern": "^utt_[0-9a-f]{32}$",
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Replay Of"
+           },
+           "composite": {
+            "default": false,
+            "title": "Composite",
+            "type": "boolean"
+           },
+           "segment_count": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Segment Count",
+            "type": "integer"
+           },
+           "completed_segments": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Completed Segments",
+            "type": "integer"
+           },
+           "playback": {
+            "default": true,
+            "title": "Playback",
+            "type": "boolean"
+           },
+           "segments": {
+            "default": [],
+            "items": {
+             "$ref": "#/$defs/SynthesizedSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+           },
+           "position_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Position Ms"
+           },
+           "active_segment": {
+            "anyOf": [
+             {
+              "$ref": "#/$defs/ActiveSegment"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "default": null
+           }
+          },
+          "required": [
+           "id",
+           "text",
+           "voice",
+           "speed",
+           "sensitivity",
+           "priority",
+           "state",
+           "enqueued_at",
+           "source",
+           "duration_ms",
+           "played_ms",
+           "error",
+           "replay_of",
+           "position_ms"
+          ],
+          "title": "CurrentSpeech",
+          "type": "object"
+         },
+         "EnginePreparation": {
+          "additionalProperties": false,
+          "description": "What the engine is still fetching before it can speak at all.\n\nNamed rather than measured: the model host reports no progress this\nadapter can trust, and a fabricated percentage would be worse than an\nhonest \"still fetching this, since then\".",
+          "properties": {
+           "asset": {
+            "minLength": 1,
+            "title": "Asset",
+            "type": "string"
+           },
+           "since": {
+            "title": "Since",
+            "type": "number"
+           }
+          },
+          "required": [
+           "asset",
+           "since"
+          ],
+          "title": "EnginePreparation",
+          "type": "object"
+         },
+         "PlaybackState": {
+          "description": "User-visible state of the serialized playback worker.",
+          "enum": [
+           "idle",
+           "synthesizing",
+           "playing",
+           "paused"
+          ],
+          "title": "PlaybackState",
+          "type": "string"
+         },
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "SpeechInterruption": {
+          "additionalProperties": false,
+          "description": "A playback hold the listener's own voice caused.",
+          "properties": {
+           "reason": {
+            "const": "listener_speaking",
+            "title": "Reason",
+            "type": "string"
+           },
+           "at": {
+            "title": "At",
+            "type": "number"
+           },
+           "resume_armed": {
+            "title": "Resume Armed",
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "reason",
+           "at",
+           "resume_armed"
+          ],
+          "title": "SpeechInterruption",
+          "type": "object"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SubmissionDisposition": {
+          "description": "What accepted speech will do next.",
+          "enum": [
+           "queued_for_playback",
+           "spooled_until_resume",
+           "synthesis_only"
+          ],
+          "title": "SubmissionDisposition",
+          "type": "string"
+         },
+         "SynthesizedSegment": {
+          "additionalProperties": false,
+          "description": "One synthesis-only artifact on the daemon's local filesystem.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "audio_ready": {
+            "title": "Audio Ready",
+            "type": "boolean"
+           },
+           "audio_path": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Audio Path"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           }
+          },
+          "required": [
+           "index",
+           "state",
+           "duration_ms",
+           "audio_ready",
+           "audio_path",
+           "error"
+          ],
+          "title": "SynthesizedSegment",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Machine-readable service, playback, and queue state.",
+        "title": "SpeechStatus"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "List every pending clip in exact playback order.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_speech_queueArguments"
+       },
+       "name": "list_speech_queue",
+       "outputSchema": {
+        "properties": {
+         "items": {
+          "items": {
+           "$ref": "#/$defs/QueueItem"
+          },
+          "title": "Items",
+          "type": "array"
+         }
+        },
+        "required": [
+         "items"
+        ],
+        "type": "object",
+        "$defs": {
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "QueueItem": {
+          "additionalProperties": false,
+          "description": "One clip in the unified pending playback plan.",
+          "properties": {
+           "id": {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "title": "Id",
+            "type": "string"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "voice": {
+            "title": "Voice",
+            "type": "string"
+           },
+           "speed": {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+           },
+           "sensitivity": {
+            "$ref": "#/$defs/Sensitivity"
+           },
+           "priority": {
+            "$ref": "#/$defs/Priority"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+           },
+           "source": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Source"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "played_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Played Ms"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           },
+           "replay_of": {
+            "anyOf": [
+             {
+              "pattern": "^utt_[0-9a-f]{32}$",
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Replay Of"
+           },
+           "composite": {
+            "default": false,
+            "title": "Composite",
+            "type": "boolean"
+           },
+           "segment_count": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Segment Count",
+            "type": "integer"
+           },
+           "completed_segments": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Completed Segments",
+            "type": "integer"
+           },
+           "playback": {
+            "default": true,
+            "title": "Playback",
+            "type": "boolean"
+           },
+           "segments": {
+            "default": [],
+            "items": {
+             "$ref": "#/$defs/SynthesizedSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+           }
+          },
+          "required": [
+           "id",
+           "text",
+           "voice",
+           "speed",
+           "sensitivity",
+           "priority",
+           "state",
+           "enqueued_at",
+           "source",
+           "duration_ms",
+           "played_ms",
+           "error",
+           "replay_of"
+          ],
+          "title": "QueueItem",
+          "type": "object"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SynthesizedSegment": {
+          "additionalProperties": false,
+          "description": "One synthesis-only artifact on the daemon's local filesystem.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "audio_ready": {
+            "title": "Audio Ready",
+            "type": "boolean"
+           },
+           "audio_path": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Audio Path"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           }
+          },
+          "required": [
+           "index",
+           "state",
+           "duration_ms",
+           "audio_ready",
+           "audio_path",
+           "error"
+          ],
+          "title": "SynthesizedSegment",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "All pending clips in exact playback order.",
+        "title": "QueueView"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "List terminal clips from most recent to least recent.",
+       "inputSchema": {
+        "properties": {
+         "limit": {
+          "default": 20,
+          "description": "Maximum terminal clips to return.",
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+         },
+         "before": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Return clips older than this utterance id.",
+          "title": "Before"
+         }
+        },
+        "type": "object",
+        "title": "list_speech_historyArguments"
+       },
+       "name": "list_speech_history",
+       "outputSchema": {
+        "properties": {
+         "items": {
+          "items": {
+           "$ref": "#/$defs/HistoryItem"
+          },
+          "title": "Items",
+          "type": "array"
+         }
+        },
+        "required": [
+         "items"
+        ],
+        "type": "object",
+        "$defs": {
+         "HistoryItem": {
+          "additionalProperties": false,
+          "description": "One terminal clip retained in history.",
+          "properties": {
+           "id": {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "title": "Id",
+            "type": "string"
+           },
+           "text": {
+            "title": "Text",
+            "type": "string"
+           },
+           "voice": {
+            "title": "Voice",
+            "type": "string"
+           },
+           "speed": {
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Speed",
+            "type": "number"
+           },
+           "sensitivity": {
+            "$ref": "#/$defs/Sensitivity"
+           },
+           "priority": {
+            "$ref": "#/$defs/Priority"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+           },
+           "source": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Source"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "played_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Played Ms"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           },
+           "replay_of": {
+            "anyOf": [
+             {
+              "pattern": "^utt_[0-9a-f]{32}$",
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Replay Of"
+           },
+           "composite": {
+            "default": false,
+            "title": "Composite",
+            "type": "boolean"
+           },
+           "segment_count": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Segment Count",
+            "type": "integer"
+           },
+           "completed_segments": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Completed Segments",
+            "type": "integer"
+           },
+           "playback": {
+            "default": true,
+            "title": "Playback",
+            "type": "boolean"
+           },
+           "segments": {
+            "default": [],
+            "items": {
+             "$ref": "#/$defs/SynthesizedSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+           },
+           "final_state": {
+            "$ref": "#/$defs/State"
+           },
+           "finished_at": {
+            "title": "Finished At",
+            "type": "number"
+           },
+           "audio_cached": {
+            "title": "Audio Cached",
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "id",
+           "text",
+           "voice",
+           "speed",
+           "sensitivity",
+           "priority",
+           "state",
+           "enqueued_at",
+           "source",
+           "duration_ms",
+           "played_ms",
+           "error",
+           "replay_of",
+           "final_state",
+           "finished_at",
+           "audio_cached"
+          ],
+          "title": "HistoryItem",
+          "type": "object"
+         },
+         "Priority": {
+          "description": "Queue placement: urgent queues first; preempt interrupts when audio is ready.",
+          "enum": [
+           "normal",
+           "urgent",
+           "preempt"
+          ],
+          "title": "Priority",
+          "type": "string"
+         },
+         "Sensitivity": {
+          "description": "Who may speak this text. Assigned at submit, immutable thereafter.",
+          "enum": [
+           "public",
+           "internal",
+           "confidential"
+          ],
+          "title": "Sensitivity",
+          "type": "string"
+         },
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         },
+         "SynthesizedSegment": {
+          "additionalProperties": false,
+          "description": "One synthesis-only artifact on the daemon's local filesystem.",
+          "properties": {
+           "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+           },
+           "state": {
+            "$ref": "#/$defs/State"
+           },
+           "duration_ms": {
+            "anyOf": [
+             {
+              "minimum": 0,
+              "type": "integer"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Duration Ms"
+           },
+           "audio_ready": {
+            "title": "Audio Ready",
+            "type": "boolean"
+           },
+           "audio_path": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Audio Path"
+           },
+           "error": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ],
+            "title": "Error"
+           }
+          },
+          "required": [
+           "index",
+           "state",
+           "duration_ms",
+           "audio_ready",
+           "audio_path",
+           "error"
+          ],
+          "title": "SynthesizedSegment",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "A page of terminal clips, most recent first.",
+        "title": "HistoryView"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report how long synthesis and the playback queue are actually taking.\n\n        The two waits are separate on purpose: synthesis is parallel work,\n        while the playback queue is a serial resource. A null summary means\n        nothing has been measured yet rather than zero.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "speech_metricsArguments"
+       },
+       "name": "speech_metrics",
+       "outputSchema": {
+        "properties": {
+         "counts": {
+          "additionalProperties": {
+           "minimum": 0,
+           "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+         },
+         "queue_depth": {
+          "$ref": "#/$defs/QueueDepth"
+         },
+         "cache": {
+          "$ref": "#/$defs/CacheUsage"
+         },
+         "synthesis_wait_ms": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/DurationSummary"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "synthesis_duration_ms": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/DurationSummary"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "playback_wait_ms": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/DurationSummary"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "playback_failures": {
+          "minimum": 0,
+          "title": "Playback Failures",
+          "type": "integer"
+         }
+        },
+        "required": [
+         "counts",
+         "queue_depth",
+         "cache",
+         "synthesis_wait_ms",
+         "synthesis_duration_ms",
+         "playback_wait_ms",
+         "playback_failures"
+        ],
+        "type": "object",
+        "$defs": {
+         "CacheUsage": {
+          "additionalProperties": false,
+          "description": "Cached audio measured against its configured cap.",
+          "properties": {
+           "bytes": {
+            "minimum": 0,
+            "title": "Bytes",
+            "type": "integer"
+           },
+           "max_bytes": {
+            "minimum": 0,
+            "title": "Max Bytes",
+            "type": "integer"
+           }
+          },
+          "required": [
+           "bytes",
+           "max_bytes"
+          ],
+          "title": "CacheUsage",
+          "type": "object"
+         },
+         "DurationSummary": {
+          "additionalProperties": false,
+          "description": "A bounded sample of durations, in milliseconds.",
+          "properties": {
+           "count": {
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+           },
+           "p50": {
+            "title": "P50",
+            "type": "number"
+           },
+           "p95": {
+            "title": "P95",
+            "type": "number"
+           },
+           "max": {
+            "title": "Max",
+            "type": "number"
+           }
+          },
+          "required": [
+           "count",
+           "p50",
+           "p95",
+           "max"
+          ],
+          "title": "DurationSummary",
+          "type": "object"
+         },
+         "QueueDepth": {
+          "additionalProperties": false,
+          "description": "How much work is waiting in each queue.",
+          "properties": {
+           "input": {
+            "minimum": 0,
+            "title": "Input",
+            "type": "integer"
+           },
+           "playback": {
+            "minimum": 0,
+            "title": "Playback",
+            "type": "integer"
+           }
+          },
+          "required": [
+           "input",
+           "playback"
+          ],
+          "title": "QueueDepth",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "What the daemon can say about its own responsiveness.\n\nThe two waits are reported separately because they mean different things:\nsynthesis is parallel work, and the queue is a serial resource that no\namount of parallelism helps. ``None`` means nothing has been measured yet,\nwhich a caller must be able to tell from \"it was instant\".",
+        "title": "SpeechMetrics"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "List voice ids accepted by enqueue_speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_speech_voicesArguments"
+       },
+       "name": "list_speech_voices",
+       "outputSchema": {
+        "properties": {
+         "voices": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Voices",
+          "type": "array"
+         }
+        },
+        "required": [
+         "voices"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Voices currently accepted by the configured speech engine.",
+        "title": "VoiceCatalog"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report whether the user's on-screen captions are enabled.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "get_caption_settingsArguments"
+       },
+       "name": "get_caption_settings",
+       "outputSchema": {
+        "properties": {
+         "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The shared on-screen caption preference.",
+        "title": "CaptionSettings"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Enable or disable the user's on-screen captions without changing playback.",
+       "inputSchema": {
+        "properties": {
+         "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ],
+        "type": "object",
+        "title": "set_captions_enabledArguments"
+       },
+       "name": "set_captions_enabled",
+       "outputSchema": {
+        "properties": {
+         "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "enabled"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The shared on-screen caption preference.",
+        "title": "CaptionSettings"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Hold all playback globally while continuing to accept and synthesize incoming speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "pause_speech_playbackArguments"
+       },
+       "name": "pause_speech_playback",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Release the global hold and continue through the queued playback plan.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "resume_speech_playbackArguments"
+       },
+       "name": "resume_speech_playback",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Mark the current clip skipped and advance without releasing a global hold.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "skip_current_speechArguments"
+       },
+       "name": "skip_current_speech",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Restart the current clip from the beginning without releasing a global hold.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "restart_current_speechArguments"
+       },
+       "name": "restart_current_speech",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Give up the current chunk of a chunked document and play the next one.\n\n        Fails when the clip has no chunks, when it is already on its last\n        chunk, or while playback is held. Abandoning the whole clip is\n        skip_current_speech.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "next_speech_chunkArguments"
+       },
+       "name": "next_speech_chunk",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         },
+         "segment_index": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Index"
+         },
+         "segment_number": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Number"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state after stepping one chunk within a document.",
+        "title": "SegmentStepReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Replay the chunk before the current one, from its start.\n\n        Fails on the first chunk, when the clip has no chunks, and while\n        playback is held.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "previous_speech_chunkArguments"
+       },
+       "name": "previous_speech_chunk",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         },
+         "segment_index": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Index"
+         },
+         "segment_number": {
+          "anyOf": [
+           {
+            "minimum": 0,
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Segment Number"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state after stepping one chunk within a document.",
+        "title": "SegmentStepReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Release a playback hold once nothing is capturing audio input.\n\n        The hold stays in force until then. Use this rather than resuming\n        outright when the listener may still be speaking.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "resume_speech_when_input_idleArguments"
+       },
+       "name": "resume_speech_when_input_idle",
+       "outputSchema": {
+        "properties": {
+         "state": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/State"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "current": {
+          "anyOf": [
+           {
+            "pattern": "^utt_[0-9a-f]{32}$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Current"
+         },
+         "held": {
+          "title": "Held",
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "state",
+         "current",
+         "held"
+        ],
+        "type": "object",
+        "$defs": {
+         "State": {
+          "description": "Every state an utterance can occupy.",
+          "enum": [
+           "Submitted",
+           "Queued",
+           "Synthesizing",
+           "Ready",
+           "Playing",
+           "Paused",
+           "Played",
+           "Skipped",
+           "Cancelled",
+           "Failed"
+          ],
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Playback state immediately after a transport control.",
+        "title": "PlaybackControlReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+       },
+       "description": "Report which voice each speaking client holds.\n\n        A pinned assignment was set by the listener and outranks whatever a\n        client asks for at submission.\n        ",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "list_speech_voice_assignmentsArguments"
+       },
+       "name": "list_speech_voice_assignments",
+       "outputSchema": {
+        "properties": {
+         "assignments": {
+          "items": {
+           "$ref": "#/$defs/VoiceAssignmentRecord"
+          },
+          "title": "Assignments",
+          "type": "array"
+         }
+        },
+        "required": [
+         "assignments"
+        ],
+        "type": "object",
+        "$defs": {
+         "VoiceAssignmentRecord": {
+          "additionalProperties": false,
+          "description": "Which voice one speaking client holds, and who decided it.",
+          "properties": {
+           "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+           },
+           "voice": {
+            "minLength": 1,
+            "title": "Voice",
+            "type": "string"
+           },
+           "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+           },
+           "assigned_at": {
+            "title": "Assigned At",
+            "type": "number"
+           }
+          },
+          "required": [
+           "source",
+           "voice",
+           "pinned",
+           "assigned_at"
+          ],
+          "title": "VoiceAssignmentRecord",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "Every voice currently spoken for.",
+        "title": "VoiceAssignmentView"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Assign a voice to one speaking client, or release that assignment.\n\n        An assignment made here outranks the voice a client requests. This\n        speaks for another client's audible identity, so prefer leaving it to\n        the listener unless they asked.\n        ",
+       "inputSchema": {
+        "properties": {
+         "source": {
+          "description": "The client identity to assign, as passed in 'source'.",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+         },
+         "voice": {
+          "anyOf": [
+           {
+            "minLength": 1,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Voice id to assign. Pass null to release the assignment so the client claims a voice again.",
+          "title": "Voice"
+         }
+        },
+        "required": [
+         "source"
+        ],
+        "type": "object",
+        "title": "assign_speech_voiceArguments"
+       },
+       "name": "assign_speech_voice",
+       "outputSchema": {
+        "properties": {
+         "assignment": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/VoiceAssignmentRecord"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "assignment"
+        ],
+        "type": "object",
+        "$defs": {
+         "VoiceAssignmentRecord": {
+          "additionalProperties": false,
+          "description": "Which voice one speaking client holds, and who decided it.",
+          "properties": {
+           "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+           },
+           "voice": {
+            "minLength": 1,
+            "title": "Voice",
+            "type": "string"
+           },
+           "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+           },
+           "assigned_at": {
+            "title": "Assigned At",
+            "type": "number"
+           }
+          },
+          "required": [
+           "source",
+           "voice",
+           "pinned",
+           "assigned_at"
+          ],
+          "title": "VoiceAssignmentRecord",
+          "type": "object"
+         }
+        },
+        "additionalProperties": false,
+        "description": "The assignment now in force, or nothing when it was released.",
+        "title": "AssignVoiceReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Cancel one queued, synthesizing, or ready clip that has not started playing.",
+       "inputSchema": {
+        "properties": {
+         "utterance_id": {
+          "description": "Pending utterance id to cancel.",
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Utterance Id",
+          "type": "string"
+         }
+        },
+        "required": [
+         "utterance_id"
+        ],
+        "type": "object",
+        "title": "cancel_queued_speechArguments"
+       },
+       "name": "cancel_queued_speech",
+       "outputSchema": {
+        "properties": {
+         "id": {
+          "pattern": "^utt_[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+         },
+         "state": {
+          "const": "Cancelled",
+          "title": "State",
+          "type": "string"
+         }
+        },
+        "required": [
+         "id",
+         "state"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Receipt for a successful pending-clip cancellation.",
+        "title": "CancelSpeechReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Cancel every pending clip without interrupting the clip currently playing.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "clear_speech_queueArguments"
+       },
+       "name": "clear_speech_queue",
+       "outputSchema": {
+        "properties": {
+         "cleared": {
+          "minimum": 0,
+          "title": "Cleared",
+          "type": "integer"
+         }
+        },
+        "required": [
+         "cleared"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Count of pending clips cancelled by a queue clear.",
+        "title": "ClearQueueReceipt"
+       }
+      },
+      {
+       "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+       },
+       "description": "Delete reusable audio while retaining files needed by current or queued speech.",
+       "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "purge_cached_audioArguments"
+       },
+       "name": "purge_cached_audio",
+       "outputSchema": {
+        "properties": {
+         "removed_files": {
+          "minimum": 0,
+          "title": "Removed Files",
+          "type": "integer"
+         },
+         "removed_bytes": {
+          "minimum": 0,
+          "title": "Removed Bytes",
+          "type": "integer"
+         },
+         "protected_files": {
+          "minimum": 0,
+          "title": "Protected Files",
+          "type": "integer"
+         },
+         "protected_bytes": {
+          "minimum": 0,
+          "title": "Protected Bytes",
+          "type": "integer"
+         },
+         "failed_files": {
+          "minimum": 0,
+          "title": "Failed Files",
+          "type": "integer"
+         },
+         "failed_bytes": {
+          "minimum": 0,
+          "title": "Failed Bytes",
+          "type": "integer"
+         }
+        },
+        "required": [
+         "removed_files",
+         "removed_bytes",
+         "protected_files",
+         "protected_bytes",
+         "failed_files",
+         "failed_bytes"
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Outcome of removing audio that no current or pending speech still owns.",
+        "title": "PurgeCachedAudioReceipt"
+       }
+      }
+     ]
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": 7,
+     "capabilities": {},
+     "clientInfo": {}
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {},
+     "clientInfo": {}
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "clientInfo": {
+      "name": "x",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-06-18",
+     "capabilities": {},
+     "clientInfo": {
+      "name": "parity",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-11-25",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+     "capabilities": {
+      "experimental": {},
+      "prompts": {
+       "listChanged": false
+      },
+      "resources": {
+       "listChanged": false,
+       "subscribe": false
+      },
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "instructions": "Always enqueue requested speech, including while playback is held. A held player still accepts and synthesizes speech; it spools audio until Resume.",
+     "protocolVersion": "2025-06-18",
+     "serverInfo": {
+      "description": "Queue local speech and control serialized playback.",
+      "name": "ai-tts",
+      "title": "AI-TTS",
+      "version": "0.2.0"
+     }
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "method": "ping"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "ping"
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {}
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   [
+    1,
+    2
+   ],
+   {
+    "id": 1,
+    "method": "ping"
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "ping"
+   }
+  ],
+  "replies": [
+   null,
+   null,
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {}
+   }
+  ],
+  "exit": 0
+ }
+]
