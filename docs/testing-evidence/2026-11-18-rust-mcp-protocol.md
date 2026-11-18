@@ -34,6 +34,8 @@ The replies of the Python `ai-tts-mcp` (MCP SDK 2.x) to the same messages:
 
 The first CI run failed 2 Python sessions: the fixtures had been generated with Python 3.14 (dedented docstrings), and CI runs Python 3.12. They were regenerated with `UV_PYTHON=3.12`, and the comparison now cleans descriptions, so both versions pass.
 
+The second CI run failed `daemon_and_tui_reach_ai_tts_py_with_their_arguments_and_status` (from #138, now on main) on Linux: spawning the copied binary failed while another test thread was forking with that file's write descriptor open (`ETXTBSY`). The test now hard-links the binary into a directory under `CARGO_TARGET_TMPDIR`, and holds one lock while it writes the stand-in `ai-tts-py` and while it forks. It was not reproduced on macOS, so the CI failure is the RED evidence; the test passed 10 times in a row locally after the change.
+
 ## Observed RED
 
 The tests were committed first against a `todo!()` stub of
