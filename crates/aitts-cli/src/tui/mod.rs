@@ -5,6 +5,9 @@
 //! events, and what each key does. It draws nothing and opens no socket; the
 //! caller supplies snapshots, events, keys and the clock.
 
+mod draw;
+
+pub use draw::draw;
 use serde::Serialize;
 use serde_json::{Value, json};
 

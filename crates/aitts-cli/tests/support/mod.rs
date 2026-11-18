@@ -5,6 +5,8 @@
 #![allow(dead_code, reason = "each test binary uses a different subset")]
 #![allow(clippy::unwrap_used, reason = "test code fails loudly")]
 
+pub(crate) mod tui;
+
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
