@@ -65,6 +65,8 @@ fn requests_are_answered_in_arrival_order() {
     let second = mailbox.try_request(submit("b")).unwrap();
     let clips = mailbox.try_request(Request::Clips).unwrap();
     mailbox.try_request(Request::Shutdown).unwrap();
+    // No sender remains, so an owner that ignored Shutdown would stop, not hang.
+    drop(mailbox);
     inbox.serve(&mut durable());
     assert!(applied(&first.wait().unwrap()), "first submit not applied");
     assert!(
@@ -100,7 +102,15 @@ fn shutdown_answers_earlier_requests_and_drops_later_ones() {
     let before = mailbox.try_request(submit("before")).unwrap();
     let stop = mailbox.try_request(Request::Shutdown).unwrap();
     let after = mailbox.try_request(submit("after")).unwrap();
-    inbox.serve(&mut owner);
+    drop(mailbox);
+    // Forced schedule: the owner takes exactly these steps, one at a time.
+    assert_eq!(inbox.step(&mut owner), Served::Answered(submit("before")));
+    assert_eq!(
+        inbox.step(&mut owner),
+        Served::Stopped,
+        "shutdown did not stop the owner"
+    );
+    drop(inbox);
     assert!(
         applied(&before.wait().unwrap()),
         "request before shutdown not applied"
@@ -160,6 +170,8 @@ fn concurrent_clients_give_a_history_equal_to_its_sequential_replay() {
                 }
             });
         }
+        // Only the clients hold senders, so a failed client ends the owner's wait.
+        drop(mailbox);
         for _ in 0..10 {
             let Served::Answered(request) = inbox.step(&mut owner) else {
                 panic!("owner stopped early")
