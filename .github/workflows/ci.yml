@@ -84,8 +84,7 @@ jobs:
   supply-chain:
     name: audit and inventory dependencies
     runs-on: macos-15
-    # Building the pinned cargo-deny from source takes several minutes.
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -139,6 +138,9 @@ jobs:
           done
           test -s dist/supply-chain/rustsec-advisory-db.txt
       - name: Audit every locked Rust dependency
+        # An explicit shell adds pipefail; without it the step's status is
+        # tee's and a failing audit would pass.
+        shell: bash
         run: cargo deny --locked --offline check advisories 2>&1 | tee dist/supply-chain/cargo-deny-advisories.txt
       - name: Retain supply-chain evidence
         if: always()

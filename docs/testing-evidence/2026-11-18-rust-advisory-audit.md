@@ -21,12 +21,26 @@ six `error[vulnerability]` diagnostics on `zip` 2.6.1:
 RUSTSEC-2026-0367, RUSTSEC-2026-0368, RUSTSEC-2026-0369,
 RUSTSEC-2026-0429, RUSTSEC-2026-0545, RUSTSEC-2026-0548.
 
+## Step calibration: pipefail
+
+The audit step pipes into `tee`. Without an explicit `shell:`, GitHub Actions
+runs `bash -e {0}` with no pipefail, so the step's status is `tee`'s. The
+first version of this PR had that bug. The exact `run:` text, on the
+zip 2.6.1 lock in the same throwaway worktree:
+
+- `bash -e`: exit status 0 (the failing audit passed; RED for the step).
+- `bash -e -o pipefail`: exit status 1.
+
+The step now declares `shell: bash`, which GitHub runs as
+`bash --noprofile --norc -eo pipefail {0}`.
+
 ## GREEN: current lock
 
-The same command on this branch (Cargo.lock pins `zip` 9.6.1): exit status 0,
-`advisories ok`. The CI step script was also run locally under
-`bash -eo pipefail`, which GitHub Actions uses, producing the three evidence
-files and exit status 0.
+The exact step text under `bash -e -o pipefail` on this branch (Cargo.lock
+pins `zip` 9.6.1): exit status 0, `advisories ok`.
+
+The job timeout stays at 15 minutes: the first CI run of the job took 210 s,
+152 s of it installing cargo-deny.
 
 ## Oracle
 
