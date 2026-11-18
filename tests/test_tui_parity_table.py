@@ -53,7 +53,20 @@ TEXT_INPUTS: list[str] = [
     "é ☃ 日本",
 ]
 CLOCK_INPUTS: list[int | None] = [None, -5, 0, 999, 1000, 61_000, 3_599_999, 3_600_000]
-METER_INPUTS: list[float | None] = [None, float("nan"), -1.0, 0.0, 0.001, 0.0316, 0.5, 1.0, 2.0]
+# The last two land exactly on a half cell; Python's round() rounds them to even.
+METER_INPUTS: list[float | None] = [
+    None,
+    float("nan"),
+    -1.0,
+    0.0,
+    0.001,
+    0.0316,
+    0.5,
+    1.0,
+    2.0,
+    0.0023713737056616554,
+    0.8413951416451951,
+]
 
 
 def text_table() -> dict[str, Any]:
@@ -211,6 +224,15 @@ def scenarios(snapshots: dict[str, Any]) -> list[dict[str, Any]]:
         "playback_held": playing["status"]["playback_held"],
     }
 
+    moved = json.loads(json.dumps(held))
+    pending = [
+        i for i, item in enumerate(moved["plan"]) if item["state"] not in ("Playing", "Paused")
+    ]
+    first, second = pending[0], pending[1]
+    moved["plan"][first], moved["plan"][second] = moved["plan"][second], moved["plan"][first]
+    elsewhere = {**progress, "id": "utt_" + "0" * 32, "audio_peak": 1.0}
+    hold_changed = {**progress, "playback_held": not progress["playback_held"]}
+
     def scenario(name: str, shots: list[Any], keys: list[str], **extra: Any) -> dict[str, Any]:
         return {
             "name": name,
@@ -234,10 +256,20 @@ def scenarios(snapshots: dict[str, Any]) -> list[dict[str, Any]]:
         scenario("K at the top does nothing", [held], ["K"]),
         scenario("dd cancels", [held, held], ["j", "d", "d"]),
         scenario("d then j does not cancel", [held], ["d", "j", "d"]),
+        scenario("an intervening key resets dd", [held], ["d", "j", "k", "d"]),
         scenario("dd too slow", [held], ["d", "d"], clock=[0.0, 1.0]),
         scenario("tab then enter replays", [held, held], ["tab", "enter"]),
         scenario("enter on the queue does nothing", [held], ["enter"]),
         scenario("tab then dd does nothing", [held], ["tab", "d", "d"]),
+        scenario("the selection follows a moved clip", [held, moved], ["J"]),
+        scenario("progress for another clip is ignored", [playing], [], events=[elsewhere]),
+        scenario("a hold change reads a snapshot", [playing, held], [], events=[hold_changed]),
+        scenario(
+            "another event reads a snapshot",
+            [playing, held],
+            [],
+            events=[{"event": "plan_reordered", "ids": []}],
+        ),
     ]
 
 

@@ -52,8 +52,9 @@ fn numeric(mut screen: Value) -> Value {
 
 /// Play one scenario as the Python harness does; return (screen, sent).
 fn play(scenario: &Value) -> (Value, Vec<Value>) {
+    // As the Python scripted client: each read takes the next snapshot, then repeats the last.
     let mut snapshots: Vec<Value> = scenario["snapshots"].as_array().unwrap().clone();
-    let mut last = snapshots.remove(0);
+    let mut last = snapshots[0].clone();
     let mut next = move || {
         if !snapshots.is_empty() {
             last = snapshots.remove(0);
