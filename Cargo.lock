@@ -67,7 +67,9 @@ dependencies = [
 name = "aitts-daemon"
 version = "0.1.0"
 dependencies = [
+ "aitts-artifacts",
  "aitts-domain",
+ "aitts-engine",
  "aitts-protocol",
  "aitts-store",
  "proptest",

@@ -15,7 +15,9 @@ name = "ai-ttsd"
 path = "src/main.rs"
 
 [dependencies]
+aitts-artifacts = { path = "../aitts-artifacts" }
 aitts-domain = { path = "../aitts-domain" }
+aitts-engine = { path = "../aitts-engine" }
 aitts-protocol = { path = "../aitts-protocol" }
 aitts-store = { path = "../aitts-store" }
 serde_json = "1"

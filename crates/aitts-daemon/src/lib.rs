@@ -28,5 +28,6 @@ mod settings_view;
 mod socket_file;
 mod status;
 mod subscribers;
+pub mod synthesis;
 
 pub use runtime::{Config, EngineView, Running, StartError, StopOutcome, start};
