@@ -153,6 +153,35 @@ impl<C: EvidenceClock> EvidenceRecorder<C> {
         )
     }
 
+    /// Save the caller's text and arguments before any processing.
+    ///
+    /// `request.json` holds `payload` without `text` and `op`, the BLAKE3 of the
+    /// text, and the time received.
+    ///
+    /// # Errors
+    /// Fails on an invalid identity, a symbolic link, or an I/O error.
+    pub fn submitted(
+        &self,
+        artifact_id: &str,
+        text: &str,
+        payload: &Map<String, Value>,
+    ) -> io::Result<()> {
+        let _ = (artifact_id, text, payload);
+        Err(io::Error::other("not implemented"))
+    }
+
+    /// Save the identity and numerical diagnostics of a generated WAV.
+    ///
+    /// Reads 16-, 24- and 32-bit integer PCM and 32-bit float WAV files.
+    ///
+    /// # Errors
+    /// Fails on another audio format, an invalid identity, a symbolic link, or
+    /// an I/O error. No `audio.json` is written on failure.
+    pub fn audio_generated(&self, artifact_id: &str, audio: &Path) -> io::Result<()> {
+        let _ = (artifact_id, audio);
+        Err(io::Error::other("not implemented"))
+    }
+
     fn append(
         &self,
         artifact_id: &str,
