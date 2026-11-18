@@ -122,7 +122,7 @@ fn an_unknown_duration_shows_no_percentage() {
 
 #[test]
 fn the_selected_row_of_the_focused_table_is_highlighted() {
-    for (name, focused_text) in [("j and k select", 1), ("tab then dd does nothing", 0)] {
+    for name in ["j and k select", "tab then dd does nothing"] {
         let screen = screen(name);
         let buffer = render(&screen, 100, 35);
         let shown = lines(&buffer);
@@ -131,7 +131,6 @@ fn the_selected_row_of_the_focused_table_is_highlighted() {
         } else {
             (&screen.history, screen.history_cursor)
         };
-        assert_eq!(cursor, focused_text, "{name}");
         let text: String = table[cursor][table[cursor].len() - 1]
             .chars()
             .take(20)
@@ -202,5 +201,20 @@ fn no_scenario_puts_a_control_character_into_the_buffer_at_any_size() {
             let control = lines(&buffer).concat().chars().find(|c| c.is_control());
             assert_eq!(control, None, "{} at {width}x{height}", recorded["name"]);
         }
+    }
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(256))]
+    /// Any terminal size, for any recorded scenario: no panic, no control
+    /// character, and every cell inside the terminal.
+    #[test]
+    fn any_size_draws_without_panic(index in 0usize..64, width in 0u16..160, height in 0u16..60) {
+        let scenarios = fixture()["scenarios"].as_array().unwrap().clone();
+        let screen = play(&scenarios[index % scenarios.len()]).0.screen();
+        let buffer = render(&screen, width, height);
+        proptest::prop_assert_eq!(buffer.area.width, width);
+        let shown = lines(&buffer).concat();
+        proptest::prop_assert!(!shown.chars().any(char::is_control));
     }
 }

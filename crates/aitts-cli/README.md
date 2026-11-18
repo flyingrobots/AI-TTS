@@ -54,8 +54,12 @@ Python server (see the README).
 what it shows from daemon snapshots and events, and what each key does. It
 draws nothing and opens no socket; the caller gives it snapshots, events, keys
 and the time. It matches the Python `SpeechTUI` on recorded scenarios
-(`tests/fixtures/tui_parity.json`). The screen, the event loop and
-`ai-tts tui` itself follow; until then `ai-tts tui` runs the Python dashboard.
+(`tests/fixtures/tui_parity.json`). `aitts_cli::tui::draw` draws it with
+ratatui in the Python layout: header, a rounded now-playing card (details,
+progress, at most five lines of spoken text, meter), the queue and history
+tables with the selected row reversed in the focused table, the status line
+and the footer. The event loop and `ai-tts tui` itself follow; until then
+`ai-tts tui` runs the Python dashboard.
 
 ## Commands it does not run itself
 
