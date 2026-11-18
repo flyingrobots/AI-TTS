@@ -17,7 +17,8 @@ use aitts_daemon::conductor::{Command, Conductor};
 use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
 use proptest::prelude::*;
-use proptest::test_runner::{Config, RngSeed};
+use proptest::strategy::ValueTree;
+use proptest::test_runner::{Config, RngSeed, TestRunner};
 
 #[derive(Clone, Copy, Debug)]
 enum Step {
@@ -92,6 +93,20 @@ fn permute(model: &[String], seed: u64) -> Vec<String> {
     permuted
 }
 
+/// The class of an effective step, or `None` when the step changes nothing.
+fn class(conductor: &Conductor, model: &[String], step: Step) -> Option<usize> {
+    let busy = !synthesizing(conductor).is_empty();
+    match step {
+        Step::Submit(Priority::Urgent) => Some(0),
+        Step::Cancel(_) if !model.is_empty() => Some(1),
+        Step::Ready(_) if busy => Some(2),
+        Step::Fail(_) if busy => Some(3),
+        Step::Clear if !model.is_empty() => Some(4),
+        Step::Reorder(_) if model.len() >= 2 => Some(5),
+        _ => None,
+    }
+}
+
 fn run(conductor: &mut Conductor, model: &mut Vec<String>, next: &mut u32, step: Step) {
     match step {
         Step::Submit(priority) => {
@@ -154,5 +169,50 @@ proptest! {
             run(&mut conductor, &mut model, &mut next, step);
             prop_assert_eq!(pending(&conductor), model.clone(), "after {:?}", step);
         }
+    }
+}
+
+/// Rule 5 corpus classification: each effective operation class must occur in at
+/// least a tenth of the generated cases, so the property cannot pass on a corpus
+/// of no-ops. Oracle: the class definitions above.
+#[test]
+fn the_generated_corpus_exercises_every_operation_class() {
+    const NAMES: [&str; 6] = [
+        "urgent submit",
+        "cancel",
+        "ready",
+        "fail",
+        "clear",
+        "reorder",
+    ];
+    let config = config();
+    let seed = format!("{:?}", config.rng_seed);
+    let mut runner = TestRunner::new(config.clone());
+    let strategy = prop::collection::vec(step(), 0..40);
+    let mut cases_with = [0_u32; 6];
+    for _ in 0..config.cases {
+        let steps = strategy.new_tree(&mut runner).unwrap().current();
+        let (mut conductor, mut model, mut next) = (Conductor::new(), Vec::new(), 0);
+        let mut hit_classes = [false; 6];
+        for step in steps {
+            if let Some(index) = class(&conductor, &model, step) {
+                hit_classes[index] = true;
+            }
+            run(&mut conductor, &mut model, &mut next, step);
+        }
+        for (count, hit) in cases_with.iter_mut().zip(hit_classes) {
+            *count += u32::from(hit);
+        }
+    }
+    println!(
+        "seed {seed}: cases per class {:?}",
+        NAMES.iter().zip(cases_with).collect::<Vec<_>>()
+    );
+    for (name, count) in NAMES.iter().zip(cases_with) {
+        assert!(
+            count * 10 >= config.cases,
+            "class {name} in {count} of {} cases, seed {seed}",
+            config.cases
+        );
     }
 }

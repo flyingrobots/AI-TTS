@@ -15,6 +15,7 @@ mod codec;
 mod counts;
 pub mod history;
 pub mod queue;
+mod reorder;
 mod schema;
 pub mod settings;
 pub mod voices;
