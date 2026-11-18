@@ -99,11 +99,13 @@ fn a_clear_skips_preempted_speakers_before_cancelling_pending_work_in_queue_orde
     durable.apply(Command::Resume).unwrap();
     ready(&mut durable, "base", Priority::Normal);
     durable.plan_playback().unwrap();
-    for id in ["later", "last"] {
+    // "later" is urgent, so it sorts before the preempted "base": the skip must
+    // still come first, as clear_preempted runs before clear_pending.
+    for (id, priority) in [("later", Priority::Urgent), ("last", Priority::Normal)] {
         durable
             .apply(Command::Submit {
                 id: id.to_owned(),
-                priority: Priority::Normal,
+                priority,
                 playback: Playback::Play,
             })
             .unwrap();
