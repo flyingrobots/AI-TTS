@@ -33,8 +33,26 @@ A crash is a `Ledger` call that fails, injected by a wrapper on a schedule.
 | Record | Memory after a failed record | `a_failed_record_leaves_memory_unchanged` |
 | Recover | Before the store repair | `a_crash_before_the_repair_is_recovered_by_the_next_start` |
 | Recover | After the repair commits, before the queue is read | `a_crash_after_the_repair_is_recovered_by_the_next_start` |
-| Record | Torn write inside one record (the store commits each transition separately) | not covered |
-| Recover | A second crash during a retried recovery | not covered |
+| Record | Crash between the row writes of one save: a SQLite trigger aborts the Nth `UPDATE utterances`, for every N (12 crashes witnessed) | `a_crash_between_the_row_writes_of_one_save_leaves_all_or_nothing` |
+| Recover | Crash at each row write recovery makes (2 witnessed), then recovery again | `a_crash_during_recovery_is_repaired_by_the_next_recovery` |
+| Recover | A crash during the second recovery | not covered |
+
+## Torn saves (bug fix)
+
+`crates/aitts-daemon/tests/conductor_torn.rs` (medium: a temporary SQLite file)
+injects the crash inside the store's own statements. It was red on `9a9c078`
+(commit `7414e3a`): `ClearQueue` skipped "a" in its own transaction and crashed
+before cancelling "b" and "c", so recovery lost "a". Commit `08703e5` adds
+`Queue::save`, which writes all transitions and order keys of a save in one
+transaction; the test then passed. The recovery-crash test passed from the
+start, because `Store::recover` is one transaction.
+
+| Planted fault | Failing tests |
+|---|---|
+| Transitions committed outside the save transaction | torn save |
+| Recovery bumps paused order keys row by row (not idempotent, not atomic) | crash during recovery, torn save |
+
+Both passed 10 repeated runs.
 
 ## Corpus classification (rule 5)
 
@@ -73,8 +91,12 @@ recovery takes, and bounded the crash loop at 64 calls.
 10 runs of the three files with random `PROPTEST_RNG_SEED` values and
 `RUST_TEST_SHUFFLE=1`: all passed, including the classification floor.
 
-## Known limitation
+## Known issue
 
 After a restart the conductor holds only unfinished clips, while the store
 places a normal submission after all history. Later parts must give a submitted
 clip the key the store assigned.
+
+Concretely: history is not loaded on recovery, so the conductor's next normal
+key can be lower than the store's `MAX(order_key) + 1`. Fix in the part that
+wires `submit` through the socket by passing the stored key into `Submit`.
