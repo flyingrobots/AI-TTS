@@ -24,9 +24,9 @@ impl Conductor {
         Outcome::Applied
     }
 
-    /// The sink finished the current speaker.
-    pub(super) fn finish(&mut self, id: &str) -> Result<Outcome, Refusal> {
-        let outcome = self.move_clip(id, State::Playing, State::Played)?;
+    /// The sink finished, or failed, the current speaker.
+    pub(super) fn finish(&mut self, id: &str, end: State) -> Result<Outcome, Refusal> {
+        let outcome = self.move_clip(id, State::Playing, end)?;
         if self.current.as_deref() == Some(id) {
             self.current = None;
         }

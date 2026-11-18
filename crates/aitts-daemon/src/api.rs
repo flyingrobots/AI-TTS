@@ -76,6 +76,8 @@ pub(crate) struct ReadApi {
     pub(crate) started: Instant,
     /// The conductor owner; every queue and transport change goes through it.
     pub(crate) conductor: Mailbox,
+    /// Wakes the synthesis driver after a request, when one runs.
+    pub(crate) wake: Option<SyncSender<()>>,
 }
 
 /// Answer jobs until every sender is gone, then close the store.
@@ -89,7 +91,12 @@ pub(crate) fn serve(api: ReadApi, jobs: &Receiver<Job>) {
 
 impl ReadApi {
     fn answer(&self, request: &Request) -> Reply {
-        self.dispatch(request).unwrap_or_else(Refusal::into_reply)
+        let reply = self.dispatch(request).unwrap_or_else(Refusal::into_reply);
+        if let Some(wake) = &self.wake {
+            // A full signal already wakes the driver; it re-reads all state.
+            let _pending = wake.try_send(());
+        }
+        reply
     }
 
     fn dispatch(&self, request: &Request) -> Result<Reply, Refusal> {
