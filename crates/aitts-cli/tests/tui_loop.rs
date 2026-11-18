@@ -26,12 +26,17 @@ struct Recorder {
     calls: Vec<&'static str>,
     last: Option<Screen>,
     fail_draw: bool,
+    fail_enter: bool,
 }
 
 impl Session for Recorder {
     fn enter(&mut self) -> io::Result<()> {
         self.calls.push("enter");
-        Ok(())
+        if self.fail_enter {
+            Err(io::Error::other("alternate screen refused"))
+        } else {
+            Ok(())
+        }
     }
     fn draw(&mut self, screen: &Screen) -> io::Result<()> {
         self.calls.push("draw");
@@ -50,13 +55,18 @@ impl Session for Recorder {
 
 struct Daemon {
     snapshot: Value,
+    /// The snapshot after the first request, when the request changed state.
+    after: Option<Value>,
     sent: Vec<Value>,
     panic_on_send: bool,
 }
 
 impl Commands for Daemon {
     fn snapshot(&mut self) -> Result<Value, String> {
-        Ok(self.snapshot.clone())
+        match (&self.after, self.sent.is_empty()) {
+            (Some(after), false) => Ok(after.clone()),
+            _ => Ok(self.snapshot.clone()),
+        }
     }
     fn send(&mut self, request: &Value) -> Result<(), String> {
         assert!(!self.panic_on_send, "planted failure in a command");
@@ -72,6 +82,7 @@ fn held() -> Value {
 fn daemon() -> Daemon {
     Daemon {
         snapshot: held(),
+        after: None,
         sent: Vec::new(),
         panic_on_send: false,
     }
@@ -147,10 +158,16 @@ fn a_terminal_error_leaves_the_terminal_restored() {
 fn a_key_sends_its_request_then_shows_a_fresh_snapshot() {
     let mut session = Recorder::default();
     let keys = inputs(vec![Input::Connected(held()), Input::Key("space".into())]);
-    let mut daemon = daemon();
+    let playing = support::tui::scenario("playing chunk")["snapshots"][0].clone();
+    let mut daemon = Daemon {
+        after: Some(playing),
+        ..daemon()
+    };
     run(&mut session, &keys, &mut daemon, &|| 0.0).unwrap();
     assert_eq!(daemon.sent, vec![json!({"op": "resume", "origin": "tui"})]);
-    assert_eq!(session.last.unwrap().status, "Connected");
+    let screen = session.last.unwrap();
+    assert_eq!(screen.status, "Connected");
+    assert!(screen.details.starts_with("Playing"), "{}", screen.details);
 }
 
 #[test]
@@ -166,4 +183,16 @@ fn the_screen_follows_connection_events_and_disconnects() {
     let screen = session.last.unwrap();
     assert_eq!(screen.status, "Disconnected: daemon stopped · retrying…");
     assert_eq!(screen.queue.len(), 5, "the last snapshot stays shown");
+}
+
+/// A terminal entered only part way (raw mode on, the screen refused) is left too.
+#[test]
+fn a_failed_enter_still_leaves_the_terminal() {
+    let mut session = Recorder {
+        fail_enter: true,
+        ..Recorder::default()
+    };
+    let outcome = run(&mut session, &inputs(vec![]), &mut daemon(), &|| 0.0);
+    assert!(outcome.is_err());
+    assert_eq!(session.calls, ["enter", "leave"]);
 }

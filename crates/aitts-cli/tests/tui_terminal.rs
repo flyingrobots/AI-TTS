@@ -22,10 +22,25 @@ use ratatui::layout::Rect;
 use serde_json::{Value, json};
 use std::cell::RefCell;
 use std::io;
+use std::rc::Rc;
 use std::sync::mpsc::channel;
 
 thread_local! {
     static RAW: RefCell<Vec<bool>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A writer the test can read after the session has written to it.
+#[derive(Clone, Default)]
+struct Shared(Rc<RefCell<Vec<u8>>>);
+
+impl io::Write for Shared {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0.borrow_mut().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 fn record_raw(on: bool) -> io::Result<()> {
@@ -52,7 +67,8 @@ impl Commands for Panics {
 fn session_after(items: Vec<Input>, panics: bool) -> (String, Vec<bool>) {
     RAW.with(|raw| raw.borrow_mut().clear());
     let viewport = Viewport::Fixed(Rect::new(0, 0, 40, 12));
-    let mut session = TerminalSession::new(Vec::new(), record_raw, viewport).unwrap();
+    let out = Shared::default();
+    let mut session = TerminalSession::new(out.clone(), record_raw, viewport).unwrap();
     let (sender, receiver) = channel();
     for item in items {
         sender.send(item).unwrap();
@@ -63,7 +79,8 @@ fn session_after(items: Vec<Input>, panics: bool) -> (String, Vec<bool>) {
     }));
 
     assert_eq!(outcome.is_err(), panics, "panic outcome");
-    let written = String::from_utf8_lossy(session.writer()).into_owned();
+    drop(session);
+    let written = String::from_utf8_lossy(&out.0.borrow()).into_owned();
     (written, RAW.with(|raw| raw.borrow().clone()))
 }
 

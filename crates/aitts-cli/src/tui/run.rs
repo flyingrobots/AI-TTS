@@ -80,11 +80,12 @@ pub fn run(
     commands: &mut dyn Commands,
     clock: &dyn Fn() -> f64,
 ) -> io::Result<()> {
-    session.enter()?;
+    // Made before entering, so a terminal entered only part way is still left.
     let entered = Entered {
         session,
         left: false,
     };
+    entered.session.enter()?;
     let mut dashboard = Dashboard::new();
     entered.session.draw(&dashboard.screen())?;
     for input in inputs {

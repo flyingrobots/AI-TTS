@@ -58,34 +58,79 @@ fn the_watcher_reports_a_restart_and_connects_again() {
     let (restarted, wait_for_restart) = channel::<()>();
     let wait_for_restart = Mutex::new(wait_for_restart);
     let stop = AtomicBool::new(false);
-    std::thread::scope(|scope| {
+    let second = std::thread::scope(|scope| {
         scope.spawn(|| {
             watch(&socket, &inputs, &stop, &|| {
-                let _ = wait_for_restart.lock().unwrap().recv();
+                // A closed channel means the test ended or failed: stop watching.
+                if wait_for_restart.lock().unwrap().recv().is_err() {
+                    stop.store(true, Ordering::SeqCst);
+                }
             });
         });
+        // Owned here, so a failing assertion drops both and the watcher ends.
+        let (restarted, received) = (restarted, received);
         let Input::Connected(snapshot) = next(&received) else {
             panic!("not connected first")
         };
         assert!(snapshot.get("plan").is_some(), "a snapshot: {snapshot}");
         assert_eq!(first.stop(Duration::from_secs(5)), StopOutcome::Clean);
+        let reported = next(&received);
         assert!(
-            matches!(next(&received), Input::Disconnected(_)),
-            "no disconnect report"
+            matches!(reported, Input::Disconnected(_)),
+            "no disconnect report: {reported:?}"
         );
         let second = start(dir.path());
         restarted.send(()).unwrap();
-        assert!(
-            matches!(next(&received), Input::Connected(_)),
-            "not connected again"
-        );
+        let again = next(&received);
         stop.store(true, Ordering::SeqCst);
-        restarted.send(()).ok();
-        drop(received);
-        assert_eq!(second.stop(Duration::from_secs(5)), StopOutcome::Clean);
+        assert!(
+            matches!(again, Input::Connected(_)),
+            "not connected again: {again:?}"
+        );
+        second
     });
+    assert_eq!(second.stop(Duration::from_secs(5)), StopOutcome::Clean);
 }
 
+/// The watcher asks for playback progress, as the Python dashboard does, so
+/// the meter and position move. A recording peer checks the request.
+#[test]
+fn the_watcher_subscribes_with_playback_progress() {
+    use std::io::{BufRead, BufReader, Write};
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("peer.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    let (inputs, received) = channel();
+    let stop = AtomicBool::new(false);
+    let request = std::thread::scope(|scope| {
+        scope.spawn(|| {
+            watch(&socket, &inputs, &stop, &|| {
+                stop.store(true, Ordering::SeqCst);
+            });
+        });
+        let (stream, _) = listener.accept().unwrap();
+        let mut line = String::new();
+        BufReader::new(&stream).read_line(&mut line).unwrap();
+        (&stream)
+            .write_all(b"{\"ok\":true,\"subscribed\":true}\n")
+            .unwrap();
+        // The snapshot request is refused; the watcher reports it and stops.
+        let (refused, _) = listener.accept().unwrap();
+        BufReader::new(&refused)
+            .read_line(&mut String::new())
+            .unwrap();
+        (&refused)
+            .write_all(b"{\"ok\":false,\"error\":{\"type\":\"internal\",\"message\":\"no\"}}\n")
+            .unwrap();
+        assert!(matches!(next(&received), Input::Disconnected(_)));
+        line
+    });
+    let request: serde_json::Value = serde_json::from_str(&request).unwrap();
+    assert_eq!(
+        request,
+        serde_json::json!({"op": "subscribe", "playback_progress": true})
+    );
+}
 #[test]
 fn no_daemon_reports_disconnected_and_waits() {
     let dir = tempfile::tempdir().unwrap();

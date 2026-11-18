@@ -19,6 +19,8 @@ subscribes again, up to `policy.attempts` times with `policy.delay` between
 attempts, and returns `Delivery::Resubscribed`. Events sent while the client was
 disconnected are lost, so a caller reads current state again after that item.
 A quiet daemon gives `ClientError::TimedOut` and keeps the connection.
+`Client::subscribe_to_progress` also asks for `playback_progress` events, as
+the dashboard does.
 
 ## Errors
 
