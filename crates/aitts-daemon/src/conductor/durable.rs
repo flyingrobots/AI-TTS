@@ -224,6 +224,10 @@ impl<L: Ledger> Durable<L> {
     /// # Errors
     /// Returns [`DurableError`]; a refused submission stores nothing.
     pub fn submit(&mut self, new: &NewUtterance) -> Result<Outcome, DurableError> {
+        // Refuse a known id before the store is touched.
+        if self.conductor.clips.iter().any(|clip| clip.id == new.id) {
+            return Err(DurableError::Refused(Refusal::Duplicate(new.id.clone())));
+        }
         let order = self.ledger.admit(new).map_err(DurableError::Ledger)?;
         self.conductor
             .apply(Command::Admit {

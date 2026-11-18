@@ -59,9 +59,20 @@ impl Conductor {
         priority: Priority,
         playback: Playback,
     ) -> Result<Outcome, Refusal> {
-        // Stub: the stored key is only validated, then ignored.
-        OrderKey::new(order).map_err(|_| Refusal::OrderExhausted)?;
-        self.submit(id, priority, playback)
+        if self.index(&id).is_ok() {
+            return Err(Refusal::Duplicate(id));
+        }
+        let order = OrderKey::new(order)
+            .map_err(|_| Refusal::OrderExhausted)?
+            .value();
+        self.clips.push(Clip {
+            id,
+            order,
+            priority,
+            state: State::Queued,
+            playback,
+        });
+        Ok(Outcome::Applied)
     }
 
     /// Admit a replay of a finished clip, as Python `_op_requeue`.
