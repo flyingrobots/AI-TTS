@@ -32,9 +32,9 @@ The replies of the Python `ai-tts-mcp` (MCP SDK 2.x) to the same messages:
 
 ## CI finding
 
-The first CI run failed 2 Python sessions: the fixtures had been generated with Python 3.14 (dedented docstrings), and CI runs Python 3.12. They were regenerated with `UV_PYTHON=3.12`, and the comparison now cleans descriptions, so both versions pass.
+The first CI run failed 2 Python sessions: the fixtures had been generated with Python 3.14, which dedents docstrings, and CI runs Python 3.12. They were regenerated with Python 3.12, which `make install` and CI use. The Rust tests compare the descriptions exactly to those recordings, and the pytest that ties the fixtures to the Python server is skipped, with that reason, on any interpreter other than 3.12, so neither side is normalized. Under Python 3.12, changing the fixture `serverInfo.version` failed 9 sessions.
 
-The second CI run failed `daemon_and_tui_reach_ai_tts_py_with_their_arguments_and_status` (from #138, now on main) on Linux: spawning the copied binary failed while another test thread was forking with that file's write descriptor open (`ETXTBSY`). The test now hard-links the binary into a directory under `CARGO_TARGET_TMPDIR`, and holds one lock while it writes the stand-in `ai-tts-py` and while it forks. It was not reproduced on macOS, so the CI failure is the RED evidence; the test passed 10 times in a row locally after the change.
+The second CI run failed `daemon_and_tui_reach_ai_tts_py_with_their_arguments_and_status` (from #138, now on main) on Linux: spawning the copied binary failed while another test thread was forking with that file's write descriptor open (`ETXTBSY`). The test now hard-links the binary into a directory under `CARGO_TARGET_TMPDIR`, and holds one lock while it writes the stand-in `ai-tts-py` and while it forks. Reproduced on Linux in a throwaway `rust:1.99.1-bookworm` container (source copied in with `docker cp`, no bind mount; 18 CPUs). The test binary was run in a loop with `--test-threads=16`. Without the fix it failed with `Text file busy` (os error 26) on runs 1, 5, 4, 4, 1 and 2 of six loops. With the fix it passed 10 of 10 runs, then 500 of 500. The container was removed afterwards.
 
 ## Observed RED
 

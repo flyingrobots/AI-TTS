@@ -9,12 +9,12 @@ following ``ping`` probe), and
 ``crates/aitts-cli/src/mcp_tools.json`` holds its ``tools/list`` result. The
 Rust ``ai-tts mcp`` is tested against both files, so this test ties them to the
 reference server. Re-baseline: ``uv run python -m tests.test_mcp_parity_table``
-rewrites the session file from the Python server; review the diff.
+rewrites the session file from the Python server; review the diff. Both
+commands need Python 3.12 (``UV_PYTHON=3.12 uv run --isolated --frozen --dev``).
 """
 
 from __future__ import annotations
 
-import inspect
 import json
 import os
 import subprocess
@@ -27,6 +27,12 @@ import pytest
 pytestmark = [
     pytest.mark.medium,
     pytest.mark.oracle("the Python ai-tts-mcp server over MCP stdio"),
+    # Python 3.13 dedents docstrings, which changes tool descriptions. The
+    # fixtures hold the Python 3.12 server that `make install` and CI run.
+    pytest.mark.skipif(
+        sys.version_info[:2] != (3, 12),
+        reason="fixtures record the Python 3.12 server; run with UV_PYTHON=3.12",
+    ),
 ]
 
 _REPOSITORY = Path(__file__).parents[1]
@@ -146,28 +152,9 @@ def run_session(messages: list[Any]) -> dict[str, Any]:
 _RECORDED: list[dict[str, Any]] = json.loads(_SESSIONS.read_text(encoding="utf-8"))
 
 
-def _docstrings_cleaned(value: Any) -> Any:
-    """Python 3.13 dedents docstrings and 3.12 does not; compare tool descriptions cleaned.
-
-    The fixtures hold the 3.12 text, which `make install` and CI use.
-    """
-    if isinstance(value, dict):
-        return {
-            key: inspect.cleandoc(item)
-            if key == "description" and isinstance(item, str)
-            else _docstrings_cleaned(item)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [_docstrings_cleaned(item) for item in value]
-    return value
-
-
 @pytest.mark.parametrize("index", range(len(SESSIONS)))
 def test_session_replies_match_the_python_server(index: int) -> None:
-    assert _docstrings_cleaned(run_session(SESSIONS[index])) == _docstrings_cleaned(
-        _RECORDED[index]
-    )
+    assert run_session(SESSIONS[index]) == _RECORDED[index]
 
 
 def test_tool_catalog_is_the_python_tools_list() -> None:
