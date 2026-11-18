@@ -1,0 +1,941 @@
+{
+ "_comment": "Generated from the Python ai-tts CLI; tests/test_cli_parity_table.py re-checks it.",
+ "rows": [
+  {
+   "argv": [
+    "say",
+    "hello"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hello",
+    "content_format": "plain_text"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--format",
+    "markdown"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "markdown"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--voice",
+    "af_heart",
+    "--engine",
+    "kokoro"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "voice": "af_heart",
+    "engine": "kokoro"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--speed",
+    "1.5"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "speed": 1.5
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--speed",
+    "-1"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "speed": -1.0
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--speed",
+    "2"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "speed": 2.0
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--sensitivity",
+    "public"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "sensitivity": "public"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--priority",
+    "urgent"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "priority": "urgent"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--preempt"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "preempt": true
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--source",
+    "agent-1"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "source": "agent-1"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "--source=agent-2",
+    "--sens",
+    "internal",
+    "hi"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "sensitivity": "internal",
+    "source": "agent-2"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "--",
+    "-dash text"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "-dash text",
+    "content_format": "plain_text"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--prio",
+    "preempt",
+    "--pre"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "hi",
+    "content_format": "plain_text",
+    "preempt": true,
+    "priority": "preempt"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    "héllo ☃"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "héllo ☃",
+    "content_format": "plain_text"
+   }
+  },
+  {
+   "argv": [
+    "say",
+    ""
+   ],
+   "exit": 0,
+   "request": {
+    "op": "submit",
+    "origin": "CLI",
+    "text": "",
+    "content_format": "plain_text"
+   }
+  },
+  {
+   "argv": [
+    "model-setup",
+    "kokoro"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "model_setup",
+    "name": "kokoro"
+   }
+  },
+  {
+   "argv": [
+    "model-setup",
+    "chatterbox"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "model_setup",
+    "name": "chatterbox"
+   }
+  },
+  {
+   "argv": [
+    "cancel-model-setup"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "cancel_model_setup"
+   }
+  },
+  {
+   "argv": [
+    "get",
+    "u-1"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "get",
+    "id": "u-1"
+   }
+  },
+  {
+   "argv": [
+    "list",
+    "input"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "list",
+    "queue": "input"
+   }
+  },
+  {
+   "argv": [
+    "list",
+    "playback"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "list",
+    "queue": "playback"
+   }
+  },
+  {
+   "argv": [
+    "history"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "history",
+    "limit": 20
+   }
+  },
+  {
+   "argv": [
+    "history",
+    "--limit",
+    "5"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "history",
+    "limit": 5
+   }
+  },
+  {
+   "argv": [
+    "history",
+    "--limit",
+    "0"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "history",
+    "limit": 0
+   }
+  },
+  {
+   "argv": [
+    "history",
+    "--before",
+    "u-9",
+    "--limit",
+    "3"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "history",
+    "limit": 3,
+    "before": "u-9"
+   }
+  },
+  {
+   "argv": [
+    "purge-cache"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "purge_cache"
+   }
+  },
+  {
+   "argv": [
+    "pause"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "pause"
+   }
+  },
+  {
+   "argv": [
+    "resume"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "resume"
+   }
+  },
+  {
+   "argv": [
+    "skip"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "skip"
+   }
+  },
+  {
+   "argv": [
+    "status"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "status"
+   }
+  },
+  {
+   "argv": [
+    "voices"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "voices"
+   }
+  },
+  {
+   "argv": [
+    "metrics"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "metrics"
+   }
+  },
+  {
+   "argv": [
+    "engines"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "engines"
+   }
+  },
+  {
+   "argv": [
+    "rewind"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "rewind"
+   }
+  },
+  {
+   "argv": [
+    "rewind",
+    "--to",
+    "u-2"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "rewind",
+    "to": "u-2"
+   }
+  },
+  {
+   "argv": [
+    "cancel",
+    "u-3"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "cancel",
+    "id": "u-3"
+   }
+  },
+  {
+   "argv": [
+    "clear",
+    "input"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "clear",
+    "queue": "input"
+   }
+  },
+  {
+   "argv": [
+    "clear",
+    "playback"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "clear",
+    "queue": "playback"
+   }
+  },
+  {
+   "argv": [
+    "next-chunk"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "next_segment"
+   }
+  },
+  {
+   "argv": [
+    "prev-chunk"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "previous_segment"
+   }
+  },
+  {
+   "argv": [
+    "resume-when-idle"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "resume_when_input_idle"
+   }
+  },
+  {
+   "argv": [
+    "voice-map"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "voice_assignments"
+   }
+  },
+  {
+   "argv": [
+    "assign-voice",
+    "agent",
+    "af_bella"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "assign_voice",
+    "source": "agent",
+    "voice": "af_bella"
+   }
+  },
+  {
+   "argv": [
+    "assign-voice",
+    "agent",
+    "--release"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "assign_voice",
+    "source": "agent",
+    "release": true
+   }
+  },
+  {
+   "argv": [
+    "settings"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings"
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "set",
+    "voice",
+    "af_heart"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "voice": "af_heart"
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--engine",
+    "kokoro"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "engine": "kokoro"
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--earcon",
+    "on"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "earcon_enabled": true
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--ducking",
+    "off"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "ducking_enabled": false
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "speed=1.25"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "speed": 1.25
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "playback_rate=2"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "playback_rate": 2.0
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "captions_enabled=true"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "captions_enabled": true
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "input_interrupt_enabled=false"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "input_interrupt_enabled": false
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "voice_languages=en,ja"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "voice_languages": [
+      "en",
+      "ja"
+     ]
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "earcon=off",
+    "--set",
+    "ducking=on"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "earcon_enabled": false,
+     "ducking_enabled": true
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "set",
+    "engine",
+    "kokoro",
+    "--earcon",
+    "off"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "engine": "kokoro",
+     "earcon_enabled": false
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "cache_max_bytes=1048576"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "cache_max_bytes": "1048576"
+    }
+   }
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "input_interrupt_resume=manual"
+   ],
+   "exit": 0,
+   "request": {
+    "op": "settings",
+    "set": {
+     "input_interrupt_resume": "manual"
+    }
+   }
+  },
+  {
+   "argv": [],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "bogus"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--format",
+    "html"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--sensitivity",
+    "secret"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--priority",
+    "low"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--speed",
+    "fast"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say",
+    "hi",
+    "--bogus"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "say",
+    "-x"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "model-setup",
+    "nope"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "list",
+    "history"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "clear",
+    "everything"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "history",
+    "--limit",
+    "x"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "cancel"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "get"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "assign-voice"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "assign-voice",
+    "agent"
+   ],
+   "exit": 1
+  },
+  {
+   "argv": [
+    "assign-voice",
+    "agent",
+    "v",
+    "--release"
+   ],
+   "exit": 1
+  },
+  {
+   "argv": [
+    "settings",
+    "set"
+   ],
+   "exit": 1
+  },
+  {
+   "argv": [
+    "settings",
+    "set",
+    "voice"
+   ],
+   "exit": 1
+  },
+  {
+   "argv": [
+    "settings",
+    "unset",
+    "a",
+    "b"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "novalue"
+   ],
+   "exit": 1
+  },
+  {
+   "argv": [
+    "settings",
+    "--earcon",
+    "maybe"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "settings",
+    "--set",
+    "captions_enabled=yes"
+   ],
+   "exit": 1
+  },
+  {
+   "argv": [
+    "pause",
+    "extra"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "status",
+    "--bogus"
+   ],
+   "exit": 2
+  },
+  {
+   "argv": [
+    "rewind",
+    "--to"
+   ],
+   "exit": 2
+  }
+ ]
+}
