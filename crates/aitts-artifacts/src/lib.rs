@@ -17,3 +17,4 @@ pub mod evidence;
 pub mod private_fs;
 pub mod records;
 pub mod spool;
+mod wav;

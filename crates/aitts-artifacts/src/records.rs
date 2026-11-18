@@ -15,6 +15,7 @@
 //! The caller supplies the clock and the process session, so records have no
 //! hidden time or identity reads. Unlike Python, write failures are returned.
 
+use std::fmt::Write as _;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write as _};
 use std::os::unix::fs::OpenOptionsExt;
@@ -26,6 +27,7 @@ use serde_json::{Map, Value, json};
 
 use crate::evidence::clip_directory;
 use crate::private_fs::{ensure_private_directory, ensure_private_file};
+use crate::wav::read_format;
 
 /// The Python log limit: 1 MiB per log file.
 pub const LOG_LIMIT_BYTES: usize = 1024 * 1024;
@@ -153,6 +155,55 @@ impl<C: EvidenceClock> EvidenceRecorder<C> {
         )
     }
 
+    /// Save the caller's text and arguments before any processing.
+    ///
+    /// `request.json` holds `payload` without `text` and `op`, the BLAKE3 of the
+    /// text, and the time received.
+    ///
+    /// # Errors
+    /// Fails on an invalid identity, a symbolic link, or an I/O error.
+    pub fn submitted(
+        &self,
+        artifact_id: &str,
+        text: &str,
+        payload: &Map<String, Value>,
+    ) -> io::Result<()> {
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        let directory = self.directory(artifact_id)?;
+        write_private(&directory.join("source.txt"), text.as_bytes())?;
+        let arguments: Map<String, Value> = payload
+            .iter()
+            .filter(|(key, _)| !matches!(key.as_str(), "text" | "op"))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+        let request = json!({
+            "arguments": arguments,
+            "source_blake3": blake3::hash(text.as_bytes()).to_hex().to_string(),
+            "received_at": self.clock.wall(),
+        });
+        write_private(
+            &directory.join("request.json"),
+            serde_json::to_string_pretty(&request)?.as_bytes(),
+        )
+    }
+
+    /// Save the identity and numerical diagnostics of a generated WAV.
+    ///
+    /// Reads 16- and 24-bit integer PCM and 32-bit float WAV files.
+    ///
+    /// # Errors
+    /// Fails on another audio format, an invalid identity, a symbolic link, or
+    /// an I/O error. No `audio.json` is written on failure.
+    pub fn audio_generated(&self, artifact_id: &str, audio: &Path) -> io::Result<()> {
+        let metadata = audio_metadata(audio)?;
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        let directory = self.directory(artifact_id)?;
+        write_private(
+            &directory.join("audio.json"),
+            serde_json::to_string_pretty(&metadata)?.as_bytes(),
+        )
+    }
+
     fn append(
         &self,
         artifact_id: &str,
@@ -208,6 +259,88 @@ impl<C: EvidenceClock> EvidenceRecorder<C> {
         ensure_private_directory(&directory, true)?;
         Ok(directory)
     }
+}
+
+/// One sample's bytes; `chunks_exact` guarantees the width.
+fn word<const N: usize>(bytes: &[u8]) -> [u8; N] {
+    bytes.try_into().unwrap_or([0; N])
+}
+
+/// Python's `_CLIPPING_THRESHOLD`, compared as `f32` as `NumPy` does.
+const CLIPPING_THRESHOLD: f32 = 0.9999;
+
+/// The identity and numerical diagnostics that Python reads with `soundfile`.
+///
+/// 16- and 24-bit integer PCM and 32-bit float are read; 32-bit integer PCM is
+/// refused because f32 cannot hold its values exactly.
+fn audio_metadata(path: &Path) -> io::Result<Value> {
+    let bytes = fs::read(path)?;
+    let file = fs::File::open(path)?;
+    let format = read_format(&file)?;
+    let (subtype, decode): (&str, fn(&[u8]) -> f32) =
+        match (format.format_tag, format.bits_per_sample) {
+            (1, 16) => ("PCM_16", |b| {
+                f32::from(i16::from_le_bytes(word(b))) / 32_768.0
+            }),
+            (1, 24) => ("PCM_24", |b| {
+                let [x, y, z] = word(b);
+                // Sign-extend through the top byte, then add the two exact parts
+                // (high 16 bits, low 8 bits) so the f32 result is exact.
+                let value = i32::from_le_bytes([0, x, y, z]) >> 8;
+                f32::from(i16::try_from(value >> 8).unwrap_or(0)) / 32_768.0
+                    + f32::from(u8::try_from(value & 0xFF).unwrap_or(0)) / 8_388_608.0
+            }),
+            (3, 32) => ("FLOAT", |b| f32::from_le_bytes(word(b))),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unsupported WAV sample format",
+                ));
+            }
+        };
+    let width = usize::from(format.bits_per_sample / 8);
+    let block = usize::from(format.block_align);
+    let start = usize::try_from(format.data_offset).unwrap_or(usize::MAX);
+    let length = usize::try_from(format.data_bytes).unwrap_or(usize::MAX);
+    let data = bytes.get(start..).unwrap_or_default();
+    let data = data.get(..length.min(data.len())).unwrap_or_default();
+    let frames = data.len().checked_div(block).unwrap_or(0);
+    let (mut peak, mut clipped, mut nonfinite) = (0.0_f32, 0_u64, 0_u64);
+    for sample in data
+        .chunks_exact(width)
+        .take(frames.saturating_mul(usize::from(format.channels)))
+    {
+        let value = decode(sample);
+        if value.is_finite() {
+            peak = peak.max(value.abs());
+        } else {
+            nonfinite += 1;
+        }
+        if value.abs() >= CLIPPING_THRESHOLD {
+            clipped += 1;
+        }
+    }
+    Ok(json!({
+        "blake3": blake3::hash(&bytes).to_hex().to_string(),
+        "sha256": sha256_hex(&bytes),
+        "sample_rate": format.sample_rate,
+        "channels": format.channels,
+        "frames": frames,
+        "subtype": subtype,
+        "peak": f64::from(peak),
+        "clipped_samples": clipped,
+        "nonfinite_samples": nonfinite,
+    }))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest as _, Sha256};
+    Sha256::digest(bytes)
+        .iter()
+        .fold(String::with_capacity(64), |mut hex, byte| {
+            let _ = write!(hex, "{byte:02x}");
+            hex
+        })
 }
 
 /// Replace a private file's contents without following a link.

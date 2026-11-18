@@ -1,0 +1,11 @@
+{
+  "blake3": "76dee08c2bf3007545ae9168765777750fa87f150a70e288bfb76859877621e8",
+  "sha256": "f04d916f063a4e928728e79f80803c54921543f244d52e8faf682f9114582908",
+  "sample_rate": 48000,
+  "channels": 2,
+  "frames": 5,
+  "subtype": "FLOAT",
+  "peak": 1.0,
+  "clipped_samples": 5,
+  "nonfinite_samples": 3
+}
