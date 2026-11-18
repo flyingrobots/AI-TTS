@@ -5,7 +5,8 @@
 //! `docs/design/features.md` section 8: `wait` and `say --wait` subscribe
 //! before they read the current state, exit 0 only for `Played`, exit 3 for
 //! another terminal state, and exit 2 when the deadline passes. Replies are the
-//! captured Python daemon replies in `aitts-protocol/tests/fixtures/wire`.
+//! captured Python daemon replies in `aitts-protocol/tests/fixtures/wire`, and
+//! the protocol `get` reply fixture.
 //! Ordering is forced by the peer: it writes events only after it has answered
 //! the `get`, so no test depends on timing.
 
@@ -52,12 +53,22 @@ fn held_submit() -> Value {
     reply
 }
 
-/// A captured `get` reply for utterance `ID` in `state`.
+/// The fixture `get` reply (`aitts-protocol/tests/fixtures/replies.json`) for
+/// utterance `ID` in `state`.
 fn item(state: &str) -> Value {
-    let mut item = captured("list.json", "list")["items"][0].clone();
-    item["id"] = json!(ID);
-    item["state"] = json!(state);
-    json!({"ok": true, "item": item})
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../aitts-protocol/tests/fixtures/replies.json"
+    );
+    let replies: Vec<Value> = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let mut reply = replies
+        .into_iter()
+        .find(|record| record["op"] == json!("get"))
+        .map(|record| record["reply"].clone())
+        .unwrap();
+    reply["item"]["id"] = json!(ID);
+    reply["item"]["state"] = json!(state);
+    reply
 }
 
 fn changed(id: &str, to: &str) -> Value {
@@ -190,7 +201,8 @@ fn wait_past_its_deadline_exits_two_as_unreachable() {
 fn wait_for_an_unknown_id_reports_the_daemon_error() {
     let missing = json!({"ok": false, "error": {"type": "not_found", "message": "no"}});
     let peer = serve(vec![subscribed(), missing.clone()], vec![]);
-    let outcome = run(&peer.socket, &["wait", ID]);
+    // The deadline only bounds a broken client, which would otherwise wait forever.
+    let outcome = run(&peer.socket, &["wait", ID, "--timeout", "5"]);
     assert_eq!(outcome.status, 1);
     assert_eq!(outcome.json(), missing);
     peer.handle.join().unwrap();

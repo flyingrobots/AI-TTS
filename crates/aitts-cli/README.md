@@ -15,14 +15,21 @@ Python `ai-tts` contract for the commands it has:
   `AI_TTS_HOME/ai-tts.sock`, then
   `~/Library/Application Support/ai-tts/ai-tts.sock`.
 
+`wait ID` and `say --wait` subscribe to daemon events first, then read the
+utterance's current state, then read events until it reaches a terminal state
+(`Played`, `Skipped`, `Cancelled` or `Failed`). They print `final_state` and
+exit 0 only for `Played`, and 3 for the other terminal states. With
+`--timeout SECONDS`, a wait that passes its deadline prints an `unreachable`
+error and exits 2. Without it, the wait has no limit; held playback (a pause)
+only delays the result. If the subscription connects again after a failure,
+the state is read again, because events sent in between are lost.
+
 A request that the protocol types refuse (for example an unknown `--set` key)
 is not sent. The client prints a `bad_request` error and exits 1, which is what
 the daemon answers for that request.
 
 ## Not yet in this crate
 
-- `wait` and `say --wait` (exit status 3 for an utterance that was not
-  played). They parse, but exit 1 with a message on standard error.
 - `daemon`, `tui` and `mcp`, which are out of scope for issue #138.
 - Installing this binary in place of the Python `ai-tts`.
 
