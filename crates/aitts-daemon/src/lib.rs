@@ -19,6 +19,7 @@
 
 mod api;
 mod cache_usage;
+pub mod conductor;
 mod connection;
 mod lease;
 mod projection;
