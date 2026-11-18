@@ -8,7 +8,8 @@
 //! captured Python daemon replies in `aitts-protocol/tests/fixtures/wire`, and
 //! the protocol `get` reply fixture.
 //! Ordering is forced by the peer: it writes events only after it has answered
-//! the `get`, so no test depends on timing.
+//! the `get`, so no test depends on timing. A gated peer can also hold a reply
+//! until the client has closed, to force a write to a closed client.
 
 #![allow(
     clippy::unwrap_used,
@@ -21,6 +22,7 @@ mod support;
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
+use std::sync::mpsc::{Receiver, channel};
 use std::thread::JoinHandle;
 
 use serde_json::{Value, json};
@@ -84,19 +86,32 @@ struct Peer {
 }
 
 fn serve(replies: Vec<Value>, events: Vec<Value>) -> Peer {
+    serve_gated(replies, events, None)
+}
+
+/// [`serve`], but the reply at `gate.0` is written only after `gate.1` fires:
+/// the test can force a reply to reach a client that has already closed.
+fn serve_gated(
+    replies: Vec<Value>,
+    events: Vec<Value>,
+    gate: Option<(usize, Receiver<()>)>,
+) -> Peer {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("peer.sock");
     let listener = UnixListener::bind(&socket).unwrap();
     let handle = std::thread::spawn(move || {
         let mut requests = Vec::new();
         let mut open: Vec<UnixStream> = Vec::new();
-        for reply in replies {
+        for (index, reply) in replies.into_iter().enumerate() {
             let (stream, _) = listener.accept().unwrap();
             let mut line = Vec::new();
             BufReader::new(&stream)
                 .read_until(b'\n', &mut line)
                 .unwrap();
             requests.push(serde_json::from_slice::<Value>(&line).unwrap());
+            if let Some((_, open)) = gate.as_ref().filter(|(at, _)| *at == index) {
+                open.recv().unwrap();
+            }
             (&stream)
                 .write_all(format!("{reply}\n").as_bytes())
                 .unwrap();
@@ -195,6 +210,21 @@ fn wait_past_its_deadline_exits_two_as_unreachable() {
     assert_eq!(outcome.status, 2);
     assert_eq!(outcome.json()["error"]["type"], json!("unreachable"));
     peer.handle.join().unwrap();
+}
+
+#[test]
+fn a_reply_to_a_client_that_already_gave_up_is_not_a_peer_failure() {
+    // Forced order: the client passes its deadline and closes before the peer
+    // answers its `get` (reply 1), the order that broke CI in #223.
+    let (open, gate) = channel();
+    let peer = serve_gated(vec![subscribed(), item("Queued")], vec![], Some((1, gate)));
+    let outcome = run(&peer.socket, &["wait", ID, "--timeout", "0"]);
+    assert_eq!(outcome.status, 2);
+    open.send(()).unwrap();
+    assert!(
+        peer.handle.join().is_ok(),
+        "the peer failed writing to a closed client"
+    );
 }
 
 #[test]
