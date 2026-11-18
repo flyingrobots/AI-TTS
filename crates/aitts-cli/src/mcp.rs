@@ -102,7 +102,13 @@ impl Session<'_> {
                     .and_then(Value::as_str)
                     .ok_or_else(invalid_params)?;
                 let catalog: Vec<Value> = serde_json::from_str(TOOLS).unwrap_or_default();
-                Ok(crate::mcp_tools::call(tool, &catalog, self.socket))
+                let arguments = params.and_then(|params| params.get("arguments"));
+                Ok(crate::mcp_tools::call(
+                    tool,
+                    arguments,
+                    &catalog,
+                    self.socket,
+                ))
             }
             other => Err(json!({"code": -32601, "message": "Method not found", "data": other})),
         }
