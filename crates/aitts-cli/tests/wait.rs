@@ -112,9 +112,9 @@ fn serve_gated(
             if let Some((_, open)) = gate.as_ref().filter(|(at, _)| *at == index) {
                 open.recv().unwrap();
             }
-            (&stream)
-                .write_all(format!("{reply}\n").as_bytes())
-                .unwrap();
+            // A client that already gave up has closed its end; that is the
+            // client's outcome to assert, not a peer failure.
+            let _ = (&stream).write_all(format!("{reply}\n").as_bytes());
             open.push(stream);
         }
         let subscribed = requests.iter().position(|r| r["op"] == json!("subscribe"));
