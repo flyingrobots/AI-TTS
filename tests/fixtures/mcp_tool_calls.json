@@ -76,31 +76,32 @@
      "interruption": null,
      "current": null,
      "counts": {
-      "Synthesizing": 1
+      "Cancelled": 1,
+      "Played": 2,
+      "Ready": 1
      },
      "engine": "fake",
      "engine_preparing": null,
      "voice": "bm_daniel"
     },
     "runtime": {
-     "pid": 96920,
-     "uptime_seconds": 0.02745787496678531,
+     "pid": 7843,
+     "uptime_seconds": 0.7709143749671057,
      "model_state": "ready",
      "active_synthesis": 1
     },
-    "playback": [],
-    "input": [
+    "playback": [
      {
-      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
-      "state": "Synthesizing",
-      "enqueued_at": 1794994792.444076,
+      "state": "Ready",
+      "enqueued_at": 1794995465.261529,
       "source": null,
-      "duration_ms": null,
+      "duration_ms": 100,
       "played_ms": null,
       "error": null,
       "replay_of": null,
@@ -110,18 +111,19 @@
       "completed_segments": 0
      }
     ],
+    "input": [],
     "plan": [
      {
-      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
-      "state": "Synthesizing",
-      "enqueued_at": 1794994792.444076,
+      "state": "Ready",
+      "enqueued_at": 1794995465.261529,
       "source": null,
-      "duration_ms": null,
+      "duration_ms": 100,
       "played_ms": null,
       "error": null,
       "replay_of": null,
@@ -131,7 +133,30 @@
       "completed_segments": 0
      }
     ],
-    "history": [],
+    "history": [
+     {
+      "id": "utt_1b03ff270b194023a569c6f88e90496b",
+      "text": "Cancelled speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Cancelled",
+      "enqueued_at": 1794995465.2664378,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "final_state": "Cancelled",
+      "finished_at": 1794995465.269245,
+      "audio_cached": false,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
     "voices": [
      "bm_daniel",
      "af_bella"
@@ -194,7 +219,7 @@
      "playback_rate": 1.0,
      "cache_max_bytes": 1073741824,
      "captions_enabled": false,
-     "captions_enabled_configured": false,
+     "captions_enabled_configured": true,
      "earcon_enabled": false,
      "ducking_enabled": false,
      "input_interrupt_enabled": true,
@@ -214,7 +239,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_ff13e30021ec460e88c941bf16dc7490\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Synthesizing\",\n      \"enqueued_at\": 1794994792.444076,\n      \"source\": null,\n      \"duration_ms\": null,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Ready\",\n      \"enqueued_at\": 1794995465.261529,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -222,16 +247,16 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+       "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
        "text": "Held speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
-       "state": "Synthesizing",
-       "enqueued_at": 1794994792.444076,
+       "state": "Ready",
+       "enqueued_at": 1794995465.261529,
        "source": null,
-       "duration_ms": null,
+       "duration_ms": 100,
        "played_ms": null,
        "error": null,
        "replay_of": null,
@@ -394,8 +419,8 @@
   "daemon_replies": [
    {
     "ok": true,
-    "state": null,
-    "current": null,
+    "state": "Paused",
+    "current": "utt_9f49a9b85f0f4784872be0b259af71f9",
     "held": true
    }
   ],
@@ -410,14 +435,14 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"state\": null,\n  \"current\": null,\n  \"held\": true\n}",
+      "text": "{\n  \"state\": \"Paused\",\n  \"current\": \"utt_9f49a9b85f0f4784872be0b259af71f9\",\n  \"held\": true\n}",
       "type": "text"
      }
     ],
     "isError": false,
     "structuredContent": {
-     "state": null,
-     "current": null,
+     "state": "Paused",
+     "current": "utt_9f49a9b85f0f4784872be0b259af71f9",
      "held": true
     }
    }
@@ -756,7 +781,9 @@
     "interruption": null,
     "current": null,
     "counts": {
-     "Synthesizing": 1
+     "Cancelled": 1,
+     "Played": 2,
+     "Ready": 1
     },
     "engine": "fake",
     "engine_preparing": null,
@@ -774,7 +801,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"state\": \"accepting\",\n  \"playback_state\": \"paused\",\n  \"current\": null,\n  \"counts\": {\n    \"Synthesizing\": 1\n  },\n  \"engine\": \"fake\",\n  \"voice\": \"bm_daniel\",\n  \"version\": \"0.2.0\",\n  \"input_active\": false,\n  \"engine_preparing\": null,\n  \"interruption\": null\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"state\": \"accepting\",\n  \"playback_state\": \"paused\",\n  \"current\": null,\n  \"counts\": {\n    \"Cancelled\": 1,\n    \"Played\": 2,\n    \"Ready\": 1\n  },\n  \"engine\": \"fake\",\n  \"voice\": \"bm_daniel\",\n  \"version\": \"0.2.0\",\n  \"input_active\": false,\n  \"engine_preparing\": null,\n  \"interruption\": null\n}",
       "type": "text"
      }
     ],
@@ -788,7 +815,9 @@
      "playback_state": "paused",
      "current": null,
      "counts": {
-      "Synthesizing": 1
+      "Cancelled": 1,
+      "Played": 2,
+      "Ready": 1
      },
      "engine": "fake",
      "voice": "bm_daniel",
@@ -866,31 +895,32 @@
      "interruption": null,
      "current": null,
      "counts": {
-      "Synthesizing": 1
+      "Cancelled": 1,
+      "Played": 2,
+      "Ready": 1
      },
      "engine": "fake",
      "engine_preparing": null,
      "voice": "bm_daniel"
     },
     "runtime": {
-     "pid": 96920,
-     "uptime_seconds": 0.02745787496678531,
+     "pid": 7843,
+     "uptime_seconds": 0.7709143749671057,
      "model_state": "ready",
      "active_synthesis": 1
     },
-    "playback": [],
-    "input": [
+    "playback": [
      {
-      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
-      "state": "Synthesizing",
-      "enqueued_at": 1794994792.444076,
+      "state": "Ready",
+      "enqueued_at": 1794995465.261529,
       "source": null,
-      "duration_ms": null,
+      "duration_ms": 100,
       "played_ms": null,
       "error": null,
       "replay_of": null,
@@ -900,6 +930,7 @@
       "completed_segments": 0
      }
     ],
+    "input": [],
     "plan": [
      {
       "id": "utt_not_an_id",
@@ -908,10 +939,10 @@
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
-      "state": "Synthesizing",
-      "enqueued_at": 1794994792.444076,
+      "state": "Ready",
+      "enqueued_at": 1794995465.261529,
       "source": null,
-      "duration_ms": null,
+      "duration_ms": 100,
       "played_ms": null,
       "error": null,
       "replay_of": null,
@@ -921,7 +952,30 @@
       "completed_segments": 0
      }
     ],
-    "history": [],
+    "history": [
+     {
+      "id": "utt_1b03ff270b194023a569c6f88e90496b",
+      "text": "Cancelled speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Cancelled",
+      "enqueued_at": 1794995465.2664378,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "final_state": "Cancelled",
+      "finished_at": 1794995465.269245,
+      "audio_cached": false,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
     "voices": [
      "bm_daniel",
      "af_bella"
@@ -984,7 +1038,7 @@
      "playback_rate": 1.0,
      "cache_max_bytes": 1073741824,
      "captions_enabled": false,
-     "captions_enabled_configured": false,
+     "captions_enabled_configured": true,
      "earcon_enabled": false,
      "ducking_enabled": false,
      "input_interrupt_enabled": true,
@@ -1186,6 +1240,2169 @@
     "content": [
      {
       "text": "Unknown tool: no_such_tool",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello."
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": false,
+    "source": "mcp",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "  Hello.  "
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": false,
+    "source": "mcp",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "# Title",
+   "content_format": "markdown",
+   "voice": "af_bella",
+   "speed": 1.5,
+   "sensitivity": "public",
+   "priority": "urgent",
+   "preempt": true,
+   "source": "agent"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "# Title",
+    "content_format": "markdown",
+    "voice": "af_bella",
+    "speed": 1.5,
+    "sensitivity": "public",
+    "priority": "urgent",
+    "preempt": true,
+    "source": "agent",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "speed": 1
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "speed": 1.0,
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": false,
+    "source": "mcp",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "speed": "1.25"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "speed": 1.25,
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": false,
+    "source": "mcp",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "preempt": "yes"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": true,
+    "source": "mcp",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "source": null,
+   "voice": null
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": false,
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "unknown": 1
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "accepted": true,
+    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "state": "Queued",
+    "playback": true,
+    "voice": "bm_daniel",
+    "sensitivity": "confidential",
+    "segment_count": 1,
+    "composite": false,
+    "eligible_engines": [
+     "fake"
+    ],
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played."
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "submit",
+    "text": "Hello.",
+    "content_format": "plain_text",
+    "sensitivity": "confidential",
+    "priority": "normal",
+    "preempt": false,
+    "source": "mcp",
+    "origin": "MCP"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "accepted": true,
+     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "state": "Queued",
+     "voice": "bm_daniel",
+     "sensitivity": "confidential",
+     "eligible_engines": [
+      "fake"
+     ],
+     "segment_count": 1,
+     "composite": false,
+     "playback": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\ntext\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": ""
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\ntext\n  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_too_short",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "   "
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\ntext\n  String should have at least 1 character [type=string_too_short, input_value='   ', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_too_short",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": 5
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\ntext\n  Input should be a valid string [type=string_type, input_value=5, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "speed": 3
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\nspeed\n  Input should be less than or equal to 2 [type=less_than_equal, input_value=3, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/less_than_equal",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "speed": "fast"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\nspeed\n  Input should be a valid number, unable to parse string as a number [type=float_parsing, input_value='fast', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/float_parsing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "priority": "low"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\npriority\n  Input should be 'normal', 'urgent' or 'preempt' [type=enum, input_value='low', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/enum",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "voice": ""
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "source": " "
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "enqueue_speech",
+  "arguments": {
+   "text": "Hello.",
+   "preempt": "maybe"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool enqueue_speech: 1 validation error for enqueue_speechArguments\npreempt\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='maybe', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "requeue_speech",
+  "arguments": {
+   "utterance_id": "utt_00000000000000000000000000000001"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "id": "utt_9f49a9b85f0f4784872be0b259af71f9",
+    "state": "Ready",
+    "priority": "normal",
+    "composite": false,
+    "segment_count": 1
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "requeue",
+    "id": "utt_00000000000000000000000000000001",
+    "priority": "normal"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool requeue_speech: invalid_response: daemon returned a response outside the public RequeueSpeechReceipt schema",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "requeue_speech",
+  "arguments": {
+   "utterance_id": "utt_00000000000000000000000000000001",
+   "priority": "urgent"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "id": "utt_9f49a9b85f0f4784872be0b259af71f9",
+    "state": "Ready",
+    "priority": "normal",
+    "composite": false,
+    "segment_count": 1
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "requeue",
+    "id": "utt_00000000000000000000000000000001",
+    "priority": "urgent"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool requeue_speech: invalid_response: daemon returned a response outside the public RequeueSpeechReceipt schema",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "requeue_speech",
+  "arguments": {
+   "utterance_id": "utt_bad"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool requeue_speech: 1 validation error for requeue_speechArguments\nutterance_id\n  String should match pattern '^utt_[0-9a-f]{32}$' [type=string_pattern_mismatch, input_value='utt_bad', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "requeue_speech",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool requeue_speech: 1 validation error for requeue_speechArguments\nutterance_id\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "items": [
+     {
+      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "text": "Played speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Played",
+      "enqueued_at": 1794995464.533671,
+      "source": null,
+      "duration_ms": 100,
+      "played_ms": 100,
+      "error": null,
+      "replay_of": null,
+      "final_state": "Played",
+      "finished_at": 1794995465.2148638,
+      "audio_cached": true,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ]
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "history",
+    "limit": 20
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "items": [
+      {
+       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "text": "Played speech.",
+       "voice": "bm_daniel",
+       "speed": 1.0,
+       "sensitivity": "confidential",
+       "priority": "normal",
+       "state": "Played",
+       "enqueued_at": 1794995464.533671,
+       "source": null,
+       "duration_ms": 100,
+       "played_ms": 100,
+       "error": null,
+       "replay_of": null,
+       "composite": false,
+       "segment_count": 1,
+       "completed_segments": 0,
+       "playback": true,
+       "segments": [],
+       "final_state": "Played",
+       "finished_at": 1794995465.2148638,
+       "audio_cached": true
+      }
+     ]
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {
+   "limit": 5,
+   "before": "utt_00000000000000000000000000000001"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "items": [
+     {
+      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "text": "Played speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Played",
+      "enqueued_at": 1794995464.533671,
+      "source": null,
+      "duration_ms": 100,
+      "played_ms": 100,
+      "error": null,
+      "replay_of": null,
+      "final_state": "Played",
+      "finished_at": 1794995465.2148638,
+      "audio_cached": true,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ]
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "history",
+    "limit": 5,
+    "before": "utt_00000000000000000000000000000001"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "items": [
+      {
+       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "text": "Played speech.",
+       "voice": "bm_daniel",
+       "speed": 1.0,
+       "sensitivity": "confidential",
+       "priority": "normal",
+       "state": "Played",
+       "enqueued_at": 1794995464.533671,
+       "source": null,
+       "duration_ms": 100,
+       "played_ms": 100,
+       "error": null,
+       "replay_of": null,
+       "composite": false,
+       "segment_count": 1,
+       "completed_segments": 0,
+       "playback": true,
+       "segments": [],
+       "final_state": "Played",
+       "finished_at": 1794995465.2148638,
+       "audio_cached": true
+      }
+     ]
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {
+   "limit": "3"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "items": [
+     {
+      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "text": "Played speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Played",
+      "enqueued_at": 1794995464.533671,
+      "source": null,
+      "duration_ms": 100,
+      "played_ms": 100,
+      "error": null,
+      "replay_of": null,
+      "final_state": "Played",
+      "finished_at": 1794995465.2148638,
+      "audio_cached": true,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ]
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "history",
+    "limit": 3
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "items": [
+      {
+       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "text": "Played speech.",
+       "voice": "bm_daniel",
+       "speed": 1.0,
+       "sensitivity": "confidential",
+       "priority": "normal",
+       "state": "Played",
+       "enqueued_at": 1794995464.533671,
+       "source": null,
+       "duration_ms": 100,
+       "played_ms": 100,
+       "error": null,
+       "replay_of": null,
+       "composite": false,
+       "segment_count": 1,
+       "completed_segments": 0,
+       "playback": true,
+       "segments": [],
+       "final_state": "Played",
+       "finished_at": 1794995465.2148638,
+       "audio_cached": true
+      }
+     ]
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {
+   "limit": 2.0
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "items": [
+     {
+      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "text": "Played speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Played",
+      "enqueued_at": 1794995464.533671,
+      "source": null,
+      "duration_ms": 100,
+      "played_ms": 100,
+      "error": null,
+      "replay_of": null,
+      "final_state": "Played",
+      "finished_at": 1794995465.2148638,
+      "audio_cached": true,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ]
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "history",
+    "limit": 2
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "items": [
+      {
+       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "text": "Played speech.",
+       "voice": "bm_daniel",
+       "speed": 1.0,
+       "sensitivity": "confidential",
+       "priority": "normal",
+       "state": "Played",
+       "enqueued_at": 1794995464.533671,
+       "source": null,
+       "duration_ms": 100,
+       "played_ms": 100,
+       "error": null,
+       "replay_of": null,
+       "composite": false,
+       "segment_count": 1,
+       "completed_segments": 0,
+       "playback": true,
+       "segments": [],
+       "final_state": "Played",
+       "finished_at": 1794995465.2148638,
+       "audio_cached": true
+      }
+     ]
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {
+   "limit": 0
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool list_speech_history: 1 validation error for list_speech_historyArguments\nlimit\n  Input should be greater than or equal to 1 [type=greater_than_equal, input_value=0, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/greater_than_equal",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {
+   "limit": 2.5
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool list_speech_history: 1 validation error for list_speech_historyArguments\nlimit\n  Input should be a valid integer, got a number with a fractional part [type=int_from_float, input_value=2.5, input_type=float]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_from_float",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "list_speech_history",
+  "arguments": {
+   "before": "utt_bad"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool list_speech_history: 1 validation error for list_speech_historyArguments\nbefore\n  String should match pattern '^utt_[0-9a-f]{32}$' [type=string_pattern_mismatch, input_value='utt_bad', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "set_captions_enabled",
+  "arguments": {
+   "enabled": false
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": true,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "settings",
+    "set": {
+     "captions_enabled": false
+    }
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"enabled\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "enabled": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "set_captions_enabled",
+  "arguments": {
+   "enabled": "off"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": true,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "settings",
+    "set": {
+     "captions_enabled": false
+    }
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"enabled\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "enabled": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "set_captions_enabled",
+  "arguments": {
+   "enabled": 1
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": true,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "settings",
+    "set": {
+     "captions_enabled": true
+    }
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"enabled\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "enabled": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "set_captions_enabled",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool set_captions_enabled: 1 validation error for set_captions_enabledArguments\nenabled\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "set_captions_enabled",
+  "arguments": {
+   "enabled": "maybe"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool set_captions_enabled: 1 validation error for set_captions_enabledArguments\nenabled\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value='maybe', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "set_captions_enabled",
+  "arguments": {
+   "enabled": 2
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool set_captions_enabled: 1 validation error for set_captions_enabledArguments\nenabled\n  Input should be a valid boolean, unable to interpret input [type=bool_parsing, input_value=2, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/bool_parsing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "assign_speech_voice",
+  "arguments": {
+   "source": "agent",
+   "voice": "af_bella"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "assignment": {
+     "source": "agent",
+     "voice": "af_bella",
+     "pinned": true,
+     "assigned_at": 1794995465.258465
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "assign_voice",
+    "source": "agent",
+    "voice": "af_bella"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"assignment\": {\n    \"source\": \"agent\",\n    \"voice\": \"af_bella\",\n    \"pinned\": true,\n    \"assigned_at\": 1794995465.258465\n  }\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "assignment": {
+      "source": "agent",
+      "voice": "af_bella",
+      "pinned": true,
+      "assigned_at": 1794995465.258465
+     }
+    }
+   }
+  }
+ },
+ {
+  "tool": "assign_speech_voice",
+  "arguments": {
+   "source": " agent "
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "assignment": null
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "assign_voice",
+    "source": "agent",
+    "release": true
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"assignment\": null\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "assignment": null
+    }
+   }
+  }
+ },
+ {
+  "tool": "assign_speech_voice",
+  "arguments": {
+   "source": "agent",
+   "voice": null
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "assignment": null
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "assign_voice",
+    "source": "agent",
+    "release": true
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"assignment\": null\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "assignment": null
+    }
+   }
+  }
+ },
+ {
+  "tool": "assign_speech_voice",
+  "arguments": {
+   "source": ""
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool assign_speech_voice: 1 validation error for assign_speech_voiceArguments\nsource\n  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_too_short",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "assign_speech_voice",
+  "arguments": {
+   "source": "agent",
+   "voice": " "
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool assign_speech_voice: 1 validation error for assign_speech_voiceArguments\nvoice\n  String should have at least 1 character [type=string_too_short, input_value=' ', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_too_short",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "assign_speech_voice",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool assign_speech_voice: 1 validation error for assign_speech_voiceArguments\nsource\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "cancel_queued_speech",
+  "arguments": {
+   "utterance_id": "utt_00000000000000000000000000000001"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "id": "utt_1b03ff270b194023a569c6f88e90496b",
+    "state": "Cancelled"
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "cancel",
+    "id": "utt_00000000000000000000000000000001"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"id\": \"utt_1b03ff270b194023a569c6f88e90496b\",\n  \"state\": \"Cancelled\"\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "id": "utt_1b03ff270b194023a569c6f88e90496b",
+     "state": "Cancelled"
+    }
+   }
+  }
+ },
+ {
+  "tool": "cancel_queued_speech",
+  "arguments": {
+   "utterance_id": "UTT_00000000000000000000000000000000"
+  },
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool cancel_queued_speech: 1 validation error for cancel_queued_speechArguments\nutterance_id\n  String should match pattern '^utt_[0-9a-f]{32}$' [type=string_pattern_mismatch, input_value='UTT_00000000000000000000000000000000', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch",
       "type": "text"
      }
     ],

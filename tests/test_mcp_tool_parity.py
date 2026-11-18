@@ -43,6 +43,70 @@ pytestmark = [
 _CASES = Path(__file__).parent / "fixtures" / "mcp_tool_calls.json"
 ABSENT = "/nonexistent/ai-tts.sock"
 
+_ID = "utt_" + "0" * 31 + "1"
+# A refused call names the status reply; the peer offers it, and no request may arrive.
+_REFUSED = "status"
+
+# Tools with arguments: valid calls, Pydantic's lax conversions, and refusals.
+ARGUMENT_CALLS: list[tuple[str, dict[str, Any], str]] = [
+    ("enqueue_speech", {"text": "Hello."}, "submit"),
+    ("enqueue_speech", {"text": "  Hello.  "}, "submit"),
+    (
+        "enqueue_speech",
+        {
+            "text": "# Title",
+            "content_format": "markdown",
+            "voice": "af_bella",
+            "speed": 1.5,
+            "sensitivity": "public",
+            "priority": "urgent",
+            "preempt": True,
+            "source": "agent",
+        },
+        "submit",
+    ),
+    ("enqueue_speech", {"text": "Hello.", "speed": 1}, "submit"),
+    ("enqueue_speech", {"text": "Hello.", "speed": "1.25"}, "submit"),
+    ("enqueue_speech", {"text": "Hello.", "preempt": "yes"}, "submit"),
+    ("enqueue_speech", {"text": "Hello.", "source": None, "voice": None}, "submit"),
+    ("enqueue_speech", {"text": "Hello.", "unknown": 1}, "submit"),
+    ("enqueue_speech", {}, _REFUSED),
+    ("enqueue_speech", {"text": ""}, _REFUSED),
+    ("enqueue_speech", {"text": "   "}, _REFUSED),
+    ("enqueue_speech", {"text": 5}, _REFUSED),
+    ("enqueue_speech", {"text": "Hello.", "speed": 3}, _REFUSED),
+    ("enqueue_speech", {"text": "Hello.", "speed": "fast"}, _REFUSED),
+    ("enqueue_speech", {"text": "Hello.", "priority": "low"}, _REFUSED),
+    ("enqueue_speech", {"text": "Hello.", "voice": ""}, _REFUSED),
+    ("enqueue_speech", {"text": "Hello.", "source": " "}, _REFUSED),
+    ("enqueue_speech", {"text": "Hello.", "preempt": "maybe"}, _REFUSED),
+    ("requeue_speech", {"utterance_id": _ID}, "requeue"),
+    ("requeue_speech", {"utterance_id": _ID, "priority": "urgent"}, "requeue"),
+    ("requeue_speech", {"utterance_id": "utt_bad"}, _REFUSED),
+    ("requeue_speech", {}, _REFUSED),
+    ("list_speech_history", {}, "history"),
+    ("list_speech_history", {"limit": 5, "before": _ID}, "history"),
+    ("list_speech_history", {"limit": "3"}, "history"),
+    ("list_speech_history", {"limit": 2.0}, "history"),
+    ("list_speech_history", {"limit": 0}, _REFUSED),
+    ("list_speech_history", {"limit": 2.5}, _REFUSED),
+    ("list_speech_history", {"before": "utt_bad"}, _REFUSED),
+    ("set_captions_enabled", {"enabled": False}, "settings_set"),
+    ("set_captions_enabled", {"enabled": "off"}, "settings_set"),
+    ("set_captions_enabled", {"enabled": 1}, "settings_set"),
+    ("set_captions_enabled", {}, _REFUSED),
+    ("set_captions_enabled", {"enabled": "maybe"}, _REFUSED),
+    ("set_captions_enabled", {"enabled": 2}, _REFUSED),
+    ("assign_speech_voice", {"source": "agent", "voice": "af_bella"}, "assign"),
+    ("assign_speech_voice", {"source": " agent "}, "release"),
+    ("assign_speech_voice", {"source": "agent", "voice": None}, "release"),
+    ("assign_speech_voice", {"source": ""}, _REFUSED),
+    ("assign_speech_voice", {"source": "agent", "voice": " "}, _REFUSED),
+    ("assign_speech_voice", {}, _REFUSED),
+    ("cancel_queued_speech", {"utterance_id": _ID}, "cancel"),
+    ("cancel_queued_speech", {"utterance_id": "UTT_" + "0" * 32}, _REFUSED),
+]
+
 # Tool, its arguments, and the daemon operations whose captured replies the peer gives.
 CALLS: list[tuple[str, dict[str, Any], list[str]]] = [
     ("speech_status", {}, ["status"]),
@@ -68,6 +132,7 @@ CALLS: list[tuple[str, dict[str, Any], list[str]]] = [
     ("speech_status", {}, ["outside_schema"]),
     ("speech_status", {}, []),
     ("no_such_tool", {}, []),
+    *[(tool, arguments, [op]) for tool, arguments, op in ARGUMENT_CALLS],
 ]
 
 
@@ -108,8 +173,20 @@ def _daemon_replies() -> dict[str, Any]:
             )
         }
         replies["clear"] = ask({"op": "clear", "queue": "queue"})
+        played = ask({"op": "submit", "text": "Played speech.", "origin": "MCP"})
+        for _ in range(200):
+            if ask({"op": "get", "id": played["id"]})["item"]["state"] == "Played":
+                break
+            time.sleep(0.05)
+        replies["history"] = ask({"op": "history", "limit": 5})
+        replies["requeue"] = ask({"op": "requeue", "id": played["id"], "priority": "normal"})
+        replies["settings_set"] = ask({"op": "settings", "set": {"captions_enabled": False}})
+        replies["assign"] = ask({"op": "assign_voice", "source": "agent", "voice": "af_bella"})
+        replies["release"] = ask({"op": "assign_voice", "source": "agent", "release": True})
         replies["pause"] = ask({"op": "pause"})
-        ask({"op": "submit", "text": "Held speech.", "origin": "MCP"})
+        replies["submit"] = ask({"op": "submit", "text": "Held speech.", "origin": "MCP"})
+        pending = ask({"op": "submit", "text": "Cancelled speech.", "origin": "MCP"})
+        replies["cancel"] = ask({"op": "cancel", "id": pending["id"]})
         replies["held_status"] = ask({"op": "status"})
         replies["snapshot"] = ask({"op": "snapshot", "limit": 1})
         replies["resume_when_input_idle"] = ask({"op": "resume_when_input_idle"})

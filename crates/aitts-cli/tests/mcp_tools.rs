@@ -7,7 +7,9 @@
 //! recorded daemon replies. Every field is compared exactly, except that a
 //! successful result's text content is compared as parsed JSON: it is the
 //! structured result printed by Python's `json.dumps`, whose key order and
-//! spacing are presentation.
+//! spacing are presentation. A call Python refuses for its arguments is
+//! compared on `isError`, the text up to Pydantic's message (`Error executing
+//! tool NAME:`, or the bare `Error executing tool NAME`), and no daemon request.
 
 #![allow(
     clippy::unwrap_used,
@@ -83,7 +85,33 @@ fn call(socket: &Path, tool: &Value, arguments: &Value) -> Value {
 }
 
 /// The reply with a successful result's text content parsed.
+/// The recorded text before Pydantic's message, when Python refused the
+/// arguments; `None` for every other reply.
+fn refusal_prefix(reply: &Value) -> Option<String> {
+    let text = reply["result"]["content"][0]["text"].as_str()?;
+    if reply["result"]["isError"] != json!(true) {
+        return None;
+    }
+    if let Some((before, _)) = text.split_once(" validation error") {
+        let (head, _) = before.rsplit_once(':')?;
+        return Some(format!("{head}:"));
+    }
+    (text.starts_with("Error executing tool ") && !text.contains(':')).then(|| text.to_owned())
+}
+
 fn comparable(mut reply: Value) -> Value {
+    if let Some(prefix) = refusal_prefix(&reply) {
+        let text = reply["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap_or_default();
+        let kept = if text.starts_with(&prefix) {
+            prefix
+        } else {
+            text.to_owned()
+        };
+        reply["result"]["content"][0]["text"] = json!(kept);
+        return reply;
+    }
     let result = &mut reply["result"];
     if result["isError"] == json!(false) {
         let text = result["content"][0]["text"].as_str().unwrap().to_owned();
@@ -109,7 +137,25 @@ fn each_tool_call_gets_the_python_servers_reply_and_sends_its_requests() {
         if sent != *case["daemon_requests"].as_array().unwrap() {
             failures.push(format!("{}: sent {sent:?}", case["tool"]));
         }
-        if comparable(reply.clone()) != comparable(case["reply"].clone()) {
+        let expected = case["reply"].clone();
+        let actual = match refusal_prefix(&expected) {
+            // Keep only Python's prefix of the Rust text, so the rest may differ.
+            Some(prefix) => {
+                let mut actual = reply.clone();
+                let text = actual["result"]["content"][0]["text"]
+                    .as_str()
+                    .unwrap_or_default();
+                let kept = if text.starts_with(&prefix) {
+                    prefix.clone()
+                } else {
+                    text.to_owned()
+                };
+                actual["result"]["content"][0]["text"] = json!(kept);
+                actual
+            }
+            None => comparable(reply.clone()),
+        };
+        if actual != comparable(expected) {
             failures.push(format!("{}: replied {reply}", case["tool"]));
         }
     }
@@ -173,4 +219,127 @@ proptest::proptest! {
             proptest::prop_assert!(text.starts_with("Error executing tool "), "{text}");
         }
     }
+}
+
+const ARGUMENT_TOOLS: [&str; 6] = [
+    "enqueue_speech",
+    "requeue_speech",
+    "list_speech_history",
+    "set_captions_enabled",
+    "assign_speech_voice",
+    "cancel_queued_speech",
+];
+
+/// Random arguments: each tool's own keys and a stray key, with values that
+/// are often right, often near misses, and sometimes arbitrary JSON.
+fn arguments() -> impl proptest::strategy::Strategy<Value = Value> {
+    use proptest::prelude::*;
+    let key = proptest::sample::select(vec![
+        "text",
+        "content_format",
+        "voice",
+        "speed",
+        "sensitivity",
+        "priority",
+        "preempt",
+        "source",
+        "utterance_id",
+        "limit",
+        "before",
+        "enabled",
+        "stray",
+    ]);
+    let near = proptest::sample::select(vec![
+        json!("Hello."),
+        json!(""),
+        json!("  "),
+        json!("markdown"),
+        json!("urgent"),
+        json!("public"),
+        json!("af_bella"),
+        json!("utt_0123456789abcdef0123456789abcdef"),
+        json!("utt_bad"),
+        json!(1.5),
+        json!(3),
+        json!(0),
+        json!(-1),
+        json!(2.5),
+        json!("1.25"),
+        json!("yes"),
+        json!("maybe"),
+        json!(true),
+        json!(false),
+        json!(1),
+        json!(null),
+    ]);
+    let item = prop_oneof![4 => near, 1 => json_value()];
+    proptest::collection::btree_map(key, item, 0..5)
+        .prop_map(|map| Value::Object(map.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()))
+}
+
+/// Oracle: the tool-call contract. Random arguments never panic, always give
+/// a well-formed result, and a call refused for its arguments sends no daemon
+/// request. The corpus is seeded (`AITTS_FUZZ_SEED`, printed) and classified,
+/// and each class must be reached so the property is not vacuous.
+#[test]
+fn random_arguments_are_refused_before_any_daemon_request() {
+    use proptest::strategy::{Strategy, ValueTree};
+    use proptest::test_runner::{Config, RngAlgorithm, TestRng, TestRunner};
+    let seed: u64 = std::env::var("AITTS_FUZZ_SEED")
+        .ok()
+        .and_then(|seed| seed.parse().ok())
+        .unwrap_or(139);
+    eprintln!("AITTS_FUZZ_SEED={seed}");
+    let mut bytes = [0u8; 32];
+    bytes[..8].copy_from_slice(&seed.to_le_bytes());
+    let mut runner = TestRunner::new_with_rng(
+        Config::default(),
+        TestRng::from_seed(RngAlgorithm::ChaCha, &bytes),
+    );
+    let submit = cases()
+        .into_iter()
+        .find(|case| case["tool"] == json!("enqueue_speech") && case["socket"] == json!("peer"))
+        .map(|case| case["daemon_replies"][0].clone())
+        .unwrap();
+    let (mut accepted, mut refused, mut failed) = (0, 0, 0);
+    for round in 0..300 {
+        let tool = ARGUMENT_TOOLS[round % ARGUMENT_TOOLS.len()];
+        let args = arguments().new_tree(&mut runner).unwrap().current();
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("peer.sock");
+        let handle = peer(&socket, vec![submit.clone()]);
+        let result = call(&socket, &json!(tool), &args)["result"].clone();
+        let sent = stop(&socket, handle);
+        let text = result["content"][0]["text"].as_str().unwrap_or_default();
+        let context = format!("seed {seed}, round {round}: {tool} {args} -> {result}");
+        match result["isError"].as_bool() {
+            Some(false) => {
+                accepted += 1;
+                let printed: Value = serde_json::from_str(text).unwrap();
+                assert_eq!(printed, result["structuredContent"], "{context}");
+                assert_eq!(sent.len(), 1, "{context}");
+            }
+            Some(true) if sent.is_empty() => {
+                refused += 1;
+                assert!(
+                    text.starts_with(&format!("Error executing tool {tool}")),
+                    "{context}"
+                );
+            }
+            Some(true) => {
+                failed += 1;
+                assert_eq!(sent.len(), 1, "{context}");
+                assert!(
+                    text.starts_with(&format!("Error executing tool {tool}: ")),
+                    "{context}"
+                );
+            }
+            None => panic!("no isError: {context}"),
+        }
+    }
+    eprintln!("corpus: {accepted} accepted, {refused} refused, {failed} daemon or schema failures");
+    assert!(
+        accepted > 0 && refused > 0 && failed > 0,
+        "a class was never reached"
+    );
 }
