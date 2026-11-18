@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `aitts-daemon` gains the synthesis scheduler (issue #145, part 4): `synthesis::synthesize` streams a clip from its registered engine into a spool and reports it to the conductor. Audio for a clip cancelled during synthesis is discarded and its file removed. A worker failure mid-stream marks the clip failed and leaves a spool that returns only the written frames and the error.
 - `aitts-daemon` gains the conductor's bounded channel (issue #145, part 3): `conductor::mailbox` sends every change to the one conductor owner in arrival order. A full channel refuses `try_request` and makes `request` wait; requests after shutdown are refused and change nothing.
 - The Rust `ai-tts` has an `mcp` subcommand (part of #139), also started by the name `ai-tts-mcp`: the MCP stdio server with the same `initialize` reply, protocol version negotiation, and 21-tool `tools/list` as the Python server, checked against sessions recorded from it (`tests/fixtures/mcp_session.json`). Tool calls are not ported yet; the installed `ai-tts-mcp` is still the Python server.
 - `aitts-daemon` persists conductor changes (issue #145, part 2): `conductor::durable::Durable` records every state and order change through `aitts-store` before it takes effect, so a crash leaves storage equal to the state before the failed call. A restart restores the queue with playback held. `Command::Requeue` replays a history item. `aitts-store` gains `Queue::reorder`.
