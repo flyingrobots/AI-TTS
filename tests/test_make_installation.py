@@ -161,6 +161,10 @@ binary.parent.mkdir(parents=True, exist_ok=True)
 binary.write_text("rust ai-tts")
 """
     )
+    # The owned claude records an MCP registration as its parsed arguments.
+    claude = commands / "claude"
+    claude.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$AITTS_TEST_ROOT/claude-arguments"\n')
+    claude.chmod(0o755)
     launchctl = commands / "launchctl"
     launchctl.write_text('#!/bin/sh\nexec "$AITTS_TEST_PYTHON" "$0.py" "$@"\n')
     launchctl.chmod(0o755)
@@ -621,6 +625,9 @@ def _layout(root: Path) -> dict[str, object]:
         "ai-tts-py": (
             (bin_dir / "ai-tts-py").read_text() if (bin_dir / "ai-tts-py").exists() else None
         ),
+        "ai-tts-mcp": (
+            (bin_dir / "ai-tts-mcp").read_text() if (bin_dir / "ai-tts-mcp").exists() else None
+        ),
         "daemon": (
             plistlib.loads(agent.read_bytes())["ProgramArguments"][:2] if agent.exists() else None
         ),
@@ -631,6 +638,7 @@ def _python_layout(root: Path) -> None:
     """The layout before issue #138: launchd runs the Python ai-tts directly."""
     (root / "bin").mkdir(exist_ok=True)
     (root / "bin" / "ai-tts").write_text("python ai-tts")
+    (root / "bin" / "ai-tts-mcp").write_text("python ai-tts-mcp")
     (root / "agent.plist").write_bytes(
         plistlib.dumps(
             {
@@ -651,6 +659,7 @@ def test_install_publishes_the_rust_cli_and_runs_the_daemon_through_ai_tts_py(
     assert _layout(root) == {
         "ai-tts": "rust ai-tts",
         "ai-tts-py": "python ai-tts-py",
+        "ai-tts-mcp": "rust ai-tts",
         "daemon": [str(root / "bin" / "ai-tts-py"), "daemon"],
     }
     calls = [json.loads(line) for line in (root / "cargo-calls").read_text().splitlines()]
@@ -676,6 +685,7 @@ def test_install_upgrades_the_python_cli_layout(
     assert _layout(tmp_path) == {
         "ai-tts": "rust ai-tts",
         "ai-tts-py": "python ai-tts-py",
+        "ai-tts-mcp": "rust ai-tts",
         "daemon": [str(tmp_path / "bin" / "ai-tts-py"), "daemon"],
     }
     assert (tmp_path / "service-loaded").read_text() == "running"
@@ -691,19 +701,22 @@ def test_aitts_cli_python_rolls_back_to_the_python_cli(
     assert _layout(tmp_path) == {
         "ai-tts": "python ai-tts",
         "ai-tts-py": "python ai-tts-py",
+        "ai-tts-mcp": "python ai-tts-mcp",
         "daemon": [str(tmp_path / "bin" / "ai-tts-py"), "daemon"],
     }
     assert len((tmp_path / "cargo-calls").read_text().splitlines()) == 1, "rollback built Rust"
 
 
-@pytest.mark.parametrize("fault", ["cargo", "unknown-cli"])
+@pytest.mark.parametrize("fault", ["cargo", "unknown-cli", "unknown-mcp"])
 def test_a_failed_rust_build_or_unknown_choice_replaces_nothing(
     tmp_path: Path, install_environment: dict[str, str], fault: str
 ) -> None:
     _python_layout(tmp_path)
     before = _layout(tmp_path)
     env = dict(install_environment, AITTS_TEST_CARGO_FAILURE="1" if fault == "cargo" else "0")
-    variables = ("AITTS_CLI=ruby",) if fault == "unknown-cli" else ()
+    variables = {"unknown-cli": ("AITTS_CLI=ruby",), "unknown-mcp": ("AITTS_MCP=ruby",)}.get(
+        fault, ()
+    )
     result = run_installation(tmp_path, env, *variables)
     assert result.returncode != 0
     assert _layout(tmp_path) == before
@@ -716,3 +729,50 @@ def test_the_python_package_installs_its_cli_as_ai_tts_py() -> None:
 
     scripts = tomllib.loads((REPOSITORY / "pyproject.toml").read_text())["project"]["scripts"]
     assert scripts["ai-tts-py"] == scripts["ai-tts"] == "aitts.cli:main"
+
+
+# -- the Rust ai-tts-mcp (issue #139) ----------------------------------------
+
+
+def test_aitts_mcp_python_rolls_back_only_the_mcp_server(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    first = run_installation(tmp_path, install_environment)
+    assert first.returncode == 0, first.stderr
+    rollback = run_installation(tmp_path, install_environment, "AITTS_MCP=python")
+    assert rollback.returncode == 0, rollback.stderr
+    assert _layout(tmp_path) == {
+        "ai-tts": "rust ai-tts",
+        "ai-tts-py": "python ai-tts-py",
+        "ai-tts-mcp": "python ai-tts-mcp",
+        "daemon": [str(tmp_path / "bin" / "ai-tts-py"), "daemon"],
+    }
+
+
+def test_the_rust_mcp_server_installs_beside_the_python_cli(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    result = run_installation(tmp_path, install_environment, "AITTS_CLI=python", "AITTS_MCP=rust")
+    assert result.returncode == 0, result.stderr
+    assert _layout(tmp_path)["ai-tts"] == "python ai-tts"
+    assert _layout(tmp_path)["ai-tts-mcp"] == "rust ai-tts"
+
+
+def test_an_existing_mcp_registration_reaches_the_rust_server(
+    tmp_path: Path, install_environment: dict[str, str]
+) -> None:
+    """Oracle: issue #139; hosts store the tool-bin ai-tts-mcp path, which keeps its place."""
+    _python_layout(tmp_path)
+    before = subprocess.run(  # noqa: S603 - this checkout's script, owned tools only
+        [str(REPOSITORY / "scripts" / "install-integration.sh"), "mcp", "--claude"],
+        env=install_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert before.returncode == 0, before.stderr
+    registered = (tmp_path / "claude-arguments").read_text().splitlines()
+    result = run_installation(tmp_path, install_environment)
+    assert result.returncode == 0, result.stderr
+    assert registered == ["mcp", "add", "ai-tts", "--", str(tmp_path / "bin" / "ai-tts-mcp")]
+    assert Path(registered[-1]).read_text() == "rust ai-tts"
