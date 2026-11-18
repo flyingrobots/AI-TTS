@@ -294,3 +294,27 @@ fn a_failed_synthesis_does_not_stop_later_clips() {
         [(next, "This plays.".repeat(2).into_bytes())]
     );
 }
+
+#[test]
+fn the_discarding_sink_reads_a_sealed_spool_to_its_end() {
+    use aitts_daemon::driver::DiscardingSink;
+    let dir = tempfile::tempdir().unwrap();
+    let mut spool = Spool::create(&dir.path().join("a.wav"), 1).unwrap();
+    spool.append(&[1, 0, 2, 0, 3, 0]).unwrap();
+    spool.seal().unwrap();
+    spool.finish(None);
+    assert_eq!(DiscardingSink.play("a", spool), Ok(()));
+}
+
+#[test]
+fn the_discarding_sink_reports_a_spool_that_ended_with_an_error() {
+    use aitts_daemon::driver::DiscardingSink;
+    let dir = tempfile::tempdir().unwrap();
+    let mut spool = Spool::create(&dir.path().join("a.wav"), 1).unwrap();
+    spool.append(&[1, 0]).unwrap();
+    spool.finish(Some("worker exited".to_owned()));
+    assert!(
+        DiscardingSink.play("a", spool).is_err(),
+        "a failed spool played as complete"
+    );
+}
