@@ -13,7 +13,7 @@
 //! that arrived before [`Request::Shutdown`] are answered; later ones are dropped
 //! unanswered, so their callers see [`SendError::Closed`], and change nothing.
 
-use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
 use super::durable::{Durable, DurableError, Ledger};
 use super::{Clip, Command, Outcome, Transfer};
@@ -120,8 +120,12 @@ impl Mailbox {
     /// # Errors
     /// Returns [`SendError::Full`] or [`SendError::Closed`]; nothing was sent.
     pub fn try_request(&self, request: Request) -> Result<Pending, SendError> {
-        drop((self.sender.clone(), request));
-        Err(SendError::Closed)
+        let (reply, answer) = sync_channel(1);
+        match self.sender.try_send(Envelope { request, reply }) {
+            Ok(()) => Ok(Pending { reply: answer }),
+            Err(TrySendError::Full(_)) => Err(SendError::Full),
+            Err(TrySendError::Disconnected(_)) => Err(SendError::Closed),
+        }
     }
 
     /// Send, waiting for space, then wait for the answer.
@@ -129,22 +133,38 @@ impl Mailbox {
     /// # Errors
     /// Returns [`SendError::Closed`] when the owner stopped first.
     pub fn request(&self, request: Request) -> Result<Reply, SendError> {
-        drop(request);
-        Err(SendError::Closed)
+        let (reply, answer) = sync_channel(1);
+        self.sender
+            .send(Envelope { request, reply })
+            .map_err(|_| SendError::Closed)?;
+        Pending { reply: answer }.wait()
     }
 }
 
 impl Inbox {
     /// Wait for one request and answer it.
     pub fn step<L: Ledger>(&self, durable: &mut Durable<L>) -> Served {
-        if let Ok(envelope) = self.receiver.try_recv() {
-            drop((envelope.request, envelope.reply, durable.conductor().held()));
-        }
-        Served::Stopped
+        let Ok(Envelope { request, reply }) = self.receiver.recv() else {
+            return Served::Stopped;
+        };
+        let answer = match request.clone() {
+            Request::Apply(command) => Reply::Applied(durable.apply(command)),
+            Request::NextSynthesis => Reply::Synthesis(durable.next_synthesis()),
+            Request::PlanPlayback => Reply::Planned(durable.plan_playback()),
+            Request::Clips => Reply::Clips(durable.conductor().clips()),
+            Request::Shutdown => {
+                // A caller that stopped waiting does not stop the owner.
+                let _unheard = reply.send(Reply::Stopping);
+                return Served::Stopped;
+            }
+        };
+        let _unheard = reply.send(answer);
+        Served::Answered(request)
     }
 
     /// Answer requests until shutdown, dropping any that arrive after it.
     pub fn serve<L: Ledger>(self, durable: &mut Durable<L>) {
         while let Served::Answered(_) = self.step(durable) {}
+        // Dropping `self` here drops every later request unanswered.
     }
 }
