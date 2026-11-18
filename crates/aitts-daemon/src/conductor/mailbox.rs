@@ -15,6 +15,8 @@
 
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
+use aitts_store::queue::NewUtterance;
+
 use super::durable::{Durable, DurableError, Ledger};
 use super::{Clip, Command, Outcome, Transfer};
 
@@ -23,6 +25,8 @@ use super::{Clip, Command, Outcome, Transfer};
 pub enum Request {
     /// Apply a command.
     Apply(Command),
+    /// Store a new utterance and admit it; answered with [`Reply::Applied`].
+    Submit(NewUtterance),
     /// Hand the next clip to synthesis.
     NextSynthesis,
     /// Decide the next device change.
@@ -149,6 +153,7 @@ impl Inbox {
         };
         let answer = match request.clone() {
             Request::Apply(command) => Reply::Applied(durable.apply(command)),
+            Request::Submit(new) => Reply::Applied(durable.submit(&new)),
             Request::NextSynthesis => Reply::Synthesis(durable.next_synthesis()),
             Request::PlanPlayback => Reply::Planned(durable.plan_playback()),
             Request::Clips => Reply::Clips(durable.conductor().clips()),

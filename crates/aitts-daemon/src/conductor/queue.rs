@@ -51,6 +51,19 @@ impl Conductor {
         Ok(Outcome::Applied)
     }
 
+    /// Admit a clip at the order key the store assigned.
+    pub(super) fn admit(
+        &mut self,
+        id: String,
+        order: f64,
+        priority: Priority,
+        playback: Playback,
+    ) -> Result<Outcome, Refusal> {
+        // Stub: the stored key is only validated, then ignored.
+        OrderKey::new(order).map_err(|_| Refusal::OrderExhausted)?;
+        self.submit(id, priority, playback)
+    }
+
     /// Admit a replay of a finished clip, as Python `_op_requeue`.
     pub(super) fn requeue(
         &mut self,
