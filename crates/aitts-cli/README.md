@@ -36,12 +36,15 @@ newline-delimited JSON-RPC 2.0 replies to standard output and gives no reply
 to a line that is not a JSON-RPC request. `initialize`, protocol version
 negotiation, `ping`, and `tools/list` (the 21 tools of the Python server, from
 `src/mcp_tools.json`) answer as the Python `ai-tts-mcp` does. `tools/call` works for
-the 15 tools that take no arguments: one daemon request each, the reply without
-`ok` checked against the tool's recorded output schema with defaults filled,
-and `structuredContent` plus the same JSON as text. A daemon error, an
-unreachable daemon, or a reply outside the schema gives an `isError` result
-with the Python text `Error executing tool NAME: CODE: MESSAGE`. The tools
-that take arguments still answer `Unknown tool`. Hosts still start the Python
+all 21 tools: one daemon request each, the reply without `ok` checked against
+the tool's recorded output schema with defaults filled, and
+`structuredContent` plus the same JSON as text. Arguments are checked against
+the tool's input schema first, with Pydantic's lax conversions (a numeric
+string for a number, a whole float for an integer, `0`/`1` or a yes/no word
+for a boolean), and `NonEmptyText` fields stripped. A refused call sends no
+daemon request. A daemon error, an unreachable daemon, or a reply outside the
+schema gives an `isError` result with the Python text
+`Error executing tool NAME: CODE: MESSAGE`. Hosts still start the Python
 `ai-tts-mcp` until tool calls are ported.
 
 ## Commands it does not run itself

@@ -232,9 +232,26 @@ const ARGUMENT_TOOLS: [&str; 6] = [
 
 /// Random arguments: each tool's own keys and a stray key, with values that
 /// are often right, often near misses, and sometimes arbitrary JSON.
-fn arguments() -> impl proptest::strategy::Strategy<Value = Value> {
+fn arguments(tool: &str) -> impl proptest::strategy::Strategy<Value = Value> {
     use proptest::prelude::*;
-    let key = proptest::sample::select(vec![
+    let own: Vec<&'static str> = match tool {
+        "enqueue_speech" => vec![
+            "text",
+            "content_format",
+            "voice",
+            "speed",
+            "sensitivity",
+            "priority",
+            "preempt",
+            "source",
+        ],
+        "requeue_speech" => vec!["utterance_id", "priority"],
+        "list_speech_history" => vec!["limit", "before"],
+        "set_captions_enabled" => vec!["enabled"],
+        "assign_speech_voice" => vec!["source", "voice"],
+        _ => vec!["utterance_id"],
+    };
+    let any_key = proptest::sample::select(vec![
         "text",
         "content_format",
         "voice",
@@ -249,6 +266,7 @@ fn arguments() -> impl proptest::strategy::Strategy<Value = Value> {
         "enabled",
         "stray",
     ]);
+    let key = prop_oneof![3 => proptest::sample::select(own), 1 => any_key];
     let near = proptest::sample::select(vec![
         json!("Hello."),
         json!(""),
@@ -266,15 +284,32 @@ fn arguments() -> impl proptest::strategy::Strategy<Value = Value> {
         json!(2.5),
         json!("1.25"),
         json!("yes"),
+        json!(1.0e9),
+        json!("1e400"),
+        json!(-0.0),
         json!("maybe"),
         json!(true),
         json!(false),
         json!(1),
         json!(null),
     ]);
-    let item = prop_oneof![4 => near, 1 => json_value()];
-    proptest::collection::btree_map(key, item, 0..5)
+    let extreme = any::<f64>()
+        .prop_filter("finite", |n| n.is_finite())
+        .prop_map(|n| json!(n));
+    let item = prop_oneof![4 => near, 1 => extreme, 1 => json_value()];
+    proptest::collection::btree_map(key, item, 0..3)
         .prop_map(|map| Value::Object(map.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()))
+}
+
+fn valid(tool: &str) -> Value {
+    let id = "utt_0123456789abcdef0123456789abcdef";
+    match tool {
+        "enqueue_speech" => json!({"text": "Hello."}),
+        "requeue_speech" | "cancel_queued_speech" => json!({"utterance_id": id}),
+        "set_captions_enabled" => json!({"enabled": true}),
+        "assign_speech_voice" => json!({"source": "agent", "voice": "af_bella"}),
+        _ => json!({}),
+    }
 }
 
 /// Oracle: the tool-call contract. Random arguments never panic, always give
@@ -302,9 +337,14 @@ fn random_arguments_are_refused_before_any_daemon_request() {
         .map(|case| case["daemon_replies"][0].clone())
         .unwrap();
     let (mut accepted, mut refused, mut failed) = (0, 0, 0);
-    for round in 0..300 {
+    for round in 0..1200 {
         let tool = ARGUMENT_TOOLS[round % ARGUMENT_TOOLS.len()];
-        let args = arguments().new_tree(&mut runner).unwrap().current();
+        // A valid call for the tool, with up to two keys changed or added.
+        let mut args = valid(tool);
+        let changes = arguments(tool).new_tree(&mut runner).unwrap().current();
+        for (key, value) in changes.as_object().unwrap() {
+            args[key.as_str()] = value.clone();
+        }
         let dir = tempfile::tempdir().unwrap();
         let socket = dir.path().join("peer.sock");
         let handle = peer(&socket, vec![submit.clone()]);
