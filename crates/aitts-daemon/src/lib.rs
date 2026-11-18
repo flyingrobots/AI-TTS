@@ -21,6 +21,7 @@ mod api;
 mod cache_usage;
 pub mod conductor;
 mod connection;
+mod control;
 mod lease;
 mod projection;
 mod runtime;

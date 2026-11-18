@@ -21,6 +21,8 @@ use aitts_protocol::vocabulary::ModelState;
 use aitts_store::{Store, SystemClock};
 
 use crate::api::{self, ReadApi};
+use crate::conductor::durable::{Durable, StoreLedger};
+use crate::conductor::mailbox::{self, Mailbox};
 use crate::connection::{self, Shared};
 use crate::lease::{self, Lease};
 use crate::socket_file;
@@ -99,6 +101,7 @@ pub struct Running {
     socket: PathBuf,
     accept: JoinHandle<()>,
     api: JoinHandle<()>,
+    conductor: JoinHandle<()>,
     lease: Lease,
 }
 
@@ -117,12 +120,21 @@ impl fmt::Debug for Running {
 /// Returns [`StartError`] when the lease, the store, or the socket is unavailable.
 pub fn start(config: Config) -> Result<Running, StartError> {
     let lease = lease::acquire(&config.socket)?;
-    let (jobs, api) = start_api(&config)?;
+    let (mailbox, conductor) = start_conductor(&config)?;
+    let (jobs, api) = match start_api(&config, mailbox) {
+        Ok(started) => started,
+        Err(error) => {
+            // The API thread dropped the only mailbox, so the conductor ends.
+            let _ = conductor.join();
+            return Err(error);
+        }
+    };
     let listener = match socket_file::bind_private(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
             drop(jobs);
             let _ = api.join();
+            let _ = conductor.join();
             return Err(error);
         }
     };
@@ -138,12 +150,55 @@ pub fn start(config: Config) -> Result<Running, StartError> {
         socket: config.socket,
         accept,
         api,
+        conductor,
         lease,
     })
 }
 
+/// Bound on requests waiting for the conductor; senders wait when it is full.
+const CONDUCTOR_CAPACITY: usize = 64;
+
+/// Start the conductor owner on its own store connection. It recovers the queue
+/// with playback held, then answers until every mailbox is dropped.
+fn start_conductor(config: &Config) -> Result<(Mailbox, JoinHandle<()>), StartError> {
+    let (mailbox, inbox) = mailbox::channel(CONDUCTOR_CAPACITY);
+    let (ready, opened) = sync_channel(1);
+    let database = config.database.clone();
+    let handle = std::thread::Builder::new()
+        .name("ai-ttsd-conductor".to_owned())
+        .spawn(move || {
+            let store = match Store::open(&database, SystemClock) {
+                Ok(store) => store,
+                Err(error) => {
+                    let _ = ready.send(Err(StartError::Store(error)));
+                    return;
+                }
+            };
+            match Durable::recover(StoreLedger::new(&store)) {
+                Ok(mut durable) => {
+                    let _ = ready.send(Ok(()));
+                    inbox.serve(&mut durable);
+                }
+                Err(error) => {
+                    let _ = ready.send(Err(StartError::Io(std::io::Error::other(
+                        error.to_string(),
+                    ))));
+                }
+            }
+        })
+        .map_err(StartError::Io)?;
+    match opened.recv() {
+        Ok(Ok(())) => Ok((mailbox, handle)),
+        Ok(Err(error)) => Err(error),
+        Err(_) => Err(StartError::Io(std::io::Error::other(
+            "the conductor thread ended",
+        ))),
+    }
+}
+
 fn start_api(
     config: &Config,
+    conductor: Mailbox,
 ) -> Result<(std::sync::mpsc::Sender<api::Job>, JoinHandle<()>), StartError> {
     let (jobs, requests) = channel();
     let (ready, opened) = sync_channel(1);
@@ -162,6 +217,7 @@ fn start_api(
                         engine,
                         cache_dir,
                         started,
+                        conductor,
                     },
                     &requests,
                 );
@@ -219,6 +275,7 @@ impl Running {
         let finished = wait_until(deadline, || {
             self.accept.is_finished()
                 && self.api.is_finished()
+                && self.conductor.is_finished()
                 && self.shared.live_connections.load(Ordering::SeqCst) == 0
         });
         let _removed = std::fs::remove_file(&self.socket);
