@@ -1,0 +1,11 @@
+{
+  "clip-a/source.txt": 1800000100.5,
+  "clip-a/clip-a.wav": 1800000200.5,
+  "clip-a/audio.json": 1800000150.5,
+  "held/held.wav": 1800000300.5,
+  "streaming/.streaming.wav.part": 1800000400.5,
+  "streaming/source.txt": 1800000050.5,
+  "legacy.wav": 1800000500.5,
+  "legacy/source.txt": 1800000010.5,
+  "notes.txt": 1800000600.5
+}

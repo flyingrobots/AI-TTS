@@ -1,0 +1,14 @@
+{
+  "result": {
+    "removed": 2,
+    "protected": 2,
+    "failed": 0
+  },
+  "left": [
+    "alias.wav",
+    "held",
+    "linked",
+    "notes.txt",
+    "streaming"
+  ]
+}
