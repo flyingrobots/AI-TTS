@@ -28,6 +28,17 @@ A request that the protocol types refuse (for example an unknown `--set` key)
 is not sent. The client prints a `bad_request` error and exits 1, which is what
 the daemon answers for that request.
 
+## MCP server
+
+`ai-tts mcp`, or this binary started under the name `ai-tts-mcp`, is an MCP
+server on standard input and output (part of issue #139). It writes only
+newline-delimited JSON-RPC 2.0 replies to standard output and gives no reply
+to a line that is not a JSON-RPC request. `initialize`, protocol version
+negotiation, `ping`, and `tools/list` (the 21 tools of the Python server, from
+`src/mcp_tools.json`) answer as the Python `ai-tts-mcp` does. `tools/call` is
+not yet available: it returns a JSON-RPC error. Hosts still start the Python
+`ai-tts-mcp` until tool calls are ported.
+
 ## Commands it does not run itself
 
 - `daemon` and `tui`. The binary hands them, with all arguments, to the

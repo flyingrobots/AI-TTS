@@ -83,6 +83,25 @@ SESSIONS: list[list[Any]] = [
             "params": {"protocolVersion": 7, "capabilities": {}, "clientInfo": {}},
         }
     ],
+    [
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {}},
+        }
+    ],
+    [
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "clientInfo": {"name": "x", "version": "1"},
+            },
+        }
+    ],
     [_initialize("2025-11-25"), _initialize("2025-06-18", 2)],
     [{"jsonrpc": "2.0", "method": "ping"}, _request(1, "ping")],
     [[1, 2], {"id": 1, "method": "ping"}, _request(2, "ping")],

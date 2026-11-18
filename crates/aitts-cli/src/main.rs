@@ -4,7 +4,7 @@
 //! The `ai-tts` binary. `daemon` and `tui` are Python programs: they are handed,
 //! with the same arguments, to the `ai-tts-py` installed beside this binary.
 
-use aitts_cli::{EXIT_DAEMON_ERROR, Environment, hands_off, run};
+use aitts_cli::{EXIT_DAEMON_ERROR, Environment, hands_off, leading, mcp, run};
 use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
@@ -40,6 +40,22 @@ fn main() -> ExitCode {
         home: std::env::var_os("AI_TTS_HOME"),
         user_home: std::env::home_dir(),
     };
+    // Hosts configured with `ai-tts-mcp` start this binary under that name.
+    let named_mcp = std::env::args_os()
+        .next()
+        .map(PathBuf::from)
+        .and_then(|program| program.file_name().map(|name| name == "ai-tts-mcp"))
+        .unwrap_or(false);
+    let (socket, command) = leading(&args);
+    if named_mcp || command.as_deref() == Some("mcp") {
+        let socket = socket.unwrap_or_else(|| env.socket());
+        mcp::serve(
+            &mut std::io::stdin().lock(),
+            &mut std::io::stdout().lock(),
+            &socket,
+        );
+        return ExitCode::SUCCESS;
+    }
     let status = run(
         args,
         &env,

@@ -5677,6 +5677,60 @@
     "params": {
      "protocolVersion": "2025-11-25",
      "capabilities": {},
+     "clientInfo": {}
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "clientInfo": {
+      "name": "x",
+      "version": "1"
+     }
+    }
+   }
+  ],
+  "replies": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32602,
+     "message": "Invalid request parameters",
+     "data": ""
+    }
+   }
+  ],
+  "exit": 0
+ },
+ {
+  "messages": [
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {},
      "clientInfo": {
       "name": "parity",
       "version": "1"
