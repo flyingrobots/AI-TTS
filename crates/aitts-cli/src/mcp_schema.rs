@@ -5,7 +5,9 @@
 //! its defaults, as the Python server's Pydantic models do for the keywords
 //! those schemas use: `$ref`, `anyOf`, `const`, `enum`, `type`, `properties`,
 //! `required`, `default`, `additionalProperties`, `items`, `minimum`,
-//! `maximum`, `minLength` and the one `pattern` (utterance ids).
+//! `maximum`, `minLength` and the one `pattern` (utterance ids). Like
+//! Pydantic's lax mode it also converts a numeric string to a number, a whole
+//! float to an integer, and `0`, `1` or a yes/no word to a boolean.
 
 use serde_json::{Map, Value};
 
@@ -47,7 +49,30 @@ fn string(value: &Value, schema: &Value) -> Checked {
         .ok_or(Mismatch)
 }
 
+/// A string holding a number, as Pydantic's lax mode reads it.
+fn numeric(value: &Value) -> Option<Value> {
+    let text = value.as_str()?.trim();
+    serde_json::from_str::<serde_json::Number>(text)
+        .ok()
+        .map(Value::Number)
+}
+
+fn boolean(value: &Value) -> Checked {
+    let word = value.as_str().map(str::to_ascii_lowercase);
+    match (value, word.as_deref()) {
+        (Value::Bool(_), _) => Ok(value.clone()),
+        (_, Some("0" | "off" | "f" | "false" | "n" | "no")) => Ok(Value::Bool(false)),
+        (_, Some("1" | "on" | "t" | "true" | "y" | "yes")) => Ok(Value::Bool(true)),
+        (Value::Number(n), _) if n.as_f64() == Some(0.0) => Ok(Value::Bool(false)),
+        (Value::Number(n), _) if n.as_f64() == Some(1.0) => Ok(Value::Bool(true)),
+        _ => Err(Mismatch),
+    }
+}
+
 fn integer(value: &Value, schema: &Value) -> Checked {
+    if let Some(parsed) = numeric(value) {
+        return integer(&parsed, schema);
+    }
     let number = value
         .as_f64()
         .filter(|_| !value.is_boolean())
@@ -66,7 +91,11 @@ fn integer(value: &Value, schema: &Value) -> Checked {
 }
 
 fn number(value: &Value, schema: &Value) -> Checked {
-    let number = value.as_f64().ok_or(Mismatch)?;
+    let number = numeric(value)
+        .as_ref()
+        .unwrap_or(value)
+        .as_f64()
+        .ok_or(Mismatch)?;
     // Pydantic dumps a float field as a float, so an integer becomes 2.0.
     let float = serde_json::Number::from_f64(number).ok_or(Mismatch)?;
     within(number, schema)
@@ -135,7 +164,7 @@ pub(crate) fn conform(value: &Value, schema: &Value, defs: &Value) -> Checked {
     }
     match schema.get("type").and_then(Value::as_str) {
         Some("null") => value.is_null().then_some(Value::Null).ok_or(Mismatch),
-        Some("boolean") => value.is_boolean().then(|| value.clone()).ok_or(Mismatch),
+        Some("boolean") => boolean(value),
         Some("integer") => integer(value, schema),
         Some("number") if !value.is_boolean() => number(value, schema),
         Some("string") => string(value, schema),
