@@ -284,6 +284,17 @@
     },
     "priority": {
      "$ref": "#/$defs/Priority"
+    },
+    "segment_count": {
+     "default": 1,
+     "minimum": 1,
+     "title": "Segment Count",
+     "type": "integer"
+    },
+    "composite": {
+     "default": false,
+     "title": "Composite",
+     "type": "boolean"
     }
    },
    "required": [

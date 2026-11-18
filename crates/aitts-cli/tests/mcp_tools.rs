@@ -162,6 +162,31 @@ fn each_tool_call_gets_the_python_servers_reply_and_sends_its_requests() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
+/// Regression for #211. Oracle: the protocol's `Requeued` reply
+/// (`aitts-protocol` `control_reply.rs`), which always carries `composite`
+/// and `segment_count`; the tool result must succeed and carry them.
+#[test]
+fn requeue_speech_returns_the_daemons_requeued_reply() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("peer.sock");
+    let id = format!("utt_{}2", "0".repeat(31));
+    let reply = json!({"ok": true, "id": id, "state": "Ready", "priority": "urgent",
+        "composite": true, "segment_count": 3});
+    let handle = peer(&socket, vec![reply]);
+    let answer = call(
+        &socket,
+        &json!("requeue_speech"),
+        &json!({"utterance_id": id, "priority": "urgent"}),
+    );
+    stop(&socket, handle);
+    assert_eq!(
+        answer["result"]["structuredContent"],
+        json!({"id": id, "state": "Ready", "priority": "urgent",
+            "composite": true, "segment_count": 3}),
+        "requeue_speech result: {answer}"
+    );
+}
+
 fn json_value() -> impl proptest::strategy::Strategy<Value = Value> {
     use proptest::prelude::*;
     let leaf = prop_oneof![
