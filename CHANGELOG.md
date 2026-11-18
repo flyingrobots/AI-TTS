@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `aitts-daemon` can drive synthesis and playback (issue #145): `start_with` runs a driver that synthesizes each queued clip through its engine, then plays it through a `Sink` when the conductor plans it. `DiscardingSink` serves daemons without an audio device.
+- The Rust terminal dashboard draws its state with ratatui in the Python dashboard's layout (part of #140), tested on an in-memory terminal buffer at 100, 80 and 40 columns and with very long clip text. `ai-tts tui` still runs the Python dashboard.
 - The Rust `ai-ttsd` accepts `submit` and `requeue` (issue #145). Its replies equal the Python reference transcript, except for the generated id. Voice claims, Markdown segmentation and private-speech engine checks follow the Python daemon. Synthesis is not driven yet.
 - The Rust `ai-ttsd` answers `pause`, `resume`, `cancel`, `clear` (queue) and `reorder` through the conductor (issue #145). At start it recovers the queue with playback held, on its own store connection. `submit` is not wired yet.
 - The Rust crate `aitts-cli` has the terminal dashboard's state and keys (part of #140): the now-playing line, the queue and history rows, the level meter, selection by clip identity, and the requests each key sends, checked against the Python dashboard on recorded scenarios. `ai-tts tui` still runs the Python dashboard.

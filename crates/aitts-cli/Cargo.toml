@@ -18,6 +18,7 @@ path = "src/main.rs"
 aitts-client = { path = "../aitts-client" }
 aitts-protocol = { path = "../aitts-protocol" }
 clap = { version = "4", default-features = false, features = ["std", "help", "usage", "error-context"] }
+ratatui = { version = "0.30", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
