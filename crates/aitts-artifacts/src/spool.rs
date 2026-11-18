@@ -18,6 +18,7 @@ use std::os::unix::fs::{FileExt, OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 
 use crate::private_fs::PRIVATE_FILE_MODE;
+use crate::wav::read_format;
 
 /// Samples per second.
 pub const SAMPLE_RATE: u32 = 24_000;
@@ -251,41 +252,16 @@ fn header(data_bytes: u32) -> Vec<u8> {
     out
 }
 
-/// Walk the RIFF chunks and return the offset and length of mono 16-bit 24 kHz data.
+/// Return the offset and length of mono 16-bit 24 kHz PCM data.
 fn find_pcm_data(file: &File) -> io::Result<(u64, u64)> {
     let not_pcm = || invalid("cached WAV is not streaming PCM");
-    let mut riff = [0u8; 12];
-    file.read_exact_at(&mut riff, 0).map_err(|_| not_pcm())?;
-    if riff.get(..4) != Some(b"RIFF") || riff.get(8..) != Some(b"WAVE") {
+    let format = read_format(file).map_err(|_| not_pcm())?;
+    let streaming = format.format_tag == 1
+        && format.channels == 1
+        && format.sample_rate == SAMPLE_RATE
+        && format.bits_per_sample == 16;
+    if !streaming {
         return Err(not_pcm());
     }
-    let mut offset = 12u64;
-    let mut format_ok = false;
-    loop {
-        let mut chunk = [0u8; 8];
-        file.read_exact_at(&mut chunk, offset)
-            .map_err(|_| not_pcm())?;
-        let [i0, i1, i2, i3, s0, s1, s2, s3] = chunk;
-        let size = u64::from(u32::from_le_bytes([s0, s1, s2, s3]));
-        let body = offset.checked_add(8).ok_or_else(not_pcm)?;
-        match &[i0, i1, i2, i3] {
-            b"fmt " => {
-                let mut fmt = [0u8; 16];
-                file.read_exact_at(&mut fmt, body).map_err(|_| not_pcm())?;
-                let [f0, f1, c0, c1, r0, r1, r2, r3, _, _, _, _, _, _, b0, b1] = fmt;
-                format_ok = u16::from_le_bytes([f0, f1]) == 1
-                    && u16::from_le_bytes([c0, c1]) == 1
-                    && u32::from_le_bytes([r0, r1, r2, r3]) == SAMPLE_RATE
-                    && u16::from_le_bytes([b0, b1]) == 16;
-            }
-            b"data" if format_ok => return Ok((body, size)),
-            b"data" => return Err(not_pcm()),
-            _ => {}
-        }
-        // Chunks are padded to an even length.
-        offset = body
-            .checked_add(size)
-            .and_then(|end| end.checked_add(size % 2))
-            .ok_or_else(not_pcm)?;
-    }
+    Ok((format.data_offset, format.data_bytes))
 }

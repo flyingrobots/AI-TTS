@@ -141,3 +141,24 @@ fn a_file_that_is_not_a_wav_is_refused_without_a_record() {
     );
     assert!(!dir.path().join("root/c/audio.json").exists());
 }
+
+#[test]
+fn an_extensible_three_channel_clip_gets_the_python_audio_record() {
+    let (ours, python) = audio_record("extensible");
+    assert_eq!(ours, python);
+}
+
+#[test]
+fn a_riff_file_that_is_not_wave_is_refused_without_a_record() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut riff = fs::read(Path::new(FIXTURE).join("audio/pcm16.wav")).unwrap();
+    riff[8..12].copy_from_slice(b"AVI "); // RIFF form type
+    let input = dir.path().join("x.wav");
+    fs::write(&input, riff).unwrap();
+    assert!(
+        recorder(&dir.path().join("root"))
+            .audio_generated("c", &input)
+            .is_err()
+    );
+    assert!(!dir.path().join("root/c/audio.json").exists());
+}
