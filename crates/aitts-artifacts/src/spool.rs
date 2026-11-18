@@ -43,6 +43,20 @@ pub struct SpoolRead {
 /// The length of the canonical header that Python's `wave` module writes.
 const HEADER_BYTES: u64 = 44;
 
+/// Positional storage behind a spool: a file, or a test double at this seam.
+pub trait SpoolStorage: Send + std::fmt::Debug {
+    /// Write all of `buf` at `offset`.
+    ///
+    /// # Errors
+    /// An I/O error, such as `StorageFull` when the disk is full.
+    fn write_all_at(&mut self, buf: &[u8], offset: u64) -> io::Result<()>;
+    /// Fill `buf` from `offset`.
+    ///
+    /// # Errors
+    /// An I/O error, or `UnexpectedEof` when fewer bytes are stored.
+    fn read_exact_at(&self, buf: &mut [u8], offset: u64) -> io::Result<()>;
+}
+
 /// One spooled audio stream.
 #[derive(Debug)]
 #[allow(
@@ -79,6 +93,18 @@ impl Spool {
         file.set_permissions(Permissions::from_mode(PRIVATE_FILE_MODE))?;
         file.write_all_at(&header(0), 0)?;
         Self::new(file, HEADER_BYTES, 0, false, capacity_frames)
+    }
+
+    /// Start a live spool on `storage` instead of a file.
+    ///
+    /// # Errors
+    /// Fails when `capacity_frames` is zero or the header cannot be written.
+    pub fn with_storage(
+        storage: Box<dyn SpoolStorage>,
+        capacity_frames: usize,
+    ) -> io::Result<Self> {
+        let _ = (storage, capacity_frames);
+        Err(io::Error::other("not implemented"))
     }
 
     /// Open a finished WAV for playback without changing its bytes.

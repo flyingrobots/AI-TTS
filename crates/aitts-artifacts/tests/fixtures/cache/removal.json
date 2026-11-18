@@ -1,0 +1,13 @@
+{
+  "result": {
+    "removed": 2,
+    "protected": 2,
+    "failed": 0
+  },
+  "left": [
+    "held",
+    "linked",
+    "notes.txt",
+    "streaming"
+  ]
+}
