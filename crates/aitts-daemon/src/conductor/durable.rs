@@ -12,6 +12,7 @@ use core::fmt;
 
 use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
+use aitts_protocol::event::Event;
 use aitts_store::queue::NewUtterance;
 use aitts_store::{Store, Utterance};
 
@@ -67,6 +68,12 @@ pub trait Ledger {
     fn job(&mut self, _id: &str) -> Result<Option<StoredJob>, LedgerError> {
         Err(LedgerError::Unavailable)
     }
+
+    /// The time, in Unix seconds, the last record or admission stamped on its
+    /// rows. The default has no clock and reports zero.
+    fn stamp(&self) -> f64 {
+        0.0
+    }
 }
 
 /// A stored clip as synthesis needs it.
@@ -117,12 +124,13 @@ pub enum DurableError {
 #[derive(Debug)]
 pub struct StoreLedger<'a> {
     store: &'a Store,
+    stamp: f64,
 }
 
 impl<'a> StoreLedger<'a> {
     /// Record into `store`.
     pub const fn new(store: &'a Store) -> Self {
-        Self { store }
+        Self { store, stamp: 0.0 }
     }
 }
 
@@ -137,10 +145,17 @@ impl Ledger for StoreLedger<'_> {
             }
         }
         // One transaction: a crash between rows leaves none of them written.
-        self.store
+        let stamp = self
+            .store
             .queue()
             .save(&transitions, &keys)
-            .map_err(LedgerError::Store)
+            .map_err(LedgerError::Store)?;
+        self.stamp = stamp;
+        Ok(())
+    }
+
+    fn stamp(&self) -> f64 {
+        self.stamp
     }
 
     fn job(&mut self, id: &str) -> Result<Option<StoredJob>, LedgerError> {
@@ -160,6 +175,7 @@ impl Ledger for StoreLedger<'_> {
 
     fn admit(&mut self, new: &NewUtterance) -> Result<f64, LedgerError> {
         let row = self.store.queue().submit(new).map_err(LedgerError::Store)?;
+        self.stamp = row.state_changed_at;
         Ok(row.order_key)
     }
 
@@ -222,6 +238,7 @@ fn changes(before: &Conductor, after: &Conductor) -> Vec<Change> {
 pub struct Durable<L> {
     conductor: Conductor,
     ledger: L,
+    events: Vec<Event>,
 }
 
 impl<L: Ledger> Durable<L> {
@@ -234,7 +251,14 @@ impl<L: Ledger> Durable<L> {
         Ok(Self {
             conductor: Conductor::restored(clips),
             ledger,
+            events: Vec::new(),
         })
+    }
+
+    /// Take the events for every change recorded since the last call, in the
+    /// order a subscriber should see them.
+    pub fn take_events(&mut self) -> Vec<Event> {
+        std::mem::take(&mut self.events)
     }
 
     /// The current state.

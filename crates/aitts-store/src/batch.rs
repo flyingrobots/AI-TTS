@@ -16,16 +16,18 @@ impl Queue<'_> {
     /// Returns [`Error::NotFound`] for an unknown id, or a write failure; the
     /// whole change then rolls back.
     pub fn reorder(&self, keys: &[(String, f64)]) -> Result<()> {
-        self.save(&[], keys)
+        self.save(&[], keys).map(|_stamp| ())
     }
 
     /// Apply lifecycle transitions, then order keys, in one transaction. A
     /// failure at any row leaves every row unchanged.
     ///
+    /// Returns the time stamped on every transition, in Unix seconds.
+    ///
     /// # Errors
     /// Returns [`Error::NotFound`], [`Error::Transition`], or a write failure;
     /// the whole save then rolls back.
-    pub fn save(&self, transitions: &[(String, State)], keys: &[(String, f64)]) -> Result<()> {
+    pub fn save(&self, transitions: &[(String, State)], keys: &[(String, f64)]) -> Result<f64> {
         let transaction = self.store.db.unchecked_transaction()?;
         let now = self.store.clock.now();
         for (id, to) in transitions {
@@ -33,7 +35,7 @@ impl Queue<'_> {
         }
         write_keys(&transaction, keys)?;
         transaction.commit()?;
-        Ok(())
+        Ok(now)
     }
 }
 

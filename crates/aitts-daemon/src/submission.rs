@@ -29,6 +29,7 @@ use aitts_store::queue::NewUtterance;
 use crate::api::Refusal;
 use crate::conductor::durable::DurableError;
 use crate::conductor::mailbox::{self, Mailbox};
+use crate::connection::Shared;
 use crate::runtime::EngineView;
 use crate::settings_view::speaking_voice;
 
@@ -69,6 +70,7 @@ pub(crate) fn submit(
     mailbox: &Mailbox,
     store: &Store,
     engine: &EngineView,
+    _events: &Shared,
     submission: &Submission<'_>,
 ) -> Result<Reply, Refusal> {
     if submission.text.trim().is_empty() {

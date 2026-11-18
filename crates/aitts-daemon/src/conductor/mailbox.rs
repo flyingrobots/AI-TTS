@@ -16,6 +16,7 @@
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
 use aitts_domain::utterance::State;
+use aitts_protocol::event::Event;
 use aitts_store::queue::NewUtterance;
 
 use super::durable::{Durable, DurableError, Ledger, LedgerError, StoredJob};
@@ -194,6 +195,13 @@ impl Inbox {
         };
         let _unheard = reply.send(answer);
         Served::Answered(request)
+    }
+
+    /// [`Inbox::serve`], giving `publish` the events of each answered request.
+    pub fn serve_with<L: Ledger>(self, durable: &mut Durable<L>, publish: impl FnMut(&Event)) {
+        // Stub: events are not published.
+        drop(publish);
+        self.serve(durable);
     }
 
     /// Answer requests until shutdown, dropping any that arrive after it.

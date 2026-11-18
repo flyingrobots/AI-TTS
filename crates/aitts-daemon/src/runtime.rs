@@ -135,7 +135,8 @@ pub fn start_with(config: Config, synthesis: Synthesis) -> Result<Running, Start
 
 fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, StartError> {
     let lease = lease::acquire(&config.socket)?;
-    let (mailbox, conductor) = start_conductor(&config)?;
+    let shared = Arc::new(Shared::default());
+    let (mailbox, conductor) = start_conductor(&config, Arc::clone(&shared))?;
     // The driver starts now but takes no work until the socket is served.
     let (wake, driver) = match synthesis {
         Some(synthesis) => {
@@ -157,7 +158,7 @@ fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, 
             driver.abandon();
         }
     };
-    let (jobs, api) = match start_api(&config, mailbox, wake) {
+    let (jobs, api) = match start_api(&config, mailbox, wake, Arc::clone(&shared)) {
         Ok(started) => started,
         Err(error) => {
             abandon(driver);
@@ -180,7 +181,6 @@ fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, 
             return Err(error);
         }
     };
-    let shared = Arc::new(Shared::default());
     *shared.jobs.lock().unwrap_or_else(PoisonError::into_inner) = Some(jobs);
     let owner = Arc::clone(&shared);
     let accept = std::thread::Builder::new()
@@ -206,7 +206,10 @@ const CONDUCTOR_CAPACITY: usize = 64;
 
 /// Start the conductor owner on its own store connection. It recovers the queue
 /// with playback held, then answers until every mailbox is dropped.
-fn start_conductor(config: &Config) -> Result<(Mailbox, JoinHandle<()>), StartError> {
+fn start_conductor(
+    config: &Config,
+    shared: Arc<Shared>,
+) -> Result<(Mailbox, JoinHandle<()>), StartError> {
     let (mailbox, inbox) = mailbox::channel(CONDUCTOR_CAPACITY);
     let (ready, opened) = sync_channel(1);
     let database = config.database.clone();
@@ -223,7 +226,7 @@ fn start_conductor(config: &Config) -> Result<(Mailbox, JoinHandle<()>), StartEr
             match Durable::recover(StoreLedger::new(&store)) {
                 Ok(mut durable) => {
                     let _ = ready.send(Ok(()));
-                    inbox.serve(&mut durable);
+                    inbox.serve_with(&mut durable, |event| publish(&shared, event));
                 }
                 Err(error) => {
                     let _ = ready.send(Err(StartError::Io(std::io::Error::other(
@@ -246,6 +249,7 @@ fn start_api(
     config: &Config,
     conductor: Mailbox,
     wake: Option<SyncSender<()>>,
+    shared: Arc<Shared>,
 ) -> Result<(std::sync::mpsc::Sender<api::Job>, JoinHandle<()>), StartError> {
     let (jobs, requests) = channel();
     let (ready, opened) = sync_channel(1);
@@ -266,6 +270,7 @@ fn start_api(
                         started,
                         conductor,
                         wake,
+                        shared,
                     },
                     &requests,
                 );
@@ -281,6 +286,13 @@ fn start_api(
         Err(_) => Err(StartError::Io(std::io::Error::other(
             "the API thread ended",
         ))),
+    }
+}
+
+/// Send `event` to every subscriber without waiting on any of them.
+pub(crate) fn publish(shared: &Shared, event: &Event) {
+    if let Ok(line) = encode_event(event) {
+        shared.subscribers.broadcast(&Arc::from(line));
     }
 }
 
@@ -303,9 +315,7 @@ impl Running {
 
     /// Send `event` to every subscriber without waiting on any of them.
     pub fn broadcast(&self, event: &Event) {
-        if let Ok(line) = encode_event(event) {
-            self.shared.subscribers.broadcast(&Arc::from(line));
-        }
+        publish(&self.shared, event);
     }
 
     /// Stop within `limit`: close connections, close the store, remove the socket.
