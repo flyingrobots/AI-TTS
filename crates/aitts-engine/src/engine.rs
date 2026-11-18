@@ -27,6 +27,16 @@ pub trait Engine: Send {
         request: &SpeechRequest<'_>,
         sink: &mut dyn FnMut(&[u8]),
     ) -> Result<(), EngineError>;
+
+    /// Return a failed engine to service before the next request. A request never
+    /// does this itself, so a failure is never silently retried. The default does
+    /// nothing.
+    ///
+    /// # Errors
+    /// The engine could not be restored; it stays failed.
+    fn recover(&mut self) -> Result<(), EngineError> {
+        Ok(())
+    }
 }
 
 /// Why an engine refused or failed a request.
