@@ -14,6 +14,7 @@ use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
 
 pub mod durable;
+pub mod mailbox;
 mod planning;
 mod queue;
 
