@@ -13,6 +13,7 @@ pub mod mcp;
 mod mcp_schema;
 mod mcp_tools;
 mod payload;
+pub mod tui;
 mod wait;
 
 use aitts_client::{Client, ClientError};

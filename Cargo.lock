@@ -48,6 +48,7 @@ dependencies = [
  "aitts-protocol",
  "clap",
  "proptest",
+ "serde",
  "serde_json",
  "tempfile",
 ]
