@@ -58,6 +58,30 @@ pub trait Ledger {
     fn admit(&mut self, _new: &NewUtterance) -> Result<f64, LedgerError> {
         Err(LedgerError::Unavailable)
     }
+
+    /// Read what synthesis needs for clip `id`; `None` when it is not stored.
+    /// The default reads nothing and refuses.
+    ///
+    /// # Errors
+    /// Returns [`LedgerError`] when the clip or its segments cannot be read.
+    fn job(&mut self, _id: &str) -> Result<Option<StoredJob>, LedgerError> {
+        Err(LedgerError::Unavailable)
+    }
+}
+
+/// A stored clip as synthesis needs it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StoredJob {
+    /// The submitted text.
+    pub text: String,
+    /// The voice identifier.
+    pub voice: String,
+    /// The speed multiplier.
+    pub speed: f64,
+    /// The engine the clip is bound to.
+    pub engine: Option<String>,
+    /// The spoken segments of a composite clip, in order; empty otherwise.
+    pub segments: Vec<String>,
 }
 
 /// The ledger did not complete an operation.
@@ -117,6 +141,21 @@ impl Ledger for StoreLedger<'_> {
             .queue()
             .save(&transitions, &keys)
             .map_err(LedgerError::Store)
+    }
+
+    fn job(&mut self, id: &str) -> Result<Option<StoredJob>, LedgerError> {
+        let queue = self.store.queue();
+        let Some(row) = queue.get(id).map_err(LedgerError::Store)? else {
+            return Ok(None);
+        };
+        let segments = queue.segments(id).map_err(LedgerError::Store)?;
+        Ok(Some(StoredJob {
+            text: row.text,
+            voice: row.voice,
+            speed: row.speed,
+            engine: row.engine,
+            segments: segments.into_iter().map(|segment| segment.text).collect(),
+        }))
     }
 
     fn admit(&mut self, new: &NewUtterance) -> Result<f64, LedgerError> {
@@ -241,6 +280,14 @@ impl<L: Ledger> Durable<L> {
                 },
             })
             .map_err(DurableError::Refused)
+    }
+
+    /// Read what synthesis needs for clip `id` through the ledger.
+    ///
+    /// # Errors
+    /// Returns [`LedgerError`] when the clip cannot be read.
+    pub fn job(&mut self, id: &str) -> Result<Option<StoredJob>, LedgerError> {
+        self.ledger.job(id)
     }
 
     /// Apply a command durably.

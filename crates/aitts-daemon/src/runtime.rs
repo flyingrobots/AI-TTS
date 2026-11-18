@@ -24,7 +24,7 @@ use crate::api::{self, ReadApi};
 use crate::conductor::durable::{Durable, StoreLedger};
 use crate::conductor::mailbox::{self, Mailbox};
 use crate::connection::{self, Shared};
-use crate::driver::{self, Synthesis};
+use crate::driver::{self, DriverHandle, Synthesis};
 use crate::lease::{self, Lease};
 use crate::socket_file;
 
@@ -103,7 +103,7 @@ pub struct Running {
     accept: JoinHandle<()>,
     api: JoinHandle<()>,
     conductor: JoinHandle<()>,
-    driver: Option<JoinHandle<()>>,
+    driver: Option<DriverHandle>,
     lease: Lease,
 }
 
@@ -136,19 +136,32 @@ pub fn start_with(config: Config, synthesis: Synthesis) -> Result<Running, Start
 fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, StartError> {
     let lease = lease::acquire(&config.socket)?;
     let (mailbox, conductor) = start_conductor(&config)?;
+    // The driver starts now but takes no work until the socket is served.
     let (wake, driver) = match synthesis {
         Some(synthesis) => {
             let (wake, woken) = sync_channel(1);
-            let driver = driver::spawn(synthesis, config.database.clone(), mailbox.clone(), woken)
-                .map_err(StartError::Io)?;
-            (Some(wake), Some(driver))
+            match driver::spawn(synthesis, mailbox.clone(), woken) {
+                Ok(driver) => (Some(wake), Some(driver)),
+                Err(error) => {
+                    drop(mailbox);
+                    let _ = conductor.join();
+                    return Err(StartError::Io(error));
+                }
+            }
         }
         None => (None, None),
+    };
+    // On a failed start, release the driver without work, then the rest.
+    let abandon = |driver: Option<DriverHandle>| {
+        if let Some(driver) = driver {
+            driver.abandon();
+        }
     };
     let (jobs, api) = match start_api(&config, mailbox, wake) {
         Ok(started) => started,
         Err(error) => {
-            // The API thread dropped the only mailbox, so the conductor ends.
+            abandon(driver);
+            // The API thread dropped its mailbox, so the conductor ends.
             let _ = conductor.join();
             return Err(error);
         }
@@ -156,6 +169,7 @@ fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, 
     let listener = match socket_file::bind_private(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
+            abandon(driver);
             drop(jobs);
             let _ = api.join();
             let _ = conductor.join();
@@ -169,6 +183,9 @@ fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, 
         .name("ai-ttsd-accept".to_owned())
         .spawn(move || accept_loop(&listener, &owner))
         .map_err(StartError::Io)?;
+    if let Some(driver) = &driver {
+        driver.go();
+    }
     Ok(Running {
         shared,
         socket: config.socket,
@@ -290,6 +307,10 @@ impl Running {
     /// Stop within `limit`: close connections, close the store, remove the socket.
     pub fn stop(self, limit: Duration) -> StopOutcome {
         let deadline = Instant::now() + limit;
+        // Before anything else: the driver takes no new clip from here on.
+        if let Some(driver) = &self.driver {
+            driver.begin_stop();
+        }
         self.shared.stopping.store(true, Ordering::SeqCst);
         // Wake the accept loop; a refused connection also means it is gone.
         drop(UnixStream::connect(&self.socket));
@@ -303,7 +324,10 @@ impl Running {
             self.accept.is_finished()
                 && self.api.is_finished()
                 && self.conductor.is_finished()
-                && self.driver.as_ref().is_none_or(JoinHandle::is_finished)
+                && self
+                    .driver
+                    .as_ref()
+                    .is_none_or(|driver| driver.thread.is_finished())
                 && self.shared.live_connections.load(Ordering::SeqCst) == 0
         });
         let _removed = std::fs::remove_file(&self.socket);

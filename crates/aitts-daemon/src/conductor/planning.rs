@@ -26,7 +26,19 @@ impl Conductor {
 
     /// The sink finished, or failed, the current speaker.
     pub(super) fn finish(&mut self, id: &str, end: State) -> Result<Outcome, Refusal> {
-        let outcome = self.move_clip(id, State::Playing, end)?;
+        // A sink that finishes while a pause holds its speaker still ends that
+        // speaker: the audio is over, and resuming must not replay it.
+        let paused_current = self.current.as_deref() == Some(id)
+            && self
+                .clips
+                .iter()
+                .any(|clip| clip.id == id && clip.state == State::Paused);
+        let from = if paused_current {
+            State::Paused
+        } else {
+            State::Playing
+        };
+        let outcome = self.move_clip(id, from, end)?;
         if self.current.as_deref() == Some(id) {
             self.current = None;
         }
