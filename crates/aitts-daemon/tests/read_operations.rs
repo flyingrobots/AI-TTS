@@ -207,6 +207,7 @@ fn snapshot_reports_no_current_speech_because_this_daemon_plays_nothing() {
 
 #[test]
 fn an_operation_that_changes_state_is_refused_as_a_bad_request() {
-    let reply = ask(Operation::Submit, r#"{"op":"submit","text":"hello"}"#);
+    // `skip` still changes playback outside this daemon's wired operations.
+    let reply = ask(Operation::Skip, r#"{"op":"skip"}"#);
     assert_eq!(error_code(&reply), ErrorCode::BadRequest);
 }
