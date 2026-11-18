@@ -268,6 +268,14 @@ impl Engine for WorkerSupervisor {
         &self.name
     }
 
+    /// Restart a failed worker; a ready or stopped worker is left as it is.
+    fn recover(&mut self) -> Result<(), EngineError> {
+        match self.state {
+            WorkerState::Failed => self.restart(),
+            WorkerState::Ready | WorkerState::Stopped => Ok(()),
+        }
+    }
+
     fn stream(
         &mut self,
         request: &SpeechRequest<'_>,

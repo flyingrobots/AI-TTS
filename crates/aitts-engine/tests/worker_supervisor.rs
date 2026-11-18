@@ -180,3 +180,19 @@ fn random_frame_boundaries_and_exits_leave_no_process_and_no_partial_clip() {
         }
     }
 }
+
+#[test]
+fn recover_restarts_a_failed_worker_for_the_next_request() {
+    let root = runtime("exit_at_start");
+    let mut worker = supervisor("kokoro", root.path(), Duration::from_secs(10));
+    assert!(matches!(
+        speak(&mut worker).0,
+        Err(EngineError::WorkerExited)
+    ));
+    set_mode(root.path(), "golden");
+    assert!(
+        worker.recover().is_ok(),
+        "recover refused a startable worker"
+    );
+    assert_eq!(speak(&mut worker).1, known_stream());
+}
