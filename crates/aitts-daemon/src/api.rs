@@ -26,10 +26,10 @@ use aitts_protocol::vocabulary::{Queue, State};
 use aitts_store::{Store, Utterance};
 
 use crate::conductor::mailbox::Mailbox;
-use crate::control;
 use crate::projection::{self, View, count, number};
 use crate::runtime::EngineView;
 use crate::{cache_usage, settings_view, status};
+use crate::{control, submission};
 
 /// One request and where to send its reply.
 pub(crate) struct Job {
@@ -97,6 +97,36 @@ impl ReadApi {
             return answer;
         }
         Ok(match request {
+            Request::Submit {
+                text,
+                content_format,
+                voice,
+                engine,
+                speed,
+                sensitivity,
+                priority,
+                preempt,
+                playback,
+                source,
+                origin: _,
+            } => {
+                let submission = submission::Submission {
+                    text,
+                    content_format,
+                    voice,
+                    engine,
+                    speed,
+                    sensitivity,
+                    priority,
+                    preempt,
+                    playback,
+                    source,
+                };
+                submission::submit(&self.conductor, &self.store, &self.engine, &submission)?
+            }
+            Request::Requeue { id, priority } => {
+                submission::requeue(&self.conductor, &self.store, id, priority)?
+            }
             Request::Status {} => Reply::Status(Box::new(status::reply(self.status()?))),
             Request::Get { id } => Reply::Get(self.get(id)?),
             Request::List { queue } => Reply::List(Items {

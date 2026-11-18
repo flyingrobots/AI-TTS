@@ -6,10 +6,10 @@
 //!
 //! [`start`] takes the socket lease, opens the shared state database, and serves
 //! JSON lines on a mode 0600 Unix socket. [`Running::stop`] ends service within a
-//! time limit. `pause`, `resume`, `cancel`, `clear` (queue) and `reorder` go
-//! through the conductor owner, which recovers the queue with playback held at
-//! start. Other operations that change state or audio, including `submit`, are
-//! not wired yet; the daemon refuses them with a `bad_request` reply.
+//! time limit. `submit`, `requeue`, `pause`, `resume`, `cancel`, `clear` (queue)
+//! and `reorder` go through the conductor owner, which recovers the queue with
+//! playback held at start. Other operations that change state or audio are not
+//! wired yet; the daemon refuses them with a `bad_request` reply.
 //!
 //! Concurrency model: one thread accepts connections, one thread per connection
 //! reads and writes lines, and one API thread owns a store connection and answers
@@ -32,6 +32,7 @@ mod runtime;
 mod settings_view;
 mod socket_file;
 mod status;
+mod submission;
 mod subscribers;
 pub mod synthesis;
 
