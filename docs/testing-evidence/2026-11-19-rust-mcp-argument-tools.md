@@ -26,9 +26,13 @@ The Python 3.12 `ai-tts-mcp`, for `enqueue_speech`, `requeue_speech`,
 
 | Test | Size | Oracle |
 |---|---|---|
-| `tests/test_mcp_tool_parity.py` (68 cases, Python 3.12 only) | medium | As in part 2a, with 44 new argument cases: valid calls, the lax conversions (`speed: 1` and `"1.25"`, `preempt: "yes"`, `limit: "3"` and `2.0`, `enabled: "off"` and `1`), stripping, null optional fields, an unknown key, and 21 refusals. |
-| `crates/aitts-cli/tests/mcp_tools.rs`, cases | medium | The same 68 cases: the daemon requests exactly, the reply exactly, except the parsed text of a success and only the prefix (above) of a refusal. |
+| `tests/test_mcp_tool_parity.py` (66 cases, Python 3.12 only; one server process serves every case that has a peer) | medium | As in part 2a, with 44 new argument cases: valid calls, the lax conversions (`speed: 1` and `"1.25"`, `preempt: "yes"`, `limit: "3"` and `2.0`, `enabled: "off"` and `1`), stripping, null optional fields, an unknown key, and 21 refusals. |
+| `crates/aitts-cli/tests/mcp_tools.rs`, cases | medium | The same 66 cases: the daemon requests exactly, the reply exactly, except the parsed text of a success and only the prefix (above) of a refusal. |
 | `crates/aitts-cli/tests/mcp_tools.rs`, argument fuzz (1200 calls) | medium | A seeded corpus (`AITTS_FUZZ_SEED`, default 139, printed): a valid call per tool with up to two keys changed to near misses, extreme floats or random JSON. Every call gives a well-formed result; a success has text equal to its structured content and one request; a refusal has the prefix and no request; a failure has one request. Seed 139 gives 94 successes, 623 refusals and 483 daemon or schema failures, and the test requires each class to occur. |
+
+## CI finding
+
+The first CI run exceeded the medium tier's CPU budget (123.92 s of 120 s): each recorded case started its own Python server. The tie test now serves every case that has a peer from one server process, which is valid because each call completes before the next and the server keeps no per-call state that these tools read; the two no-daemon cases keep their own servers. The file's CPU fell from about 20 s to about 1 s locally, and a changed recorded request still fails its case.
 
 ## Observed RED
 

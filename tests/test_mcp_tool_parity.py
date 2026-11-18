@@ -207,31 +207,28 @@ def _daemon_replies() -> dict[str, Any]:
         daemon.wait()
 
 
-def _serve(path: str, replies: list[Any], seen: list[Any]) -> threading.Thread:
-    listener = socket.socket(socket.AF_UNIX)
-    listener.bind(path)
-    listener.listen()
+class _Peer:
+    """A scripted daemon: each connection reads one request and gets the next
+    reply of the current case. A refused call must not connect at all."""
 
-    def answer() -> None:
-        with listener:
-            for reply in replies:
-                connection, _ = listener.accept()
-                with connection:
-                    seen.append(json.loads(connection.makefile("rb").readline()))
-                    connection.sendall((json.dumps(reply) + "\n").encode())
+    def __init__(self, path: str) -> None:
+        self.replies: list[Any] = []
+        self.seen: list[Any] = []
+        listener = socket.socket(socket.AF_UNIX)
+        listener.bind(path)
+        listener.listen()
+        threading.Thread(target=self._answer, args=(listener,), daemon=True).start()
 
-    thread = threading.Thread(target=answer, daemon=True)
-    thread.start()
-    return thread
+    def _answer(self, listener: socket.socket) -> None:
+        while True:
+            connection, _ = listener.accept()
+            with connection:
+                self.seen.append(json.loads(connection.makefile("rb").readline()))
+                if self.replies:
+                    connection.sendall((json.dumps(self.replies.pop(0)) + "\n").encode())
 
 
-def run_case(tool: str, arguments: dict[str, Any], replies: list[Any]) -> dict[str, Any]:
-    """Call one tool on a fresh Python server; the peer answers with ``replies``."""
-    directory = tempfile.mkdtemp(prefix="aitts-peer-")
-    path = str(Path(directory) / "peer.sock") if replies else ABSENT
-    seen: list[Any] = []
-    if replies:
-        _serve(path, replies, seen)
+def _server(path: str) -> subprocess.Popen[str]:
     process = subprocess.Popen(  # noqa: S603 - this environment's own entry point
         [str(Path(sys.executable).with_name("ai-tts-mcp"))],
         stdin=subprocess.PIPE,
@@ -240,9 +237,8 @@ def run_case(tool: str, arguments: dict[str, Any], replies: list[Any]) -> dict[s
         text=True,
         env={**os.environ, "AI_TTS_SOCKET": path},
     )
-    assert process.stdin is not None
-    assert process.stdout is not None
-    messages: list[dict[str, Any]] = [
+    _exchange(
+        process,
         {
             "jsonrpc": "2.0",
             "id": 1,
@@ -253,41 +249,88 @@ def run_case(tool: str, arguments: dict[str, Any], replies: list[Any]) -> dict[s
                 "clientInfo": {"name": "parity", "version": "1"},
             },
         },
-        {"jsonrpc": "2.0", "method": "notifications/initialized"},
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/call",
-            "params": {"name": tool, "arguments": arguments},
-        },
-    ]
-    reply = None
-    for message in messages:
-        process.stdin.write(json.dumps(message) + "\n")
-        process.stdin.flush()
-        if "id" in message:
-            reply = json.loads(process.stdout.readline())
-    process.stdin.close()
-    process.wait()
-    return {
-        "tool": tool,
-        "arguments": arguments,
-        "socket": "peer" if replies else "absent",
-        "daemon_replies": replies,
-        "daemon_requests": seen,
-        "reply": reply,
+    )
+    _exchange(process, {"jsonrpc": "2.0", "method": "notifications/initialized"})
+    return process
+
+
+def _exchange(process: subprocess.Popen[str], message: dict[str, Any]) -> Any:
+    assert process.stdin is not None
+    assert process.stdout is not None
+    process.stdin.write(json.dumps(message) + "\n")
+    process.stdin.flush()
+    return json.loads(process.stdout.readline()) if "id" in message else None
+
+
+def _call(process: subprocess.Popen[str], tool: str, arguments: dict[str, Any]) -> Any:
+    message = {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments},
     }
+    return _exchange(process, message)
+
+
+def run_cases(calls: list[tuple[str, dict[str, Any], list[Any]]]) -> list[dict[str, Any]]:
+    """Run every call; one Python server serves all calls that have a peer.
+
+    Each call completes before the next starts, so the requests the peer
+    reads between two calls belong to the first. A call without replies runs
+    on its own server whose socket does not exist.
+    """
+    peer_path = str(Path(tempfile.mkdtemp(prefix="aitts-peer-")) / "peer.sock")
+    peer = _Peer(peer_path)
+    shared = _server(peer_path)
+    results = []
+    for tool, arguments, replies in calls:
+        if replies:
+            peer.replies = list(replies)
+            peer.seen = []
+            reply = _call(shared, tool, arguments)
+            seen = peer.seen
+        else:
+            alone = _server(ABSENT)
+            reply = _call(alone, tool, arguments)
+            assert alone.stdin is not None
+            alone.stdin.close()
+            alone.wait()
+            seen = []
+        results.append(
+            {
+                "tool": tool,
+                "arguments": arguments,
+                "socket": "peer" if replies else "absent",
+                "daemon_replies": replies,
+                "daemon_requests": seen,
+                "reply": reply,
+            }
+        )
+    assert shared.stdin is not None
+    shared.stdin.close()
+    shared.wait()
+    return results
 
 
 _RECORDED: list[dict[str, Any]] = json.loads(_CASES.read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("case", _RECORDED, ids=[c["tool"] for c in _RECORDED])
-def test_case_matches_the_python_server(case: dict[str, Any]) -> None:
-    assert run_case(case["tool"], case["arguments"], case["daemon_replies"]) == case
+@pytest.fixture(scope="module")
+def python_results() -> list[dict[str, Any]]:
+    """The Python server's results for every recorded call, in one run.
+
+    Retire when the cases no longer share one server; each check reads only.
+    """
+    calls = [(c["tool"], c["arguments"], c["daemon_replies"]) for c in _RECORDED]
+    return run_cases(calls)
+
+
+@pytest.mark.parametrize("index", range(len(_RECORDED)), ids=[c["tool"] for c in _RECORDED])
+def test_case_matches_the_python_server(index: int, python_results: list[dict[str, Any]]) -> None:
+    assert python_results[index] == _RECORDED[index]
 
 
 if __name__ == "__main__":
     captured = _daemon_replies()
-    cases = [run_case(tool, args, [captured[op] for op in ops]) for tool, args, ops in CALLS]
+    cases = run_cases([(tool, args, [captured[op] for op in ops]) for tool, args, ops in CALLS])
     _CASES.write_text(json.dumps(cases, indent=1) + "\n", encoding="utf-8")
