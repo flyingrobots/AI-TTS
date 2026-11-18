@@ -48,6 +48,15 @@ schema gives an `isError` result with the Python text
 binary as `ai-tts-mcp`; `make install AITTS_MCP=python` rolls back to the
 Python server (see the README).
 
+## Terminal dashboard
+
+`aitts_cli::tui::Dashboard` holds the dashboard's state (part of issue #140):
+what it shows from daemon snapshots and events, and what each key does. It
+draws nothing and opens no socket; the caller gives it snapshots, events, keys
+and the time. It matches the Python `SpeechTUI` on recorded scenarios
+(`tests/fixtures/tui_parity.json`). The screen, the event loop and
+`ai-tts tui` itself follow; until then `ai-tts tui` runs the Python dashboard.
+
 ## Commands it does not run itself
 
 - `daemon` and `tui`. The binary hands them, with all arguments, to the
