@@ -133,9 +133,11 @@ fn ok<T, E>(result: Result<T, E>) -> Result<(), ()> {
     result.map(|_| ()).map_err(|_| ())
 }
 
-/// A workload with synthesis, failure, playback, reorder, preemption and clear.
+/// Recovered empty, then a workload with synthesis, failure, playback, reorder, preemption and clear.
 fn workload<L: Ledger>() -> Vec<Step<L>> {
     vec![
+        // A recovered queue starts held; the listener releases it.
+        |_, durable| ok(durable.apply(Command::Resume)),
         |store, durable| {
             submit(store, durable, "a", Priority::Normal);
             submit(store, durable, "b", Priority::Normal);
@@ -164,7 +166,7 @@ fn workload<L: Ledger>() -> Vec<Step<L>> {
 fn a_restart_restores_the_queue_with_playback_held() {
     let store = store();
     let mut durable = Durable::recover(StoreLedger::new(&store)).unwrap();
-    for step in workload().into_iter().take(11) {
+    for step in workload().into_iter().take(12) {
         step(&store, &mut durable).unwrap();
     }
     let expected = after_recovery(&durable.conductor().clips());
@@ -187,7 +189,8 @@ fn a_failed_record_leaves_memory_unchanged() {
 #[test]
 fn crash_at_every_record_leaves_the_state_before_the_failed_call() {
     let mut crashes = 0;
-    for fail_at in 0.. {
+    // Bounded: a ledger that fails every call would otherwise never finish.
+    for fail_at in 0..64 {
         let store = store();
         let mut durable = Durable::recover(faulty(&store, Some(fail_at))).unwrap();
         let mut failure = None;
@@ -217,7 +220,7 @@ fn crash_at_every_record_leaves_the_state_before_the_failed_call() {
 fn recovery_retry_converges(fault: RecoverFault) {
     let store = store();
     let mut durable = Durable::recover(StoreLedger::new(&store)).unwrap();
-    for step in workload().into_iter().take(11) {
+    for step in workload().into_iter().take(12) {
         step(&store, &mut durable).unwrap();
     }
     let expected = (after_recovery(&durable.conductor().clips()), true);

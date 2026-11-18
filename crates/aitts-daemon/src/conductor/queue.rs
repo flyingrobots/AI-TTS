@@ -51,6 +51,27 @@ impl Conductor {
         Ok(Outcome::Applied)
     }
 
+    /// Admit a replay of a finished clip, as Python `_op_requeue`.
+    pub(super) fn requeue(
+        &mut self,
+        source: &str,
+        id: String,
+        priority: Priority,
+    ) -> Result<Outcome, Refusal> {
+        let original = self
+            .clips
+            .get(self.index(source)?)
+            .map(|clip| (clip.state, clip.playback));
+        match original {
+            Some((state, playback)) if state.is_terminal() => self.submit(id, priority, playback),
+            Some((state, _)) => Err(Refusal::IllegalState {
+                id: source.to_owned(),
+                state,
+            }),
+            None => Err(Refusal::NotFound(source.to_owned())),
+        }
+    }
+
     /// Cancel work that has not reached the device, as Python `_op_cancel`.
     pub(super) fn cancel(&mut self, id: &str) -> Result<Outcome, Refusal> {
         let state = self.clips.get(self.index(id)?).map(|clip| clip.state);

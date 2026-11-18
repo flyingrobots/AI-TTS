@@ -10,8 +10,10 @@
 
 use core::fmt;
 
+use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
-use aitts_store::Store;
+use aitts_store::queue::Fields;
+use aitts_store::{Store, Utterance};
 
 use super::{Clip, Command, Conductor, Outcome, Refusal, Transfer};
 
@@ -93,22 +95,69 @@ impl<'a> StoreLedger<'a> {
 
 impl Ledger for StoreLedger<'_> {
     fn record(&mut self, changes: &[Change]) -> Result<(), LedgerError> {
-        self.store
-            .queue()
-            .reorder(&[])
-            .map_err(LedgerError::Store)?;
-        let _unwritten = changes.len();
-        Ok(())
+        let queue = self.store.queue();
+        let mut keys = Vec::new();
+        for change in changes {
+            match change {
+                Change::State { id, to } => {
+                    queue
+                        .transition(id, *to, &Fields::default())
+                        .map_err(LedgerError::Store)?;
+                }
+                Change::Order { id, order } => keys.push((id.clone(), *order)),
+            }
+        }
+        queue.reorder(&keys).map_err(LedgerError::Store)
     }
 
     fn recover(&mut self) -> Result<Vec<Clip>, LedgerError> {
-        let rows = self.store.queue().input().map_err(LedgerError::Store)?;
-        Ok(rows
-            .into_iter()
-            .take(0)
-            .map(|_| unreachable_clip())
-            .collect())
+        let queue = self.store.queue();
+        queue.recover().map_err(LedgerError::Store)?;
+        let mut rows = queue.input().map_err(LedgerError::Store)?;
+        rows.extend(queue.playback().map_err(LedgerError::Store)?);
+        Ok(rows.into_iter().map(clip).collect())
     }
+}
+
+fn clip(row: Utterance) -> Clip {
+    Clip {
+        id: row.id,
+        order: row.order_key,
+        priority: match row.priority {
+            aitts_store::Priority::Normal => Priority::Normal,
+            aitts_store::Priority::Urgent => Priority::Urgent,
+            aitts_store::Priority::Preempt => Priority::Preempt,
+        },
+        state: row.state,
+        playback: if row.playback {
+            Playback::Play
+        } else {
+            Playback::SynthesizeOnly
+        },
+    }
+}
+
+/// The differences from `before` to `after` for clips both contain.
+fn changes(before: &Conductor, after: &Conductor) -> Vec<Change> {
+    let mut found = Vec::new();
+    for new in &after.clips {
+        let Some(old) = before.clips.iter().find(|old| old.id == new.id) else {
+            continue;
+        };
+        if old.state != new.state {
+            found.push(Change::State {
+                id: new.id.clone(),
+                to: new.state,
+            });
+        }
+        if old.order.total_cmp(&new.order).is_ne() {
+            found.push(Change::Order {
+                id: new.id.clone(),
+                order: new.order,
+            });
+        }
+    }
+    found
 }
 
 /// A conductor whose every change is persisted first. See the module docs.
@@ -136,12 +185,27 @@ impl<L: Ledger> Durable<L> {
         &self.conductor
     }
 
+    /// Run `call` on a copy, persist its changes, then keep the copy.
+    fn commit<T>(
+        &mut self,
+        call: impl FnOnce(&mut Conductor) -> Result<T, Refusal>,
+    ) -> Result<T, DurableError> {
+        let mut next = self.conductor.clone();
+        let value = call(&mut next).map_err(DurableError::Refused)?;
+        let found = changes(&self.conductor, &next);
+        if !found.is_empty() {
+            self.ledger.record(&found).map_err(DurableError::Ledger)?;
+        }
+        self.conductor = next;
+        Ok(value)
+    }
+
     /// Apply a command durably.
     ///
     /// # Errors
     /// Returns [`DurableError`]; state is then unchanged.
     pub fn apply(&mut self, command: Command) -> Result<Outcome, DurableError> {
-        self.conductor.apply(command).map_err(DurableError::Refused)
+        self.commit(|conductor| conductor.apply(command))
     }
 
     /// [`Conductor::next_synthesis`], durably.
@@ -149,7 +213,7 @@ impl<L: Ledger> Durable<L> {
     /// # Errors
     /// Returns [`DurableError::Ledger`]; state is then unchanged.
     pub fn next_synthesis(&mut self) -> Result<Option<String>, DurableError> {
-        Ok(self.conductor.next_synthesis())
+        self.commit(|conductor| Ok(conductor.next_synthesis()))
     }
 
     /// [`Conductor::plan_playback`], durably.
@@ -157,17 +221,6 @@ impl<L: Ledger> Durable<L> {
     /// # Errors
     /// Returns [`DurableError::Ledger`]; state is then unchanged.
     pub fn plan_playback(&mut self) -> Result<Option<Transfer>, DurableError> {
-        self.ledger.record(&[]).map_err(DurableError::Ledger)?;
-        Ok(self.conductor.plan_playback())
-    }
-}
-
-fn unreachable_clip() -> Clip {
-    Clip {
-        id: String::new(),
-        order: 0.0,
-        priority: aitts_domain::plan::Priority::Normal,
-        state: State::Queued,
-        playback: aitts_domain::plan::Playback::Play,
+        self.commit(|conductor| Ok(conductor.plan_playback()))
     }
 }

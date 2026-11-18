@@ -154,8 +154,19 @@ impl Conductor {
     /// Rebuild state after a restart: the hold is taken, nothing owns the device,
     /// and paused speakers wait to be restored, earliest queue position first.
     pub fn restored(clips: Vec<Clip>) -> Self {
-        drop(clips);
-        Self::default()
+        let mut paused: Vec<&Clip> = clips
+            .iter()
+            .filter(|clip| clip.state == State::Paused)
+            .collect();
+        // The stack's top is its last element, so the earliest position goes last.
+        paused.sort_by(|left, right| right.order.total_cmp(&left.order));
+        let stack = paused.iter().map(|clip| clip.id.clone()).collect();
+        Self {
+            clips,
+            held: true,
+            current: None,
+            stack,
+        }
     }
 
     /// The tracked clips in queue order.
@@ -191,10 +202,7 @@ impl Conductor {
                 source,
                 id,
                 priority,
-            } => {
-                drop((source, id, priority));
-                Err(Refusal::NotPermutation)
-            }
+            } => self.requeue(&source, id, priority),
             Command::Cancel(id) => self.cancel(&id),
             Command::ClearQueue => Ok(Outcome::Cleared(self.clear())),
             Command::Reorder(ids) => self.reorder(&ids),
