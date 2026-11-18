@@ -14,14 +14,32 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
 
-/// A tool directory holding a copy of the binary and a stand-in `ai-tts-py`
+/// Held while a test writes an executable and while it forks a child. Without
+/// it, a child forked by another test thread inherits the open write
+/// descriptor, and Linux refuses to run the file (`ETXTBSY`), as CI saw.
+static EXECUTABLES: Mutex<()> = Mutex::new(());
+
+/// Put the built binary in `bin` as `ai-tts`. A hard link opens no write
+/// descriptor; the directory is under cargo's target tree so the link stays
+/// on one file system.
+fn install_binary(bin: &Path) {
+    std::fs::hard_link(env!("CARGO_BIN_EXE_ai-tts"), bin.join("ai-tts")).unwrap();
+}
+
+fn temporary() -> tempfile::TempDir {
+    tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap()
+}
+
+/// A tool directory holding the binary and a stand-in `ai-tts-py`
 /// that records its arguments, one per line, and exits 7.
 fn layout(dir: &Path) -> PathBuf {
     let bin = dir.join("bin");
     std::fs::create_dir(&bin).unwrap();
-    std::fs::copy(env!("CARGO_BIN_EXE_ai-tts"), bin.join("ai-tts")).unwrap();
+    install_binary(&bin);
     let python = bin.join("ai-tts-py");
+    let _writing = EXECUTABLES.lock().unwrap();
     let record = dir.join("python-argv");
     std::fs::write(
         &python,
@@ -35,17 +53,21 @@ fn layout(dir: &Path) -> PathBuf {
     bin
 }
 
-/// Run the copied `ai-tts`; return its exit status and the arguments
+/// Run the installed `ai-tts`; return its exit status and the arguments
 /// `ai-tts-py` received, if it ran.
 fn reach(dir: &Path, bin: &Path, args: &[&str]) -> (Option<i32>, Option<Vec<String>>) {
     let record = dir.join("python-argv");
     let _ = std::fs::remove_file(&record);
-    let status = Command::new(bin.join("ai-tts"))
-        .env_clear()
-        .env("AI_TTS_SOCKET", dir.join("absent.sock"))
-        .args(args)
-        .status()
-        .unwrap();
+    let mut child = {
+        let _forking = EXECUTABLES.lock().unwrap();
+        Command::new(bin.join("ai-tts"))
+            .env_clear()
+            .env("AI_TTS_SOCKET", dir.join("absent.sock"))
+            .args(args)
+            .spawn()
+            .unwrap()
+    };
+    let status = child.wait().unwrap();
     let seen = std::fs::read_to_string(&record)
         .ok()
         .map(|text| text.lines().map(str::to_owned).collect());
@@ -54,7 +76,7 @@ fn reach(dir: &Path, bin: &Path, args: &[&str]) -> (Option<i32>, Option<Vec<Stri
 
 #[test]
 fn daemon_and_tui_reach_ai_tts_py_with_their_arguments_and_status() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = temporary();
     let bin = layout(dir.path());
     let cases: [&[&str]; 4] = [
         &["daemon", "--log-file", "/tmp/x.log"],
@@ -71,7 +93,7 @@ fn daemon_and_tui_reach_ai_tts_py_with_their_arguments_and_status() {
 
 #[test]
 fn client_commands_stay_in_the_rust_binary() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = temporary();
     let bin = layout(dir.path());
     for args in [
         &["status"][..],
@@ -87,10 +109,10 @@ fn client_commands_stay_in_the_rust_binary() {
 
 #[test]
 fn daemon_without_ai_tts_py_exits_one() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = temporary();
     let bin = dir.path().join("bin");
     std::fs::create_dir(&bin).unwrap();
-    std::fs::copy(env!("CARGO_BIN_EXE_ai-tts"), bin.join("ai-tts")).unwrap();
+    install_binary(&bin);
     let (status, _) = reach(dir.path(), &bin, &["daemon"]);
     assert_eq!(status, Some(1));
 }

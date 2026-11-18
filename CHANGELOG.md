@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The Rust `ai-tts` has an `mcp` subcommand (part of #139), also started by the name `ai-tts-mcp`: the MCP stdio server with the same `initialize` reply, protocol version negotiation, and 21-tool `tools/list` as the Python server, checked against sessions recorded from it (`tests/fixtures/mcp_session.json`). Tool calls are not ported yet; the installed `ai-tts-mcp` is still the Python server.
 - `aitts-daemon` persists conductor changes (issue #145, part 2): `conductor::durable::Durable` records every state and order change through `aitts-store` before it takes effect, so a crash leaves storage equal to the state before the failed call. A restart restores the queue with playback held. `Command::Requeue` replays a history item. `aitts-store` gains `Queue::reorder`.
 - The Rust `ai-tts` client (`aitts-cli`, part of #138) now has `wait` and `say --wait`. They use the daemon event subscription, exit 0 only for `Played`, 3 for another terminal state, and 2 after `--timeout`. The Python `ai-tts` is still the installed command.
 - `aitts-daemon` gains the conductor's queue state core (issue #145, part 1): `conductor::Conductor` owns the queue, the playback hold and the preemption stack, and changes them only through commands (submit, cancel, clear, reorder, pause, resume, audio ready, synthesis failed, playback finished) and two planning calls. It follows the Python ordering, clear and nested preemption rules. It does no I/O and is not yet connected to the socket.

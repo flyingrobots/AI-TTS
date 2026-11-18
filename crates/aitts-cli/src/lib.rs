@@ -9,6 +9,7 @@
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
 mod grammar;
+pub mod mcp;
 mod payload;
 mod wait;
 
@@ -46,7 +47,7 @@ pub struct Environment {
 
 impl Environment {
     /// `aitts.paths.default_socket`: `AI_TTS_SOCKET`, else `<home>/ai-tts.sock`.
-    fn socket(&self) -> PathBuf {
+    pub fn socket(&self) -> PathBuf {
         let set = |value: &Option<OsString>| value.clone().filter(|value| !value.is_empty());
         if let Some(socket) = set(&self.socket) {
             return self.expand(socket);
@@ -143,26 +144,33 @@ fn command(name: &str, sub: &ArgMatches, socket: &Path) -> Result<(Value, u8), F
     Ok((reply, EXIT_OK))
 }
 
-/// Whether the command is `daemon` or `tui`, which the Python `ai-tts-py` runs.
-/// Only the global `--socket` option (or an unambiguous prefix of it) may come first.
-pub fn hands_off(args: &[OsString]) -> bool {
+/// The `--socket` value and the command name, skipping only the global
+/// `--socket` option (or an unambiguous prefix of it) before the command.
+pub fn leading(args: &[OsString]) -> (Option<PathBuf>, Option<String>) {
+    let mut socket = None;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         let Some(text) = arg.to_str() else {
-            return false;
+            return (socket, None);
         };
-        let (option, inline) = text
+        let (option, value) = text
             .split_once('=')
-            .map_or((text, false), |(o, _)| (o, true));
+            .map_or((text, None), |(o, v)| (o, Some(v)));
         if option.len() >= 3 && "--socket".starts_with(option) {
-            if !inline {
-                rest.next();
-            }
+            socket = match value {
+                Some(value) => Some(PathBuf::from(value)),
+                None => rest.next().map(PathBuf::from),
+            };
             continue;
         }
-        return matches!(text, "daemon" | "tui");
+        return (socket, Some(text.to_owned()));
     }
-    false
+    (socket, None)
+}
+
+/// Whether the command is `daemon` or `tui`, which the Python `ai-tts-py` runs.
+pub fn hands_off(args: &[OsString]) -> bool {
+    matches!(leading(args).1.as_deref(), Some("daemon" | "tui"))
 }
 
 /// Run one command. `args` excludes the program name. Returns the exit status.
