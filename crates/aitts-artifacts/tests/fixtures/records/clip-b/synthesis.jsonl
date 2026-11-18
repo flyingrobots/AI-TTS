@@ -1,0 +1,3 @@
+{"at": 1800000008.0, "monotonic": 107.0, "process_session": "fixture-session", "event": "chunk", "index": 3}
+{"at": 1800000009.0, "monotonic": 108.0, "process_session": "fixture-session", "event": "chunk", "index": 4}
+{"at": 1800000010.0, "monotonic": 109.0, "process_session": "fixture-session", "event": "chunk", "index": 5}

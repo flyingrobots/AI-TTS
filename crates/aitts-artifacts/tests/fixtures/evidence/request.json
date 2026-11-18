@@ -1,0 +1,7 @@
+{
+  "item": {"id": "utt_0001", "text": "Hello, ünïcode world. Second part."},
+  "clips": [
+    {"artifact_id": "full", "text": "Hello, ünïcode world.", "audio_path": "full/full.wav"},
+    {"artifact_id": "legacy", "text": "Second part.", "audio_path": null}
+  ]
+}

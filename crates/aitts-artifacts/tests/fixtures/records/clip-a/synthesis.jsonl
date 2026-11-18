@@ -1,0 +1,2 @@
+{"at": 1800000001.0, "monotonic": 100.0, "process_session": "fixture-session", "event": "started"}
+{"at": 1800000002.0, "monotonic": 101.0, "process_session": "fixture-session", "event": "chunk", "index": 1, "text": "ünï"}

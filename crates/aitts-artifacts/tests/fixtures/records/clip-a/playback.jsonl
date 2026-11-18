@@ -1,0 +1,2 @@
+{"at": 1800000003.0, "monotonic": 102.0, "process_session": "fixture-session", "event": "played", "playback_session": "p1"}
+{"at": 1800000004.0, "event": "oversized_event_omitted", "process_session": "fixture-session"}

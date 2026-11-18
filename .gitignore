@@ -68,3 +68,4 @@ xcuserdata/
 
 # Python- and Rust-written store fixtures are test inputs.
 !crates/aitts-store/tests/fixtures/*.db
+!crates/aitts-artifacts/tests/fixtures/**/*.wav

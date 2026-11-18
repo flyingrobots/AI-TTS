@@ -1,0 +1,11 @@
+{
+  "blake3": "b507778eb8ee26e4780dfd602c78d2e4a526b6141adef79355e4f050890255f1",
+  "sha256": "adf1a3a0ef48a34d9a5833900ec5cb34b8e87ebd586b5f305e9a0c6c34bb885d",
+  "sample_rate": 22050,
+  "channels": 1,
+  "frames": 5,
+  "subtype": "PCM_24",
+  "peak": 0.9999499320983887,
+  "clipped_samples": 1,
+  "nonfinite_samples": 0
+}
