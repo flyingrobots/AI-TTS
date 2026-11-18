@@ -4,7 +4,8 @@
 """The MCP parity fixtures still describe the Python ``ai-tts-mcp`` server.
 
 ``tests/fixtures/mcp_session.json`` holds JSON-RPC sessions with the exact
-replies of the Python server (``null`` where it sends none, detected by a following ``ping`` probe), and
+replies of the Python server (``null`` where it sends none, detected by a
+following ``ping`` probe), and
 ``crates/aitts-cli/src/mcp_tools.json`` holds its ``tools/list`` result. The
 Rust ``ai-tts mcp`` is tested against both files, so this test ties them to the
 reference server. Re-baseline: ``uv run python -m tests.test_mcp_parity_table``
