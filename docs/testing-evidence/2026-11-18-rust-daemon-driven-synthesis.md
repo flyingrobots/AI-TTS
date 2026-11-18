@@ -10,7 +10,11 @@ store connection. The driver:
 2. keeps the sealed spools until the conductor plans the device;
 3. plays each transfer through a `Sink` and reports `PlaybackFinished`, or the
    new `PlaybackFailed`;
-4. retries reports the ledger did not record before new work.
+4. keeps synthesis reports (`Finished::Unreported`) and plain reports
+   (`SynthesisFailed`, `PlaybackFinished`, `PlaybackFailed`) that the ledger did
+   not record, and resends them before new work. The wait doubles from
+   `Synthesis::retry_after` up to `MAX_RETRY_WAIT` and needs no client request.
+   This was added by the review fixes in PR #220.
 
 The API thread wakes the driver after each request, and the driver sleeps when
 idle. `DiscardingSink` reads and discards every frame. `start(config)` still
@@ -57,9 +61,12 @@ file restored in a `finally` block.
 | Driver plays a ready clip without a plan | held queue |
 | Sink ignores a spool error | sink error |
 
-Two faults survived; both are equivalent. Dropping the in-memory ready spool
-is one: the driver reopens the sealed file. A sink that stops reading early is
-the other: discarding has no observable effect.
+Two faults survived the first round. Dropping the in-memory ready spool is
+equivalent: the driver reopens the sealed file. A sink that stops reading early
+was **not** equivalent, as the record first claimed. A spool can return frames
+and then a read error, which an early-stopping sink never sees. PR #220 adds
+`the_discarding_sink_reports_a_read_failure_after_some_frames`, which catches
+it.
 
 ## Repeats
 
