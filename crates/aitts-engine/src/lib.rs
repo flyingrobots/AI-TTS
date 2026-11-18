@@ -10,6 +10,7 @@
 
 pub mod catalog;
 pub mod engine;
+pub mod installed;
 pub mod loopback_http;
 pub mod registry;
 pub mod setup;
