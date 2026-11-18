@@ -11,7 +11,7 @@ use core::fmt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{channel, sync_channel};
+use std::sync::mpsc::{SyncSender, channel, sync_channel};
 use std::sync::{Arc, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -24,6 +24,7 @@ use crate::api::{self, ReadApi};
 use crate::conductor::durable::{Durable, StoreLedger};
 use crate::conductor::mailbox::{self, Mailbox};
 use crate::connection::{self, Shared};
+use crate::driver::{self, Synthesis};
 use crate::lease::{self, Lease};
 use crate::socket_file;
 
@@ -102,6 +103,7 @@ pub struct Running {
     accept: JoinHandle<()>,
     api: JoinHandle<()>,
     conductor: JoinHandle<()>,
+    driver: Option<JoinHandle<()>>,
     lease: Lease,
 }
 
@@ -119,9 +121,31 @@ impl fmt::Debug for Running {
 /// # Errors
 /// Returns [`StartError`] when the lease, the store, or the socket is unavailable.
 pub fn start(config: Config) -> Result<Running, StartError> {
+    start_inner(config, None)
+}
+
+/// Start serving `config.socket` and drive synthesis and playback with `synthesis`.
+///
+/// # Errors
+/// Returns [`StartError`] when the lease, the store, the socket, or the driver
+/// thread is unavailable.
+pub fn start_with(config: Config, synthesis: Synthesis) -> Result<Running, StartError> {
+    start_inner(config, Some(synthesis))
+}
+
+fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, StartError> {
     let lease = lease::acquire(&config.socket)?;
     let (mailbox, conductor) = start_conductor(&config)?;
-    let (jobs, api) = match start_api(&config, mailbox) {
+    let (wake, driver) = match synthesis {
+        Some(synthesis) => {
+            let (wake, woken) = sync_channel(1);
+            let driver = driver::spawn(synthesis, config.database.clone(), mailbox.clone(), woken)
+                .map_err(StartError::Io)?;
+            (Some(wake), Some(driver))
+        }
+        None => (None, None),
+    };
+    let (jobs, api) = match start_api(&config, mailbox, wake) {
         Ok(started) => started,
         Err(error) => {
             // The API thread dropped the only mailbox, so the conductor ends.
@@ -151,6 +175,7 @@ pub fn start(config: Config) -> Result<Running, StartError> {
         accept,
         api,
         conductor,
+        driver,
         lease,
     })
 }
@@ -199,6 +224,7 @@ fn start_conductor(config: &Config) -> Result<(Mailbox, JoinHandle<()>), StartEr
 fn start_api(
     config: &Config,
     conductor: Mailbox,
+    wake: Option<SyncSender<()>>,
 ) -> Result<(std::sync::mpsc::Sender<api::Job>, JoinHandle<()>), StartError> {
     let (jobs, requests) = channel();
     let (ready, opened) = sync_channel(1);
@@ -218,6 +244,7 @@ fn start_api(
                         cache_dir,
                         started,
                         conductor,
+                        wake,
                     },
                     &requests,
                 );
@@ -276,6 +303,7 @@ impl Running {
             self.accept.is_finished()
                 && self.api.is_finished()
                 && self.conductor.is_finished()
+                && self.driver.as_ref().is_none_or(JoinHandle::is_finished)
                 && self.shared.live_connections.load(Ordering::SeqCst) == 0
         });
         let _removed = std::fs::remove_file(&self.socket);

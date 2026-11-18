@@ -81,6 +81,8 @@ pub enum Command {
     SynthesisFailed(String),
     /// The sink finished the current clip.
     PlaybackFinished(String),
+    /// The sink could not play the current clip.
+    PlaybackFailed(String),
 }
 
 /// The effect of an accepted command.
@@ -228,7 +230,8 @@ impl Conductor {
             Command::Resume => Ok(self.hold(false)),
             Command::AudioReady(id) => self.audio_ready(&id),
             Command::SynthesisFailed(id) => self.move_clip(&id, State::Synthesizing, State::Failed),
-            Command::PlaybackFinished(id) => self.finish(&id),
+            Command::PlaybackFinished(id) => self.finish(&id, State::Played),
+            Command::PlaybackFailed(id) => self.finish(&id, State::Failed),
         }
     }
 

@@ -26,6 +26,7 @@ mod cache_usage;
 pub mod conductor;
 mod connection;
 mod control;
+pub mod driver;
 mod lease;
 mod projection;
 mod runtime;
@@ -36,4 +37,4 @@ mod submission;
 mod subscribers;
 pub mod synthesis;
 
-pub use runtime::{Config, EngineView, Running, StartError, StopOutcome, start};
+pub use runtime::{Config, EngineView, Running, StartError, StopOutcome, start, start_with};
