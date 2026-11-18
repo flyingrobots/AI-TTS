@@ -143,6 +143,28 @@ fn command(name: &str, sub: &ArgMatches, socket: &Path) -> Result<(Value, u8), F
     Ok((reply, EXIT_OK))
 }
 
+/// Whether the command is `daemon` or `tui`, which the Python `ai-tts-py` runs.
+/// Only the global `--socket` option (or an unambiguous prefix of it) may come first.
+pub fn hands_off(args: &[OsString]) -> bool {
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        let Some(text) = arg.to_str() else {
+            return false;
+        };
+        let (option, inline) = text
+            .split_once('=')
+            .map_or((text, false), |(o, _)| (o, true));
+        if option.len() >= 3 && "--socket".starts_with(option) {
+            if !inline {
+                rest.next();
+            }
+            continue;
+        }
+        return matches!(text, "daemon" | "tui");
+    }
+    false
+}
+
 /// Run one command. `args` excludes the program name. Returns the exit status.
 pub fn run(
     args: impl IntoIterator<Item = OsString>,
