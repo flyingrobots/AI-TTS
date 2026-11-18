@@ -45,6 +45,17 @@ pub enum Command {
         /// Whether the clip may occupy the device.
         playback: Playback,
     },
+    /// Admit a clip the store already holds, at the queue position it assigned.
+    Admit {
+        /// The stored identifier.
+        id: String,
+        /// The stored order key.
+        order: f64,
+        /// The admission priority.
+        priority: Priority,
+        /// Whether the clip may occupy the device.
+        playback: Playback,
+    },
     /// Admit a replay of a finished clip under a new identifier.
     Requeue {
         /// The finished clip to replay.
@@ -199,6 +210,12 @@ impl Conductor {
                 priority,
                 playback,
             } => self.submit(id, priority, playback),
+            Command::Admit {
+                id,
+                order,
+                priority,
+                playback,
+            } => self.admit(id, order, priority, playback),
             Command::Requeue {
                 source,
                 id,
