@@ -4,14 +4,24 @@
 //! This module runs the dashboard: the input loop, the daemon watcher that
 //! subscribes again after a failure, and the terminal session that is always
 //! left (raw mode off, main screen back) on exit, on error and on panic.
-#![allow(clippy::todo, reason = "RED stub")]
 
-use super::Screen;
-use serde_json::Value;
+use super::{Dashboard, Effect, Screen};
+use aitts_client::{Client, ClientError, Delivery, ReconnectPolicy};
+use aitts_protocol::decode_request;
+use aitts_protocol::reply::Reply;
+use serde_json::{Value, json};
 use std::io;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::Duration;
+
+/// Each command and snapshot request waits at most this long, as the Python client.
+const REQUEST_LIMIT: Duration = Duration::from_secs(5);
+/// A quiet subscription is read again after this long, so `stop` is noticed.
+const QUIET: Duration = Duration::from_millis(250);
+/// The Python dashboard reads up to 50 history items.
+const HISTORY_LIMIT: u64 = 50;
 
 /// One input to the dashboard loop.
 #[derive(Clone, Debug, PartialEq)]
@@ -65,17 +75,143 @@ pub trait Commands {
 /// # Errors
 /// The terminal failed.
 pub fn run(
-    _session: &mut dyn Session,
-    _inputs: &Receiver<Input>,
-    _commands: &mut dyn Commands,
-    _clock: &dyn Fn() -> f64,
+    session: &mut dyn Session,
+    inputs: &Receiver<Input>,
+    commands: &mut dyn Commands,
+    clock: &dyn Fn() -> f64,
 ) -> io::Result<()> {
-    todo!()
+    session.enter()?;
+    let entered = Entered {
+        session,
+        left: false,
+    };
+    let mut dashboard = Dashboard::new();
+    entered.session.draw(&dashboard.screen())?;
+    for input in inputs {
+        match input {
+            Input::Connected(snapshot) => dashboard.connected(snapshot),
+            Input::Disconnected(reason) => dashboard.disconnected(&reason),
+            Input::Event(event) => {
+                let shown = dashboard.snapshot().clone();
+                dashboard.event(&event, &mut || {
+                    commands.snapshot().unwrap_or_else(|_| shown.clone())
+                });
+            }
+            Input::Key(key) => match dashboard.key(&key, clock()) {
+                Effect::Quit => break,
+                Effect::None => {}
+                Effect::Command(request) => {
+                    let outcome = commands.send(&request).and_then(|()| commands.snapshot());
+                    dashboard.command_done(outcome);
+                }
+            },
+        }
+        entered.session.draw(&dashboard.screen())?;
+    }
+    entered.leave()
+}
+
+/// The entered terminal: left once, by [`Entered::leave`] or on drop (an
+/// error return or a panic unwinding through [`run`]).
+struct Entered<'session> {
+    session: &'session mut dyn Session,
+    left: bool,
+}
+
+impl Entered<'_> {
+    fn leave(mut self) -> io::Result<()> {
+        self.left = true;
+        self.session.leave()
+    }
+}
+
+impl Drop for Entered<'_> {
+    fn drop(&mut self) {
+        if !self.left {
+            // Nothing can report this failure; the terminal is in the best state left.
+            let _ = self.session.leave();
+        }
+    }
+}
+
+/// One snapshot, as the Python dashboard reads it.
+///
+/// # Errors
+/// The daemon's error message, or why it could not be reached.
+pub fn snapshot(socket: &Path) -> Result<Value, String> {
+    let request = json!({"op": "snapshot", "limit": HISTORY_LIMIT});
+    exchange(socket, &request)
+}
+
+fn exchange(socket: &Path, request: &Value) -> Result<Value, String> {
+    let typed =
+        decode_request(request.to_string().as_bytes()).map_err(|error| error.to_string())?;
+    match Client::new(socket, REQUEST_LIMIT).request(&typed) {
+        Ok(Reply::Error(refusal)) => Err(refusal.error.message),
+        Ok(reply) => serde_json::to_value(reply).map_err(|error| error.to_string()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// [`Commands`] over the daemon socket.
+#[derive(Debug)]
+pub struct SocketCommands<'socket> {
+    /// The daemon socket.
+    pub socket: &'socket Path,
+}
+
+impl Commands for SocketCommands<'_> {
+    fn snapshot(&mut self) -> Result<Value, String> {
+        snapshot(self.socket)
+    }
+
+    fn send(&mut self, request: &Value) -> Result<(), String> {
+        exchange(self.socket, request).map(|_| ())
+    }
+}
+
+/// Forward one subscription until `stop`, a closed `inputs`, or a failure.
+fn forward(socket: &Path, inputs: &Sender<Input>, stop: &AtomicBool) -> Result<(), String> {
+    let policy = ReconnectPolicy {
+        delay: Duration::ZERO,
+        attempts: 1,
+    };
+    let mut events = Client::new(socket, QUIET)
+        .subscribe_to_progress(policy)
+        .map_err(|error| error.to_string())?;
+    if inputs.send(Input::Connected(snapshot(socket)?)).is_err() {
+        return Ok(());
+    }
+    while !stop.load(Ordering::SeqCst) {
+        let input = match events.next_delivery() {
+            Ok(Delivery::Event(event)) => {
+                Input::Event(serde_json::to_value(event).map_err(|error| error.to_string())?)
+            }
+            // Events sent while disconnected are lost, so read the state again.
+            Ok(Delivery::Resubscribed) => Input::Connected(snapshot(socket)?),
+            Err(ClientError::TimedOut) => continue,
+            Err(error) => return Err(error.to_string()),
+        };
+        if inputs.send(input).is_err() {
+            return Ok(());
+        }
+    }
+    Ok(())
 }
 
 /// Subscribe to `socket` (with playback progress) and forward a snapshot and
 /// each event to `inputs`, until `stop` is set or `inputs` closes. After a
 /// failure it reports [`Input::Disconnected`], calls `wait`, and subscribes again.
-pub fn watch(_socket: &Path, _inputs: &Sender<Input>, _stop: &AtomicBool, _wait: &dyn Fn()) {
-    todo!()
+pub fn watch(socket: &Path, inputs: &Sender<Input>, stop: &AtomicBool, wait: &dyn Fn()) {
+    while !stop.load(Ordering::SeqCst) {
+        match forward(socket, inputs, stop) {
+            Ok(()) => return,
+            Err(reason) => {
+                if inputs.send(Input::Disconnected(reason)).is_err() {
+                    return;
+                }
+            }
+        }
+        wait();
+    }
 }

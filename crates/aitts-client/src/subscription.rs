@@ -12,6 +12,7 @@ use aitts_protocol::reply::{Reply, decode_reply};
 use std::time::Duration;
 
 const SUBSCRIBE: &[u8] = b"{\"op\":\"subscribe\"}\n";
+const SUBSCRIBE_WITH_PROGRESS: &[u8] = b"{\"op\":\"subscribe\",\"playback_progress\":true}\n";
 
 /// How a subscription connects again after its connection fails.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,10 +40,17 @@ pub struct Subscription {
     policy: ReconnectPolicy,
     /// `None` after a failure, until a reconnection succeeds.
     connection: Option<LineReader>,
+    /// Whether the subscription asks for `playback_progress` events.
+    progress: bool,
 }
 
-fn acknowledged(client: &Client) -> Result<LineReader, ClientError> {
-    let mut connection = LineReader::connect(&client.socket, client.limit, SUBSCRIBE)?;
+fn acknowledged(client: &Client, progress: bool) -> Result<LineReader, ClientError> {
+    let request = if progress {
+        SUBSCRIBE_WITH_PROGRESS
+    } else {
+        SUBSCRIBE
+    };
+    let mut connection = LineReader::connect(&client.socket, client.limit, request)?;
     match decode_reply(Operation::Subscribe, &connection.next_line()?) {
         Ok(Reply::Subscribe(_)) => Ok(connection),
         Ok(Reply::Error(refusal)) => Err(ClientError::Refused(refusal.error.r#type)),
@@ -52,12 +60,17 @@ fn acknowledged(client: &Client) -> Result<LineReader, ClientError> {
 }
 
 impl Subscription {
-    pub(crate) fn open(client: Client, policy: ReconnectPolicy) -> Result<Self, ClientError> {
-        let connection = Some(acknowledged(&client)?);
+    pub(crate) fn open(
+        client: Client,
+        policy: ReconnectPolicy,
+        progress: bool,
+    ) -> Result<Self, ClientError> {
+        let connection = Some(acknowledged(&client, progress)?);
         Ok(Self {
             client,
             policy,
             connection,
+            progress,
         })
     }
 
@@ -93,7 +106,7 @@ impl Subscription {
             if attempt > 0 {
                 std::thread::sleep(self.policy.delay);
             }
-            match acknowledged(&self.client) {
+            match acknowledged(&self.client, self.progress) {
                 Ok(connection) => {
                     self.connection = Some(connection);
                     return Ok(Delivery::Resubscribed);

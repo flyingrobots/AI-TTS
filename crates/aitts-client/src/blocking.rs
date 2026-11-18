@@ -45,18 +45,17 @@ impl Client {
     /// # Errors
     /// [`ClientError`] when the first subscription is not acknowledged.
     pub fn subscribe(&self, policy: ReconnectPolicy) -> Result<Subscription, ClientError> {
-        Subscription::open(self.clone(), policy)
+        Subscription::open(self.clone(), policy, false)
     }
 
     /// As [`Client::subscribe`], with `playback_progress` events as well.
     ///
     /// # Errors
     /// [`ClientError`] when the first subscription is not acknowledged.
-    #[allow(clippy::todo, reason = "RED stub")]
     pub fn subscribe_to_progress(
         &self,
-        _policy: ReconnectPolicy,
+        policy: ReconnectPolicy,
     ) -> Result<Subscription, ClientError> {
-        todo!()
+        Subscription::open(self.clone(), policy, true)
     }
 }
