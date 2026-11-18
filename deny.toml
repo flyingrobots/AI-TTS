@@ -1,0 +1,14 @@
+# cargo-deny configuration. Only the advisories check runs in CI (issue #198);
+# licence, ban and source policy for Rust crates are out of scope.
+[graph]
+all-features = true
+
+[advisories]
+# Every advisory in the RustSec database fails the check, including
+# unmaintained and unsound crates. Add an `ignore` entry with a reason
+# rather than weakening this table.
+version = 2
+yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+ignore = []
