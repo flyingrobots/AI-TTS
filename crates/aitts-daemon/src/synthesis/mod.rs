@@ -144,6 +144,10 @@ pub fn synthesize(
             mailbox,
         );
     };
+    // Explicit recovery before dispatch; the failed clip's audio is not replayed.
+    if let Err(error) = engine.recover() {
+        return retry(failed(None, SynthesisError::Recover(error)), mailbox);
+    }
     let mut spool = match Spool::create(&target.path, target.capacity_frames) {
         Ok(spool) => spool,
         Err(error) => return retry(failed(None, SynthesisError::CreateSpool(error)), mailbox),
@@ -175,9 +179,9 @@ fn stream_into(
             write_error = spool.append(pcm).err();
         }
     });
-    streamed.map_err(SynthesisError::Engine)?;
     if let Some(error) = write_error {
         return Err(SynthesisError::Write(error));
     }
+    streamed.map_err(SynthesisError::Engine)?;
     spool.seal().map(|_| ()).map_err(SynthesisError::Seal)
 }

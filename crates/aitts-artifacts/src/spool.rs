@@ -83,6 +83,9 @@ pub struct Spool {
     sealed: bool,
     finished: bool,
     error: Option<String>,
+    /// A read of written frames failed; nothing more can be delivered. A
+    /// producer error alone still lets the reader drain the written prefix.
+    read_failed: bool,
 }
 
 impl Spool {
@@ -91,6 +94,20 @@ impl Spool {
     /// # Errors
     /// Fails when `path` is a symbolic link, `capacity_frames` is zero, or on an I/O error.
     pub fn create(path: &Path, capacity_frames: usize) -> io::Result<Self> {
+        // Refuse before touching the file system, so a refusal leaves nothing.
+        if capacity_frames == 0 {
+            return Err(invalid("PCM buffer capacity must be positive"));
+        }
+        let existed = path.symlink_metadata().is_ok();
+        let created = Self::create_file(path, capacity_frames);
+        if created.is_err() && !existed {
+            // Remove only a file this call created; an existing path is not ours.
+            let _absent = std::fs::remove_file(path);
+        }
+        created
+    }
+
+    fn create_file(path: &Path, capacity_frames: usize) -> io::Result<Self> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -152,6 +169,7 @@ impl Spool {
             sealed: cached,
             finished: cached,
             error: None,
+            read_failed: false,
         })
     }
 
@@ -184,7 +202,7 @@ impl Spool {
     ///
     /// A read error is recorded and returned by later reads.
     pub fn fill(&mut self) -> usize {
-        if self.error.is_some() || self.fed >= self.available {
+        if self.read_failed || self.fed >= self.available {
             return 0;
         }
         let pending = usize::try_from(self.available - self.fed).unwrap_or(usize::MAX);
@@ -193,6 +211,7 @@ impl Spool {
         let offset = self.data_offset + self.fed * frame_bytes();
         if let Err(error) = self.file.read_exact_at(&mut pcm, offset) {
             self.error = Some(format!("PCM spool returned incomplete frames: {error}"));
+            self.read_failed = true;
             self.finished = true;
             return 0;
         }

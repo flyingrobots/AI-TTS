@@ -4,9 +4,14 @@
 //! This module owns reporting a synthesis result and the audio cleanup it implies.
 
 use std::fs;
+use std::io;
+use std::path::Path;
+
+use aitts_artifacts::spool::Spool;
 
 use super::{Finished, Unreported};
 use crate::conductor::Outcome;
+use crate::conductor::durable::DurableError;
 use crate::conductor::mailbox::{Mailbox, Reply, Request};
 
 /// Send `unreported.report` to the conductor and settle its audio.
@@ -16,21 +21,44 @@ use crate::conductor::mailbox::{Mailbox, Reply, Request};
 /// returns the report again with nothing removed; a stopped conductor removes
 /// the unreported audio.
 pub fn retry(unreported: Unreported, mailbox: &Mailbox) -> Finished {
-    let answer = mailbox.request(Request::Apply(unreported.report.clone()));
-    match (answer, unreported.error) {
-        (Ok(Reply::Applied(Ok(Outcome::Applied))), None) => match unreported.spool {
-            Some(spool) => Finished::Ready(spool),
-            None => Finished::Discarded,
+    let Unreported {
+        report,
+        spool,
+        error,
+        path,
+    } = unreported;
+    match mailbox.request(Request::Apply(report.clone())) {
+        Ok(Reply::Applied(Ok(Outcome::Applied))) => match (spool, error) {
+            (spool, Some(error)) => Finished::Failed { spool, error },
+            (Some(spool), None) => Finished::Ready(spool),
+            (None, None) => Finished::Discarded,
         },
-        (Ok(Reply::Applied(Ok(_))), Some(error)) => Finished::Failed {
-            spool: unreported.spool,
+        // Not owed any more (cancelled, or refused as illegal): remove the audio.
+        Ok(Reply::Applied(
+            Ok(Outcome::Discarded | Outcome::Cleared(_)) | Err(DurableError::Refused(_)),
+        )) => remove(spool, &path, Finished::Discarded),
+        // Not recorded: keep everything for another attempt.
+        Ok(Reply::Applied(Err(DurableError::Ledger(_)))) => Finished::Unreported(Unreported {
+            report,
+            spool,
+            error,
+            path,
+        }),
+        // The conductor stopped, or answered out of contract: nothing will own
+        // this audio, so remove it.
+        Ok(_) | Err(_) => remove(spool, &path, Finished::Closed),
+    }
+}
+
+/// Remove `path`, closing `spool` first. A file already gone counts as removed.
+fn remove(spool: Option<Spool>, path: &Path, removed: Finished) -> Finished {
+    drop(spool);
+    match fs::remove_file(path) {
+        Ok(()) => removed,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => removed,
+        Err(error) => Finished::CleanupFailed {
+            path: path.to_path_buf(),
             error,
         },
-        _ => {
-            drop(unreported.spool);
-            // Stub: every other answer discards the audio.
-            let _absent = fs::remove_file(&unreported.path);
-            Finished::Discarded
-        }
     }
 }

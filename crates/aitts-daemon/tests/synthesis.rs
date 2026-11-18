@@ -109,6 +109,7 @@ fn worker(root: &Path) -> WorkerSupervisor {
 struct Gated {
     inner: WorkerSupervisor,
     gate: Receiver<()>,
+    reached: Sender<()>,
 }
 impl Engine for Gated {
     fn name(&self) -> &str {
@@ -119,6 +120,8 @@ impl Engine for Gated {
         request: &SpeechRequest<'_>,
         sink: &mut dyn FnMut(&[u8]),
     ) -> Result<(), EngineError> {
+        // Tell the test the engine is reached (the spool exists), then wait.
+        let _unwatched = self.reached.send(());
         self.gate
             .recv()
             .map_err(|_| EngineError::Refused("gate dropped"))?;
@@ -148,15 +151,15 @@ fn registry(engine: Box<dyn Engine>) -> Registry {
     registry
 }
 
-fn gated(root: &Path) -> (Registry, Sender<()>) {
+fn gated(root: &Path) -> (Registry, Sender<()>, Receiver<()>) {
     let (open, gate) = gate_channel();
-    (
-        registry(Box::new(Gated {
-            inner: worker(root),
-            gate,
-        })),
-        open,
-    )
+    let (reached, engine_reached) = gate_channel();
+    let engine = Gated {
+        inner: worker(root),
+        gate,
+        reached,
+    };
+    (registry(Box::new(engine)), open, engine_reached)
 }
 
 fn job(id: &str, engine: &str) -> Job {
@@ -258,7 +261,7 @@ fn audio_for_a_clip_cancelled_during_synthesis_is_discarded_and_its_file_removed
     let root = runtime("golden");
     let dir = tempfile::tempdir().unwrap();
     let mut owner = owner(&[("a", Priority::Normal)]);
-    let (mut engines, open) = gated(root.path());
+    let (mut engines, open, _engine_reached) = gated(root.path());
     let (mailbox, inbox) = channel(2);
     let finished = thread::scope(|scope| {
         // Owned by the closure: unwinding drops them and releases the worker.
@@ -369,7 +372,7 @@ fn preempting_audio_that_finishes_after_a_plan_step_takes_the_device_on_the_next
     };
     owner.apply(submit).unwrap();
     assert_eq!(owner.next_synthesis().unwrap().as_deref(), Some("alert"));
-    let (mut engines, open) = gated(root.path());
+    let (mut engines, open, _engine_reached) = gated(root.path());
     let (mailbox, inbox) = channel(2);
     thread::scope(|scope| {
         // Owned by the closure: unwinding drops them and releases the worker.
@@ -570,7 +573,7 @@ fn an_unremovable_discarded_file_is_reported_as_cleanup_failed() {
     let spools = dir.path().join("spools");
     fs::create_dir(&spools).unwrap();
     let mut owner = owner(&[("a", Priority::Normal)]);
-    let (mut engines, open) = gated(root.path());
+    let (mut engines, open, engine_reached) = gated(root.path());
     let (mailbox, inbox) = channel(2);
     let finished = thread::scope(|scope| {
         // Owned by the closure: unwinding drops them and releases the worker.
@@ -592,7 +595,8 @@ fn an_unremovable_discarded_file_is_reported_as_cleanup_failed() {
             inbox.step(&mut owner),
             Served::Answered(Request::Apply(Command::Cancel("a".to_owned())))
         );
-        // The spool exists once the engine is reached; then removal is denied.
+        // Forced: wait until the engine is reached (the spool exists), then deny removal.
+        engine_reached.recv().unwrap();
         fs::set_permissions(&spools, fs::Permissions::from_mode(0o500)).unwrap();
         open.send(()).unwrap();
         assert_eq!(inbox.step(&mut owner), ready("a"));
