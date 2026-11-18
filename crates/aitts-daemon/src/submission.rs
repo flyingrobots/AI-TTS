@@ -30,8 +30,12 @@ use crate::api::Refusal;
 use crate::conductor::durable::DurableError;
 use crate::conductor::mailbox::{self, Mailbox};
 use crate::connection::Shared;
+use crate::projection::number;
 use crate::runtime::EngineView;
+use crate::runtime::publish;
 use crate::settings_view::speaking_voice;
+use aitts_protocol::catalog::Assignment;
+use aitts_protocol::event::Event;
 
 /// The submit fields this module reads, borrowed from the request.
 pub(crate) struct Submission<'a> {
@@ -70,7 +74,7 @@ pub(crate) fn submit(
     mailbox: &Mailbox,
     store: &Store,
     engine: &EngineView,
-    _events: &Shared,
+    events: &Shared,
     submission: &Submission<'_>,
 ) -> Result<Reply, Refusal> {
     if submission.text.trim().is_empty() {
@@ -101,7 +105,13 @@ pub(crate) fn submit(
     }
     let source = present_value(submission.source);
     let requested_voice = present_value(submission.voice);
-    let voice = voice(store, engine, source.as_deref(), requested_voice.as_deref())?;
+    let voice = voice(
+        store,
+        engine,
+        events,
+        source.as_deref(),
+        requested_voice.as_deref(),
+    )?;
     let composite =
         segments.len() != 1 || segments.first().map(String::as_str) != Some(submission.text);
     let mut new = NewUtterance::new(
@@ -235,6 +245,7 @@ fn speed(store: &Store, requested: Option<serde_json::Number>) -> Result<f64, Re
 fn voice(
     store: &Store,
     engine: &EngineView,
+    events: &Shared,
     source: Option<&str>,
     requested: Option<&str>,
 ) -> Result<String, Refusal> {
@@ -271,7 +282,18 @@ fn voice(
     .map_err(|_| bad("this engine has no voices"))?;
     let voice = decision.voice.to_owned();
     if let (Claim::Acquire, Some(source)) = (decision.claim, source) {
-        store.voices().claim(source, &voice)?;
+        let claimed = store.voices().claim(source, &voice)?;
+        publish(
+            events,
+            &Event::VoiceAssigned {
+                assignment: Assignment {
+                    source: claimed.source,
+                    voice: claimed.voice,
+                    pinned: claimed.pinned,
+                    assigned_at: number(claimed.assigned_at),
+                },
+            },
+        );
     }
     Ok(voice)
 }

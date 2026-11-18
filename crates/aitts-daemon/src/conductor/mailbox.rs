@@ -199,9 +199,16 @@ impl Inbox {
 
     /// [`Inbox::serve`], giving `publish` the events of each answered request.
     pub fn serve_with<L: Ledger>(self, durable: &mut Durable<L>, publish: impl FnMut(&Event)) {
-        // Stub: events are not published.
-        drop(publish);
-        self.serve(durable);
+        let mut publish = publish;
+        loop {
+            let served = self.step(durable);
+            for event in durable.take_events() {
+                publish(&event);
+            }
+            if served == Served::Stopped {
+                return;
+            }
+        }
     }
 
     /// Answer requests until shutdown, dropping any that arrive after it.

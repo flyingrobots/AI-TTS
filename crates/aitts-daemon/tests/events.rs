@@ -19,7 +19,7 @@
 mod support;
 
 use std::fs;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
@@ -36,7 +36,7 @@ use aitts_protocol::reply::{Reply, decode_reply};
 use aitts_protocol::value::{Nullable, Number};
 use aitts_protocol::vocabulary::{ModelState, State};
 use aitts_store::{Store, SystemClock};
-use support::{read_line, request};
+use support::request;
 
 struct Daemon {
     running: Option<aitts_daemon::Running>,
@@ -121,14 +121,16 @@ impl Daemon {
         }
     }
 
-    fn subscribe(&self) -> UnixStream {
+    /// A subscriber read through one buffer, so lines that arrive together are kept.
+    fn subscribe(&self) -> BufReader<UnixStream> {
         let stream = UnixStream::connect(&self.socket).unwrap();
+        stream.set_read_timeout(Some(support::REPLY_LIMIT)).unwrap();
         (&stream).write_all(b"{\"op\":\"subscribe\"}\n").unwrap();
-        assert!(
-            !read_line(&stream).is_empty(),
-            "no subscribe acknowledgement"
-        );
-        stream
+        let mut events = BufReader::new(stream);
+        let mut ack = Vec::new();
+        events.read_until(b'\n', &mut ack).unwrap();
+        assert!(!ack.is_empty(), "no subscribe acknowledgement");
+        events
     }
 
     fn ask(&self, operation: Operation, line: &str) -> Reply {
@@ -158,8 +160,9 @@ impl Drop for Daemon {
     }
 }
 
-fn next_event(stream: &UnixStream) -> Event {
-    let line = read_line(stream);
+fn next_event(stream: &mut BufReader<UnixStream>) -> Event {
+    let mut line = Vec::new();
+    stream.read_until(b'\n', &mut line).unwrap();
     decode_event(&line).unwrap_or_else(|error| {
         panic!(
             "{} is not an event ({error})",
@@ -184,7 +187,7 @@ fn changed(id: &str, from: Option<State>, to: State, at: f64) -> Event {
 #[test]
 fn queue_operations_send_the_python_events_in_order() {
     let daemon = Daemon::start();
-    let events = daemon.subscribe();
+    let mut events = daemon.subscribe();
     let a = daemon.submit(r#"{"op":"submit","text":"First."}"#);
     let agent = daemon.submit(r#"{"op":"submit","text":"Mine.","source":"agent-x"}"#);
     assert!(matches!(
@@ -226,7 +229,7 @@ fn queue_operations_send_the_python_events_in_order() {
         },
     ];
     for (index, wanted) in expected.into_iter().enumerate() {
-        assert_eq!(next_event(&events), wanted, "event {index}");
+        assert_eq!(next_event(&mut events), wanted, "event {index}");
     }
 }
 
@@ -238,10 +241,10 @@ fn a_driven_clip_announces_each_transition_in_order() {
         daemon.ask(Operation::Resume, r#"{"op":"resume"}"#),
         Reply::Resume(_)
     ));
-    let events = daemon.subscribe();
+    let mut events = daemon.subscribe();
     let id = daemon.submit(r#"{"op":"submit","text":"Watch me."}"#);
     let steps: Vec<(Nullable<State>, State)> = (0..5)
-        .map(|_| match next_event(&events) {
+        .map(|_| match next_event(&mut events) {
             Event::StateChanged {
                 id: seen, from, to, ..
             } if seen == id => (from, to),
