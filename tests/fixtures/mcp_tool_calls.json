@@ -83,22 +83,22 @@
      "voice": "bm_daniel"
     },
     "runtime": {
-     "pid": 83189,
-     "uptime_seconds": 0.025600249995477498,
+     "pid": 96920,
+     "uptime_seconds": 0.02745787496678531,
      "model_state": "ready",
      "active_synthesis": 1
     },
     "playback": [],
     "input": [
      {
-      "id": "utt_26e26959f6da487f9e5ca1b1eb7c8af7",
+      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Synthesizing",
-      "enqueued_at": 1794994379.534772,
+      "enqueued_at": 1794994792.444076,
       "source": null,
       "duration_ms": null,
       "played_ms": null,
@@ -112,14 +112,14 @@
     ],
     "plan": [
      {
-      "id": "utt_26e26959f6da487f9e5ca1b1eb7c8af7",
+      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Synthesizing",
-      "enqueued_at": 1794994379.534772,
+      "enqueued_at": 1794994792.444076,
       "source": null,
       "duration_ms": null,
       "played_ms": null,
@@ -214,7 +214,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_26e26959f6da487f9e5ca1b1eb7c8af7\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Synthesizing\",\n      \"enqueued_at\": 1794994379.534772,\n      \"source\": null,\n      \"duration_ms\": null,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_ff13e30021ec460e88c941bf16dc7490\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Synthesizing\",\n      \"enqueued_at\": 1794994792.444076,\n      \"source\": null,\n      \"duration_ms\": null,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -222,14 +222,14 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_26e26959f6da487f9e5ca1b1eb7c8af7",
+       "id": "utt_ff13e30021ec460e88c941bf16dc7490",
        "text": "Held speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
        "state": "Synthesizing",
-       "enqueued_at": 1794994379.534772,
+       "enqueued_at": 1794994792.444076,
        "source": null,
        "duration_ms": null,
        "played_ms": null,
@@ -796,6 +796,284 @@
      "input_active": false,
      "engine_preparing": null,
      "interruption": null
+    }
+   }
+  }
+ },
+ {
+  "tool": "get_caption_settings",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": true,
+     "captions_enabled_configured": true,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "settings"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"enabled\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "enabled": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_queue",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "status": {
+     "version": "0.2.0",
+     "state": "accepting",
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "playback_state": "paused",
+     "input_active": false,
+     "interruption": null,
+     "current": null,
+     "counts": {
+      "Synthesizing": 1
+     },
+     "engine": "fake",
+     "engine_preparing": null,
+     "voice": "bm_daniel"
+    },
+    "runtime": {
+     "pid": 96920,
+     "uptime_seconds": 0.02745787496678531,
+     "model_state": "ready",
+     "active_synthesis": 1
+    },
+    "playback": [],
+    "input": [
+     {
+      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "text": "Held speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Synthesizing",
+      "enqueued_at": 1794994792.444076,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
+    "plan": [
+     {
+      "id": "utt_not_an_id",
+      "text": "Held speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Synthesizing",
+      "enqueued_at": 1794994792.444076,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
+    "history": [],
+    "voices": [
+     "bm_daniel",
+     "af_bella"
+    ],
+    "engines": [
+     {
+      "name": "fake",
+      "is_local": true,
+      "voices": [
+       "bm_daniel",
+       "af_bella"
+      ],
+      "state": "ready",
+      "selected": true
+     }
+    ],
+    "models": [
+     {
+      "name": "kokoro",
+      "title": "Kokoro",
+      "description": "Compact speech model with multiple voices and languages.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     },
+     {
+      "name": "kokoro-mlx",
+      "title": "Kokoro \u00b7 Apple Silicon",
+      "description": "The same Kokoro voices, accelerated with Apple's MLX framework.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     },
+     {
+      "name": "chatterbox",
+      "title": "Chatterbox Turbo",
+      "description": "An alternative local speech model with one built-in voice.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     }
+    ],
+    "voice_assignments": [],
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": false,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "snapshot",
+    "limit": 1
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool list_speech_queue: invalid_response: daemon returned a response outside the public QueueView schema",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "speech_metrics",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "counts": {},
+    "queue_depth": {
+     "input": 0,
+     "playback": 0
+    },
+    "cache": {
+     "bytes": 0,
+     "max_bytes": 1073741824
+    },
+    "synthesis_wait_ms": {
+     "count": 1,
+     "p50": 2,
+     "p95": 2,
+     "max": 2
+    },
+    "synthesis_duration_ms": null,
+    "playback_wait_ms": null,
+    "playback_failures": 0
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "metrics"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"counts\": {},\n  \"queue_depth\": {\n    \"input\": 0,\n    \"playback\": 0\n  },\n  \"cache\": {\n    \"bytes\": 0,\n    \"max_bytes\": 1073741824\n  },\n  \"synthesis_wait_ms\": {\n    \"count\": 1,\n    \"p50\": 2.0,\n    \"p95\": 2.0,\n    \"max\": 2.0\n  },\n  \"synthesis_duration_ms\": null,\n  \"playback_wait_ms\": null,\n  \"playback_failures\": 0\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "counts": {},
+     "queue_depth": {
+      "input": 0,
+      "playback": 0
+     },
+     "cache": {
+      "bytes": 0,
+      "max_bytes": 1073741824
+     },
+     "synthesis_wait_ms": {
+      "count": 1,
+      "p50": 2.0,
+      "p95": 2.0,
+      "max": 2.0
+     },
+     "synthesis_duration_ms": null,
+     "playback_wait_ms": null,
+     "playback_failures": 0
     }
    }
   }

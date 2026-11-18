@@ -115,3 +115,62 @@ fn each_tool_call_gets_the_python_servers_reply_and_sends_its_requests() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+fn json_value() -> impl proptest::strategy::Strategy<Value = Value> {
+    use proptest::prelude::*;
+    let leaf = prop_oneof![
+        Just(Value::Null),
+        any::<bool>().prop_map(Value::Bool),
+        any::<i64>().prop_map(|n| json!(n)),
+        (-1.0e6..1.0e6f64).prop_map(|n| json!(n)),
+        "[a-z_]{0,8}".prop_map(Value::String),
+        Just(json!("utt_0123456789abcdef0123456789abcdef")),
+    ];
+    leaf.prop_recursive(3, 16, 4, |inner| {
+        prop_oneof![
+            proptest::collection::vec(inner.clone(), 0..4).prop_map(Value::Array),
+            proptest::collection::btree_map("[a-z_]{1,8}", inner, 0..4)
+                .prop_map(|map| Value::Object(map.into_iter().collect())),
+        ]
+    })
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(256))]
+    /// Oracle: the MCP tool result shape. Any daemon reply, recorded or with one
+    /// field replaced by random JSON, gives a result that is either an error or
+    /// a structured result whose text is the same JSON; never a panic.
+    #[test]
+    fn any_daemon_reply_gives_a_well_formed_tool_result(
+        index in 0usize..1000,
+        pick in proptest::prelude::any::<usize>(),
+        replacement in json_value(),
+        replace in proptest::prelude::any::<bool>(),
+    ) {
+        let cases: Vec<Value> = cases()
+            .into_iter()
+            .filter(|case| case["socket"] == json!("peer"))
+            .collect();
+        let case = &cases[index % cases.len()];
+        let mut reply = case["daemon_replies"][0].clone();
+        if replace {
+            let keys: Vec<String> = reply.as_object().unwrap().keys().cloned().collect();
+            let key = keys[pick % keys.len()].clone();
+            reply[key] = replacement;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("peer.sock");
+        let handle = peer(&socket, vec![reply]);
+        let result = call(&socket, &case["tool"], &case["arguments"])["result"].clone();
+        stop(&socket, handle);
+        let is_error = result["isError"].as_bool();
+        proptest::prop_assert!(is_error.is_some(), "{result}");
+        let text = result["content"][0]["text"].as_str().unwrap_or_default().to_owned();
+        if is_error == Some(false) {
+            let printed: Value = serde_json::from_str(&text).unwrap();
+            proptest::prop_assert_eq!(printed, result["structuredContent"].clone());
+        } else {
+            proptest::prop_assert!(text.starts_with("Error executing tool "), "{text}");
+        }
+    }
+}

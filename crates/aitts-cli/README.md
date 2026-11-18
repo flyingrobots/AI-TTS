@@ -35,8 +35,13 @@ server on standard input and output (part of issue #139). It writes only
 newline-delimited JSON-RPC 2.0 replies to standard output and gives no reply
 to a line that is not a JSON-RPC request. `initialize`, protocol version
 negotiation, `ping`, and `tools/list` (the 21 tools of the Python server, from
-`src/mcp_tools.json`) answer as the Python `ai-tts-mcp` does. `tools/call` is
-not yet available: it returns a JSON-RPC error. Hosts still start the Python
+`src/mcp_tools.json`) answer as the Python `ai-tts-mcp` does. `tools/call` works for
+the 15 tools that take no arguments: one daemon request each, the reply without
+`ok` checked against the tool's recorded output schema with defaults filled,
+and `structuredContent` plus the same JSON as text. A daemon error, an
+unreachable daemon, or a reply outside the schema gives an `isError` result
+with the Python text `Error executing tool NAME: CODE: MESSAGE`. The tools
+that take arguments still answer `Unknown tool`. Hosts still start the Python
 `ai-tts-mcp` until tool calls are ported.
 
 ## Commands it does not run itself

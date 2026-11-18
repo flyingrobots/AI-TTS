@@ -61,6 +61,9 @@ CALLS: list[tuple[str, dict[str, Any], list[str]]] = [
     ("clear_speech_queue", {}, ["clear"]),
     ("purge_cached_audio", {}, ["purge_cache"]),
     ("speech_status", {}, ["held_status"]),
+    ("get_caption_settings", {}, ["settings_captions_on"]),
+    ("list_speech_queue", {}, ["snapshot_bad_id"]),
+    ("speech_metrics", {}, ["metrics_integral"]),
     ("speech_status", {}, ["not_found"]),
     ("speech_status", {}, ["outside_schema"]),
     ("speech_status", {}, []),
@@ -110,6 +113,15 @@ def _daemon_replies() -> dict[str, Any]:
         replies["held_status"] = ask({"op": "status"})
         replies["snapshot"] = ask({"op": "snapshot", "limit": 1})
         replies["resume_when_input_idle"] = ask({"op": "resume_when_input_idle"})
+        ask({"op": "settings", "set": {"captions_enabled": True}})
+        replies["settings_captions_on"] = ask({"op": "settings"})
+        bad = json.loads(json.dumps(replies["snapshot"]))
+        bad["plan"][0]["id"] = "utt_not_an_id"
+        replies["snapshot_bad_id"] = bad
+        # A daemon may write a whole number for a float field; Pydantic dumps 2.0.
+        integral = json.loads(json.dumps(replies["metrics"]))
+        integral["synthesis_wait_ms"] = {"count": 1, "p50": 2, "p95": 2, "max": 2}
+        replies["metrics_integral"] = integral
         replies["not_found"] = {"ok": False, "error": {"type": "not_found", "message": "no such"}}
         replies["outside_schema"] = {**replies["status"], "unexpected": 1}
         return replies
