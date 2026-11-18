@@ -4,7 +4,7 @@
 """The MCP parity fixtures still describe the Python ``ai-tts-mcp`` server.
 
 ``tests/fixtures/mcp_session.json`` holds JSON-RPC sessions with the exact
-replies of the Python server (``null`` where it sends none), and
+replies of the Python server (``null`` where it sends none, detected by a following ``ping`` probe), and
 ``crates/aitts-cli/src/mcp_tools.json`` holds its ``tools/list`` result. The
 Rust ``ai-tts mcp`` is tested against both files, so this test ties them to the
 reference server. Re-baseline: ``uv run python -m tests.test_mcp_parity_table``
@@ -13,9 +13,9 @@ rewrites the session file from the Python server; review the diff.
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
-import select
 import subprocess
 import sys
 from pathlib import Path
@@ -31,8 +31,9 @@ pytestmark = [
 _REPOSITORY = Path(__file__).parents[1]
 _SESSIONS = _REPOSITORY / "tests" / "fixtures" / "mcp_session.json"
 _TOOLS = _REPOSITORY / "crates" / "aitts-cli" / "src" / "mcp_tools.json"
-# A message the server does not answer is recorded as null after this wait.
-_SILENCE_SECONDS = 2.0
+# Sent after each message: when its reply comes first, the message got none.
+# A ping changes no state, so the probe does not alter the session.
+_PROBE = {"jsonrpc": "2.0", "id": "parity-probe", "method": "ping"}
 
 
 def _initialize(version: str, request_id: int = 1) -> dict[str, Any]:
@@ -126,8 +127,14 @@ def run_session(messages: list[Any]) -> dict[str, Any]:
         process.stdin.write(line + "\n")
         process.stdin.flush()
         if not isinstance(message, dict) or "id" in message:
-            ready, _, _ = select.select([process.stdout], [], [], _SILENCE_SECONDS)
-            replies.append(json.loads(process.stdout.readline()) if ready else None)
+            process.stdin.write(json.dumps(_PROBE) + "\n")
+            process.stdin.flush()
+            first = json.loads(process.stdout.readline())
+            if first.get("id") == _PROBE["id"]:
+                replies.append(None)
+            else:
+                replies.append(first)
+                assert json.loads(process.stdout.readline())["id"] == _PROBE["id"]
     process.stdin.close()
     trailing = process.stdout.read()
     status = process.wait()
@@ -138,9 +145,28 @@ def run_session(messages: list[Any]) -> dict[str, Any]:
 _RECORDED: list[dict[str, Any]] = json.loads(_SESSIONS.read_text(encoding="utf-8"))
 
 
+def _docstrings_cleaned(value: Any) -> Any:  # noqa: ANN401 - any parsed JSON value
+    """Python 3.13 dedents docstrings and 3.12 does not; compare tool descriptions cleaned.
+
+    The fixtures hold the 3.12 text, which `make install` and CI use.
+    """
+    if isinstance(value, dict):
+        return {
+            key: inspect.cleandoc(item)
+            if key == "description" and isinstance(item, str)
+            else _docstrings_cleaned(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_docstrings_cleaned(item) for item in value]
+    return value
+
+
 @pytest.mark.parametrize("index", range(len(SESSIONS)))
 def test_session_replies_match_the_python_server(index: int) -> None:
-    assert run_session(SESSIONS[index]) == _RECORDED[index]
+    assert _docstrings_cleaned(run_session(SESSIONS[index])) == _docstrings_cleaned(
+        _RECORDED[index]
+    )
 
 
 def test_tool_catalog_is_the_python_tools_list() -> None:

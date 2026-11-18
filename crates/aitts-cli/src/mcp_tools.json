@@ -1448,7 +1448,7 @@
    "openWorldHint": false,
    "readOnlyHint": true
   },
-  "description": "Report how long synthesis and the playback queue are actually taking.\n\nThe two waits are separate on purpose: synthesis is parallel work,\nwhile the playback queue is a serial resource. A null summary means\nnothing has been measured yet rather than zero.\n",
+  "description": "Report how long synthesis and the playback queue are actually taking.\n\n        The two waits are separate on purpose: synthesis is parallel work,\n        while the playback queue is a serial resource. A null summary means\n        nothing has been measured yet rather than zero.\n        ",
   "inputSchema": {
    "properties": {},
    "type": "object",
@@ -1992,7 +1992,7 @@
    "openWorldHint": false,
    "readOnlyHint": false
   },
-  "description": "Give up the current chunk of a chunked document and play the next one.\n\nFails when the clip has no chunks, when it is already on its last\nchunk, or while playback is held. Abandoning the whole clip is\nskip_current_speech.\n",
+  "description": "Give up the current chunk of a chunked document and play the next one.\n\n        Fails when the clip has no chunks, when it is already on its last\n        chunk, or while playback is held. Abandoning the whole clip is\n        skip_current_speech.\n        ",
   "inputSchema": {
    "properties": {},
    "type": "object",
@@ -2090,7 +2090,7 @@
    "openWorldHint": false,
    "readOnlyHint": false
   },
-  "description": "Replay the chunk before the current one, from its start.\n\nFails on the first chunk, when the clip has no chunks, and while\nplayback is held.\n",
+  "description": "Replay the chunk before the current one, from its start.\n\n        Fails on the first chunk, when the clip has no chunks, and while\n        playback is held.\n        ",
   "inputSchema": {
    "properties": {},
    "type": "object",
@@ -2189,7 +2189,7 @@
    "openWorldHint": false,
    "readOnlyHint": false
   },
-  "description": "Release a playback hold once nothing is capturing audio input.\n\nThe hold stays in force until then. Use this rather than resuming\noutright when the listener may still be speaking.\n",
+  "description": "Release a playback hold once nothing is capturing audio input.\n\n        The hold stays in force until then. Use this rather than resuming\n        outright when the listener may still be speaking.\n        ",
   "inputSchema": {
    "properties": {},
    "type": "object",
@@ -2260,7 +2260,7 @@
    "openWorldHint": false,
    "readOnlyHint": true
   },
-  "description": "Report which voice each speaking client holds.\n\nA pinned assignment was set by the listener and outranks whatever a\nclient asks for at submission.\n",
+  "description": "Report which voice each speaking client holds.\n\n        A pinned assignment was set by the listener and outranks whatever a\n        client asks for at submission.\n        ",
   "inputSchema": {
    "properties": {},
    "type": "object",
@@ -2327,7 +2327,7 @@
    "openWorldHint": false,
    "readOnlyHint": false
   },
-  "description": "Assign a voice to one speaking client, or release that assignment.\n\nAn assignment made here outranks the voice a client requests. This\nspeaks for another client's audible identity, so prefer leaving it to\nthe listener unless they asked.\n",
+  "description": "Assign a voice to one speaking client, or release that assignment.\n\n        An assignment made here outranks the voice a client requests. This\n        speaks for another client's audible identity, so prefer leaving it to\n        the listener unless they asked.\n        ",
   "inputSchema": {
    "properties": {
     "source": {
