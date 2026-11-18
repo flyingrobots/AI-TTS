@@ -58,8 +58,12 @@ and the time. It matches the Python `SpeechTUI` on recorded scenarios
 ratatui in the Python layout: header, a rounded now-playing card (details,
 progress, at most five lines of spoken text, meter), the queue and history
 tables with the selected row reversed in the focused table, the status line
-and the footer. The event loop and `ai-tts tui` itself follow; until then
-`ai-tts tui` runs the Python dashboard.
+and the footer. `aitts_cli::tui::start` runs it on the
+terminal: a watcher subscribes with playback progress, reads a snapshot,
+reports a failure on the status line and subscribes again a second later; the
+terminal leaves raw mode and the alternate screen on `q`, on Ctrl+C, on an
+error and on a panic. `ai-tts tui` is switched to it in a later change; until
+then `ai-tts tui` runs the Python dashboard.
 
 ## Commands it does not run itself
 

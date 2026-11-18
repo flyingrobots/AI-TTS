@@ -6,10 +6,14 @@
 //! caller supplies snapshots, events, keys and the clock.
 
 mod draw;
+mod run;
+mod terminal;
 
 pub use draw::draw;
+pub use run::{Commands, Input, Session, SocketCommands, run, snapshot, watch};
 use serde::Serialize;
 use serde_json::{Value, json};
+pub use terminal::{RawMode, TerminalSession, key_name, raw_mode, start};
 
 /// Two `d` presses on the same clip within this many seconds cancel it.
 const DELETE_WINDOW_SECONDS: f64 = 1.0;
@@ -435,6 +439,11 @@ impl Dashboard {
                 self.status = literal_text(&format!("Could not complete command: {reason}"));
             }
         }
+    }
+
+    /// The snapshot shown now.
+    pub fn snapshot(&self) -> &Value {
+        &self.snapshot
     }
 
     /// What is shown now.
