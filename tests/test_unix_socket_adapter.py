@@ -18,6 +18,8 @@ from aitts.application.schemas import (
     EnqueueSpeech,
     EnqueueSpeechReceipt,
     PurgeCachedAudioReceipt,
+    RequeueSpeech,
+    RequeueSpeechReceipt,
     SetCaptionsEnabled,
     SpeechServiceError,
 )
@@ -107,6 +109,33 @@ def test_enqueue_decodes_daemon_receipt_as_public_schema() -> None:
 
     assert receipt == EnqueueSpeechReceipt.model_validate(
         {key: value for key, value in enqueue_response().items() if key != "ok"}
+    )
+
+
+def test_requeue_decodes_the_daemon_requeued_reply() -> None:
+    """Oracle: the protocol's `Requeued` reply (crates/aitts-protocol control_reply.rs).
+
+    The daemon always sends `composite` and `segment_count` with a requeue; the
+    public receipt must carry them rather than reject the reply (#211).
+    """
+    reply = {
+        "ok": True,
+        "id": UTTERANCE_ID,
+        "state": State.QUEUED.value,
+        "priority": Priority.URGENT.value,
+        "composite": True,
+        "segment_count": 3,
+    }
+    adapter = UnixSocketSpeechAdapter(ScriptedClient(reply))
+
+    receipt = adapter.requeue_speech(RequeueSpeech(id=UTTERANCE_ID, priority=Priority.URGENT))
+
+    assert receipt == RequeueSpeechReceipt(
+        id=UTTERANCE_ID,
+        state=State.QUEUED,
+        priority=Priority.URGENT,
+        composite=True,
+        segment_count=3,
     )
 
 

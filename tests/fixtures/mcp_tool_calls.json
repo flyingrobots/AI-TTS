@@ -85,21 +85,21 @@
      "voice": "bm_daniel"
     },
     "runtime": {
-     "pid": 7843,
-     "uptime_seconds": 0.7709143749671057,
+     "pid": 50624,
+     "uptime_seconds": 0.4079763749614358,
      "model_state": "ready",
-     "active_synthesis": 1
+     "active_synthesis": 0
     },
     "playback": [
      {
-      "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+      "id": "utt_60d4872ce4f1440a92a9411e6d463128",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Ready",
-      "enqueued_at": 1794995465.261529,
+      "enqueued_at": 1794998172.306688,
       "source": null,
       "duration_ms": 100,
       "played_ms": null,
@@ -114,14 +114,14 @@
     "input": [],
     "plan": [
      {
-      "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+      "id": "utt_60d4872ce4f1440a92a9411e6d463128",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Ready",
-      "enqueued_at": 1794995465.261529,
+      "enqueued_at": 1794998172.306688,
       "source": null,
       "duration_ms": 100,
       "played_ms": null,
@@ -135,21 +135,21 @@
     ],
     "history": [
      {
-      "id": "utt_1b03ff270b194023a569c6f88e90496b",
+      "id": "utt_f6f5e0ff1d9a4490a83713d3d482ec62",
       "text": "Cancelled speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Cancelled",
-      "enqueued_at": 1794995465.2664378,
+      "enqueued_at": 1794998172.3077161,
       "source": null,
       "duration_ms": null,
       "played_ms": null,
       "error": null,
       "replay_of": null,
       "final_state": "Cancelled",
-      "finished_at": 1794995465.269245,
+      "finished_at": 1794998172.30924,
       "audio_cached": false,
       "playback": true,
       "composite": false,
@@ -239,7 +239,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Ready\",\n      \"enqueued_at\": 1794995465.261529,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Ready\",\n      \"enqueued_at\": 1794998172.306688,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -247,14 +247,14 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+       "id": "utt_60d4872ce4f1440a92a9411e6d463128",
        "text": "Held speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
        "state": "Ready",
-       "enqueued_at": 1794995465.261529,
+       "enqueued_at": 1794998172.306688,
        "source": null,
        "duration_ms": 100,
        "played_ms": null,
@@ -420,7 +420,7 @@
    {
     "ok": true,
     "state": "Paused",
-    "current": "utt_9f49a9b85f0f4784872be0b259af71f9",
+    "current": "utt_4d6093040cfc47b8b8501f7352d93466",
     "held": true
    }
   ],
@@ -435,14 +435,14 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"state\": \"Paused\",\n  \"current\": \"utt_9f49a9b85f0f4784872be0b259af71f9\",\n  \"held\": true\n}",
+      "text": "{\n  \"state\": \"Paused\",\n  \"current\": \"utt_4d6093040cfc47b8b8501f7352d93466\",\n  \"held\": true\n}",
       "type": "text"
      }
     ],
     "isError": false,
     "structuredContent": {
      "state": "Paused",
-     "current": "utt_9f49a9b85f0f4784872be0b259af71f9",
+     "current": "utt_4d6093040cfc47b8b8501f7352d93466",
      "held": true
     }
    }
@@ -904,21 +904,21 @@
      "voice": "bm_daniel"
     },
     "runtime": {
-     "pid": 7843,
-     "uptime_seconds": 0.7709143749671057,
+     "pid": 50624,
+     "uptime_seconds": 0.4079763749614358,
      "model_state": "ready",
-     "active_synthesis": 1
+     "active_synthesis": 0
     },
     "playback": [
      {
-      "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+      "id": "utt_60d4872ce4f1440a92a9411e6d463128",
       "text": "Held speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Ready",
-      "enqueued_at": 1794995465.261529,
+      "enqueued_at": 1794998172.306688,
       "source": null,
       "duration_ms": 100,
       "played_ms": null,
@@ -940,7 +940,7 @@
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Ready",
-      "enqueued_at": 1794995465.261529,
+      "enqueued_at": 1794998172.306688,
       "source": null,
       "duration_ms": 100,
       "played_ms": null,
@@ -954,21 +954,21 @@
     ],
     "history": [
      {
-      "id": "utt_1b03ff270b194023a569c6f88e90496b",
+      "id": "utt_f6f5e0ff1d9a4490a83713d3d482ec62",
       "text": "Cancelled speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Cancelled",
-      "enqueued_at": 1794995465.2664378,
+      "enqueued_at": 1794998172.3077161,
       "source": null,
       "duration_ms": null,
       "played_ms": null,
       "error": null,
       "replay_of": null,
       "final_state": "Cancelled",
-      "finished_at": 1794995465.269245,
+      "finished_at": 1794998172.30924,
       "audio_cached": false,
       "playback": true,
       "composite": false,
@@ -1257,7 +1257,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1291,7 +1291,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1302,7 +1302,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1326,7 +1326,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1360,7 +1360,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1371,7 +1371,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1402,7 +1402,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1438,7 +1438,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1449,7 +1449,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1474,7 +1474,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1509,7 +1509,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1520,7 +1520,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1545,7 +1545,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1580,7 +1580,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1591,7 +1591,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1616,7 +1616,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1650,7 +1650,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1661,7 +1661,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1687,7 +1687,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1720,7 +1720,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1731,7 +1731,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -1756,7 +1756,7 @@
    {
     "ok": true,
     "accepted": true,
-    "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+    "id": "utt_60d4872ce4f1440a92a9411e6d463128",
     "state": "Queued",
     "playback": true,
     "voice": "bm_daniel",
@@ -1790,7 +1790,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_aeb2c9d58bb34a96bc7f5fa4b402d948\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"accepted\": true,\n  \"id\": \"utt_60d4872ce4f1440a92a9411e6d463128\",\n  \"state\": \"Queued\",\n  \"voice\": \"bm_daniel\",\n  \"sensitivity\": \"confidential\",\n  \"eligible_engines\": [\n    \"fake\"\n  ],\n  \"segment_count\": 1,\n  \"composite\": false,\n  \"playback\": true\n}",
       "type": "text"
      }
     ],
@@ -1801,7 +1801,7 @@
      "submission_disposition": "spooled_until_resume",
      "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
      "accepted": true,
-     "id": "utt_aeb2c9d58bb34a96bc7f5fa4b402d948",
+     "id": "utt_60d4872ce4f1440a92a9411e6d463128",
      "state": "Queued",
      "voice": "bm_daniel",
      "sensitivity": "confidential",
@@ -2228,7 +2228,7 @@
   "daemon_replies": [
    {
     "ok": true,
-    "id": "utt_9f49a9b85f0f4784872be0b259af71f9",
+    "id": "utt_4d6093040cfc47b8b8501f7352d93466",
     "state": "Ready",
     "priority": "normal",
     "composite": false,
@@ -2248,11 +2248,18 @@
    "result": {
     "content": [
      {
-      "text": "Error executing tool requeue_speech: invalid_response: daemon returned a response outside the public RequeueSpeechReceipt schema",
+      "text": "{\n  \"id\": \"utt_4d6093040cfc47b8b8501f7352d93466\",\n  \"state\": \"Ready\",\n  \"priority\": \"normal\",\n  \"segment_count\": 1,\n  \"composite\": false\n}",
       "type": "text"
      }
     ],
-    "isError": true
+    "isError": false,
+    "structuredContent": {
+     "id": "utt_4d6093040cfc47b8b8501f7352d93466",
+     "state": "Ready",
+     "priority": "normal",
+     "segment_count": 1,
+     "composite": false
+    }
    }
   }
  },
@@ -2266,7 +2273,7 @@
   "daemon_replies": [
    {
     "ok": true,
-    "id": "utt_9f49a9b85f0f4784872be0b259af71f9",
+    "id": "utt_4d6093040cfc47b8b8501f7352d93466",
     "state": "Ready",
     "priority": "normal",
     "composite": false,
@@ -2286,11 +2293,18 @@
    "result": {
     "content": [
      {
-      "text": "Error executing tool requeue_speech: invalid_response: daemon returned a response outside the public RequeueSpeechReceipt schema",
+      "text": "{\n  \"id\": \"utt_4d6093040cfc47b8b8501f7352d93466\",\n  \"state\": \"Ready\",\n  \"priority\": \"normal\",\n  \"segment_count\": 1,\n  \"composite\": false\n}",
       "type": "text"
      }
     ],
-    "isError": true
+    "isError": false,
+    "structuredContent": {
+     "id": "utt_4d6093040cfc47b8b8501f7352d93466",
+     "state": "Ready",
+     "priority": "normal",
+     "segment_count": 1,
+     "composite": false
+    }
    }
   }
  },
@@ -2381,21 +2395,21 @@
     "ok": true,
     "items": [
      {
-      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "id": "utt_18c67aff69a34470a1752c5735d3c944",
       "text": "Played speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Played",
-      "enqueued_at": 1794995464.533671,
+      "enqueued_at": 1794998171.929454,
       "source": null,
       "duration_ms": 100,
       "played_ms": 100,
       "error": null,
       "replay_of": null,
       "final_state": "Played",
-      "finished_at": 1794995465.2148638,
+      "finished_at": 1794998172.2514439,
       "audio_cached": true,
       "playback": true,
       "composite": false,
@@ -2417,7 +2431,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_18c67aff69a34470a1752c5735d3c944\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794998171.929454,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794998172.2514439,\n      \"audio_cached\": true\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -2425,14 +2439,14 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "id": "utt_18c67aff69a34470a1752c5735d3c944",
        "text": "Played speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
        "state": "Played",
-       "enqueued_at": 1794995464.533671,
+       "enqueued_at": 1794998171.929454,
        "source": null,
        "duration_ms": 100,
        "played_ms": 100,
@@ -2444,7 +2458,7 @@
        "playback": true,
        "segments": [],
        "final_state": "Played",
-       "finished_at": 1794995465.2148638,
+       "finished_at": 1794998172.2514439,
        "audio_cached": true
       }
      ]
@@ -2464,21 +2478,21 @@
     "ok": true,
     "items": [
      {
-      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "id": "utt_18c67aff69a34470a1752c5735d3c944",
       "text": "Played speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Played",
-      "enqueued_at": 1794995464.533671,
+      "enqueued_at": 1794998171.929454,
       "source": null,
       "duration_ms": 100,
       "played_ms": 100,
       "error": null,
       "replay_of": null,
       "final_state": "Played",
-      "finished_at": 1794995465.2148638,
+      "finished_at": 1794998172.2514439,
       "audio_cached": true,
       "playback": true,
       "composite": false,
@@ -2501,7 +2515,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_18c67aff69a34470a1752c5735d3c944\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794998171.929454,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794998172.2514439,\n      \"audio_cached\": true\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -2509,14 +2523,14 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "id": "utt_18c67aff69a34470a1752c5735d3c944",
        "text": "Played speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
        "state": "Played",
-       "enqueued_at": 1794995464.533671,
+       "enqueued_at": 1794998171.929454,
        "source": null,
        "duration_ms": 100,
        "played_ms": 100,
@@ -2528,7 +2542,7 @@
        "playback": true,
        "segments": [],
        "final_state": "Played",
-       "finished_at": 1794995465.2148638,
+       "finished_at": 1794998172.2514439,
        "audio_cached": true
       }
      ]
@@ -2547,21 +2561,21 @@
     "ok": true,
     "items": [
      {
-      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "id": "utt_18c67aff69a34470a1752c5735d3c944",
       "text": "Played speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Played",
-      "enqueued_at": 1794995464.533671,
+      "enqueued_at": 1794998171.929454,
       "source": null,
       "duration_ms": 100,
       "played_ms": 100,
       "error": null,
       "replay_of": null,
       "final_state": "Played",
-      "finished_at": 1794995465.2148638,
+      "finished_at": 1794998172.2514439,
       "audio_cached": true,
       "playback": true,
       "composite": false,
@@ -2583,7 +2597,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_18c67aff69a34470a1752c5735d3c944\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794998171.929454,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794998172.2514439,\n      \"audio_cached\": true\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -2591,14 +2605,14 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "id": "utt_18c67aff69a34470a1752c5735d3c944",
        "text": "Played speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
        "state": "Played",
-       "enqueued_at": 1794995464.533671,
+       "enqueued_at": 1794998171.929454,
        "source": null,
        "duration_ms": 100,
        "played_ms": 100,
@@ -2610,7 +2624,7 @@
        "playback": true,
        "segments": [],
        "final_state": "Played",
-       "finished_at": 1794995465.2148638,
+       "finished_at": 1794998172.2514439,
        "audio_cached": true
       }
      ]
@@ -2629,21 +2643,21 @@
     "ok": true,
     "items": [
      {
-      "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+      "id": "utt_18c67aff69a34470a1752c5735d3c944",
       "text": "Played speech.",
       "voice": "bm_daniel",
       "speed": 1.0,
       "sensitivity": "confidential",
       "priority": "normal",
       "state": "Played",
-      "enqueued_at": 1794995464.533671,
+      "enqueued_at": 1794998171.929454,
       "source": null,
       "duration_ms": 100,
       "played_ms": 100,
       "error": null,
       "replay_of": null,
       "final_state": "Played",
-      "finished_at": 1794995465.2148638,
+      "finished_at": 1794998172.2514439,
       "audio_cached": true,
       "playback": true,
       "composite": false,
@@ -2665,7 +2679,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_fbf750dd301b414c8bcbceb2e35dbca7\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794995464.533671,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794995465.2148638,\n      \"audio_cached\": true\n    }\n  ]\n}",
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_18c67aff69a34470a1752c5735d3c944\",\n      \"text\": \"Played speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Played\",\n      \"enqueued_at\": 1794998171.929454,\n      \"source\": null,\n      \"duration_ms\": 100,\n      \"played_ms\": 100,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": [],\n      \"final_state\": \"Played\",\n      \"finished_at\": 1794998172.2514439,\n      \"audio_cached\": true\n    }\n  ]\n}",
       "type": "text"
      }
     ],
@@ -2673,14 +2687,14 @@
     "structuredContent": {
      "items": [
       {
-       "id": "utt_fbf750dd301b414c8bcbceb2e35dbca7",
+       "id": "utt_18c67aff69a34470a1752c5735d3c944",
        "text": "Played speech.",
        "voice": "bm_daniel",
        "speed": 1.0,
        "sensitivity": "confidential",
        "priority": "normal",
        "state": "Played",
-       "enqueued_at": 1794995464.533671,
+       "enqueued_at": 1794998171.929454,
        "source": null,
        "duration_ms": 100,
        "played_ms": 100,
@@ -2692,7 +2706,7 @@
        "playback": true,
        "segments": [],
        "final_state": "Played",
-       "finished_at": 1794995465.2148638,
+       "finished_at": 1794998172.2514439,
        "audio_cached": true
       }
      ]
@@ -3108,7 +3122,7 @@
      "source": "agent",
      "voice": "af_bella",
      "pinned": true,
-     "assigned_at": 1794995465.258465
+     "assigned_at": 1794998172.305491
     }
    }
   ],
@@ -3125,7 +3139,7 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"assignment\": {\n    \"source\": \"agent\",\n    \"voice\": \"af_bella\",\n    \"pinned\": true,\n    \"assigned_at\": 1794995465.258465\n  }\n}",
+      "text": "{\n  \"assignment\": {\n    \"source\": \"agent\",\n    \"voice\": \"af_bella\",\n    \"pinned\": true,\n    \"assigned_at\": 1794998172.305491\n  }\n}",
       "type": "text"
      }
     ],
@@ -3135,7 +3149,7 @@
       "source": "agent",
       "voice": "af_bella",
       "pinned": true,
-      "assigned_at": 1794995465.258465
+      "assigned_at": 1794998172.305491
      }
     }
    }
@@ -3342,7 +3356,7 @@
   "daemon_replies": [
    {
     "ok": true,
-    "id": "utt_1b03ff270b194023a569c6f88e90496b",
+    "id": "utt_f6f5e0ff1d9a4490a83713d3d482ec62",
     "state": "Cancelled"
    }
   ],
@@ -3358,13 +3372,13 @@
    "result": {
     "content": [
      {
-      "text": "{\n  \"id\": \"utt_1b03ff270b194023a569c6f88e90496b\",\n  \"state\": \"Cancelled\"\n}",
+      "text": "{\n  \"id\": \"utt_f6f5e0ff1d9a4490a83713d3d482ec62\",\n  \"state\": \"Cancelled\"\n}",
       "type": "text"
      }
     ],
     "isError": false,
     "structuredContent": {
-     "id": "utt_1b03ff270b194023a569c6f88e90496b",
+     "id": "utt_f6f5e0ff1d9a4490a83713d3d482ec62",
      "state": "Cancelled"
     }
    }

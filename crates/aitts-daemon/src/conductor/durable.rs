@@ -12,6 +12,7 @@ use core::fmt;
 
 use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
+use aitts_store::queue::NewUtterance;
 use aitts_store::{Store, Utterance};
 
 use super::{Clip, Command, Conductor, Outcome, Refusal, Transfer};
@@ -48,6 +49,15 @@ pub trait Ledger {
     /// # Errors
     /// Returns [`LedgerError`]; recovery may be repeated.
     fn recover(&mut self) -> Result<Vec<Clip>, LedgerError>;
+
+    /// Store a new utterance and return the order key the store assigned.
+    /// The default stores nothing and refuses, for ledgers that never admit.
+    ///
+    /// # Errors
+    /// Returns [`LedgerError`]; nothing was stored.
+    fn admit(&mut self, _new: &NewUtterance) -> Result<f64, LedgerError> {
+        Err(LedgerError::Unavailable)
+    }
 }
 
 /// The ledger did not complete an operation.
@@ -109,6 +119,11 @@ impl Ledger for StoreLedger<'_> {
             .map_err(LedgerError::Store)
     }
 
+    fn admit(&mut self, new: &NewUtterance) -> Result<f64, LedgerError> {
+        let row = self.store.queue().submit(new).map_err(LedgerError::Store)?;
+        Ok(row.order_key)
+    }
+
     fn recover(&mut self) -> Result<Vec<Clip>, LedgerError> {
         let queue = self.store.queue();
         queue.recover().map_err(LedgerError::Store)?;
@@ -118,15 +133,19 @@ impl Ledger for StoreLedger<'_> {
     }
 }
 
+const fn domain_priority(priority: aitts_store::Priority) -> Priority {
+    match priority {
+        aitts_store::Priority::Normal => Priority::Normal,
+        aitts_store::Priority::Urgent => Priority::Urgent,
+        aitts_store::Priority::Preempt => Priority::Preempt,
+    }
+}
+
 fn clip(row: Utterance) -> Clip {
     Clip {
         id: row.id,
         order: row.order_key,
-        priority: match row.priority {
-            aitts_store::Priority::Normal => Priority::Normal,
-            aitts_store::Priority::Urgent => Priority::Urgent,
-            aitts_store::Priority::Preempt => Priority::Preempt,
-        },
+        priority: domain_priority(row.priority),
         state: row.state,
         playback: if row.playback {
             Playback::Play
@@ -197,6 +216,31 @@ impl<L: Ledger> Durable<L> {
         }
         self.conductor = next;
         Ok(value)
+    }
+
+    /// Store `new` through the ledger, then admit it at the store's order key,
+    /// so the conductor and the store agree on queue position after a restart.
+    ///
+    /// # Errors
+    /// Returns [`DurableError`]; a refused submission stores nothing.
+    pub fn submit(&mut self, new: &NewUtterance) -> Result<Outcome, DurableError> {
+        // Refuse a known id before the store is touched.
+        if self.conductor.clips.iter().any(|clip| clip.id == new.id) {
+            return Err(DurableError::Refused(Refusal::Duplicate(new.id.clone())));
+        }
+        let order = self.ledger.admit(new).map_err(DurableError::Ledger)?;
+        self.conductor
+            .apply(Command::Admit {
+                id: new.id.clone(),
+                order,
+                priority: domain_priority(new.priority),
+                playback: if new.playback {
+                    Playback::Play
+                } else {
+                    Playback::SynthesizeOnly
+                },
+            })
+            .map_err(DurableError::Refused)
     }
 
     /// Apply a command durably.
