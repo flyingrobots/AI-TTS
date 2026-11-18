@@ -32,6 +32,7 @@ mod runtime;
 mod settings_view;
 mod socket_file;
 mod status;
+mod submission;
 mod subscribers;
 pub mod synthesis;
 
