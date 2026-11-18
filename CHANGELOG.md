@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- MCP `requeue_speech` works again (issue #211). The daemon's requeue reply carries `composite` and `segment_count`, which `RequeueSpeechReceipt` refused as extra fields, so every call failed with `invalid_response`. The receipt now carries both, with the same defaults as `EnqueueSpeechReceipt`. The Rust `ai-tts mcp` follows from the re-recorded Python 3.12 tool catalog and sessions.
 - CI now fails when `Cargo.lock` pins a Rust crate with a RustSec advisory (issue #198). The supply-chain job runs a pinned cargo-deny 0.21.0 advisories check offline against a fetched database whose commit it records in the retained evidence. Previously only the Python lock was audited, so `zip` 2.6.1 reached main with critical advisories.
 - The Rust `aitts-daemon` joins a connection to its subscribers before writing the `subscribe` acknowledgement, under the same writer lock, so an event broadcast after a client reads its acknowledgement is never lost (regression from #143 / PR #184). Linux CI hung in `a_slow_subscriber_does_not_block_other_subscribers` when the first events were dropped.
 

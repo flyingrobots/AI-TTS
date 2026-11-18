@@ -338,6 +338,8 @@ class RequeueSpeechReceipt(PublicSchema):
     id: UtteranceId
     state: State
     priority: Priority
+    segment_count: SegmentCount = 1
+    composite: bool = False
 
 
 class ClearQueueReceipt(PublicSchema):
