@@ -24,7 +24,8 @@ from aitts.adapters.generated_storage import GeneratedStorage
 FIXTURES = Path("crates/aitts-artifacts/tests/fixtures/cache")
 PROTECTED = ["held"]
 REMOVE = ["clip-a", "held", "streaming", "legacy", "absent"]
-# The symbolic link ``linked -> clip-a`` is made by each reader; Git keeps it as a file.
+# The symbolic links (``linked``, ``alias.wav``, ``clip-a/link.wav``) are made by each
+# reader, because the fixture should hold only regular files.
 MTIMES = {
     "clip-a/source.txt": 1_800_000_100.5,
     "clip-a/clip-a.wav": 1_800_000_200.5,
@@ -58,10 +59,12 @@ def build(root: Path) -> None:
 
 
 def apply_mtimes(root: Path) -> None:
-    """Set each listed file's modification time; make the symbolic link."""
+    """Set each listed file's modification time; make the three symbolic links."""
     for name, mtime in MTIMES.items():
         os.utime(root / name, (mtime, mtime))
     (root / "linked").symlink_to("clip-a")
+    (root / "alias.wav").symlink_to("legacy.wav")
+    (root / "clip-a" / "link.wav").symlink_to("../legacy.wav")
 
 
 def main() -> None:

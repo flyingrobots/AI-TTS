@@ -57,6 +57,15 @@ pub trait SpoolStorage: Send + std::fmt::Debug {
     fn read_exact_at(&self, buf: &mut [u8], offset: u64) -> io::Result<()>;
 }
 
+impl SpoolStorage for File {
+    fn write_all_at(&mut self, buf: &[u8], offset: u64) -> io::Result<()> {
+        FileExt::write_all_at(self, buf, offset)
+    }
+    fn read_exact_at(&self, buf: &mut [u8], offset: u64) -> io::Result<()> {
+        FileExt::read_exact_at(self, buf, offset)
+    }
+}
+
 /// One spooled audio stream.
 #[derive(Debug)]
 #[allow(
@@ -64,7 +73,7 @@ pub trait SpoolStorage: Send + std::fmt::Debug {
     reason = "the four flags are the Python stream's independent states"
 )]
 pub struct Spool {
-    file: File,
+    file: Box<dyn SpoolStorage>,
     data_offset: u64,
     ring: VecDeque<u8>,
     capacity_frames: usize,
@@ -92,7 +101,7 @@ impl Spool {
             .open(path)?;
         file.set_permissions(Permissions::from_mode(PRIVATE_FILE_MODE))?;
         file.write_all_at(&header(0), 0)?;
-        Self::new(file, HEADER_BYTES, 0, false, capacity_frames)
+        Self::new(Box::new(file), HEADER_BYTES, 0, false, capacity_frames)
     }
 
     /// Start a live spool on `storage` instead of a file.
@@ -103,8 +112,9 @@ impl Spool {
         storage: Box<dyn SpoolStorage>,
         capacity_frames: usize,
     ) -> io::Result<Self> {
-        let _ = (storage, capacity_frames);
-        Err(io::Error::other("not implemented"))
+        let mut storage = storage;
+        storage.write_all_at(&header(0), 0)?;
+        Self::new(storage, HEADER_BYTES, 0, false, capacity_frames)
     }
 
     /// Open a finished WAV for playback without changing its bytes.
@@ -118,11 +128,11 @@ impl Spool {
             .open(path)?;
         let (data_offset, data_bytes) = find_pcm_data(&file)?;
         let frames = data_bytes / frame_bytes();
-        Self::new(file, data_offset, frames, true, capacity_frames)
+        Self::new(Box::new(file), data_offset, frames, true, capacity_frames)
     }
 
     fn new(
-        file: File,
+        file: Box<dyn SpoolStorage>,
         data_offset: u64,
         available: u64,
         cached: bool,

@@ -42,7 +42,7 @@ fn copy_tree(from: &Path, to: &Path) {
     }
 }
 
-/// A private copy of the fixture cache with the Python script's times and link.
+/// A private copy of the fixture cache with the Python script's times and links.
 fn python_cache() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("root");
@@ -57,6 +57,8 @@ fn python_cache() -> (tempfile::TempDir, PathBuf) {
             .unwrap();
     }
     symlink("clip-a", root.join("linked")).unwrap();
+    symlink("legacy.wav", root.join("alias.wav")).unwrap();
+    symlink("../legacy.wav", root.join("clip-a/link.wav")).unwrap();
     (dir, root)
 }
 
