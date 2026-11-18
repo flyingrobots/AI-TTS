@@ -1,0 +1,1196 @@
+[
+ {
+  "tool": "speech_status",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "status"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": false,\n  \"submission_disposition\": \"queued_for_playback\",\n  \"submission_guidance\": \"Speak freely: speech is accepted into the playback queue.\",\n  \"state\": \"accepting\",\n  \"playback_state\": \"idle\",\n  \"current\": null,\n  \"counts\": {},\n  \"engine\": \"fake\",\n  \"voice\": \"bm_daniel\",\n  \"version\": \"0.2.0\",\n  \"input_active\": false,\n  \"engine_preparing\": null,\n  \"interruption\": null\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": false,
+     "submission_disposition": "queued_for_playback",
+     "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+     "state": "accepting",
+     "playback_state": "idle",
+     "current": null,
+     "counts": {},
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "version": "0.2.0",
+     "input_active": false,
+     "engine_preparing": null,
+     "interruption": null
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_queue",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "status": {
+     "version": "0.2.0",
+     "state": "accepting",
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "playback_state": "paused",
+     "input_active": false,
+     "interruption": null,
+     "current": null,
+     "counts": {
+      "Synthesizing": 1
+     },
+     "engine": "fake",
+     "engine_preparing": null,
+     "voice": "bm_daniel"
+    },
+    "runtime": {
+     "pid": 96920,
+     "uptime_seconds": 0.02745787496678531,
+     "model_state": "ready",
+     "active_synthesis": 1
+    },
+    "playback": [],
+    "input": [
+     {
+      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "text": "Held speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Synthesizing",
+      "enqueued_at": 1794994792.444076,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
+    "plan": [
+     {
+      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "text": "Held speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Synthesizing",
+      "enqueued_at": 1794994792.444076,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
+    "history": [],
+    "voices": [
+     "bm_daniel",
+     "af_bella"
+    ],
+    "engines": [
+     {
+      "name": "fake",
+      "is_local": true,
+      "voices": [
+       "bm_daniel",
+       "af_bella"
+      ],
+      "state": "ready",
+      "selected": true
+     }
+    ],
+    "models": [
+     {
+      "name": "kokoro",
+      "title": "Kokoro",
+      "description": "Compact speech model with multiple voices and languages.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     },
+     {
+      "name": "kokoro-mlx",
+      "title": "Kokoro \u00b7 Apple Silicon",
+      "description": "The same Kokoro voices, accelerated with Apple's MLX framework.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     },
+     {
+      "name": "chatterbox",
+      "title": "Chatterbox Turbo",
+      "description": "An alternative local speech model with one built-in voice.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     }
+    ],
+    "voice_assignments": [],
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": false,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "snapshot",
+    "limit": 1
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"items\": [\n    {\n      \"id\": \"utt_ff13e30021ec460e88c941bf16dc7490\",\n      \"text\": \"Held speech.\",\n      \"voice\": \"bm_daniel\",\n      \"speed\": 1.0,\n      \"sensitivity\": \"confidential\",\n      \"priority\": \"normal\",\n      \"state\": \"Synthesizing\",\n      \"enqueued_at\": 1794994792.444076,\n      \"source\": null,\n      \"duration_ms\": null,\n      \"played_ms\": null,\n      \"error\": null,\n      \"replay_of\": null,\n      \"composite\": false,\n      \"segment_count\": 1,\n      \"completed_segments\": 0,\n      \"playback\": true,\n      \"segments\": []\n    }\n  ]\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "items": [
+      {
+       "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+       "text": "Held speech.",
+       "voice": "bm_daniel",
+       "speed": 1.0,
+       "sensitivity": "confidential",
+       "priority": "normal",
+       "state": "Synthesizing",
+       "enqueued_at": 1794994792.444076,
+       "source": null,
+       "duration_ms": null,
+       "played_ms": null,
+       "error": null,
+       "replay_of": null,
+       "composite": false,
+       "segment_count": 1,
+       "completed_segments": 0,
+       "playback": true,
+       "segments": []
+      }
+     ]
+    }
+   }
+  }
+ },
+ {
+  "tool": "speech_metrics",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "counts": {},
+    "queue_depth": {
+     "input": 0,
+     "playback": 0
+    },
+    "cache": {
+     "bytes": 0,
+     "max_bytes": 1073741824
+    },
+    "synthesis_wait_ms": null,
+    "synthesis_duration_ms": null,
+    "playback_wait_ms": null,
+    "playback_failures": 0
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "metrics"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"counts\": {},\n  \"queue_depth\": {\n    \"input\": 0,\n    \"playback\": 0\n  },\n  \"cache\": {\n    \"bytes\": 0,\n    \"max_bytes\": 1073741824\n  },\n  \"synthesis_wait_ms\": null,\n  \"synthesis_duration_ms\": null,\n  \"playback_wait_ms\": null,\n  \"playback_failures\": 0\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "counts": {},
+     "queue_depth": {
+      "input": 0,
+      "playback": 0
+     },
+     "cache": {
+      "bytes": 0,
+      "max_bytes": 1073741824
+     },
+     "synthesis_wait_ms": null,
+     "synthesis_duration_ms": null,
+     "playback_wait_ms": null,
+     "playback_failures": 0
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_voices",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "voices": [
+     "bm_daniel",
+     "af_bella"
+    ]
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "voices"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"voices\": [\n    \"bm_daniel\",\n    \"af_bella\"\n  ]\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "voices": [
+      "bm_daniel",
+      "af_bella"
+     ]
+    }
+   }
+  }
+ },
+ {
+  "tool": "get_caption_settings",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": false,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "settings"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"enabled\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "enabled": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "pause_speech_playback",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "state": null,
+    "current": null,
+    "held": true
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "pause"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"state\": null,\n  \"current\": null,\n  \"held\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "state": null,
+     "current": null,
+     "held": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "resume_speech_playback",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "state": null,
+    "current": null,
+    "held": false
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "resume"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"state\": null,\n  \"current\": null,\n  \"held\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "state": null,
+     "current": null,
+     "held": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "skip_current_speech",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "state": null,
+    "current": null,
+    "held": false
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "skip"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"state\": null,\n  \"current\": null,\n  \"held\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "state": null,
+     "current": null,
+     "held": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "restart_current_speech",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "state": null,
+    "current": null,
+    "held": false
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "rewind"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"state\": null,\n  \"current\": null,\n  \"held\": false\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "state": null,
+     "current": null,
+     "held": false
+    }
+   }
+  }
+ },
+ {
+  "tool": "next_speech_chunk",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": false,
+    "error": {
+     "type": "illegal_state",
+     "message": "no further chunk in the current document; chunk steps need an unheld, chunked clip"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "next_segment"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool next_speech_chunk: illegal_state: no further chunk in the current document; chunk steps need an unheld, chunked clip",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "previous_speech_chunk",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": false,
+    "error": {
+     "type": "illegal_state",
+     "message": "no further chunk in the current document; chunk steps need an unheld, chunked clip"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "previous_segment"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool previous_speech_chunk: illegal_state: no further chunk in the current document; chunk steps need an unheld, chunked clip",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "resume_speech_when_input_idle",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "state": null,
+    "current": null,
+    "held": true
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "resume_when_input_idle"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"state\": null,\n  \"current\": null,\n  \"held\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "state": null,
+     "current": null,
+     "held": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_voice_assignments",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "assignments": []
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "voice_assignments"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"assignments\": []\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "assignments": []
+    }
+   }
+  }
+ },
+ {
+  "tool": "clear_speech_queue",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "cleared": 0
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "clear",
+    "queue": "queue"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"cleared\": 0\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "cleared": 0
+    }
+   }
+  }
+ },
+ {
+  "tool": "purge_cached_audio",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "removed_files": 0,
+    "removed_bytes": 0,
+    "protected_files": 0,
+    "protected_bytes": 0,
+    "failed_files": 0,
+    "failed_bytes": 0
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "purge_cache"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"removed_files\": 0,\n  \"removed_bytes\": 0,\n  \"protected_files\": 0,\n  \"protected_bytes\": 0,\n  \"failed_files\": 0,\n  \"failed_bytes\": 0\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "removed_files": 0,
+     "removed_bytes": 0,
+     "protected_files": 0,
+     "protected_bytes": 0,
+     "failed_files": 0,
+     "failed_bytes": 0
+    }
+   }
+  }
+ },
+ {
+  "tool": "speech_status",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": true,
+    "submission_disposition": "spooled_until_resume",
+    "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+    "playback_state": "paused",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {
+     "Synthesizing": 1
+    },
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel"
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "status"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"accepting_speech\": true,\n  \"playback_held\": true,\n  \"submission_disposition\": \"spooled_until_resume\",\n  \"submission_guidance\": \"Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.\",\n  \"state\": \"accepting\",\n  \"playback_state\": \"paused\",\n  \"current\": null,\n  \"counts\": {\n    \"Synthesizing\": 1\n  },\n  \"engine\": \"fake\",\n  \"voice\": \"bm_daniel\",\n  \"version\": \"0.2.0\",\n  \"input_active\": false,\n  \"engine_preparing\": null,\n  \"interruption\": null\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "state": "accepting",
+     "playback_state": "paused",
+     "current": null,
+     "counts": {
+      "Synthesizing": 1
+     },
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "version": "0.2.0",
+     "input_active": false,
+     "engine_preparing": null,
+     "interruption": null
+    }
+   }
+  }
+ },
+ {
+  "tool": "get_caption_settings",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": true,
+     "captions_enabled_configured": true,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "settings"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"enabled\": true\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "enabled": true
+    }
+   }
+  }
+ },
+ {
+  "tool": "list_speech_queue",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "status": {
+     "version": "0.2.0",
+     "state": "accepting",
+     "accepting_speech": true,
+     "playback_held": true,
+     "submission_disposition": "spooled_until_resume",
+     "submission_guidance": "Speak freely: enqueue requested speech now, even while playback is paused. Speech is accepted and saved for playback when the hold is released. A microphone hold resumes automatically when input is idle if configured; a manual pause waits for the listener. Report queued, not played, until Played.",
+     "playback_state": "paused",
+     "input_active": false,
+     "interruption": null,
+     "current": null,
+     "counts": {
+      "Synthesizing": 1
+     },
+     "engine": "fake",
+     "engine_preparing": null,
+     "voice": "bm_daniel"
+    },
+    "runtime": {
+     "pid": 96920,
+     "uptime_seconds": 0.02745787496678531,
+     "model_state": "ready",
+     "active_synthesis": 1
+    },
+    "playback": [],
+    "input": [
+     {
+      "id": "utt_ff13e30021ec460e88c941bf16dc7490",
+      "text": "Held speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Synthesizing",
+      "enqueued_at": 1794994792.444076,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
+    "plan": [
+     {
+      "id": "utt_not_an_id",
+      "text": "Held speech.",
+      "voice": "bm_daniel",
+      "speed": 1.0,
+      "sensitivity": "confidential",
+      "priority": "normal",
+      "state": "Synthesizing",
+      "enqueued_at": 1794994792.444076,
+      "source": null,
+      "duration_ms": null,
+      "played_ms": null,
+      "error": null,
+      "replay_of": null,
+      "playback": true,
+      "composite": false,
+      "segment_count": 1,
+      "completed_segments": 0
+     }
+    ],
+    "history": [],
+    "voices": [
+     "bm_daniel",
+     "af_bella"
+    ],
+    "engines": [
+     {
+      "name": "fake",
+      "is_local": true,
+      "voices": [
+       "bm_daniel",
+       "af_bella"
+      ],
+      "state": "ready",
+      "selected": true
+     }
+    ],
+    "models": [
+     {
+      "name": "kokoro",
+      "title": "Kokoro",
+      "description": "Compact speech model with multiple voices and languages.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     },
+     {
+      "name": "kokoro-mlx",
+      "title": "Kokoro \u00b7 Apple Silicon",
+      "description": "The same Kokoro voices, accelerated with Apple's MLX framework.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     },
+     {
+      "name": "chatterbox",
+      "title": "Chatterbox Turbo",
+      "description": "An alternative local speech model with one built-in voice.",
+      "installed": false,
+      "selected": false,
+      "state": "not installed",
+      "message": "",
+      "incompatible": null,
+      "adapter_status": null
+     }
+    ],
+    "voice_assignments": [],
+    "settings": {
+     "engine": "fake",
+     "voice": "bm_daniel",
+     "voice_languages": [
+      "en"
+     ],
+     "speed": 1.0,
+     "playback_rate": 1.0,
+     "cache_max_bytes": 1073741824,
+     "captions_enabled": false,
+     "captions_enabled_configured": false,
+     "earcon_enabled": false,
+     "ducking_enabled": false,
+     "input_interrupt_enabled": true,
+     "input_interrupt_resume": "when_idle"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "snapshot",
+    "limit": 1
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool list_speech_queue: invalid_response: daemon returned a response outside the public QueueView schema",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "speech_metrics",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "counts": {},
+    "queue_depth": {
+     "input": 0,
+     "playback": 0
+    },
+    "cache": {
+     "bytes": 0,
+     "max_bytes": 1073741824
+    },
+    "synthesis_wait_ms": {
+     "count": 1,
+     "p50": 2,
+     "p95": 2,
+     "max": 2
+    },
+    "synthesis_duration_ms": null,
+    "playback_wait_ms": null,
+    "playback_failures": 0
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "metrics"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "{\n  \"counts\": {},\n  \"queue_depth\": {\n    \"input\": 0,\n    \"playback\": 0\n  },\n  \"cache\": {\n    \"bytes\": 0,\n    \"max_bytes\": 1073741824\n  },\n  \"synthesis_wait_ms\": {\n    \"count\": 1,\n    \"p50\": 2.0,\n    \"p95\": 2.0,\n    \"max\": 2.0\n  },\n  \"synthesis_duration_ms\": null,\n  \"playback_wait_ms\": null,\n  \"playback_failures\": 0\n}",
+      "type": "text"
+     }
+    ],
+    "isError": false,
+    "structuredContent": {
+     "counts": {},
+     "queue_depth": {
+      "input": 0,
+      "playback": 0
+     },
+     "cache": {
+      "bytes": 0,
+      "max_bytes": 1073741824
+     },
+     "synthesis_wait_ms": {
+      "count": 1,
+      "p50": 2.0,
+      "p95": 2.0,
+      "max": 2.0
+     },
+     "synthesis_duration_ms": null,
+     "playback_wait_ms": null,
+     "playback_failures": 0
+    }
+   }
+  }
+ },
+ {
+  "tool": "speech_status",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": false,
+    "error": {
+     "type": "not_found",
+     "message": "no such"
+    }
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "status"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool speech_status: not_found: no such",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "speech_status",
+  "arguments": {},
+  "socket": "peer",
+  "daemon_replies": [
+   {
+    "ok": true,
+    "version": "0.2.0",
+    "state": "accepting",
+    "accepting_speech": true,
+    "playback_held": false,
+    "submission_disposition": "queued_for_playback",
+    "submission_guidance": "Speak freely: speech is accepted into the playback queue.",
+    "playback_state": "idle",
+    "input_active": false,
+    "interruption": null,
+    "current": null,
+    "counts": {},
+    "engine": "fake",
+    "engine_preparing": null,
+    "voice": "bm_daniel",
+    "unexpected": 1
+   }
+  ],
+  "daemon_requests": [
+   {
+    "op": "status"
+   }
+  ],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool speech_status: invalid_response: daemon returned a response outside the public SpeechStatus schema",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "speech_status",
+  "arguments": {},
+  "socket": "absent",
+  "daemon_replies": [],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Error executing tool speech_status: unreachable: cannot reach the daemon at /nonexistent/ai-tts.sock: [Errno 2] No such file or directory",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ },
+ {
+  "tool": "no_such_tool",
+  "arguments": {},
+  "socket": "absent",
+  "daemon_replies": [],
+  "daemon_requests": [],
+  "reply": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "content": [
+     {
+      "text": "Unknown tool: no_such_tool",
+      "type": "text"
+     }
+    ],
+    "isError": true
+   }
+  }
+ }
+]

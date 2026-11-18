@@ -10,6 +10,8 @@
 
 mod grammar;
 pub mod mcp;
+mod mcp_schema;
+mod mcp_tools;
 mod payload;
 mod wait;
 
