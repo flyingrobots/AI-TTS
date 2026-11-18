@@ -235,3 +235,64 @@ fn clearing_during_a_preemption_skips_suspended_speakers_and_keeps_the_alert() {
         .to_vec();
     assert_eq!(states, [State::Skipped, State::Cancelled, State::Playing]);
 }
+
+#[test]
+fn requeue_puts_an_urgent_replay_of_a_history_item_ahead_of_pending_work() {
+    let mut conductor = Conductor::new();
+    ready(&mut conductor, "done", Priority::Normal);
+    assert_eq!(conductor.plan_playback(), start("done"));
+    let finished = conductor.apply(Command::PlaybackFinished("done".to_owned()));
+    assert_eq!(finished, Ok(Outcome::Applied));
+    submit(&mut conductor, "waiting", Priority::Normal);
+    let requeue = Command::Requeue {
+        source: "done".to_owned(),
+        id: "again".to_owned(),
+        priority: Priority::Urgent,
+    };
+    assert_eq!(conductor.apply(requeue), Ok(Outcome::Applied));
+    assert_eq!(order(&conductor), ["done", "again", "waiting"]);
+}
+
+#[test]
+fn requeue_refuses_a_source_that_is_not_history() {
+    let mut conductor = Conductor::new();
+    submit(&mut conductor, "waiting", Priority::Normal);
+    let requeue = Command::Requeue {
+        source: "waiting".to_owned(),
+        id: "again".to_owned(),
+        priority: Priority::Normal,
+    };
+    let expected = Refusal::IllegalState {
+        id: "waiting".to_owned(),
+        state: State::Queued,
+    };
+    assert_eq!(conductor.apply(requeue), Err(expected));
+}
+
+#[test]
+fn a_restart_during_preemption_restores_the_interrupting_clip_first_after_resume() {
+    let clip = |id: &str, order: f64, priority| aitts_daemon::conductor::Clip {
+        id: id.to_owned(),
+        order,
+        priority,
+        state: State::Paused,
+        playback: Playback::Play,
+    };
+    // As recovery leaves it: the interrupted speaker and the alert both Paused.
+    let clips = vec![
+        clip("base", 1.0, Priority::Normal),
+        clip("alert", 0.0, Priority::Preempt),
+    ];
+    let mut conductor = Conductor::restored(clips);
+    assert!(conductor.held(), "a restored queue must be held");
+    assert_eq!(
+        conductor.plan_playback(),
+        None,
+        "held queue planned a transfer"
+    );
+    assert_eq!(conductor.apply(Command::Resume), Ok(Outcome::Applied));
+    assert_eq!(
+        conductor.plan_playback(),
+        Some(Transfer::Restore("alert".to_owned()))
+    );
+}

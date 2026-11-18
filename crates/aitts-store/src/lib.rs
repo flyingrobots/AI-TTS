@@ -11,6 +11,7 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
+mod batch;
 mod codec;
 mod counts;
 pub mod history;

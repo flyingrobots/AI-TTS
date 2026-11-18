@@ -13,6 +13,7 @@ use core::fmt;
 use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
 
+pub mod durable;
 mod planning;
 mod queue;
 
@@ -42,6 +43,15 @@ pub enum Command {
         priority: Priority,
         /// Whether the clip may occupy the device.
         playback: Playback,
+    },
+    /// Admit a replay of a finished clip under a new identifier.
+    Requeue {
+        /// The finished clip to replay.
+        source: String,
+        /// The replay's identifier.
+        id: String,
+        /// The replay's admission priority.
+        priority: Priority,
     },
     /// Cancel a clip that is not on the device.
     Cancel(String),
@@ -141,6 +151,24 @@ impl Conductor {
         Self::default()
     }
 
+    /// Rebuild state after a restart: the hold is taken, nothing owns the device,
+    /// and paused speakers wait to be restored, earliest queue position first.
+    pub fn restored(clips: Vec<Clip>) -> Self {
+        let mut paused: Vec<&Clip> = clips
+            .iter()
+            .filter(|clip| clip.state == State::Paused)
+            .collect();
+        // The stack's top is its last element, so the earliest position goes last.
+        paused.sort_by(|left, right| right.order.total_cmp(&left.order));
+        let stack = paused.iter().map(|clip| clip.id.clone()).collect();
+        Self {
+            clips,
+            held: true,
+            current: None,
+            stack,
+        }
+    }
+
     /// The tracked clips in queue order.
     pub fn clips(&self) -> Vec<Clip> {
         let mut clips = self.clips.clone();
@@ -170,6 +198,11 @@ impl Conductor {
                 priority,
                 playback,
             } => self.submit(id, priority, playback),
+            Command::Requeue {
+                source,
+                id,
+                priority,
+            } => self.requeue(&source, id, priority),
             Command::Cancel(id) => self.cancel(&id),
             Command::ClearQueue => Ok(Outcome::Cleared(self.clear())),
             Command::Reorder(ids) => self.reorder(&ids),
