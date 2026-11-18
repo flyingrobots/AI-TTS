@@ -76,3 +76,21 @@ fn a_subscription_yields_the_captured_events_in_order() {
     let sent: Value = serde_json::from_slice(&peer.received()[0]).unwrap();
     assert_eq!(sent, serde_json::json!({"op": "subscribe"}));
 }
+
+/// Oracle: the Python `AsyncClient.events(playback_progress=True)` request,
+/// which the dashboard sends to receive position and level telemetry.
+#[test]
+fn a_progress_subscription_asks_for_playback_progress() {
+    let peer = once(vec![line(
+        &serde_json::json!({"ok": true, "subscribed": true}),
+    )]);
+    let subscription = Client::new(&peer.socket, LIMIT).subscribe_to_progress(NO_RETRY);
+    assert!(subscription.is_ok());
+    drop(subscription);
+    let received = peer.received();
+    let request: Value = serde_json::from_slice(&received[0]).unwrap();
+    assert_eq!(
+        request,
+        serde_json::json!({"op": "subscribe", "playback_progress": true})
+    );
+}

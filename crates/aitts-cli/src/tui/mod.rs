@@ -6,8 +6,10 @@
 //! caller supplies snapshots, events, keys and the clock.
 
 mod draw;
+mod run;
 
 pub use draw::draw;
+pub use run::{Commands, Input, Session, run, watch};
 use serde::Serialize;
 use serde_json::{Value, json};
 
