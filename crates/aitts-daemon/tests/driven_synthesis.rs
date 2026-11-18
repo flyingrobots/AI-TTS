@@ -296,7 +296,7 @@ fn a_failed_synthesis_does_not_stop_later_clips() {
 }
 
 #[test]
-fn the_discarding_sink_reads_a_sealed_spool_to_its_end() {
+fn the_discarding_sink_accepts_a_sealed_spool() {
     use aitts_daemon::driver::DiscardingSink;
     let dir = tempfile::tempdir().unwrap();
     let mut spool = Spool::create(&dir.path().join("a.wav"), 1).unwrap();
