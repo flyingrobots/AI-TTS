@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The Rust `ai-ttsd` synthesizes with the Kokoro runtime installed by model setup (issue #145). It finds the runtime as the Python daemon does and fails clips with the model-setup instruction when none is installed. It has no audio device yet, so audio is discarded.
 - The Rust `ai-ttsd` sends subscribers `state_changed` (admissions and every recorded transition, in Python's order), `plan_reordered` and `voice_assigned` events (issue #145).
 - `aitts-daemon` can drive synthesis and playback (issue #145): `start_with` runs a driver that synthesizes each queued clip through its engine, then plays it through a `Sink` when the conductor plans it. `DiscardingSink` serves daemons without an audio device.
 - The Rust terminal dashboard draws its state with ratatui in the Python dashboard's layout (part of #140), tested on an in-memory terminal buffer at 100, 80 and 40 columns and with very long clip text. `ai-tts tui` still runs the Python dashboard.
