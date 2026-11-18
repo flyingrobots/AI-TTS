@@ -226,21 +226,30 @@ def _build_rust_cli(repository: Path) -> Path:
     return target / "release" / "ai-tts"
 
 
-def publish_rust_cli(binary: Path, tool_bin: Path) -> None:
-    """Replace uv's Python `ai-tts` script with the Rust binary in one rename."""
-    descriptor, name = tempfile.mkstemp(dir=tool_bin, prefix=".ai-tts-")
+def publish_rust_cli(binary: Path, tool_bin: Path, name: str = "ai-tts") -> None:
+    """Replace uv's Python script ``name`` with the Rust binary in one rename.
+
+    The binary serves MCP when started as ``ai-tts-mcp``, so one build fills both names.
+    """
+    descriptor, temporary = tempfile.mkstemp(dir=tool_bin, prefix=f".{name}-")
     os.close(descriptor)
-    candidate = Path(name)
+    candidate = Path(temporary)
     try:
         shutil.copyfile(binary, candidate)
         candidate.chmod(0o755)
-        candidate.replace(tool_bin / "ai-tts")
+        candidate.replace(tool_bin / name)
     finally:
         candidate.unlink(missing_ok=True)
 
 
-def install_application(
-    *, app: Path, launch_agent: Path, log_path: Path, python_version: str, cli: str = "rust"
+def install_application(  # noqa: PLR0913 - explicit Make-supplied choices
+    *,
+    app: Path,
+    launch_agent: Path,
+    log_path: Path,
+    python_version: str,
+    cli: str = "rust",
+    mcp: str = "rust",
 ) -> None:
     """Stage the app and plist before asking uv to replace the installed CLI.
 
@@ -279,7 +288,7 @@ def install_application(
             cwd=repository,
             check=True,
         )
-        rust_cli = _build_rust_cli(repository) if cli == "rust" else None
+        rust = _build_rust_cli(repository) if "rust" in {cli, mcp} else None
         tool_bin = subprocess.run(  # noqa: S603 - fixed uv inspection command
             [uv, "tool", "dir", "--bin"], check=True, capture_output=True, text=True
         ).stdout.strip()
@@ -327,8 +336,10 @@ def install_application(
             ],
             check=True,
         )
-        if rust_cli is not None:
-            publish_rust_cli(rust_cli, Path(tool_bin))
+        if rust is not None:
+            for name, choice in (("ai-tts", cli), ("ai-tts-mcp", mcp)):
+                if choice == "rust":
+                    publish_rust_cli(rust, Path(tool_bin), name)
         publish_app_bundle(candidate_app, app, force=True)
         activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
         # Retire a manually launched incumbent so launchd owns the new process.
@@ -356,6 +367,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--log-path", type=Path, required=True)
     parser.add_argument("--python-version", default="3.12")
     parser.add_argument("--cli", choices=["rust", "python"], default="rust")
+    parser.add_argument("--mcp", choices=["rust", "python"], default="rust")
     args = parser.parse_args(argv)
     install_application(
         app=args.app.expanduser().resolve(),
@@ -363,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         log_path=args.log_path.expanduser().absolute(),
         python_version=args.python_version,
         cli=args.cli,
+        mcp=args.mcp,
     )
     return 0
 

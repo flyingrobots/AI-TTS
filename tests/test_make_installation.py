@@ -639,6 +639,8 @@ def _python_layout(root: Path) -> None:
     (root / "bin").mkdir(exist_ok=True)
     (root / "bin" / "ai-tts").write_text("python ai-tts")
     (root / "bin" / "ai-tts-mcp").write_text("python ai-tts-mcp")
+    # Executable, as uv installs it: host registration resolves only executables.
+    (root / "bin" / "ai-tts-mcp").chmod(0o755)
     (root / "agent.plist").write_bytes(
         plistlib.dumps(
             {
