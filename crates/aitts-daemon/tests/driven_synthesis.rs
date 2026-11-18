@@ -459,7 +459,9 @@ fn an_unrecorded_ready_report_is_retried_without_a_client_request() {
     gate.reached.recv_timeout(LIMIT).unwrap();
     refuse(&daemon, "Ready");
     gate.open.send(()).unwrap();
-    // Forced: the refused report has been made once the driver goes idle.
+    // Forced: the refused report has been made once the driver waits; a second
+    // wait proves any wake left from earlier requests is used up.
+    daemon.idle.recv_timeout(LIMIT).unwrap();
     daemon.idle.recv_timeout(LIMIT).unwrap();
     assert_eq!(daemon.stored(&id), aitts_store::State::Synthesizing);
     daemon.sql("DROP TRIGGER refuse;");
@@ -523,19 +525,21 @@ fn a_clip_that_finishes_during_a_pause_is_played_and_not_replayed() {
 #[test]
 fn stop_takes_no_new_clip_after_the_one_in_the_sink() {
     let root = runtime("golden");
+    let (engine, gate) = gated_engine(root.path(), 1);
     let (sink_reached, reached) = channel();
-    let (open, gate) = channel();
-    let mut daemon = Daemon::start_with_sink(Box::new(worker(root.path())), |inner| {
+    let (open, sink_gate) = channel();
+    let mut daemon = Daemon::start_with_sink(engine, |inner| {
         Box::new(GatedSink {
             inner,
             reached: sink_reached,
-            gate,
+            gate: sink_gate,
         })
     });
     daemon.resume();
     let first = daemon.submit("In the sink.");
-    let _second = daemon.submit("Never started.");
     assert_eq!(reached.recv_timeout(LIMIT).unwrap(), first);
+    // Queued while the driver is in the sink, so it is not yet synthesized.
+    let _second = daemon.submit("Never started.");
     // An open connection ends when stop has begun (its stop signal precedes it).
     let watcher = UnixStream::connect(&daemon.socket).unwrap();
     let running = daemon.running.take().unwrap();
@@ -547,8 +551,12 @@ fn stop_takes_no_new_clip_after_the_one_in_the_sink() {
     open.send(()).unwrap();
     let _outcome = stopping.join().unwrap();
     assert!(
+        gate.reached.try_recv().is_err(),
+        "the driver synthesized a clip after stop began"
+    );
+    assert!(
         reached.try_recv().is_err(),
-        "the driver started a clip after stop began"
+        "the driver played a clip after stop began"
     );
     assert_eq!(daemon.played().len(), 1);
 }

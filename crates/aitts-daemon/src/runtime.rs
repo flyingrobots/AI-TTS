@@ -169,9 +169,13 @@ fn start_inner(config: Config, synthesis: Option<Synthesis>) -> Result<Running, 
     let listener = match socket_file::bind_private(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
-            abandon(driver);
+            if let Some(driver) = &driver {
+                driver.begin_stop();
+            }
+            // The API thread holds the driver's wake signal; end it first.
             drop(jobs);
             let _ = api.join();
+            abandon(driver);
             let _ = conductor.join();
             return Err(error);
         }
