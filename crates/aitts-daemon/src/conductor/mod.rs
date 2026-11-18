@@ -143,7 +143,10 @@ impl Conductor {
 
     /// The tracked clips in queue order.
     pub fn clips(&self) -> Vec<Clip> {
-        self.clips.clone()
+        let mut clips = self.clips.clone();
+        // A stable sort keeps admission order for equal keys, as `plan::ordered` does.
+        clips.sort_by(|left, right| left.order.total_cmp(&right.order));
+        clips
     }
 
     /// Whether the playback hold is taken.
@@ -161,17 +164,71 @@ impl Conductor {
     /// # Errors
     /// Returns a [`Refusal`] and leaves state unchanged when the command is illegal.
     pub fn apply(&mut self, command: Command) -> Result<Outcome, Refusal> {
-        drop(command);
-        Err(Refusal::NotPermutation)
+        match command {
+            Command::Submit {
+                id,
+                priority,
+                playback,
+            } => self.submit(id, priority, playback),
+            Command::Cancel(id) => self.cancel(&id),
+            Command::ClearQueue => Ok(Outcome::Cleared(self.clear())),
+            Command::Reorder(ids) => self.reorder(&ids),
+            Command::Pause => Ok(self.hold(true)),
+            Command::Resume => Ok(self.hold(false)),
+            Command::AudioReady(id) => self.audio_ready(&id),
+            Command::SynthesisFailed(id) => self.move_clip(&id, State::Synthesizing, State::Failed),
+            Command::PlaybackFinished(id) => self.finish(&id),
+        }
     }
 
     /// Hand the first Queued clip in order to synthesis, marking it Synthesizing.
     pub fn next_synthesis(&mut self) -> Option<String> {
-        None
+        let id = self
+            .clips()
+            .into_iter()
+            .find(|clip| clip.state == State::Queued)?
+            .id;
+        self.set_state(&id, State::Synthesizing);
+        Some(id)
     }
 
     /// Decide the next device change, if any. A held queue never changes the device.
     pub fn plan_playback(&mut self) -> Option<Transfer> {
-        self.stack.last().map(|_| Transfer::Restore(String::new()))
+        if self.held {
+            return None;
+        }
+        self.preempt()
+            .or_else(|| self.restore())
+            .or_else(|| self.start_next())
+    }
+
+    fn index(&self, id: &str) -> Result<usize, Refusal> {
+        self.clips
+            .iter()
+            .position(|clip| clip.id == id)
+            .ok_or_else(|| Refusal::NotFound(id.to_owned()))
+    }
+
+    /// Move a clip already checked to be in a state that permits `to`.
+    fn set_state(&mut self, id: &str, to: State) {
+        if let Some(clip) = self.clips.iter_mut().find(|clip| clip.id == id) {
+            clip.state = to;
+        }
+    }
+
+    /// Move `id` from `from` to `to`, refusing any other source state.
+    fn move_clip(&mut self, id: &str, from: State, to: State) -> Result<Outcome, Refusal> {
+        let state = self
+            .clips
+            .get(self.index(id)?)
+            .map_or(from, |clip| clip.state);
+        if state != from || state.transition(to).is_err() {
+            return Err(Refusal::IllegalState {
+                id: id.to_owned(),
+                state,
+            });
+        }
+        self.set_state(id, to);
+        Ok(Outcome::Applied)
     }
 }
