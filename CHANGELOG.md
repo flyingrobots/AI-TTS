@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Rust synthesis driver (issue #145, review of PR #217):
+  - It takes no work until the daemon is serving, and none after stop begins.
+  - It gives ready clips a playback turn while synthesis is busy.
+  - It removes the audio of cancelled ready clips.
+  - It resends unrecorded reports without waiting for a client request.
+  - A clip that finishes during a pause ends without replaying.
+  - `start_with` refuses a missing spool directory.
 - MCP `requeue_speech` works again (issue #211). The daemon's requeue reply carries `composite` and `segment_count`, which `RequeueSpeechReceipt` refused as extra fields, so every call failed with `invalid_response`. The receipt now carries both, with the same defaults as `EnqueueSpeechReceipt`. The Rust `ai-tts mcp` follows from the re-recorded Python 3.12 tool catalog and sessions.
 - The Rust conductor admits a submission at the order key the store assigned, so a submission after a restart is placed after history, as the store places it (known issue from PR #203).
 - CI now fails when `Cargo.lock` pins a Rust crate with a RustSec advisory (issue #198). The supply-chain job runs a pinned cargo-deny 0.21.0 advisories check offline against a fetched database whose commit it records in the retained evidence. Previously only the Python lock was audited, so `zip` 2.6.1 reached main with critical advisories.

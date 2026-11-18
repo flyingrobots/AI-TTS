@@ -18,7 +18,7 @@ use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use aitts_domain::utterance::State;
 use aitts_store::queue::NewUtterance;
 
-use super::durable::{Durable, DurableError, Ledger};
+use super::durable::{Durable, DurableError, Ledger, LedgerError, StoredJob};
 use super::{Clip, Command, Outcome, Transfer};
 
 /// One request to the conductor owner.
@@ -36,6 +36,8 @@ pub enum Request {
     Clips,
     /// Read the hold and the clip on the device.
     Transport,
+    /// Read what synthesis needs for one clip.
+    Job(String),
     /// Stop after answering every earlier request.
     Shutdown,
 }
@@ -51,6 +53,8 @@ pub enum Reply {
     Planned(Result<Option<Transfer>, DurableError>),
     /// The answer to [`Request::Clips`].
     Clips(Vec<Clip>),
+    /// The answer to [`Request::Job`].
+    Job(Result<Option<StoredJob>, LedgerError>),
     /// The answer to [`Request::Transport`].
     Transport {
         /// Whether the playback hold is taken.
@@ -167,6 +171,7 @@ impl Inbox {
             Request::NextSynthesis => Reply::Synthesis(durable.next_synthesis()),
             Request::PlanPlayback => Reply::Planned(durable.plan_playback()),
             Request::Clips => Reply::Clips(durable.conductor().clips()),
+            Request::Job(id) => Reply::Job(durable.job(&id)),
             Request::Transport => {
                 let conductor = durable.conductor();
                 let current = conductor.current().and_then(|id| {
