@@ -457,6 +457,8 @@ fn an_unrecorded_ready_report_is_retried_without_a_client_request() {
     daemon.resume();
     let id = daemon.submit("Retry me.");
     gate.reached.recv_timeout(LIMIT).unwrap();
+    // Idle signals from before this synthesis are stale.
+    while daemon.idle.try_recv().is_ok() {}
     refuse(&daemon, "Ready");
     gate.open.send(()).unwrap();
     // Forced: the refused report has been made once the driver waits; a second
@@ -636,9 +638,10 @@ impl SpoolStorage for FailingReads {
 fn the_discarding_sink_reports_a_read_failure_after_some_frames() {
     // A one-frame ring: the first frame is buffered; the second must be re-read
     // from storage, which fails.
+    // Readable: the 44-byte header and the first frame.
     let storage = FailingReads {
         bytes: Vec::new(),
-        readable: 44,
+        readable: 46,
     };
     let mut spool = Spool::with_storage(Box::new(storage), 1).unwrap();
     spool.append(&[1, 0, 2, 0]).unwrap();
