@@ -42,6 +42,9 @@ allow-direct-references = true
 
 [project.scripts]
 ai-tts = "aitts.cli:main"
+# The installed `ai-tts` is the Rust client; launchd and the Rust client's
+# `daemon` and `tui` hand-off run the Python CLI under this name (issue #138).
+ai-tts-py = "aitts.cli:main"
 ai-tts-mcp = "aitts.adapters.mcp:main"
 ai-tts-zed-read = "aitts.zed:main"
 

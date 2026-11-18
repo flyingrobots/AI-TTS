@@ -64,6 +64,9 @@ app: tools
 
 # -- install --------------------------------------------------------------
 
+# rust: `ai-tts` is the Rust client. python: roll back to the Python `ai-tts`.
+AITTS_CLI ?= rust
+
 ## install: install the CLI and MCP server, the app, and both launchd agents
 install: export AITTS_APP := $(APP_BUNDLE)
 install: export AITTS_PLIST := $(LAUNCH_AGENT)
@@ -71,7 +74,8 @@ install: export AITTS_LOG := $(LOG_PATH)
 install: tools
 	@uv run python -m scripts.install_application \
 		--app "$$AITTS_APP" --launch-agent "$$AITTS_PLIST" \
-		--log-path "$$AITTS_LOG" --python-version "$(PYTHON_VERSION)"
+		--log-path "$$AITTS_LOG" --python-version "$(PYTHON_VERSION)" \
+		--cli "$(AITTS_CLI)"
 
 ## install-mcp: register the MCP server with local agents (AGENTS="--claude")
 install-mcp:
@@ -152,6 +156,8 @@ uninstall:
 	@rm -f -- "$$AITTS_PLIST" "$$AITTS_MENU_BAR_PLIST"
 	@printf '==> removing the executables\n'
 	@uv tool uninstall ai-tts 2>/dev/null || true
+	@# make install put the Rust ai-tts in uv's tool bin; remove it if uv left it.
+	@bin="$$(uv tool dir --bin 2>/dev/null)"; [ -z "$$bin" ] || rm -f -- "$$bin/ai-tts"
 	@printf '\nLeft in place on purpose: %s, your speech history and\n' "$$AITTS_APP"
 	@printf 'cached audio under ~/Library/Application Support/ai-tts, and any\n'
 	@printf 'skill or MCP registration in your agents. Remove those by hand.\n'

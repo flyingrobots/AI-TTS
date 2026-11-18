@@ -28,10 +28,14 @@ A request that the protocol types refuse (for example an unknown `--set` key)
 is not sent. The client prints a `bad_request` error and exits 1, which is what
 the daemon answers for that request.
 
-## Not yet in this crate
+## Commands it does not run itself
 
-- `daemon`, `tui` and `mcp`, which are out of scope for issue #138.
-- Installing this binary in place of the Python `ai-tts`.
+- `daemon` and `tui`. The binary hands them, with all arguments, to the
+  Python `ai-tts-py` in its own directory (else on `PATH`), and exits 1 if that
+  cannot start. The MCP server is the separate `ai-tts-mcp` program.
+
+`make install` installs this binary as `ai-tts`; `make install AITTS_CLI=python`
+rolls back to the Python CLI (see the README).
 
 ## Tests
 

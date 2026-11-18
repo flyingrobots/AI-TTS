@@ -206,10 +206,48 @@ def activate_launch_agent(
         raise
 
 
+def _build_rust_cli(repository: Path) -> Path:
+    """Build the Rust `ai-tts` before anything installed is replaced; return the binary."""
+    cargo = shutil.which("cargo")
+    if cargo is None:
+        message = (
+            "cargo is required to build the Rust ai-tts; "
+            "install Rust, or keep the Python CLI with: make install AITTS_CLI=python"
+        )
+        raise RuntimeError(message)
+    target = Path(os.environ.get("CARGO_TARGET_DIR") or repository / "target")
+    sys.stdout.write("==> building the Rust ai-tts client\n")
+    sys.stdout.flush()
+    subprocess.run(  # noqa: S603 - fixed build command in this checkout
+        [cargo, "build", "--release", "--locked", "-p", "aitts-cli", "--target-dir", str(target)],
+        cwd=repository,
+        check=True,
+    )
+    return target / "release" / "ai-tts"
+
+
+def publish_rust_cli(binary: Path, tool_bin: Path) -> None:
+    """Replace uv's Python `ai-tts` script with the Rust binary in one rename."""
+    descriptor, name = tempfile.mkstemp(dir=tool_bin, prefix=".ai-tts-")
+    os.close(descriptor)
+    candidate = Path(name)
+    try:
+        shutil.copyfile(binary, candidate)
+        candidate.chmod(0o755)
+        candidate.replace(tool_bin / "ai-tts")
+    finally:
+        candidate.unlink(missing_ok=True)
+
+
 def install_application(
-    *, app: Path, launch_agent: Path, log_path: Path, python_version: str
+    *, app: Path, launch_agent: Path, log_path: Path, python_version: str, cli: str = "rust"
 ) -> None:
-    """Stage the app and plist before asking uv to replace the installed CLI."""
+    """Stage the app and plist before asking uv to replace the installed CLI.
+
+    With ``cli="rust"`` the Rust client is built first and then published as
+    ``ai-tts``; with ``cli="python"`` uv's Python ``ai-tts`` stays (rollback).
+    Either way launchd runs ``ai-tts-py daemon``.
+    """
     uv = shutil.which("uv")
     launchctl = shutil.which("launchctl")
     ps = shutil.which("ps")
@@ -241,11 +279,12 @@ def install_application(
             cwd=repository,
             check=True,
         )
+        rust_cli = _build_rust_cli(repository) if cli == "rust" else None
         tool_bin = subprocess.run(  # noqa: S603 - fixed uv inspection command
             [uv, "tool", "dir", "--bin"], check=True, capture_output=True, text=True
         ).stdout.strip()
         render_launch_agent(
-            executable=Path(tool_bin) / "ai-tts", output=candidate_agent, log_path=log_path
+            executable=Path(tool_bin) / "ai-tts-py", output=candidate_agent, log_path=log_path
         )
         # uv tool install ignores uv.lock; constrain it to the locked graph so
         # a new upstream release cannot send the resolver somewhere untested.
@@ -288,6 +327,8 @@ def install_application(
             ],
             check=True,
         )
+        if rust_cli is not None:
+            publish_rust_cli(rust_cli, Path(tool_bin))
         publish_app_bundle(candidate_app, app, force=True)
         activate_launch_agent(launchctl=launchctl, candidate=candidate_agent, output=launch_agent)
         # Retire a manually launched incumbent so launchd owns the new process.
@@ -314,12 +355,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--launch-agent", type=Path, required=True)
     parser.add_argument("--log-path", type=Path, required=True)
     parser.add_argument("--python-version", default="3.12")
+    parser.add_argument("--cli", choices=["rust", "python"], default="rust")
     args = parser.parse_args(argv)
     install_application(
         app=args.app.expanduser().resolve(),
         launch_agent=args.launch_agent.expanduser().resolve(),
         log_path=args.log_path.expanduser().absolute(),
         python_version=args.python_version,
+        cli=args.cli,
     )
     return 0
 
