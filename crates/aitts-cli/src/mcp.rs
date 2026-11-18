@@ -96,11 +96,14 @@ impl Session<'_> {
             "prompts/list" => Ok(json!({"prompts": []})),
             "resources/list" => Ok(json!({"resources": []})),
             "resources/templates/list" => Ok(json!({"resourceTemplates": []})),
-            "tools/call" => Err(json!({
-                "code": -32603,
-                "message": "Internal error",
-                "data": "tools/call is not available in this build",
-            })),
+            "tools/call" => {
+                let tool = params
+                    .and_then(|params| params.get("name"))
+                    .and_then(Value::as_str)
+                    .ok_or_else(invalid_params)?;
+                let catalog: Vec<Value> = serde_json::from_str(TOOLS).unwrap_or_default();
+                Ok(crate::mcp_tools::call(tool, &catalog, self.socket))
+            }
             other => Err(json!({"code": -32601, "message": "Method not found", "data": other})),
         }
     }
