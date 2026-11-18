@@ -146,7 +146,7 @@ def run_session(messages: list[Any]) -> dict[str, Any]:
 _RECORDED: list[dict[str, Any]] = json.loads(_SESSIONS.read_text(encoding="utf-8"))
 
 
-def _docstrings_cleaned(value: Any) -> Any:  # noqa: ANN401 - any parsed JSON value
+def _docstrings_cleaned(value: Any) -> Any:
     """Python 3.13 dedents docstrings and 3.12 does not; compare tool descriptions cleaned.
 
     The fixtures hold the 3.12 text, which `make install` and CI use.
