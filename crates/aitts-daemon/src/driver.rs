@@ -10,8 +10,9 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, Sender};
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use aitts_artifacts::spool::Spool;
 use aitts_engine::registry::Registry;
@@ -66,7 +67,16 @@ pub struct Synthesis {
     pub capacity_frames: usize,
     /// The audio output.
     pub sink: Box<dyn Sink>,
+    /// The first wait before resending a report the ledger did not record;
+    /// later waits double, up to [`MAX_RETRY_WAIT`].
+    pub retry_after: Duration,
+    /// Signalled each time the driver finds no work and waits: an observation
+    /// point for diagnostics and tests. A disconnected receiver is ignored.
+    pub on_idle: Option<Sender<()>>,
 }
+
+/// The longest wait between report retries.
+pub const MAX_RETRY_WAIT: Duration = Duration::from_secs(2);
 
 impl std::fmt::Debug for Synthesis {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
