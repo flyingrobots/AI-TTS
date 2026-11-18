@@ -15,6 +15,7 @@
 
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
+use aitts_domain::utterance::State;
 use aitts_store::queue::NewUtterance;
 
 use super::durable::{Durable, DurableError, Ledger};
@@ -33,6 +34,8 @@ pub enum Request {
     PlanPlayback,
     /// Read the clips in queue order.
     Clips,
+    /// Read the hold and the clip on the device.
+    Transport,
     /// Stop after answering every earlier request.
     Shutdown,
 }
@@ -48,6 +51,13 @@ pub enum Reply {
     Planned(Result<Option<Transfer>, DurableError>),
     /// The answer to [`Request::Clips`].
     Clips(Vec<Clip>),
+    /// The answer to [`Request::Transport`].
+    Transport {
+        /// Whether the playback hold is taken.
+        held: bool,
+        /// The clip on the device and its state.
+        current: Option<(String, State)>,
+    },
     /// The owner accepted [`Request::Shutdown`].
     Stopping,
 }
@@ -157,6 +167,20 @@ impl Inbox {
             Request::NextSynthesis => Reply::Synthesis(durable.next_synthesis()),
             Request::PlanPlayback => Reply::Planned(durable.plan_playback()),
             Request::Clips => Reply::Clips(durable.conductor().clips()),
+            Request::Transport => {
+                let conductor = durable.conductor();
+                let current = conductor.current().and_then(|id| {
+                    let clips = conductor.clips().into_iter();
+                    clips
+                        .filter(|clip| clip.id == id)
+                        .map(|clip| (clip.id, clip.state))
+                        .next()
+                });
+                Reply::Transport {
+                    held: conductor.held(),
+                    current,
+                }
+            }
             Request::Shutdown => {
                 // A caller that stopped waiting does not stop the owner.
                 let _unheard = reply.send(Reply::Stopping);
