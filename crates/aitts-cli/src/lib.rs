@@ -9,6 +9,7 @@
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
 mod grammar;
+pub mod mcp;
 mod payload;
 mod wait;
 
