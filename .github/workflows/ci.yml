@@ -120,6 +120,28 @@ jobs:
         run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain pip-licenses --version > dist/supply-chain/pip-licenses-version.txt
       - name: Cross-check retained evidence
         run: uv run --frozen --python 3.12 --all-extras --no-dev --group supply-chain python scripts/verify_supply_chain_evidence.py --audit dist/supply-chain/audit.json --sbom dist/supply-chain/sbom.cdx.json --licenses dist/supply-chain/licenses.raw.json --lock uv.lock --output-dir dist/supply-chain
+      # Rust advisories (issue #198): Cargo.lock is checked against the
+      # RustSec database by a pinned cargo-deny. The database is fetched once
+      # and its commit recorded, then the check runs offline against that
+      # revision so the result can be reproduced from the evidence.
+      - name: Install the pinned Rust advisory checker
+        run: cargo install --locked --version 0.21.0 cargo-deny
+      - name: Fetch locked crates and the advisory database
+        run: |
+          cargo fetch --locked
+          cargo deny fetch db
+      - name: Record Rust advisory tool and database versions
+        run: |
+          cargo deny --version > dist/supply-chain/cargo-deny-version.txt
+          for db in "$HOME"/.cargo/advisory-dbs/*/; do
+            git -C "$db" log -1 --format='%H %cI' > dist/supply-chain/rustsec-advisory-db.txt
+          done
+          test -s dist/supply-chain/rustsec-advisory-db.txt
+      - name: Audit every locked Rust dependency
+        # An explicit shell adds pipefail; without it the step's status is
+        # tee's and a failing audit would pass.
+        shell: bash
+        run: cargo deny --locked --offline check advisories 2>&1 | tee dist/supply-chain/cargo-deny-advisories.txt
       - name: Retain supply-chain evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

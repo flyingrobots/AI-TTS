@@ -77,6 +77,26 @@ with an executable path when the CI-pinned uv is not first on `PATH`.
 The supply-chain job runs this check before its existing audit. Regeneration
 does not upgrade already installed model runtimes or validate model inference.
 
+## Rust dependency advisories
+
+The supply-chain CI job checks `Cargo.lock` against the RustSec advisory
+database with cargo-deny 0.21.0 (`deny.toml`, advisories only). Any advisory,
+including unmaintained, unsound and yanked crates, fails the job. It fetches
+the database once, records its commit in `rustsec-advisory-db.txt` and the
+tool version in `cargo-deny-version.txt`, then checks offline against that
+revision; the report is retained as `cargo-deny-advisories.txt` in the
+supply-chain artifact. Reproduce locally with:
+
+```sh
+cargo install --locked --version 0.21.0 cargo-deny
+cargo fetch --locked
+cargo deny fetch db
+cargo deny --locked --offline check advisories
+```
+
+To accept an advisory, add it to `ignore` in `deny.toml` with a reason;
+upgrading the crate is preferred.
+
 ## Commits
 
 Conventional commit messages, with a `Closes #N` footer for the issue a
