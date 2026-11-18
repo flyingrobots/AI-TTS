@@ -9,6 +9,7 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::time::Instant;
 
@@ -26,6 +27,7 @@ use aitts_protocol::vocabulary::{Queue, State};
 use aitts_store::{Store, Utterance};
 
 use crate::conductor::mailbox::Mailbox;
+use crate::connection::Shared;
 use crate::projection::{self, View, count, number};
 use crate::runtime::EngineView;
 use crate::{cache_usage, settings_view, status};
@@ -78,6 +80,8 @@ pub(crate) struct ReadApi {
     pub(crate) conductor: Mailbox,
     /// Wakes the synthesis driver after a request, when one runs.
     pub(crate) wake: Option<SyncSender<()>>,
+    /// Subscribers, for events this thread originates (voice claims).
+    pub(crate) shared: Arc<Shared>,
 }
 
 /// Answer jobs until every sender is gone, then close the store.
@@ -129,7 +133,13 @@ impl ReadApi {
                     playback,
                     source,
                 };
-                submission::submit(&self.conductor, &self.store, &self.engine, &submission)?
+                submission::submit(
+                    &self.conductor,
+                    &self.store,
+                    &self.engine,
+                    &self.shared,
+                    &submission,
+                )?
             }
             Request::Requeue { id, priority } => {
                 submission::requeue(&self.conductor, &self.store, id, priority)?

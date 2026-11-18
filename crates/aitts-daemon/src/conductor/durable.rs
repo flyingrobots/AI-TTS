@@ -12,10 +12,13 @@ use core::fmt;
 
 use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
+use aitts_protocol::event::Event;
+use aitts_protocol::value::Nullable;
 use aitts_store::queue::NewUtterance;
 use aitts_store::{Store, Utterance};
 
 use super::{Clip, Command, Conductor, Outcome, Refusal, Transfer};
+use crate::projection::{self, number};
 
 /// One persisted difference.
 #[derive(Clone, Debug, PartialEq)]
@@ -67,6 +70,12 @@ pub trait Ledger {
     fn job(&mut self, _id: &str) -> Result<Option<StoredJob>, LedgerError> {
         Err(LedgerError::Unavailable)
     }
+
+    /// The time, in Unix seconds, the last record or admission stamped on its
+    /// rows. The default has no clock and reports zero.
+    fn stamp(&self) -> f64 {
+        0.0
+    }
 }
 
 /// A stored clip as synthesis needs it.
@@ -117,12 +126,13 @@ pub enum DurableError {
 #[derive(Debug)]
 pub struct StoreLedger<'a> {
     store: &'a Store,
+    stamp: f64,
 }
 
 impl<'a> StoreLedger<'a> {
     /// Record into `store`.
     pub const fn new(store: &'a Store) -> Self {
-        Self { store }
+        Self { store, stamp: 0.0 }
     }
 }
 
@@ -137,10 +147,17 @@ impl Ledger for StoreLedger<'_> {
             }
         }
         // One transaction: a crash between rows leaves none of them written.
-        self.store
+        let stamp = self
+            .store
             .queue()
             .save(&transitions, &keys)
-            .map_err(LedgerError::Store)
+            .map_err(LedgerError::Store)?;
+        self.stamp = stamp;
+        Ok(())
+    }
+
+    fn stamp(&self) -> f64 {
+        self.stamp
     }
 
     fn job(&mut self, id: &str) -> Result<Option<StoredJob>, LedgerError> {
@@ -160,6 +177,7 @@ impl Ledger for StoreLedger<'_> {
 
     fn admit(&mut self, new: &NewUtterance) -> Result<f64, LedgerError> {
         let row = self.store.queue().submit(new).map_err(LedgerError::Store)?;
+        self.stamp = row.state_changed_at;
         Ok(row.order_key)
     }
 
@@ -194,6 +212,27 @@ fn clip(row: Utterance) -> Clip {
     }
 }
 
+/// The state transitions from `before` to `after`, in the order Python announces
+/// them: the speaker leaving the device first, then a preempted speaker leaving
+/// the stack, then the rest in queue order.
+fn transitions(before: &Conductor, after: &Conductor) -> Vec<(String, State, State)> {
+    let mut found: Vec<(String, State, State)> = after
+        .clips()
+        .into_iter()
+        .filter_map(|new| {
+            let old = before.clips.iter().find(|old| old.id == new.id)?;
+            (old.state != new.state).then_some((new.id, old.state, new.state))
+        })
+        .collect();
+    // A stable sort keeps queue order within each group.
+    found.sort_by_key(|(_, from, _)| match from {
+        State::Playing => 0,
+        State::Paused => 1,
+        _ => 2,
+    });
+    found
+}
+
 /// The differences from `before` to `after` for clips both contain.
 fn changes(before: &Conductor, after: &Conductor) -> Vec<Change> {
     let mut found = Vec::new();
@@ -222,6 +261,7 @@ fn changes(before: &Conductor, after: &Conductor) -> Vec<Change> {
 pub struct Durable<L> {
     conductor: Conductor,
     ledger: L,
+    events: Vec<Event>,
 }
 
 impl<L: Ledger> Durable<L> {
@@ -234,7 +274,14 @@ impl<L: Ledger> Durable<L> {
         Ok(Self {
             conductor: Conductor::restored(clips),
             ledger,
+            events: Vec::new(),
         })
+    }
+
+    /// Take the events for every change recorded since the last call, in the
+    /// order a subscriber should see them.
+    pub fn take_events(&mut self) -> Vec<Event> {
+        std::mem::take(&mut self.events)
     }
 
     /// The current state.
@@ -252,6 +299,18 @@ impl<L: Ledger> Durable<L> {
         let found = changes(&self.conductor, &next);
         if !found.is_empty() {
             self.ledger.record(&found).map_err(DurableError::Ledger)?;
+            let at = number(self.ledger.stamp());
+            self.events
+                .extend(
+                    transitions(&self.conductor, &next)
+                        .into_iter()
+                        .map(|(id, from, to)| Event::StateChanged {
+                            id,
+                            from: Nullable::Value(projection::state(from)),
+                            to: projection::state(to),
+                            at: at.clone(),
+                        }),
+                );
         }
         self.conductor = next;
         Ok(value)
@@ -268,7 +327,8 @@ impl<L: Ledger> Durable<L> {
             return Err(DurableError::Refused(Refusal::Duplicate(new.id.clone())));
         }
         let order = self.ledger.admit(new).map_err(DurableError::Ledger)?;
-        self.conductor
+        let outcome = self
+            .conductor
             .apply(Command::Admit {
                 id: new.id.clone(),
                 order,
@@ -279,7 +339,15 @@ impl<L: Ledger> Durable<L> {
                     Playback::SynthesizeOnly
                 },
             })
-            .map_err(DurableError::Refused)
+            .map_err(DurableError::Refused)?;
+        // A new item has no transition yet, so it is announced as admitted.
+        self.events.push(Event::StateChanged {
+            id: new.id.clone(),
+            from: Nullable::Null,
+            to: projection::state(State::Queued),
+            at: number(self.ledger.stamp()),
+        });
+        Ok(outcome)
     }
 
     /// Read what synthesis needs for clip `id` through the ledger.
@@ -295,7 +363,15 @@ impl<L: Ledger> Durable<L> {
     /// # Errors
     /// Returns [`DurableError`]; state is then unchanged.
     pub fn apply(&mut self, command: Command) -> Result<Outcome, DurableError> {
-        self.commit(|conductor| conductor.apply(command))
+        let reordered = match &command {
+            Command::Reorder(ids) => Some(ids.clone()),
+            _ => None,
+        };
+        let outcome = self.commit(|conductor| conductor.apply(command))?;
+        if let Some(ids) = reordered {
+            self.events.push(Event::PlanReordered { ids });
+        }
+        Ok(outcome)
     }
 
     /// [`Conductor::next_synthesis`], durably.
