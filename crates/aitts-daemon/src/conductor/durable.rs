@@ -12,7 +12,6 @@ use core::fmt;
 
 use aitts_domain::plan::{Playback, Priority};
 use aitts_domain::utterance::State;
-use aitts_store::queue::Fields;
 use aitts_store::{Store, Utterance};
 
 use super::{Clip, Command, Conductor, Outcome, Refusal, Transfer};
@@ -95,19 +94,19 @@ impl<'a> StoreLedger<'a> {
 
 impl Ledger for StoreLedger<'_> {
     fn record(&mut self, changes: &[Change]) -> Result<(), LedgerError> {
-        let queue = self.store.queue();
+        let mut transitions = Vec::new();
         let mut keys = Vec::new();
         for change in changes {
             match change {
-                Change::State { id, to } => {
-                    queue
-                        .transition(id, *to, &Fields::default())
-                        .map_err(LedgerError::Store)?;
-                }
+                Change::State { id, to } => transitions.push((id.clone(), *to)),
                 Change::Order { id, order } => keys.push((id.clone(), *order)),
             }
         }
-        queue.reorder(&keys).map_err(LedgerError::Store)
+        // One transaction: a crash between rows leaves none of them written.
+        self.store
+            .queue()
+            .save(&transitions, &keys)
+            .map_err(LedgerError::Store)
     }
 
     fn recover(&mut self) -> Result<Vec<Clip>, LedgerError> {

@@ -329,7 +329,13 @@ fn field_updates(fields: &Fields) -> (String, Vec<Value>) {
     (sets, values)
 }
 
-fn transition(db: &Connection, now: f64, id: &str, to: State, fields: &Fields) -> Result<()> {
+pub(crate) fn transition(
+    db: &Connection,
+    now: f64,
+    id: &str,
+    to: State,
+    fields: &Fields,
+) -> Result<()> {
     let current = get(db, id)?.ok_or(Error::NotFound)?;
     current.state.transition(to)?;
     let (sets, mut values) = field_updates(fields);

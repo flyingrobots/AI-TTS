@@ -157,8 +157,9 @@ fn a_crash_between_the_row_writes_of_one_save_leaves_all_or_nothing() {
             "crash after {allowed} row writes, step {index}"
         );
     }
-    // Witness count: one crash per row write the workload makes (2+1+1+2+1+1+2+3).
-    assert_eq!(crashes, 13, "row-write crashes injected");
+    // Witness count: one crash per row write the workload makes
+    // (synthesis 1, ready 1, start 1, reorder 2, synthesis 1, ready 1, preempt 2, clear 3).
+    assert_eq!(crashes, 12, "row-write crashes injected");
 }
 
 #[test]

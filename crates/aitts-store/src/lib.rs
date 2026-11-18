@@ -11,11 +11,11 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs, clippy::print_stdout, clippy::print_stderr, clippy::exit)]
 
+mod batch;
 mod codec;
 mod counts;
 pub mod history;
 pub mod queue;
-mod reorder;
 mod schema;
 pub mod settings;
 pub mod voices;
