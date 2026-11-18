@@ -25,6 +25,8 @@ use aitts_protocol::value::{Nullable, Presence, Success};
 use aitts_protocol::vocabulary::{Queue, State};
 use aitts_store::{Store, Utterance};
 
+use crate::conductor::mailbox::Mailbox;
+use crate::control;
 use crate::projection::{self, View, count, number};
 use crate::runtime::EngineView;
 use crate::{cache_usage, settings_view, status};
@@ -72,6 +74,8 @@ pub(crate) struct ReadApi {
     pub(crate) engine: EngineView,
     pub(crate) cache_dir: PathBuf,
     pub(crate) started: Instant,
+    /// The conductor owner; every queue and transport change goes through it.
+    pub(crate) conductor: Mailbox,
 }
 
 /// Answer jobs until every sender is gone, then close the store.
@@ -89,6 +93,9 @@ impl ReadApi {
     }
 
     fn dispatch(&self, request: &Request) -> Result<Reply, Refusal> {
+        if let Some(answer) = control::answer(&self.conductor, &self.store, request) {
+            return answer;
+        }
         Ok(match request {
             Request::Status {} => Reply::Status(Box::new(status::reply(self.status()?))),
             Request::Get { id } => Reply::Get(self.get(id)?),

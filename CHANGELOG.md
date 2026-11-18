@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Rust conductor admits a submission at the order key the store assigned, so a submission after a restart is placed after history, as the store places it (known issue from PR #203).
 - CI now fails when `Cargo.lock` pins a Rust crate with a RustSec advisory (issue #198). The supply-chain job runs a pinned cargo-deny 0.21.0 advisories check offline against a fetched database whose commit it records in the retained evidence. Previously only the Python lock was audited, so `zip` 2.6.1 reached main with critical advisories.
 - The Rust `aitts-daemon` joins a connection to its subscribers before writing the `subscribe` acknowledgement, under the same writer lock, so an event broadcast after a client reads its acknowledgement is never lost (regression from #143 / PR #184). Linux CI hung in `a_slow_subscriber_does_not_block_other_subscribers` when the first events were dropped.
 
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The Rust `ai-ttsd` answers `pause`, `resume`, `cancel`, `clear` (queue) and `reorder` through the conductor (issue #145). At start it recovers the queue with playback held, on its own store connection. `submit` is not wired yet.
 - `aitts-daemon` gains the synthesis scheduler (issue #145, part 4): `synthesis::synthesize` streams a clip from its registered engine into a spool and reports it to the conductor. Audio for a clip cancelled during synthesis is discarded and its file removed. A worker failure mid-stream marks the clip failed and leaves a spool that returns only the written frames and the error. A failed worker restarts before the next clip (`Engine::recover`). If the ledger does not record a report, the audio is kept for `retry`. If the conductor stops first, unreported audio is removed. `aitts-artifacts`: `Spool::create` refuses zero capacity without creating a file, and a reader drains the frames written before a producer error.
 - `ai-tts mcp` answers `tools/call` for the 6 MCP tools with arguments as well (part of #139): `enqueue_speech`, `requeue_speech`, `list_speech_history`, `set_captions_enabled`, `assign_speech_voice` and `cancel_queued_speech`. It checks the arguments as the Python server does and sends nothing to the daemon for a refused call. The installed `ai-tts-mcp` is still the Python server.
 - `ai-tts mcp` answers `tools/call` for the 15 MCP tools without arguments (part of #139), with the Python server's results and error texts, checked against calls recorded from it (`tests/fixtures/mcp_tool_calls.json`). The tools with arguments follow; the installed `ai-tts-mcp` is still the Python server.
