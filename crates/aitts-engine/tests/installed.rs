@@ -130,7 +130,9 @@ fn a_runtime_for_another_worker_protocol_is_not_used() {
 fn a_directory_outside_the_runtimes_folder_is_not_used() {
     let home = tempfile::tempdir().unwrap();
     let mut escaping = manifest();
-    escaping["directory"] = "kokoro-0123/../../elsewhere".into();
+    // It names the real runtime through a parent step, so only the name
+    // check refuses it.
+    escaping["directory"] = "kokoro-0123/../kokoro-0123".into();
     install(home.path(), &escaping);
     assert_eq!(runtime(home.path(), "kokoro"), None);
 }
